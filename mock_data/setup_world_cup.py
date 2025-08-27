@@ -66,26 +66,81 @@ def create_groups(teams: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]
     return groups
 
 def generate_group_matches(groups: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
-    """יוצר את כל המשחקים בשלב הבתים"""
+    """יוצר את כל המשחקים בשלב הבתים במחזורים"""
     print("יוצר משחקי בתים...")
     
     matches = []
     base_date = datetime(2026, 6, 15, 20, 0)  # 15 ביוני 2026, 20:00
     
     for group_name, teams in groups.items():
-        # יוצר את כל המשחקים האפשריים בין הקבוצות בבית
-        for i in range(len(teams)):
-            for j in range(i + 1, len(teams)):
-                match = {
-                    "home_team_id": teams[i]['id'],
-                    "away_team_id": teams[j]['id'],
-                    "group": group_name,
-                    "date": base_date.isoformat()
-                }
-                matches.append(match)
-                base_date += timedelta(days=1)  # משחק כל יום
+        print(f"\nבית {group_name}:")
+        
+        # עם 4 קבוצות, יש 6 משחקים ב-3 מחזורים
+        # מחזור 1: משחקים 1-2
+        # מחזור 2: משחקים 3-4  
+        # מחזור 3: משחקים 5-6
+        
+        # מחזור 1: ברזיל-ארגנטינה, צרפת-ספרד
+        match1 = {
+            "home_team_id": teams[0]['id'],
+            "away_team_id": teams[1]['id'],
+            "group": group_name,
+            "date": base_date.isoformat()
+        }
+        matches.append(match1)
+        print(f"  מחזור 1: {teams[0]['name']} vs {teams[1]['name']}")
+        
+        match2 = {
+            "home_team_id": teams[2]['id'],
+            "away_team_id": teams[3]['id'],
+            "group": group_name,
+            "date": (base_date + timedelta(days=1)).isoformat()
+        }
+        matches.append(match2)
+        print(f"  מחזור 1: {teams[2]['name']} vs {teams[3]['name']}")
+        
+        # מחזור 2: ברזיל-צרפת, ארגנטינה-ספרד
+        match3 = {
+            "home_team_id": teams[0]['id'],
+            "away_team_id": teams[2]['id'],
+            "group": group_name,
+            "date": (base_date + timedelta(days=3)).isoformat()
+        }
+        matches.append(match3)
+        print(f"  מחזור 2: {teams[0]['name']} vs {teams[2]['name']}")
+        
+        match4 = {
+            "home_team_id": teams[1]['id'],
+            "away_team_id": teams[3]['id'],
+            "group": group_name,
+            "date": (base_date + timedelta(days=4)).isoformat()
+        }
+        matches.append(match4)
+        print(f"  מחזור 2: {teams[1]['name']} vs {teams[3]['name']}")
+        
+        # מחזור 3: ברזיל-ספרד, ארגנטינה-צרפת
+        match5 = {
+            "home_team_id": teams[0]['id'],
+            "away_team_id": teams[3]['id'],
+            "group": group_name,
+            "date": (base_date + timedelta(days=6)).isoformat()
+        }
+        matches.append(match5)
+        print(f"  מחזור 3: {teams[0]['name']} vs {teams[3]['name']}")
+        
+        match6 = {
+            "home_team_id": teams[1]['id'],
+            "away_team_id": teams[2]['id'],
+            "group": group_name,
+            "date": (base_date + timedelta(days=7)).isoformat()
+        }
+        matches.append(match6)
+        print(f"  מחזור 3: {teams[1]['name']} vs {teams[2]['name']}")
+        
+        # מעביר לתאריך הבא לבית הבא
+        base_date += timedelta(days=10)
     
-    print(f"נוצרו {len(matches)} משחקי בתים")
+    print(f"\nנוצרו {len(matches)} משחקי בתים")
     return matches
 
 def add_matches_to_database(matches: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
