@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Dict, Any
+from typing import Dict, Any, List
 from pydantic import BaseModel
 from datetime import datetime
 
 from ..services.match_service import MatchService
+from ..services.team_service import TeamService
 from ..database import get_db
 
 router = APIRouter()
@@ -22,6 +23,55 @@ class KnockoutMatchRequest(BaseModel):
     home_team_source: str
     away_team_source: str
     date: datetime
+
+class TeamRequest(BaseModel):
+    name: str
+    country_code: str
+    flag_url: str = None
+
+class MultipleTeamsRequest(BaseModel):
+    teams: List[TeamRequest]
+
+@router.post("/admin/teams", response_model=Dict[str, Any])
+def create_team(team_request: TeamRequest, db: Session = Depends(get_db)):
+    """
+    יוצר קבוצה חדשה (admin only)
+    """
+    result = TeamService.create_team(
+        db, 
+        team_request.name, 
+        team_request.country_code, 
+        team_request.flag_url
+    )
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@router.post("/admin/teams/batch", response_model=Dict[str, Any])
+def create_multiple_teams(teams_request: MultipleTeamsRequest, db: Session = Depends(get_db)):
+    """
+    יוצר מספר קבוצות בבת אחת (admin only)
+    """
+    teams_data = [
+        {
+            "name": team.name,
+            "country_code": team.country_code,
+            "flag_url": team.flag_url
+        }
+        for team in teams_request.teams
+    ]
+    
+    result = TeamService.create_multiple_teams(db, teams_data)
+    return result
+
+@router.get("/admin/teams", response_model=List[Dict[str, Any]])
+def get_all_teams(db: Session = Depends(get_db)):
+    """
+    מביא את כל הקבוצות (admin only)
+    """
+    return TeamService.get_all_teams(db)
 
 @router.post("/admin/matches/group-stage", response_model=Dict[str, Any])
 def create_group_stage_match(match_request: GroupStageMatchRequest, db: Session = Depends(get_db)):
