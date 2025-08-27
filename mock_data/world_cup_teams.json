@@ -1,0 +1,279 @@
+{
+  "teams": [
+    {
+      "name": "Argentina",
+      "country_code": "ARG",
+      "flag_url": "https://flagcdn.com/ar.svg"
+    },
+    {
+      "name": "Brazil",
+      "country_code": "BRA",
+      "flag_url": "https://flagcdn.com/br.svg"
+    },
+    {
+      "name": "France",
+      "country_code": "FRA",
+      "flag_url": "https://flagcdn.com/fr.svg"
+    },
+    {
+      "name": "Spain",
+      "country_code": "ESP",
+      "flag_url": "https://flagcdn.com/es.svg"
+    },
+    {
+      "name": "England",
+      "country_code": "ENG",
+      "flag_url": "https://flagcdn.com/gb-eng.svg"
+    },
+    {
+      "name": "Germany",
+      "country_code": "GER",
+      "flag_url": "https://flagcdn.com/de.svg"
+    },
+    {
+      "name": "Belgium",
+      "country_code": "BEL",
+      "flag_url": "https://flagcdn.com/be.svg"
+    },
+    {
+      "name": "Italy",
+      "country_code": "ITA",
+      "flag_url": "https://flagcdn.com/it.svg"
+    },
+    {
+      "name": "Portugal",
+      "country_code": "POR",
+      "flag_url": "https://flagcdn.com/pt.svg"
+    },
+    {
+      "name": "Netherlands",
+      "country_code": "NED",
+      "flag_url": "https://flagcdn.com/nl.svg"
+    },
+    {
+      "name": "Colombia",
+      "country_code": "COL",
+      "flag_url": "https://flagcdn.com/co.svg"
+    },
+    {
+      "name": "Uruguay",
+      "country_code": "URU",
+      "flag_url": "https://flagcdn.com/uy.svg"
+    },
+    {
+      "name": "United States",
+      "country_code": "USA",
+      "flag_url": "https://flagcdn.com/us.svg"
+    },
+    {
+      "name": "Mexico",
+      "country_code": "MEX",
+      "flag_url": "https://flagcdn.com/mx.svg"
+    },
+    {
+      "name": "Canada",
+      "country_code": "CAN",
+      "flag_url": "https://flagcdn.com/ca.svg"
+    },
+    {
+      "name": "Chile",
+      "country_code": "CHI",
+      "flag_url": "https://flagcdn.com/cl.svg"
+    },
+    {
+      "name": "Peru",
+      "country_code": "PER",
+      "flag_url": "https://flagcdn.com/pe.svg"
+    },
+    {
+      "name": "Ecuador",
+      "country_code": "ECU",
+      "flag_url": "https://flagcdn.com/ec.svg"
+    },
+    {
+      "name": "Venezuela",
+      "country_code": "VEN",
+      "flag_url": "https://flagcdn.com/ve.svg"
+    },
+    {
+      "name": "Paraguay",
+      "country_code": "PAR",
+      "flag_url": "https://flagcdn.com/py.svg"
+    },
+    {
+      "name": "Bolivia",
+      "country_code": "BOL",
+      "flag_url": "https://flagcdn.com/bo.svg"
+    },
+    {
+      "name": "Croatia",
+      "country_code": "CRO",
+      "flag_url": "https://flagcdn.com/hr.svg"
+    },
+    {
+      "name": "Switzerland",
+      "country_code": "SUI",
+      "flag_url": "https://flagcdn.com/ch.svg"
+    },
+    {
+      "name": "Denmark",
+      "country_code": "DEN",
+      "flag_url": "https://flagcdn.com/dk.svg"
+    },
+    {
+      "name": "Sweden",
+      "country_code": "SWE",
+      "flag_url": "https://flagcdn.com/se.svg"
+    },
+    {
+      "name": "Norway",
+      "country_code": "NOR",
+      "flag_url": "https://flagcdn.com/no.svg"
+    },
+    {
+      "name": "Poland",
+      "country_code": "POL",
+      "flag_url": "https://flagcdn.com/pl.svg"
+    },
+    {
+      "name": "Ukraine",
+      "country_code": "UKR",
+      "flag_url": "https://flagcdn.com/ua.svg"
+    },
+    {
+      "name": "Serbia",
+      "country_code": "SRB",
+      "flag_url": "https://flagcdn.com/rs.svg"
+    },
+    {
+      "name": "Hungary",
+      "country_code": "HUN",
+      "flag_url": "https://flagcdn.com/hu.svg"
+    },
+    {
+      "name": "Austria",
+      "country_code": "AUT",
+      "flag_url": "https://flagcdn.com/at.svg"
+    },
+    {
+      "name": "Czech Republic",
+      "country_code": "CZE",
+      "flag_url": "https://flagcdn.com/cz.svg"
+    },
+    {
+      "name": "Scotland",
+      "country_code": "SCO",
+      "flag_url": "https://flagcdn.com/gb-sct.svg"
+    },
+    {
+      "name": "Wales",
+      "country_code": "WAL",
+      "flag_url": "https://flagcdn.com/gb-wls.svg"
+    },
+    {
+      "name": "Ireland",
+      "country_code": "IRL",
+      "flag_url": "https://flagcdn.com/ie.svg"
+    },
+    {
+      "name": "Greece",
+      "country_code": "GRE",
+      "flag_url": "https://flagcdn.com/gr.svg"
+    },
+    {
+      "name": "Turkey",
+      "country_code": "TUR",
+      "flag_url": "https://flagcdn.com/tr.svg"
+    },
+    {
+      "name": "Romania",
+      "country_code": "ROU",
+      "flag_url": "https://flagcdn.com/ro.svg"
+    },
+    {
+      "name": "Bulgaria",
+      "country_code": "BGR",
+      "flag_url": "https://flagcdn.com/bg.svg"
+    },
+    {
+      "name": "Slovakia",
+      "country_code": "SVK",
+      "flag_url": "https://flagcdn.com/sk.svg"
+    },
+    {
+      "name": "Slovenia",
+      "country_code": "SVN",
+      "flag_url": "https://flagcdn.com/si.svg"
+    },
+    {
+      "name": "Bosnia and Herzegovina",
+      "country_code": "BIH",
+      "flag_url": "https://flagcdn.com/ba.svg"
+    },
+    {
+      "name": "Montenegro",
+      "country_code": "MNE",
+      "flag_url": "https://flagcdn.com/me.svg"
+    },
+    {
+      "name": "North Macedonia",
+      "country_code": "MKD",
+      "flag_url": "https://flagcdn.com/mk.svg"
+    },
+    {
+      "name": "Albania",
+      "country_code": "ALB",
+      "flag_url": "https://flagcdn.com/al.svg"
+    },
+    {
+      "name": "Kosovo",
+      "country_code": "KOS",
+      "flag_url": "https://flagcdn.com/xk.svg"
+    },
+    {
+      "name": "Lithuania",
+      "country_code": "LTU",
+      "flag_url": "https://flagcdn.com/lt.svg"
+    },
+    {
+      "name": "Latvia",
+      "country_code": "LVA",
+      "flag_url": "https://flagcdn.com/lv.svg"
+    },
+    {
+      "name": "Estonia",
+      "country_code": "EST",
+      "flag_url": "https://flagcdn.com/ee.svg"
+    },
+    {
+      "name": "Finland",
+      "country_code": "FIN",
+      "flag_url": "https://flagcdn.com/fi.svg"
+    },
+    {
+      "name": "Iceland",
+      "country_code": "ISL",
+      "flag_url": "https://flagcdn.com/is.svg"
+    },
+    {
+      "name": "Faroe Islands",
+      "country_code": "FRO",
+      "flag_url": "https://flagcdn.com/fo.svg"
+    },
+    {
+      "name": "Luxembourg",
+      "country_code": "LUX",
+      "flag_url": "https://flagcdn.com/lu.svg"
+    },
+    {
+      "name": "Malta",
+      "country_code": "MLT",
+      "flag_url": "https://flagcdn.com/mt.svg"
+    },
+    {
+      "name": "Cyprus",
+      "country_code": "CYP",
+      "flag_url": "https://flagcdn.com/cy.svg"
+    }
+  ]
+}
