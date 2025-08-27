@@ -20,8 +20,15 @@ const HomePage: React.FC = () => {
           </button>
           
           <button
-            onClick={() => alert('בקרוב...')}
+            onClick={() => navigate('/group-predictions')}
             className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200"
+          >
+            ניחושי בתים
+          </button>
+          
+          <button
+            onClick={() => alert('בקרוב...')}
+            className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200"
           >
             טבלת דירוג
           </button>
