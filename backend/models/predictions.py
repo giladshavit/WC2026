@@ -21,12 +21,14 @@ class GroupStagePrediction(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, nullable=False)
-    stage = Column(String, default="group")
-    group = Column(String, nullable=False)  # A, B, C, D...
-    positions = Column(String, nullable=False)  # JSON string of team IDs positions
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
+    positions = Column(String, nullable=False)  # JSON string of team IDs positions: [team_id_1, team_id_2, team_id_3, team_id_4]
     points = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    group = relationship("Group")
 
 class ThirdPlacePrediction(Base):
     __tablename__ = "third_place_predictions"

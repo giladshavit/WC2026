@@ -4,6 +4,7 @@ from typing import Dict, Any, List
 from pydantic import BaseModel
 
 from services.prediction_service import PredictionService
+from services.group_service import GroupService
 from database import get_db
 
 router = APIRouter()
@@ -16,6 +17,54 @@ class MatchPredictionRequest(BaseModel):
 class BatchPredictionRequest(BaseModel):
     predictions: List[Dict[str, Any]]
     user_id: int
+
+class GroupPredictionRequest(BaseModel):
+    group_id: int
+    positions: List[int]  # רשימה של 4 team IDs בסדר המקומות
+    user_id: int
+
+@router.get("/groups", response_model=List[Dict[str, Any]])
+def get_groups_with_teams(db: Session = Depends(get_db)):
+    """
+    מביא את כל הבתים עם הקבוצות שלהם
+    """
+    return GroupService.get_all_groups_with_teams(db)
+
+@router.get("/groups/{group_name}", response_model=Dict[str, Any])
+def get_group_with_teams(group_name: str, db: Session = Depends(get_db)):
+    """
+    מביא בית ספציפי עם הקבוצות שלו
+    """
+    result = GroupService.get_group_with_teams(db, group_name)
+    
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    
+    return result
+
+@router.post("/predictions/group-stage", response_model=Dict[str, Any])
+def create_or_update_group_prediction(
+    group_prediction: GroupPredictionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    יצירה או עדכון ניחוש לשלב הבתים
+    """
+    result = PredictionService.create_or_update_group_prediction(
+        db, group_prediction.user_id, group_prediction.group_id, group_prediction.positions
+    )
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@router.get("/users/{user_id}/group-predictions", response_model=List[Dict[str, Any]])
+def get_user_group_predictions(user_id: int, db: Session = Depends(get_db)):
+    """
+    מביא את כל ניחושי הבתים של המשתמש
+    """
+    return PredictionService.get_group_predictions(db, user_id)
 
 @router.get("/users/{user_id}/predictions", response_model=Dict[str, Any])
 def get_user_predictions(user_id: int, db: Session = Depends(get_db)):

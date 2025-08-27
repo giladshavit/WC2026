@@ -6,6 +6,7 @@ from datetime import datetime
 
 from services.match_service import MatchService
 from services.team_service import TeamService
+from services.group_service import GroupService
 from database import get_db
 
 router = APIRouter()
@@ -109,3 +110,52 @@ def create_knockout_match(match_request: KnockoutMatchRequest, db: Session = Dep
         raise HTTPException(status_code=400, detail=result["error"])
     
     return result
+
+# Group management endpoints
+@router.post("/admin/groups", response_model=Dict[str, Any])
+def create_group(group_name: str, db: Session = Depends(get_db)):
+    """
+    יוצר בית חדש (admin only)
+    """
+    result = GroupService.create_group(db, group_name)
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@router.get("/admin/groups", response_model=List[Dict[str, Any]])
+def get_all_groups(db: Session = Depends(get_db)):
+    """
+    מביא את כל הבתים (admin only)
+    """
+    return GroupService.get_all_groups(db)
+
+@router.post("/admin/groups/{group_id}/results", response_model=Dict[str, Any])
+def create_group_result(
+    group_id: int,
+    team_id: int,
+    position: int,
+    points: int = 0,
+    goals_for: int = 0,
+    goals_against: int = 0,
+    db: Session = Depends(get_db)
+):
+    """
+    יוצר תוצאה לבית (admin only)
+    """
+    result = GroupService.create_group_result(
+        db, group_id, team_id, position, points, goals_for, goals_against
+    )
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@router.get("/admin/groups/{group_id}/results", response_model=List[Dict[str, Any]])
+def get_group_results(group_id: int, db: Session = Depends(get_db)):
+    """
+    מביא את תוצאות הבית (admin only)
+    """
+    return GroupService.get_group_results(db, group_id)

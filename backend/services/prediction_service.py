@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from models.user import User
 from models.matches import GroupStageMatch, KnockoutMatch
 from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
+from models.groups import Group
+import json
 
 class PredictionService:
     
@@ -90,7 +92,7 @@ class PredictionService:
             "group_predictions": [
                 {
                     "id": pred.id,
-                    "group": pred.group,
+                    "group_id": pred.group_id,
                     "positions": pred.positions,  # JSON string
                     "points": pred.points,
                     "created_at": pred.created_at.isoformat(),
@@ -193,3 +195,78 @@ class PredictionService:
             "total_updated": len([r for r in results if r.get("updated")]),
             "total_created": len([r for r in results if not r.get("updated")])
         }
+
+    @staticmethod
+    def create_or_update_group_prediction(db: Session, user_id: int, group_id: int, positions: List[int]) -> Dict[str, Any]:
+        """
+        יצירה או עדכון ניחוש לבית
+        positions: רשימה של 4 team IDs בסדר המקומות (1, 2, 3, 4)
+        """
+        # בודק אם יש כבר ניחוש לבית הזה
+        existing_prediction = db.query(GroupStagePrediction).filter(
+            GroupStagePrediction.user_id == user_id,
+            GroupStagePrediction.group_id == group_id
+        ).first()
+        
+        # ממיר ל-JSON string
+        positions_json = json.dumps(positions)
+        
+        if existing_prediction:
+            # מעדכן ניחוש קיים
+            existing_prediction.positions = positions_json
+            db.commit()
+            
+            return {
+                "id": existing_prediction.id,
+                "group_id": group_id,
+                "positions": positions,
+                "updated": True
+            }
+        else:
+            # יוצר ניחוש חדש
+            new_prediction = GroupStagePrediction(
+                user_id=user_id,
+                group_id=group_id,
+                positions=positions_json
+            )
+            db.add(new_prediction)
+            db.commit()
+            db.refresh(new_prediction)
+            
+            return {
+                "id": new_prediction.id,
+                "group_id": group_id,
+                "positions": positions,
+                "updated": False
+            }
+
+    @staticmethod
+    def get_group_predictions(db: Session, user_id: int) -> List[Dict[str, Any]]:
+        """
+        מביא את כל ניחושי הבתים של המשתמש
+        """
+        predictions = db.query(GroupStagePrediction).filter(
+            GroupStagePrediction.user_id == user_id
+        ).all()
+        
+        result = []
+        for pred in predictions:
+            # מביא את פרטי הבית
+            group = db.query(Group).filter(Group.id == pred.group_id).first()
+            
+            # ממיר מ-JSON string חזרה לרשימה
+            positions = json.loads(pred.positions)
+            
+            result.append({
+                "id": pred.id,
+                "group": {
+                    "id": group.id,
+                    "name": group.name
+                },
+                "positions": positions,  # רשימה של team IDs
+                "points": pred.points,
+                "created_at": pred.created_at.isoformat(),
+                "updated_at": pred.updated_at.isoformat()
+            })
+        
+        return result
