@@ -4,9 +4,9 @@ from typing import Dict, Any, List
 from pydantic import BaseModel
 from datetime import datetime
 
-from ..services.match_service import MatchService
-from ..services.team_service import TeamService
-from ..database import get_db
+from services.match_service import MatchService
+from services.team_service import TeamService
+from database import get_db
 
 router = APIRouter()
 

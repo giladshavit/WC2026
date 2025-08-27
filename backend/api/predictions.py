@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 from pydantic import BaseModel
 
-from ..services.prediction_service import PredictionService
-from ..database import get_db
+from services.prediction_service import PredictionService
+from database import get_db
 
 router = APIRouter()
 
@@ -15,6 +15,7 @@ class MatchPredictionRequest(BaseModel):
 
 class BatchPredictionRequest(BaseModel):
     predictions: List[Dict[str, Any]]
+    user_id: int
 
 @router.get("/users/{user_id}/predictions", response_model=Dict[str, Any])
 def get_user_predictions(user_id: int, db: Session = Depends(get_db)):
@@ -50,14 +51,13 @@ def create_or_update_match_prediction(
 @router.post("/predictions/batch", response_model=Dict[str, Any])
 def create_or_update_batch_predictions(
     batch_request: BatchPredictionRequest,
-    user_id: int,  # TODO: זה צריך לבוא מ-authentication
     db: Session = Depends(get_db)
 ):
     """
     יצירה או עדכון ניחושים מרובים
     """
     result = PredictionService.create_or_update_batch_predictions(
-        db, user_id, batch_request.predictions
+        db, batch_request.user_id, batch_request.predictions
     )
     
     if "error" in result:

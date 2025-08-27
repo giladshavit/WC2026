@@ -9,6 +9,7 @@ class Match(Base):
     __tablename__ = "matches"
     
     id = Column(Integer, primary_key=True, index=True)
+    type = Column(String, nullable=False)
     status = Column(String, default="scheduled")  # scheduled, live, finished
     date = Column(DateTime, nullable=False)
     
@@ -21,6 +22,7 @@ class Prediction(Base):
     __tablename__ = "predictions"
     
     id = Column(Integer, primary_key=True, index=True)
+    type = Column(String, nullable=False)
     user_id = Column(Integer, nullable=False)
     points = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)

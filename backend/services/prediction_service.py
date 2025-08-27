@@ -1,8 +1,8 @@
 from typing import Dict, List, Any
 from sqlalchemy.orm import Session
-from ..models.user import User
-from ..models.matches import GroupStageMatch, KnockoutMatch
-from ..models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
+from models.user import User
+from models.matches import GroupStageMatch, KnockoutMatch
+from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
 
 class PredictionService:
     

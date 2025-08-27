@@ -1,9 +1,9 @@
-from sqlalchemy import Column, String, Integer, ForeignKey
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-from .base import Match
-from .team import Team
+from models.team import Team
+from models.base import Base
 
-class GroupStageMatch(Match):
+class GroupStageMatch(Base):
     __tablename__ = "group_stage_matches"
     
     id = Column(Integer, primary_key=True, index=True)
@@ -11,16 +11,14 @@ class GroupStageMatch(Match):
     home_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
     away_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
     group = Column(String, nullable=False)  # A, B, C, D...
+    status = Column(String, default="scheduled")  # scheduled, live, finished
+    date = Column(DateTime, nullable=False)
     
     # Relationships - זה אומר איך לגשת לקבוצות
     home_team = relationship("Team", foreign_keys=[home_team_id])
     away_team = relationship("Team", foreign_keys=[away_team_id])
-    
-    __mapper_args__ = {
-        'polymorphic_identity': 'group_stage_match',
-    }
 
-class KnockoutMatch(Match):
+class KnockoutMatch(Base):
     __tablename__ = "knockout_matches"
     
     id = Column(Integer, primary_key=True, index=True)
@@ -31,11 +29,9 @@ class KnockoutMatch(Match):
     home_team_id = Column(Integer, ForeignKey("teams.id"))  # הקבוצה האמיתית
     away_team_id = Column(Integer, ForeignKey("teams.id"))  # הקבוצה האמיתית
     affects_matches = Column(String)  # JSON string of match IDs that this affects
+    status = Column(String, default="scheduled")  # scheduled, live, finished
+    date = Column(DateTime, nullable=False)
     
     # Relationships
     home_team = relationship("Team", foreign_keys=[home_team_id])
     away_team = relationship("Team", foreign_keys=[away_team_id])
-    
-    __mapper_args__ = {
-        'polymorphic_identity': 'knockout_match',
-    }

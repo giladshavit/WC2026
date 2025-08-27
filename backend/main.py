@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api import predictions, admin
-from .database import engine
-from .models import base, user, team, matches as match_models, predictions as prediction_models
+from api import predictions, admin, matches
+from database import engine
+from models import base, user, team, matches as match_models, predictions as prediction_models
 
 # Create database tables
 base.Base.metadata.create_all(bind=engine)
@@ -22,6 +22,7 @@ app.add_middleware(
 # Include routers
 app.include_router(predictions.router, prefix="/api", tags=["predictions"])
 app.include_router(admin.router, prefix="/api", tags=["admin"])
+app.include_router(matches.router, prefix="/api", tags=["matches"])
 
 @app.get("/")
 def read_root():

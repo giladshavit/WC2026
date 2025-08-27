@@ -1,6 +1,6 @@
 from typing import Dict, List, Any
 from sqlalchemy.orm import Session
-from ..models.team import Team
+from models.team import Team
 
 class TeamService:
     
