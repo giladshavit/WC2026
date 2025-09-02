@@ -252,6 +252,17 @@ const GroupPredictionsPage: React.FC = () => {
             )}
           </div>
         )}
+        
+        {isEditing && (
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-yellow-800 text-sm">
+              ⚠️ שינוי ניחוש בבית זה עלול להשפיע על ניחושי "מקומות 3"
+            </p>
+            <p className="text-yellow-700 text-xs mt-1">
+              💡 זכור לבדוק את דף "ניחושי מקומות 3" לאחר השמירה
+            </p>
+          </div>
+        )}
       </div>
     );
   };
