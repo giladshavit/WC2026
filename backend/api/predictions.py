@@ -23,6 +23,10 @@ class GroupPredictionRequest(BaseModel):
     positions: List[int]  # רשימה של 4 team IDs בסדר המקומות
     user_id: int
 
+class ThirdPlacePredictionRequest(BaseModel):
+    advancing_team_ids: List[int]  # רשימה של 8 team IDs שיעלו
+    user_id: int
+
 @router.get("/groups", response_model=List[Dict[str, Any]])
 def get_groups_with_teams(db: Session = Depends(get_db)):
     """
@@ -65,6 +69,37 @@ def get_user_group_predictions(user_id: int, db: Session = Depends(get_db)):
     מביא את כל ניחושי הבתים של המשתמש
     """
     return PredictionService.get_group_predictions(db, user_id)
+
+@router.post("/predictions/third-place", response_model=Dict[str, Any])
+def create_or_update_third_place_prediction(
+    third_place_prediction: ThirdPlacePredictionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    יצירה או עדכון ניחוש למקומות 3
+    """
+    result = PredictionService.create_or_update_third_place_prediction(
+        db, third_place_prediction.user_id, third_place_prediction.advancing_team_ids
+    )
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@router.get("/users/{user_id}/third-place-predictions", response_model=List[Dict[str, Any]])
+def get_user_third_place_predictions(user_id: int, db: Session = Depends(get_db)):
+    """
+    מביא את ניחושי המקומות 3 של המשתמש
+    """
+    return PredictionService.get_third_place_predictions(db, user_id)
+
+@router.get("/users/{user_id}/third-place-eligible-teams", response_model=List[Dict[str, Any]])
+def get_third_place_eligible_teams(user_id: int, db: Session = Depends(get_db)):
+    """
+    מביא את 12 הקבוצות שמגיעות ממקום 3 לפי ניחושי הבתים של המשתמש
+    """
+    return PredictionService.get_third_place_eligible_teams(db, user_id)
 
 @router.get("/users/{user_id}/predictions", response_model=Dict[str, Any])
 def get_user_predictions(user_id: int, db: Session = Depends(get_db)):
