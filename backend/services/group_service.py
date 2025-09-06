@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
-from models.groups import Group, GroupResult
+from models.groups import Group
+from models.results import GroupStageResult
 from models.team import Team
 from typing import List, Dict, Any
 import json
@@ -32,22 +33,16 @@ class GroupService:
         if not group:
             return {"error": f"Group {group_name} not found"}
         
-        # מביא את הקבוצות מהמשחקים
-        from models.matches import GroupStageMatch
-        
-        matches = db.query(GroupStageMatch).filter(GroupStageMatch.group == group_name).all()
-        teams = set()
-        
-        for match in matches:
-            teams.add(match.home_team_id)
-            teams.add(match.away_team_id)
-        
-        team_objects = db.query(Team).filter(Team.id.in_(list(teams))).all()
+        # מביא את הקבוצות דרך ה-relationships החדשים
+        teams = [group.team_1_obj, group.team_2_obj, group.team_3_obj, group.team_4_obj]
         
         return {
             "id": group.id,
             "name": group.name,
-            "teams": [{"id": team.id, "name": team.name, "country_code": team.country_code} for team in team_objects]
+            "teams": [
+                {"id": team.id, "name": team.name, "country_code": team.country_code, "position": i+1} 
+                for i, team in enumerate(teams) if team is not None
+            ]
         }
     
     @staticmethod
@@ -64,27 +59,22 @@ class GroupService:
         return result
     
     @staticmethod
-    def create_group_result(db: Session, group_id: int, team_id: int, position: int, 
-                          points: int = 0, goals_for: int = 0, goals_against: int = 0) -> Dict[str, Any]:
-        """יוצר תוצאה לבית"""
-        existing_result = db.query(GroupResult).filter(
-            GroupResult.group_id == group_id,
-            GroupResult.team_id == team_id
+    def create_group_stage_result(db: Session, group_id: int, first_place: int, 
+                                second_place: int, third_place: int, fourth_place: int) -> Dict[str, Any]:
+        """יוצר תוצאה לבית (כל 4 המקומות בבת אחת)"""
+        existing_result = db.query(GroupStageResult).filter(
+            GroupStageResult.group_id == group_id
         ).first()
         
         if existing_result:
-            return {"error": f"Result for team {team_id} in group {group_id} already exists"}
+            return {"error": f"Result for group {group_id} already exists"}
         
-        goal_difference = goals_for - goals_against
-        
-        result = GroupResult(
+        result = GroupStageResult(
             group_id=group_id,
-            team_id=team_id,
-            position=position,
-            points=points,
-            goals_for=goals_for,
-            goals_against=goals_against,
-            goal_difference=goal_difference
+            first_place=first_place,
+            second_place=second_place,
+            third_place=third_place,
+            fourth_place=fourth_place
         )
         
         db.add(result)
@@ -94,16 +84,19 @@ class GroupService:
         return {"id": result.id, "created": True}
     
     @staticmethod
-    def get_group_results(db: Session, group_id: int) -> List[Dict[str, Any]]:
+    def get_group_stage_results(db: Session, group_id: int) -> Dict[str, Any]:
         """מביא את תוצאות הבית"""
-        results = db.query(GroupResult).filter(GroupResult.group_id == group_id).order_by(GroupResult.position).all()
+        result = db.query(GroupStageResult).filter(GroupStageResult.group_id == group_id).first()
         
-        return [{
+        if not result:
+            return {"error": f"No results found for group {group_id}"}
+        
+        return {
             "id": result.id,
-            "team_id": result.team_id,
-            "position": result.position,
-            "points": result.points,
-            "goals_for": result.goals_for,
-            "goals_against": result.goals_against,
-            "goal_difference": result.goal_difference
-        } for result in results]
+            "group_id": result.group_id,
+            "first_place": result.first_place,
+            "second_place": result.second_place,
+            "third_place": result.third_place,
+            "fourth_place": result.fourth_place,
+            "created_at": result.created_at
+        }
