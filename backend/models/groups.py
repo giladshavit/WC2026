@@ -8,20 +8,15 @@ class Group(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(1), nullable=False, unique=True)  # A, B, C, D...
+    team_1 = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    team_2 = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    team_3 = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    team_4 = Column(Integer, ForeignKey("teams.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-
-class GroupResult(Base):
-    __tablename__ = "group_results"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
-    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    position = Column(Integer, nullable=False)  # 1, 2, 3, 4
-    points = Column(Integer, default=0)  # נקודות שהקבוצה צברה
-    goals_for = Column(Integer, default=0)
-    goals_against = Column(Integer, default=0)
-    goal_difference = Column(Integer, default=0)  # goals_for - goals_against
     
     # Relationships
-    group = relationship("Group")
-    team = relationship("Team")
+    team_1_obj = relationship("Team", foreign_keys=[team_1])
+    team_2_obj = relationship("Team", foreign_keys=[team_2])
+    team_3_obj = relationship("Team", foreign_keys=[team_3])
+    team_4_obj = relationship("Team", foreign_keys=[team_4])
+
