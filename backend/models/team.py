@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, CHAR
 
 from models.base import Base
 
@@ -10,4 +10,19 @@ class Team(Base):
     name = Column(String, nullable=False, unique=True)
     country_code = Column(String, nullable=False, unique=True)  # ARG, BRA, FRA
     flag_url = Column(String)  # URL לדגל הקבוצה
+    
+    # Group stage information
+    group_letter = Column(CHAR(1), nullable=True)  # A, B, C, D, E, F, G, H, I, J, K, L
+    group_position = Column(Integer, nullable=True)  # 1, 2, 3, 4 (מיקום בבית)
+    goals_for = Column(Integer, default=0)  # מספר שערי זכות
+    goals_against = Column(Integer, default=0)  # מספר שערי חובה
+    
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    @property
+    def goal_difference(self):
+        """Calculate goal difference (goals_for - goals_against)"""
+        return self.goals_for - self.goals_against
+    
+    def __repr__(self):
+        return f"<Team(id={self.id}, name='{self.name}', group='{self.group_letter}', position={self.group_position})>"
