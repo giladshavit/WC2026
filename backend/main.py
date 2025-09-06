@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from api import predictions, admin, matches
 from api import groups
@@ -27,9 +29,12 @@ app.include_router(admin.router, prefix="/api", tags=["admin"])
 app.include_router(matches.router, prefix="/api", tags=["matches"])
 app.include_router(groups.router, prefix="/api", tags=["groups"])
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 @app.get("/")
 def read_root():
-    return {"message": "World Cup 2026 Predictions API"}
+    return FileResponse("static/index.html")
 
 @app.get("/health")
 def health_check():

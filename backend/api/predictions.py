@@ -13,6 +13,7 @@ router = APIRouter()
 class MatchPredictionRequest(BaseModel):
     home_score: int
     away_score: int
+    predicted_winner: int = None  # Optional, will be calculated automatically
 
 class BatchPredictionRequest(BaseModel):
     predictions: List[Dict[str, Any]]
@@ -126,6 +127,40 @@ def create_or_update_match_prediction(
     result = PredictionService.create_or_update_match_prediction(
         db, user_id, match_id, prediction.home_score, prediction.away_score
     )
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@router.put("/predictions/{match_id}", response_model=Dict[str, Any])
+def update_single_prediction(
+    match_id: int,
+    prediction_data: Dict[str, Any],
+    db: Session = Depends(get_db)
+):
+    """
+    עדכון ניחוש בודד (home_score או away_score)
+    """
+    user_id = 1  # TODO: זה צריך לבוא מ-authentication
+    
+    # מביא את החיזוי הנוכחי
+    current_prediction = PredictionService.get_match_prediction(db, user_id, match_id)
+    
+    if not current_prediction:
+        # יוצר חיזוי חדש
+        home_score = prediction_data.get('home_score', 0)
+        away_score = prediction_data.get('away_score', 0)
+        result = PredictionService.create_or_update_match_prediction(
+            db, user_id, match_id, home_score, away_score
+        )
+    else:
+        # מעדכן חיזוי קיים
+        home_score = prediction_data.get('home_score', current_prediction.get('home_score', 0))
+        away_score = prediction_data.get('away_score', current_prediction.get('away_score', 0))
+        result = PredictionService.create_or_update_match_prediction(
+            db, user_id, match_id, home_score, away_score
+        )
     
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
