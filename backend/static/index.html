@@ -243,6 +243,8 @@
         <div class="nav">
             <a href="#teams" class="nav-btn" onclick="showSection('teams')">קבוצות</a>
             <a href="#groups" class="nav-btn" onclick="showSection('groups')">בתים</a>
+                <a href="#group-predictions" class="nav-btn" onclick="showSection('group-predictions')">ניחושי הבתים</a>
+                <a href="#third-place-predictions" class="nav-btn" onclick="showSection('third-place-predictions')">חיזויי העולות</a>
             <a href="#matches" class="nav-btn" onclick="showSection('matches')">משחקים</a>
             <a href="#predictions" class="nav-btn" onclick="showSection('predictions')">חיזויים</a>
             <a href="/docs" class="nav-btn" target="_blank">API Docs</a>
@@ -277,6 +279,16 @@
                 <h2>בתים</h2>
                 <div id="groups-content" class="loading">טוען בתים...</div>
             </div>
+            
+        <div id="group-predictions" class="section" style="display: none;">
+            <h2>ניחושי הבתים</h2>
+            <div id="group-predictions-content" class="loading">טוען ניחושי בתים...</div>
+        </div>
+        
+        <div id="third-place-predictions" class="section" style="display: none;">
+            <h2>חיזויי העולות מתוך מקומות 3</h2>
+            <div id="third-place-predictions-content" class="loading">טוען קבוצות במקום 3...</div>
+        </div>
             
             <div id="matches" class="section" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -396,6 +408,127 @@
             }
         }
         
+        // משתנה לשמירת בחירות זמניות
+        let tempGroupSelections = {};
+        
+        async function loadGroupPredictions() {
+            try {
+                document.getElementById('group-predictions-content').innerHTML = '<div style="text-align: center; padding: 20px;">טוען ניחושי בתים...</div>';
+                
+                const response = await fetch('/api/users/1/group-predictions');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const predictions = await response.json();
+                
+                const groupsResponse = await fetch('/api/groups');
+                if (!groupsResponse.ok) {
+                    throw new Error(`HTTP error! status: ${groupsResponse.status}`);
+                }
+                const groups = await groupsResponse.json();
+                
+                if (!groups || !Array.isArray(groups)) {
+                    throw new Error('Invalid groups data');
+                }
+                
+                const content = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
+                        ${groups.map(group => {
+                            if (!group || !group.teams || !Array.isArray(group.teams)) {
+                                return '';
+                            }
+                            
+                            const prediction = predictions.find(p => p.group_id === group.id);
+                            const groupId = group.id; // מגדיר את groupId כאן
+                            
+                            return `
+                                <div style="background: #f7fafc; padding: 20px; border-radius: 10px; border: 2px solid ${prediction ? '#2f855a' : '#e2e8f0'};">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                        <h3 style="color: #667eea; margin: 0;">בית ${group.name}</h3>
+                                        <div id="group-actions-${groupId}" style="display: none; gap: 10px;">
+                                            <button onclick="resetGroupSelection(${groupId})" 
+                                                    style="background: #e2e8f0; color: #4a5568; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                                                אפס
+                                            </button>
+                                            <button onclick="saveGroupPrediction(${groupId})" 
+                                                    style="background: #2f855a; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                                                שמור
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="space-y: 8px;">
+                                        ${group.teams.map((team, index) => {
+                                            if (!team || !team.id || !team.name) {
+                                                return '';
+                                            }
+                                            
+                                            const position = prediction ? 
+                                                (team.id === prediction.first_place ? 1 :
+                                                 team.id === prediction.second_place ? 2 :
+                                                 team.id === prediction.third_place ? 3 :
+                                                 team.id === prediction.fourth_place ? 4 : null) : null;
+                                            
+                                            const bgColor = position === 1 ? '#fef5e7' : 
+                                                          position === 2 ? '#f7fafc' : 
+                                                          position === 3 ? '#fef2e7' : 
+                                                          position === 4 ? '#fed7d7' : '#ffffff';
+                                            
+                                            const borderColor = position === 1 ? '#f6ad55' : 
+                                                               position === 2 ? '#a0aec0' : 
+                                                               position === 3 ? '#ed8936' : 
+                                                               position === 4 ? '#fc8181' : '#e2e8f0';
+                                            
+                                            return `
+                                                <div onclick="selectTeam(${groupId}, ${team.id})" 
+                                                     style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: ${bgColor}; border-radius: 8px; border-left: 4px solid ${borderColor}; cursor: pointer; transition: all 0.3s ease;"
+                                                     onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" 
+                                                     onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'"
+                                                     id="team-${groupId}-${team.id}">
+                                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                                        <span style="width: 24px; height: 24px; border-radius: 50%; background: ${borderColor}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold;">
+                                                            ${position || '?'}
+                                                        </span>
+                                                        <div>
+                                                            <strong>${team.name}</strong>
+                                                            <br>
+                                                            <small style="color: #718096;">${team.country_code || ''}</small>
+                                                        </div>
+                                                    </div>
+                                                    ${position ? `
+                                                        <span style="color: #2f855a; font-size: 0.9rem; font-weight: bold;">
+                                                            מקום ${position}
+                                                        </span>
+                                                    ` : `
+                                                        <span style="color: #718096; font-size: 0.9rem;">
+                                                            לחץ לבחירה
+                                                        </span>
+                                                    `}
+                                                </div>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+                
+                document.getElementById('group-predictions-content').innerHTML = content;
+            } catch (error) {
+                console.error('שגיאה בטעינת ניחושי הבתים:', error);
+                document.getElementById('group-predictions-content').innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #e53e3e;">
+                        <h3>שגיאה בטעינת ניחושי הבתים</h3>
+                        <p>${error.message}</p>
+                        <button onclick="loadGroupPredictions()" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-top: 10px;">
+                            נסה שוב
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
         async function loadMatches() {
             try {
                 const response = await fetch('/api/matches?user_id=1');
@@ -484,6 +617,11 @@
                 loadTeams();
             } else if (sectionName === 'groups' && document.getElementById('groups-content').textContent === 'טוען בתים...') {
                 loadGroups();
+            } else if (sectionName === 'group-predictions' && document.getElementById('group-predictions-content').textContent === 'טוען ניחושי בתים...') {
+                loadGroupPredictions();
+            } else if (sectionName === 'third-place-predictions') {
+                // תמיד טוען מחדש את חיזויי העולות כדי לקבל נתונים מעודכנים
+                loadThirdPlacePredictions();
             } else if (sectionName === 'matches' && document.getElementById('matches-content').textContent === 'טוען משחקים...') {
                 loadMatches();
             }
@@ -624,6 +762,514 @@
                 saveAllBtn.style.background = '#e53e3e';
                 saveAllBtn.textContent = 'שגיאה - נסה שוב';
                 saveAllBtn.disabled = false;
+            }
+        }
+        
+        async function editGroupPrediction(groupId) {
+            try {
+                // מביא את הנתונים של הבית
+                const groupsResponse = await fetch('/api/groups');
+                const groups = await groupsResponse.json();
+                const group = groups.find(g => g.id === groupId);
+                
+                if (!group) {
+                    alert('בית לא נמצא');
+                    return;
+                }
+                
+                // מביא את החיזוי הקיים
+                const predictionsResponse = await fetch('/api/users/1/group-predictions');
+                const predictions = await predictionsResponse.json();
+                const existingPrediction = predictions.find(p => p.group_id === groupId);
+                
+                // יוצר modal לעריכת חיזוי
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                    background: rgba(0,0,0,0.5); z-index: 1000; display: flex; 
+                    align-items: center; justify-content: center;
+                `;
+                
+                const modalContent = document.createElement('div');
+                modalContent.style.cssText = `
+                    background: white; padding: 30px; border-radius: 15px; 
+                    max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;
+                `;
+                
+                // יוצר את התוכן של ה-modal
+                let teamsHtml = '';
+                const positions = existingPrediction ? 
+                    [existingPrediction.first_place, existingPrediction.second_place, 
+                     existingPrediction.third_place, existingPrediction.fourth_place] : 
+                    [null, null, null, null];
+                
+                group.teams.forEach((team, index) => {
+                    const currentPosition = positions.indexOf(team.id) + 1;
+                    teamsHtml += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px;">
+                            <div>
+                                <strong>${team.name}</strong>
+                                <br>
+                                <small style="color: #718096;">${team.country_code}</small>
+                            </div>
+                            <select id="position_${team.id}" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; min-width: 80px;">
+                                <option value="">בחר מקום</option>
+                                <option value="1" ${currentPosition === 1 ? 'selected' : ''}>מקום 1</option>
+                                <option value="2" ${currentPosition === 2 ? 'selected' : ''}>מקום 2</option>
+                                <option value="3" ${currentPosition === 3 ? 'selected' : ''}>מקום 3</option>
+                                <option value="4" ${currentPosition === 4 ? 'selected' : ''}>מקום 4</option>
+                            </select>
+                        </div>
+                    `;
+                });
+                
+                modalContent.innerHTML = `
+                    <h2 style="margin: 0 0 20px 0; color: #667eea;">עריכת חיזוי - בית ${group.name}</h2>
+                    <div style="margin-bottom: 20px;">
+                        ${teamsHtml}
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button onclick="this.closest('.modal').remove()" 
+                                style="background: #e2e8f0; color: #4a5568; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                            ביטול
+                        </button>
+                        <button onclick="saveGroupPrediction(${groupId})" 
+                                style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                            שמור חיזוי
+                        </button>
+                    </div>
+                `;
+                
+                modal.className = 'modal';
+                modal.appendChild(modalContent);
+                document.body.appendChild(modal);
+                
+            } catch (error) {
+                console.error('שגיאה בטעינת נתוני הבית:', error);
+                alert('שגיאה בטעינת נתוני הבית');
+            }
+        }
+        
+        function selectTeam(groupId, teamId) {
+            // אם אין בחירות זמניות לבית הזה, יוצר אותן
+            if (!tempGroupSelections[groupId]) {
+                tempGroupSelections[groupId] = [null, null, null, null];
+            }
+            
+            // בודק אם הקבוצה כבר נבחרה
+            if (tempGroupSelections[groupId].includes(teamId)) {
+                return; // הקבוצה כבר נבחרה, לא עושים כלום
+            }
+            
+            // מוצא את המקום הפנוי הבא
+            let nextPosition = tempGroupSelections[groupId].findIndex(pos => pos === null);
+            if (nextPosition === -1) {
+                // כל המקומות תפוסים, לא עושים כלום
+                return;
+            }
+            
+            // מוסיף אנימציה
+            const teamElement = document.getElementById(`team-${groupId}-${teamId}`);
+            if (teamElement) {
+                teamElement.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    teamElement.style.transform = 'scale(1.02)';
+                    setTimeout(() => {
+                        teamElement.style.transform = 'scale(1)';
+                    }, 150);
+                }, 100);
+            }
+            
+            // מעדכן את הבחירות
+            tempGroupSelections[groupId][nextPosition] = teamId;
+            
+            // מעדכן את התצוגה
+            updateGroupDisplay(groupId);
+            
+            // אם נבחרו 3 קבוצות, בוחר אוטומטית את הרביעית
+            if (tempGroupSelections[groupId].filter(pos => pos !== null).length === 3) {
+                selectRemainingTeam(groupId);
+            }
+        }
+        
+        
+        async function selectRemainingTeam(groupId) {
+            try {
+                const groupsResponse = await fetch('/api/groups');
+                const groups = await groupsResponse.json();
+                const group = groups.find(g => g.id === groupId);
+                
+                // מוצא את הקבוצה שלא נבחרה
+                const selectedTeams = tempGroupSelections[groupId].filter(teamId => teamId !== null);
+                const remainingTeam = group.teams.find(team => !selectedTeams.includes(team.id));
+                
+                if (remainingTeam) {
+                    // מוסיף את הקבוצה הנותרת למקום הרביעי
+                    tempGroupSelections[groupId][3] = remainingTeam.id;
+                    
+                    // מעדכן את התצוגה
+                    updateGroupDisplay(groupId);
+                }
+            } catch (error) {
+                console.error('שגיאה בבחירת הקבוצה הנותרת:', error);
+            }
+        }
+        
+        function updateGroupDisplay(groupId) {
+            if (!tempGroupSelections[groupId]) return;
+            
+            // מעדכן את התצוגה של כל קבוצה בבית
+            const teamElements = document.querySelectorAll(`[onclick*="selectTeam(${groupId},"]`);
+            
+            teamElements.forEach(teamElement => {
+                // מחלץ את teamId מה-onclick
+                const onclickAttr = teamElement.getAttribute('onclick');
+                const teamIdMatch = onclickAttr.match(/selectTeam\((\d+), (\d+)\)/);
+                if (!teamIdMatch) return;
+                
+                const teamId = parseInt(teamIdMatch[2]);
+                const position = tempGroupSelections[groupId].indexOf(teamId) + 1;
+                
+                if (position > 0) {
+                    // קבוצה נבחרה
+                    const bgColor = position === 1 ? '#fef5e7' : 
+                                  position === 2 ? '#f7fafc' : 
+                                  position === 3 ? '#fef2e7' : 
+                                  position === 4 ? '#fed7d7' : '#ffffff';
+                    
+                    const borderColor = position === 1 ? '#f6ad55' : 
+                                       position === 2 ? '#a0aec0' : 
+                                       position === 3 ? '#ed8936' : 
+                                       position === 4 ? '#fc8181' : '#e2e8f0';
+                    
+                    teamElement.style.background = bgColor;
+                    teamElement.style.borderLeftColor = borderColor;
+                    
+                    const positionSpan = teamElement.querySelector('span[style*="border-radius: 50%"]');
+                    if (positionSpan) {
+                        positionSpan.style.background = borderColor;
+                        positionSpan.textContent = position;
+                    }
+                    
+                    const statusSpan = teamElement.querySelector('span:last-child');
+                    if (statusSpan) {
+                        statusSpan.textContent = `מקום ${position}`;
+                        statusSpan.style.color = '#2f855a';
+                        statusSpan.style.fontWeight = 'bold';
+                    }
+                } else {
+                    // קבוצה לא נבחרה
+                    teamElement.style.background = '#ffffff';
+                    teamElement.style.borderLeftColor = '#e2e8f0';
+                    
+                    const positionSpan = teamElement.querySelector('span[style*="border-radius: 50%"]');
+                    if (positionSpan) {
+                        positionSpan.style.background = '#e2e8f0';
+                        positionSpan.textContent = '?';
+                    }
+                    
+                    const statusSpan = teamElement.querySelector('span:last-child');
+                    if (statusSpan) {
+                        statusSpan.textContent = 'לחץ לבחירה';
+                        statusSpan.style.color = '#718096';
+                        statusSpan.style.fontWeight = 'normal';
+                    }
+                }
+            });
+            
+            // מציג את כפתורי הפעולה אם יש בחירות
+            const actionsDiv = document.getElementById(`group-actions-${groupId}`);
+            if (actionsDiv && tempGroupSelections[groupId] && tempGroupSelections[groupId].some(pos => pos !== null)) {
+                actionsDiv.style.display = 'flex';
+            } else if (actionsDiv) {
+                actionsDiv.style.display = 'none';
+            }
+        }
+        
+        
+        function resetGroupSelection(groupId) {
+            // מאפס את הבחירות הזמניות
+            tempGroupSelections[groupId] = [null, null, null, null];
+            
+            // מעדכן את התצוגה
+            updateGroupDisplay(groupId);
+            
+            // מסתיר את כפתורי הפעולה
+            const actionsDiv = document.getElementById(`group-actions-${groupId}`);
+            if (actionsDiv) {
+                actionsDiv.style.display = 'none';
+            }
+        }
+        
+        async function saveGroupPrediction(groupId) {
+            try {
+                // בודק שיש בחירות
+                if (!tempGroupSelections[groupId] || tempGroupSelections[groupId].some(pos => pos === null)) {
+                    alert('אנא בחר את כל 4 הקבוצות');
+                    return;
+                }
+                
+                // שולח את החיזוי לשרת
+                const response = await fetch('/api/predictions/group-stage', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: 1,
+                        group_id: groupId,
+                        first_place: tempGroupSelections[groupId][0],
+                        second_place: tempGroupSelections[groupId][1],
+                        third_place: tempGroupSelections[groupId][2],
+                        fourth_place: tempGroupSelections[groupId][3]
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    // מאפס את הבחירות הזמניות
+                    tempGroupSelections[groupId] = [null, null, null, null];
+                    
+                    // מרענן את הדף
+                    loadGroupPredictions();
+                    
+                    // מעדכן את חיזויי העולות אם הדף פתוח
+                    const thirdPlaceSection = document.getElementById('third-place-predictions');
+                    if (thirdPlaceSection && thirdPlaceSection.style.display !== 'none') {
+                        // מאפס את הבחירות הזמניות כי הרשימה השתנתה
+                        tempThirdPlaceSelections = [];
+                        // טוען מחדש מיד כדי לקבל את הרשימה המעודכנת
+                        setTimeout(() => {
+                            loadThirdPlacePredictions();
+                        }, 100);
+                    }
+                    
+                    // אם המקום השלישי השתנה, מציג הודעה מיוחדת
+                    if (result.third_place_changed) {
+                        alert('החיזוי נשמר בהצלחה!\nשימו לב: חיזויי העולות עודכנו אוטומטית בהתאם לשינוי במקום השלישי.');
+                    } else {
+                        alert('החיזוי נשמר בהצלחה!');
+                    }
+                } else {
+                    throw new Error('שגיאה בשמירה');
+                }
+                
+            } catch (error) {
+                console.error('שגיאה בשמירת החיזוי:', error);
+                alert('שגיאה בשמירת החיזוי');
+            }
+        }
+        
+        // משתנה לשמירת בחירות זמניות של העולות
+        let tempThirdPlaceSelections = [];
+        
+        async function loadThirdPlacePredictions() {
+            try {
+                document.getElementById('third-place-predictions-content').innerHTML = '<div style="text-align: center; padding: 20px;">טוען קבוצות במקום 3...</div>';
+                
+                // טוען את הקבוצות הזכאיות למקום 3
+                const response = await fetch('/api/users/1/third-place-eligible-teams');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const thirdPlaceTeams = await response.json();
+                
+                if (!thirdPlaceTeams || !Array.isArray(thirdPlaceTeams)) {
+                    throw new Error('Invalid third place teams data');
+                }
+                
+                if (thirdPlaceTeams.length === 0) {
+                    document.getElementById('third-place-predictions-content').innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #e53e3e;">
+                            <h3>אין חיזויים לבתים</h3>
+                            <p>אנא השלים את חיזויי הבתים קודם</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // טוען חיזויים קיימים של העולות
+                const existingResponse = await fetch('/api/users/1/third-place-predictions');
+                let existingPredictions = [];
+                if (existingResponse.ok) {
+                    const existingData = await existingResponse.json();
+                    // אם יש חיזויים, לוקח את הראשון (אמור להיות רק אחד)
+                    if (existingData && existingData.length > 0) {
+                        existingPredictions = existingData[0].advancing_team_ids || [];
+                    }
+                }
+                
+                const content = `
+                    <div style="max-width: 800px; margin: 0 auto;">
+                        <div style="background: #f7fafc; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
+                            <h3 style="color: #667eea; margin: 0 0 10px 0;">בחר 8 קבוצות שיעלו מתוך ${thirdPlaceTeams.length} קבוצות במקום 3</h3>
+                            <p style="color: #718096; margin: 0;">לחץ על קבוצה כדי לבחור אותה כעולה</p>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                            ${thirdPlaceTeams.map(team => {
+                                const isSelected = existingPredictions.includes(team.id);
+                                return `
+                                    <div onclick="toggleThirdPlaceTeam(${team.id})" 
+                                         style="padding: 15px; background: ${isSelected ? '#e6fffa' : '#ffffff'}; border: 2px solid ${isSelected ? '#2f855a' : '#e2e8f0'}; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; text-align: center;"
+                                         onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" 
+                                         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'"
+                                         id="third-place-team-${team.id}">
+                                        <div style="font-weight: bold; color: ${isSelected ? '#2f855a' : '#4a5568'}; margin-bottom: 5px;">
+                                            ${team.name}
+                                        </div>
+                                        <div style="font-size: 0.9rem; color: #718096; margin-bottom: 5px;">
+                                            ${team.country_code || ''}
+                                        </div>
+                                        <div style="font-size: 0.8rem; color: #a0aec0;">
+                                            בית ${team.group_name}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        
+                        <div id="third-place-actions" style="text-align: center; display: none;">
+                            <button onclick="saveThirdPlacePredictions()" 
+                                    style="background: #2f855a; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 1rem; margin-right: 10px;">
+                                שמור חיזויים
+                            </button>
+                            <button onclick="resetThirdPlaceSelections()" 
+                                    style="background: #e2e8f0; color: #4a5568; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 1rem;">
+                                אפס בחירות
+                            </button>
+                        </div>
+                        
+                        <div id="third-place-status" style="text-align: center; margin-top: 15px; font-weight: bold; color: #667eea;">
+                            נבחרו 0 מתוך 8 קבוצות
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('third-place-predictions-content').innerHTML = content;
+                
+                // מאתחל את הבחירות הזמניות
+                tempThirdPlaceSelections = [...existingPredictions];
+                
+                // מעדכן את התצוגה אחרי שהתוכן נטען
+                setTimeout(() => {
+                    updateThirdPlaceDisplay();
+                }, 100);
+                
+            } catch (error) {
+                console.error('שגיאה בטעינת חיזויי העולות:', error);
+                document.getElementById('third-place-predictions-content').innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #e53e3e;">
+                        <h3>שגיאה בטעינת חיזויי העולות</h3>
+                        <p>${error.message}</p>
+                        <button onclick="loadThirdPlacePredictions()" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-top: 10px;">
+                            נסה שוב
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
+        function toggleThirdPlaceTeam(teamId) {
+            const index = tempThirdPlaceSelections.indexOf(teamId);
+            
+            if (index > -1) {
+                // הקבוצה כבר נבחרה, הסר אותה
+                tempThirdPlaceSelections.splice(index, 1);
+            } else {
+                // הקבוצה לא נבחרה, הוסף אותה (אם יש פחות מ-8)
+                if (tempThirdPlaceSelections.length < 8) {
+                    tempThirdPlaceSelections.push(teamId);
+                } else {
+                    alert('ניתן לבחור עד 8 קבוצות בלבד');
+                    return;
+                }
+            }
+            
+            updateThirdPlaceDisplay();
+        }
+        
+        function updateThirdPlaceDisplay() {
+            // מעדכן את התצוגה של כל קבוצה
+            const teamElements = document.querySelectorAll('[id^="third-place-team-"]');
+            
+            teamElements.forEach(teamElement => {
+                const teamId = parseInt(teamElement.id.replace('third-place-team-', ''));
+                const isSelected = tempThirdPlaceSelections.includes(teamId);
+                
+                if (isSelected) {
+                    teamElement.style.background = '#e6fffa';
+                    teamElement.style.borderColor = '#2f855a';
+                    
+                    const nameElement = teamElement.querySelector('div:first-child');
+                    if (nameElement) {
+                        nameElement.style.color = '#2f855a';
+                    }
+                    
+                    // לא מוסיף טקסט "נבחרה" - הצבע מספיק
+                } else {
+                    teamElement.style.background = '#ffffff';
+                    teamElement.style.borderColor = '#e2e8f0';
+                    
+                    const nameElement = teamElement.querySelector('div:first-child');
+                    if (nameElement) {
+                        nameElement.style.color = '#4a5568';
+                    }
+                    
+                    // לא צריך להסיר כלום - אין טקסט "נבחרה"
+                }
+            });
+            
+            // מעדכן את הסטטוס הכללי
+            const statusElement = document.getElementById('third-place-status');
+            if (statusElement) {
+                statusElement.textContent = `נבחרו ${tempThirdPlaceSelections.length} מתוך 8 קבוצות`;
+            }
+            
+            // מציג את כפתורי הפעולה אם יש בחירות
+            const actionsElement = document.getElementById('third-place-actions');
+            if (actionsElement) {
+                actionsElement.style.display = tempThirdPlaceSelections.length > 0 ? 'block' : 'none';
+            }
+        }
+        
+        function resetThirdPlaceSelections() {
+            tempThirdPlaceSelections = [];
+            updateThirdPlaceDisplay();
+        }
+        
+        async function saveThirdPlacePredictions() {
+            try {
+                if (tempThirdPlaceSelections.length !== 8) {
+                    alert('אנא בחר בדיוק 8 קבוצות');
+                    return;
+                }
+                
+                const response = await fetch('/api/predictions/third-place', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: 1,
+                        team_ids: tempThirdPlaceSelections
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('חיזויי העולות נשמרו בהצלחה!');
+                    // מאפס את הבחירות הזמניות
+                    tempThirdPlaceSelections = [];
+                    loadThirdPlacePredictions(); // מרענן את הדף
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'שגיאה בשמירה');
+                }
+                
+            } catch (error) {
+                console.error('שגיאה בשמירת חיזויי העולות:', error);
+                alert('שגיאה בשמירת חיזויי העולות: ' + error.message);
             }
         }
         

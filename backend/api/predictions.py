@@ -21,11 +21,14 @@ class BatchPredictionRequest(BaseModel):
 
 class GroupPredictionRequest(BaseModel):
     group_id: int
-    positions: List[int]  # רשימה של 4 team IDs בסדר המקומות
+    first_place: int
+    second_place: int
+    third_place: int
+    fourth_place: int
     user_id: int
 
 class ThirdPlacePredictionRequest(BaseModel):
-    advancing_team_ids: List[int]  # רשימה של 8 team IDs שיעלו
+    team_ids: List[int]  # רשימה של 8 team IDs שיעלו
     user_id: int
 
 @router.get("/groups", response_model=List[Dict[str, Any]])
@@ -56,7 +59,9 @@ def create_or_update_group_prediction(
     יצירה או עדכון ניחוש לשלב הבתים
     """
     result = PredictionService.create_or_update_group_prediction(
-        db, group_prediction.user_id, group_prediction.group_id, group_prediction.positions
+        db, group_prediction.user_id, group_prediction.group_id, 
+        group_prediction.first_place, group_prediction.second_place, 
+        group_prediction.third_place, group_prediction.fourth_place
     )
     
     if "error" in result:
@@ -80,7 +85,7 @@ def create_or_update_third_place_prediction(
     יצירה או עדכון ניחוש למקומות 3
     """
     result = PredictionService.create_or_update_third_place_prediction(
-        db, third_place_prediction.user_id, third_place_prediction.advancing_team_ids
+        db, third_place_prediction.user_id, third_place_prediction.team_ids
     )
     
     if "error" in result:

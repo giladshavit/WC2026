@@ -124,14 +124,25 @@ class PredictionService:
             "group_predictions": [{
                 "id": pred.id,
                 "group_id": pred.group_id,
-                "positions": json.loads(pred.positions),
+                "first_place": pred.first_place,
+                "second_place": pred.second_place,
+                "third_place": pred.third_place,
+                "fourth_place": pred.fourth_place,
                 "created_at": pred.created_at.isoformat(),
                 "updated_at": pred.updated_at.isoformat()
             } for pred in group_predictions],
             "third_place_predictions": [{
                 "id": pred.id,
-                "stage": pred.stage,
-                "advancing_team_ids": json.loads(pred.advancing_team_ids),
+                "advancing_team_ids": [
+                    pred.first_team_qualifying,
+                    pred.second_team_qualifying,
+                    pred.third_team_qualifying,
+                    pred.fourth_team_qualifying,
+                    pred.fifth_team_qualifying,
+                    pred.sixth_team_qualifying,
+                    pred.seventh_team_qualifying,
+                    pred.eighth_team_qualifying
+                ],
                 "created_at": pred.created_at.isoformat(),
                 "updated_at": pred.updated_at.isoformat()
             } for pred in third_place_predictions],
@@ -235,10 +246,10 @@ class PredictionService:
         }
     
     @staticmethod
-    def create_or_update_group_prediction(db: Session, user_id: int, group_id: int, positions: List[int]) -> Dict[str, Any]:
+    def create_or_update_group_prediction(db: Session, user_id: int, group_id: int, first_place: int, second_place: int, third_place: int, fourth_place: int) -> Dict[str, Any]:
         """
         יצירה או עדכון ניחוש לבית
-        positions: רשימה של 4 team IDs בסדר המקומות (1, 2, 3, 4)
+        first_place, second_place, third_place, fourth_place: team IDs למקומות השונים
         """
         # בודק אם יש כבר ניחוש לבית הזה
         existing_prediction = db.query(GroupStagePrediction).filter(
@@ -246,36 +257,94 @@ class PredictionService:
             GroupStagePrediction.group_id == group_id
         ).first()
         
-        # ממיר ל-JSON string
-        positions_json = json.dumps(positions)
+        # בודק אם המקום השלישי השתנה
+        third_place_changed = False
+        old_third_place = None
+        if existing_prediction and existing_prediction.third_place != third_place:
+            third_place_changed = True
+            old_third_place = existing_prediction.third_place
         
         if existing_prediction:
             # מעדכן ניחוש קיים
-            existing_prediction.positions = positions_json
+            existing_prediction.first_place = first_place
+            existing_prediction.second_place = second_place
+            existing_prediction.third_place = third_place
+            existing_prediction.fourth_place = fourth_place
             db.commit()
+            
+            # אם המקום השלישי השתנה, מעדכן את חיזויי העולות
+            if third_place_changed:
+                # מביא את חיזויי העולות הקיימים
+                third_place_prediction = db.query(ThirdPlacePrediction).filter(
+                    ThirdPlacePrediction.user_id == user_id
+                ).first()
+                
+                if third_place_prediction:
+                    # בודק אם הקבוצה הישנה במקום 3 נבחרה
+                    old_team_selected = False
+                    new_team_selected = False
+                    
+                    # בודק אם הקבוצה החדשה כבר נבחרה
+                    for i in range(1, 9):  # first_team_qualifying עד eighth_team_qualifying
+                        team_field = getattr(third_place_prediction, f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i-1]}_team_qualifying")
+                        if team_field == old_third_place:
+                            old_team_selected = True
+                            # מחליף את הקבוצה הישנה בחדשה
+                            setattr(third_place_prediction, f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i-1]}_team_qualifying", third_place)
+                            break
+                        elif team_field == third_place:
+                            new_team_selected = True
+                    
+                    # אם הקבוצה החדשה כבר נבחרה והקבוצה הישנה גם נבחרה - מחליף ביניהם
+                    if new_team_selected and old_team_selected:
+                        # מוצא את המיקום של הקבוצה החדשה ומחליף אותה בקבוצה הישנה
+                        for i in range(1, 9):
+                            team_field = getattr(third_place_prediction, f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i-1]}_team_qualifying")
+                            if team_field == third_place:
+                                setattr(third_place_prediction, f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i-1]}_team_qualifying", old_third_place)
+                                break
+                    
+                    db.commit()
             
             return {
                 "id": existing_prediction.id,
                 "group_id": group_id,
-                "positions": positions,
-                "updated": True
+                "first_place": first_place,
+                "second_place": second_place,
+                "third_place": third_place,
+                "fourth_place": fourth_place,
+                "updated": True,
+                "third_place_changed": third_place_changed
             }
         else:
             # יוצר ניחוש חדש
             new_prediction = GroupStagePrediction(
                 user_id=user_id,
                 group_id=group_id,
-                positions=positions_json
+                first_place=first_place,
+                second_place=second_place,
+                third_place=third_place,
+                fourth_place=fourth_place
             )
             db.add(new_prediction)
             db.commit()
             db.refresh(new_prediction)
             
+            # אם זה ניחוש חדש, מוחק את חיזויי העולות הקיימים
+            db.query(ThirdPlacePrediction).filter(
+                ThirdPlacePrediction.user_id == user_id
+            ).delete()
+            db.commit()
+            
             return {
                 "id": new_prediction.id,
                 "group_id": group_id,
-                "positions": positions,
-                "updated": False
+                "first_place": first_place,
+                "second_place": second_place,
+                "third_place": third_place,
+                "fourth_place": fourth_place,
+                "updated": False,
+                "third_place_changed": True
             }
     
     @staticmethod
@@ -290,7 +359,10 @@ class PredictionService:
         return [{
             "id": pred.id,
             "group_id": pred.group_id,
-            "positions": json.loads(pred.positions),
+            "first_place": pred.first_place,
+            "second_place": pred.second_place,
+            "third_place": pred.third_place,
+            "fourth_place": pred.fourth_place,
             "created_at": pred.created_at.isoformat(),
             "updated_at": pred.updated_at.isoformat()
         } for pred in predictions]
@@ -306,12 +378,19 @@ class PredictionService:
             ThirdPlacePrediction.user_id == user_id
         ).first()
         
-        # ממיר ל-JSON string
-        advancing_team_ids_json = json.dumps(advancing_team_ids)
+        if len(advancing_team_ids) != 8:
+            return {"error": "Must provide exactly 8 team IDs"}
         
         if existing_prediction:
             # מעדכן ניחוש קיים
-            existing_prediction.advancing_team_ids = advancing_team_ids_json
+            existing_prediction.first_team_qualifying = advancing_team_ids[0]
+            existing_prediction.second_team_qualifying = advancing_team_ids[1]
+            existing_prediction.third_team_qualifying = advancing_team_ids[2]
+            existing_prediction.fourth_team_qualifying = advancing_team_ids[3]
+            existing_prediction.fifth_team_qualifying = advancing_team_ids[4]
+            existing_prediction.sixth_team_qualifying = advancing_team_ids[5]
+            existing_prediction.seventh_team_qualifying = advancing_team_ids[6]
+            existing_prediction.eighth_team_qualifying = advancing_team_ids[7]
             db.commit()
             
             return {
@@ -323,7 +402,14 @@ class PredictionService:
             # יוצר ניחוש חדש
             new_prediction = ThirdPlacePrediction(
                 user_id=user_id,
-                advancing_team_ids=advancing_team_ids_json
+                first_team_qualifying=advancing_team_ids[0],
+                second_team_qualifying=advancing_team_ids[1],
+                third_team_qualifying=advancing_team_ids[2],
+                fourth_team_qualifying=advancing_team_ids[3],
+                fifth_team_qualifying=advancing_team_ids[4],
+                sixth_team_qualifying=advancing_team_ids[5],
+                seventh_team_qualifying=advancing_team_ids[6],
+                eighth_team_qualifying=advancing_team_ids[7]
             )
             db.add(new_prediction)
             db.commit()
@@ -346,8 +432,16 @@ class PredictionService:
         
         return [{
             "id": pred.id,
-            "stage": pred.stage,
-            "advancing_team_ids": json.loads(pred.advancing_team_ids),
+            "advancing_team_ids": [
+                pred.first_team_qualifying,
+                pred.second_team_qualifying,
+                pred.third_team_qualifying,
+                pred.fourth_team_qualifying,
+                pred.fifth_team_qualifying,
+                pred.sixth_team_qualifying,
+                pred.seventh_team_qualifying,
+                pred.eighth_team_qualifying
+            ],
             "created_at": pred.created_at.isoformat(),
             "updated_at": pred.updated_at.isoformat()
         } for pred in predictions]
@@ -368,18 +462,21 @@ class PredictionService:
         third_place_teams = []
         
         for pred in group_predictions:
-            positions = json.loads(pred.positions)
-            if len(positions) >= 3:
-                third_place_team_id = positions[2]  # מיקום 3 (אינדקס 2)
+            third_place_team_id = pred.third_place  # מיקום 3
+            
+            # מביא את פרטי הקבוצה
+            team = db.query(Team).filter(Team.id == third_place_team_id).first()
+            if team:
+                # מביא את שם הבית
+                group = db.query(Group).filter(Group.id == pred.group_id).first()
+                group_name = group.name if group else f"בית {pred.group_id}"
                 
-                # מביא את פרטי הקבוצה
-                team = db.query(Team).filter(Team.id == third_place_team_id).first()
-                if team:
-                    third_place_teams.append({
-                        "id": team.id,
-                        "name": team.name,
-                        "country_code": team.country_code,
-                        "group_id": pred.group_id
-                    })
+                third_place_teams.append({
+                    "id": team.id,
+                    "name": team.name,
+                    "country_code": team.country_code,
+                    "group_id": pred.group_id,
+                    "group_name": group_name
+                })
         
         return third_place_teams

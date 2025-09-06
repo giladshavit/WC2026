@@ -27,26 +27,49 @@ class GroupStagePrediction(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
-    positions = Column(String, nullable=False)  # JSON string of team IDs positions: [team_id_1, team_id_2, team_id_3, team_id_4]
+    first_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    second_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    third_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    fourth_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     user = relationship("User")
     group = relationship("Group")
+    first_place_team = relationship("Team", foreign_keys=[first_place])
+    second_place_team = relationship("Team", foreign_keys=[second_place])
+    third_place_team = relationship("Team", foreign_keys=[third_place])
+    fourth_place_team = relationship("Team", foreign_keys=[fourth_place])
 
 class ThirdPlacePrediction(Base):
     __tablename__ = "third_place_predictions"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    stage = Column(String, default="third_place")
-    advancing_team_ids = Column(String, nullable=False)  # JSON string of 8 team IDs that will advance
+    first_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    second_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    third_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    fourth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    fifth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    sixth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    seventh_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    eighth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     user = relationship("User")
+    first_team = relationship("Team", foreign_keys=[first_team_qualifying])
+    second_team = relationship("Team", foreign_keys=[second_team_qualifying])
+    third_team = relationship("Team", foreign_keys=[third_team_qualifying])
+    fourth_team = relationship("Team", foreign_keys=[fourth_team_qualifying])
+    fifth_team = relationship("Team", foreign_keys=[fifth_team_qualifying])
+    sixth_team = relationship("Team", foreign_keys=[sixth_team_qualifying])
+    seventh_team = relationship("Team", foreign_keys=[seventh_team_qualifying])
+    eighth_team = relationship("Team", foreign_keys=[eighth_team_qualifying])
 
 class KnockoutStagePrediction(Base):
     __tablename__ = "knockout_stage_predictions"
