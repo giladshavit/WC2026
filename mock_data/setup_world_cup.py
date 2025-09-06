@@ -65,6 +65,31 @@ def create_groups(teams: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]
     
     return groups
 
+def update_teams_with_group_info(groups: Dict[str, List[Dict[str, Any]]]) -> bool:
+    """מעדכן את הקבוצות עם מידע על הבתים שלהם"""
+    print("מעדכן קבוצות עם מידע על בתים...")
+    
+    try:
+        for group_name, teams in groups.items():
+            for position, team in enumerate(teams, 1):
+                # עדכון הקבוצה עם group_letter ו-group_position
+                update_data = {
+                    "team_id": team['id'],
+                    "group_letter": group_name,
+                    "group_position": position
+                }
+                
+                url = f"{BASE_URL}/admin/teams/{team['id']}/group"
+                response = requests.put(url, json=update_data)
+                response.raise_for_status()
+                
+                print(f"עדכון {team['name']} לבית {group_name} מיקום {position}")
+        
+        return True
+    except Exception as e:
+        print(f"שגיאה בעדכון קבוצות: {e}")
+        return False
+
 def generate_group_matches(groups: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
     """יוצר את כל המשחקים בשלב הבתים במחזורים"""
     print("יוצר משחקי בתים...")
@@ -183,10 +208,16 @@ def main():
     # 3. יוצר בתים
     groups = create_groups(created_teams)
     
-    # 4. יוצר משחקי בתים
+    # 4. מעדכן קבוצות עם מידע על בתים
+    update_success = update_teams_with_group_info(groups)
+    if not update_success:
+        print("שגיאה בעדכון קבוצות עם מידע על בתים")
+        return
+    
+    # 5. יוצר משחקי בתים
     matches = generate_group_matches(groups)
     
-    # 5. מוסיף משחקים לבסיס הנתונים
+    # 6. מוסיף משחקים לבסיס הנתונים
     created_matches = add_matches_to_database(matches)
     
     print("\nהגדרת מונדיאל 2026 הושלמה!")
