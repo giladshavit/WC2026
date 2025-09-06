@@ -17,8 +17,11 @@ interface Group {
 interface GroupPrediction {
   id?: number;
   group_id: number;
-  positions: number[];
-  points: number;
+  first_place: number;
+  second_place: number;
+  third_place: number;
+  fourth_place: number;
+  points?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -52,10 +55,13 @@ const GroupPredictionsPage: React.FC = () => {
     try {
       const response = await axios.get(`http://127.0.0.1:8000/api/users/${userId}/group-predictions`);
       const predictionsMap = response.data.reduce((acc: { [key: number]: GroupPrediction }, pred: any) => {
-        acc[pred.group.id] = {
+        acc[pred.group_id] = {
           id: pred.id,
-          group_id: pred.group.id,
-          positions: pred.positions,
+          group_id: pred.group_id,
+          first_place: pred.first_place,
+          second_place: pred.second_place,
+          third_place: pred.third_place,
+          fourth_place: pred.fourth_place,
           points: pred.points,
           created_at: pred.created_at,
           updated_at: pred.updated_at
@@ -75,6 +81,20 @@ const GroupPredictionsPage: React.FC = () => {
     return group?.teams.find(t => t.id === teamId);
   };
 
+  const getPositionsFromPrediction = (prediction: GroupPrediction): number[] => {
+    return [prediction.first_place, prediction.second_place, prediction.third_place, prediction.fourth_place];
+  };
+
+  const createPredictionFromPositions = (groupId: number, positions: number[]): GroupPrediction => {
+    return {
+      group_id: groupId,
+      first_place: positions[0],
+      second_place: positions[1],
+      third_place: positions[2],
+      fourth_place: positions[3]
+    };
+  };
+
   const getPredictionForGroup = (groupId: number): GroupPrediction | undefined => {
     return predictions.find(p => p.group_id === groupId);
   };
@@ -86,7 +106,7 @@ const GroupPredictionsPage: React.FC = () => {
     if (prediction) {
       setTempPredictions({
         ...tempPredictions,
-        [groupId]: [...prediction.positions]
+        [groupId]: getPositionsFromPrediction(prediction)
       });
     } else if (group) {
       // Default order: teams in their original order
@@ -107,7 +127,10 @@ const GroupPredictionsPage: React.FC = () => {
     try {
       await axios.post('http://127.0.0.1:8000/api/predictions/group-stage', {
         group_id: groupId,
-        positions: positions,
+        first_place: positions[0],
+        second_place: positions[1],
+        third_place: positions[2],
+        fourth_place: positions[3],
         user_id: userId
       });
       
@@ -126,7 +149,7 @@ const GroupPredictionsPage: React.FC = () => {
     if (prediction) {
       setTempPredictions({
         ...tempPredictions,
-        [groupId]: [...prediction.positions]
+        [groupId]: getPositionsFromPrediction(prediction)
       });
     }
   };
@@ -145,7 +168,7 @@ const GroupPredictionsPage: React.FC = () => {
   const renderGroup = (group: Group) => {
     const prediction = getPredictionForGroup(group.id);
     const isEditing = editingGroup === group.id;
-    const positions = isEditing ? tempPredictions[group.id] : prediction?.positions;
+    const positions = isEditing ? tempPredictions[group.id] : (prediction ? getPositionsFromPrediction(prediction) : undefined);
 
     return (
       <div key={group.id} className="bg-white rounded-lg shadow-md p-6 mb-6">

@@ -20,10 +20,24 @@ const HomePage: React.FC = () => {
           </button>
           
           <button
-            onClick={() => navigate('/group-predictions')}
+            onClick={() => alert('בקרוב...')}
             className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200"
           >
-            ניחושי בתים
+            בתים
+          </button>
+          
+          <button
+            onClick={() => navigate('/group-predictions')}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200"
+          >
+            ניחושי הבתים
+          </button>
+          
+          <button
+            onClick={() => alert('בקרוב...')}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200"
+          >
+            משחקים
           </button>
           
           <button
