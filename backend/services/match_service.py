@@ -1,7 +1,7 @@
 from typing import Dict, List, Any
 from sqlalchemy.orm import Session
 from datetime import datetime
-from models.matches import GroupStageMatch, KnockoutMatch
+from models.matches import Match
 from models.predictions import MatchPrediction
 from models.team import Team
 
@@ -12,12 +12,12 @@ class MatchService:
         """
         מביא את כל המשחקים עם הניחושים של המשתמש
         """
-        # מביא את כל משחקי הבתים
-        group_matches = db.query(GroupStageMatch).all()
+        # מביא את כל המשחקים
+        matches = db.query(Match).all()
         
         matches_with_predictions = []
         
-        for match in group_matches:
+        for match in matches:
             # מביא את הניחוש של המשתמש למשחק הזה
             prediction = db.query(MatchPrediction).filter(
                 MatchPrediction.user_id == user_id,
@@ -26,7 +26,7 @@ class MatchService:
             
             match_data = {
                 "id": match.id,
-                "type": "group_stage",
+                "stage": match.stage,
                 "home_team": {
                     "id": match.home_team.id,
                     "name": match.home_team.name,
@@ -37,16 +37,23 @@ class MatchService:
                     "name": match.away_team.name,
                     "country_code": match.away_team.country_code
                 },
-                "group": match.group,
                 "date": match.date.isoformat(),
                 "status": match.status,
                 "user_prediction": {
                     "home_score": prediction.home_score if prediction else None,
                     "away_score": prediction.away_score if prediction else None,
-                    "points": prediction.points if prediction else None
+                    "predicted_winner": prediction.predicted_winner if prediction else None
                 },
                 "can_edit": match.status == "scheduled"  # אפשר לערוך רק משחקים שעדיין לא התקיימו
             }
+            
+            # מוסיף פרטים ספציפיים לפי סוג המשחק
+            if match.is_group_stage:
+                match_data["group"] = match.group
+            elif match.is_knockout:
+                match_data["match_number"] = match.match_number
+                match_data["home_team_source"] = match.home_team_source
+                match_data["away_team_source"] = match.away_team_source
             
             matches_with_predictions.append(match_data)
         
@@ -67,7 +74,8 @@ class MatchService:
         if not home_team or not away_team:
             return {"error": "One or both teams not found"}
         
-        match = GroupStageMatch(
+        match = Match(
+            stage="group",
             home_team_id=home_team_id,
             away_team_id=away_team_id,
             group=group,
@@ -81,7 +89,7 @@ class MatchService:
         
         return {
             "id": match.id,
-            "type": "group_stage",
+            "stage": "group",
             "home_team": {
                 "id": home_team.id,
                 "name": home_team.name,
@@ -102,7 +110,7 @@ class MatchService:
         """
         יוצר משחק נוקאאוט
         """
-        match = KnockoutMatch(
+        match = Match(
             stage=stage,
             match_number=match_number,
             home_team_source=home_team_source,
@@ -117,7 +125,6 @@ class MatchService:
         
         return {
             "id": match.id,
-            "type": "knockout",
             "stage": stage,
             "match_number": match_number,
             "home_team_source": home_team_source,

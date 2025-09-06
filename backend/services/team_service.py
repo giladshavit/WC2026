@@ -31,7 +31,36 @@ class TeamService:
             "id": team.id,
             "name": team.name,
             "country_code": team.country_code,
-            "flag_url": team.flag_url
+            "flag_url": team.flag_url,
+            "group_letter": team.group_letter,
+            "group_position": team.group_position,
+            "goals_for": team.goals_for,
+            "goals_against": team.goals_against
+        }
+
+    @staticmethod
+    def update_team_group(db: Session, team_id: int, group_letter: str, group_position: int) -> Dict[str, Any]:
+        """
+        מעדכן קבוצה עם מידע על הבית שלה
+        """
+        team = db.query(Team).filter(Team.id == team_id).first()
+        
+        if not team:
+            return {"error": f"Team with id {team_id} not found"}
+        
+        team.group_letter = group_letter
+        team.group_position = group_position
+        
+        db.commit()
+        db.refresh(team)
+        
+        return {
+            "id": team.id,
+            "name": team.name,
+            "country_code": team.country_code,
+            "group_letter": team.group_letter,
+            "group_position": team.group_position,
+            "updated": True
         }
 
     @staticmethod
@@ -45,7 +74,11 @@ class TeamService:
                 "id": team.id,
                 "name": team.name,
                 "country_code": team.country_code,
-                "flag_url": team.flag_url
+                "flag_url": team.flag_url,
+                "group_letter": team.group_letter,
+                "group_position": team.group_position,
+                "goals_for": team.goals_for,
+                "goals_against": team.goals_against
             }
             for team in teams
         ]
