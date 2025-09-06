@@ -7,6 +7,7 @@ from datetime import datetime
 from services.match_service import MatchService
 from services.team_service import TeamService
 from services.group_service import GroupService
+from models.groups import Group
 from database import get_db
 
 router = APIRouter()
@@ -19,7 +20,7 @@ class GroupStageMatchRequest(BaseModel):
     date: datetime
 
 class KnockoutMatchRequest(BaseModel):
-    stage: str  # round16, quarter, semi, final
+    stage: str  # round32, round16, quarter, semi, final
     match_number: int
     home_team_source: str
     away_team_source: str
@@ -32,6 +33,11 @@ class TeamRequest(BaseModel):
 
 class MultipleTeamsRequest(BaseModel):
     teams: List[TeamRequest]
+
+class UpdateTeamGroupRequest(BaseModel):
+    team_id: int
+    group_letter: str
+    group_position: int
 
 @router.post("/admin/teams", response_model=Dict[str, Any])
 def create_team(team_request: TeamRequest, db: Session = Depends(get_db)):
@@ -65,6 +71,23 @@ def create_multiple_teams(teams_request: MultipleTeamsRequest, db: Session = Dep
     ]
     
     result = TeamService.create_multiple_teams(db, teams_data)
+    return result
+
+@router.put("/admin/teams/{team_id}/group", response_model=Dict[str, Any])
+def update_team_group(team_id: int, group_request: UpdateTeamGroupRequest, db: Session = Depends(get_db)):
+    """
+    מעדכן קבוצה עם מידע על הבית שלה (admin only)
+    """
+    result = TeamService.update_team_group(
+        db, 
+        team_id, 
+        group_request.group_letter, 
+        group_request.group_position
+    )
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
     return result
 
 @router.get("/admin/teams", response_model=List[Dict[str, Any]])
@@ -159,3 +182,30 @@ def get_group_results(group_id: int, db: Session = Depends(get_db)):
     מביא את תוצאות הבית (admin only)
     """
     return GroupService.get_group_results(db, group_id)
+
+class UpdateGroupRequest(BaseModel):
+    team_1: int
+    team_2: int
+    team_3: int
+    team_4: int
+
+@router.put("/admin/groups/{group_name}", response_model=Dict[str, Any])
+def update_group(group_name: str, update_request: UpdateGroupRequest, db: Session = Depends(get_db)):
+    """
+    מעדכן בית עם הקבוצות שלו (admin only)
+    """
+    # מוצא את הבית לפי שם
+    group = db.query(Group).filter(Group.name == group_name).first()
+    if not group:
+        raise HTTPException(status_code=404, detail=f"Group {group_name} not found")
+    
+    # מעדכן את הקבוצות
+    group.team_1 = update_request.team_1
+    group.team_2 = update_request.team_2
+    group.team_3 = update_request.team_3
+    group.team_4 = update_request.team_4
+    
+    db.commit()
+    db.refresh(group)
+    
+    return {"id": group.id, "name": group.name, "updated": True}
