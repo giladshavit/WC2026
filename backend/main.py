@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from api import predictions, admin, matches
-from api import groups
+from api import groups, teams
 from database import engine
 from models import base, user, team, matches as match_models, predictions as prediction_models
 from models import groups as group_models
@@ -28,6 +28,7 @@ app.include_router(predictions.router, prefix="/api", tags=["predictions"])
 app.include_router(admin.router, prefix="/api", tags=["admin"])
 app.include_router(matches.router, prefix="/api", tags=["matches"])
 app.include_router(groups.router, prefix="/api", tags=["groups"])
+app.include_router(teams.router, prefix="/api", tags=["teams"])
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")

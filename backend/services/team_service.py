@@ -5,23 +5,17 @@ from models.team import Team
 class TeamService:
     
     @staticmethod
-    def create_team(db: Session, name: str, country_code: str, flag_url: str = None) -> Dict[str, Any]:
+    def create_team(db: Session, name: str) -> Dict[str, Any]:
         """
         יוצר קבוצה חדשה
         """
         # בודק אם הקבוצה כבר קיימת
-        existing_team = db.query(Team).filter(
-            (Team.name == name) | (Team.country_code == country_code)
-        ).first()
+        existing_team = db.query(Team).filter(Team.name == name).first()
         
         if existing_team:
-            return {"error": f"Team {name} or country code {country_code} already exists"}
+            return {"error": f"Team {name} already exists"}
         
-        team = Team(
-            name=name,
-            country_code=country_code,
-            flag_url=flag_url
-        )
+        team = Team(name=name)
         
         db.add(team)
         db.commit()
@@ -30,8 +24,6 @@ class TeamService:
         return {
             "id": team.id,
             "name": team.name,
-            "country_code": team.country_code,
-            "flag_url": team.flag_url,
             "group_letter": team.group_letter,
             "group_position": team.group_position,
             "goals_for": team.goals_for,
@@ -57,7 +49,6 @@ class TeamService:
         return {
             "id": team.id,
             "name": team.name,
-            "country_code": team.country_code,
             "group_letter": team.group_letter,
             "group_position": team.group_position,
             "updated": True
@@ -73,8 +64,6 @@ class TeamService:
             {
                 "id": team.id,
                 "name": team.name,
-                "country_code": team.country_code,
-                "flag_url": team.flag_url,
                 "group_letter": team.group_letter,
                 "group_position": team.group_position,
                 "goals_for": team.goals_for,
@@ -93,14 +82,12 @@ class TeamService:
         
         for team_data in teams_data:
             name = team_data.get("name")
-            country_code = team_data.get("country_code")
-            flag_url = team_data.get("flag_url")
             
-            if not name or not country_code:
-                errors.append(f"Missing name or country_code for team: {team_data}")
+            if not name:
+                errors.append(f"Missing name for team: {team_data}")
                 continue
             
-            result = TeamService.create_team(db, name, country_code, flag_url)
+            result = TeamService.create_team(db, name)
             
             if "error" in result:
                 errors.append(result["error"])

@@ -30,12 +30,10 @@ class MatchService:
                 "home_team": {
                     "id": match.home_team.id,
                     "name": match.home_team.name,
-                    "country_code": match.home_team.country_code
                 },
                 "away_team": {
                     "id": match.away_team.id,
                     "name": match.away_team.name,
-                    "country_code": match.away_team.country_code
                 },
                 "date": match.date.isoformat(),
                 "status": match.status,
@@ -93,12 +91,10 @@ class MatchService:
             "home_team": {
                 "id": home_team.id,
                 "name": home_team.name,
-                "country_code": home_team.country_code
             },
             "away_team": {
                 "id": away_team.id,
                 "name": away_team.name,
-                "country_code": away_team.country_code
             },
             "group": group,
             "date": date.isoformat(),

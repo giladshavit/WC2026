@@ -6,11 +6,9 @@ interface Match {
   id: number;
   home_team: {
     name: string;
-    country_code: string;
   };
   away_team: {
     name: string;
-    country_code: string;
   };
   group: string;
   date: string;

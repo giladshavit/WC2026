@@ -8,8 +8,6 @@ class Team(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False, unique=True)
-    country_code = Column(String, nullable=False, unique=True)  # ARG, BRA, FRA
-    flag_url = Column(String)  # URL לדגל הקבוצה
     
     # Group stage information
     group_letter = Column(CHAR(1), nullable=True)  # A, B, C, D, E, F, G, H, I, J, K, L

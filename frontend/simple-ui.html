@@ -283,7 +283,6 @@
                         ${teams.map(team => `
                             <div style="background: #f7fafc; padding: 15px; border-radius: 10px; border: 2px solid #e2e8f0;">
                                 <h4 style="color: #2d3748; margin-bottom: 5px;">${team.name}</h4>
-                                <p style="color: #718096; font-size: 0.9rem;">${team.country_code}</p>
                                 ${team.group_letter ? `<p style="color: #667eea; font-weight: bold;">בית ${team.group_letter}</p>` : ''}
                             </div>
                         `).join('')}
@@ -309,7 +308,7 @@
                                 <div style="display: flex; flex-direction: column; gap: 8px;">
                                     ${group.teams.map(team => `
                                         <div style="background: white; padding: 10px; border-radius: 5px; border: 1px solid #e2e8f0;">
-                                            <strong>${team.name}</strong> (${team.country_code})
+                                            <strong>${team.name}</strong>
                                         </div>
                                     `).join('')}
                                 </div>

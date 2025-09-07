@@ -5,7 +5,6 @@ import axios from 'axios';
 interface ThirdPlaceTeam {
   team_id: number;
   team_name: string;
-  country_code: string;
   group_name: string;
 }
 
@@ -280,7 +279,7 @@ const ThirdPlacePredictionsPage: React.FC = () => {
                 <div>
                   <h3 className="font-semibold text-gray-800">{team.team_name}</h3>
                   <p className="text-sm text-gray-600">
-                    {team.country_code} • בית {team.group_name}
+                    בית {team.group_name}
                   </p>
                 </div>
                 <div className={`

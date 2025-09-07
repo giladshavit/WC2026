@@ -5,7 +5,6 @@ import axios from 'axios';
 interface Team {
   id: number;
   name: string;
-  country_code: string;
 }
 
 interface Group {
@@ -234,7 +233,6 @@ const GroupPredictionsPage: React.FC = () => {
                       {index + 1}
                     </span>
                     <span className="font-medium">{team.name}</span>
-                    <span className="text-gray-500 text-sm">({team.country_code})</span>
                   </div>
                   
                   {isEditing && (

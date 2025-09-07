@@ -76,12 +76,10 @@ class PredictionService:
                 "home_team": {
                     "id": match.home_team.id,
                     "name": match.home_team.name,
-                    "country_code": match.home_team.country_code
                 },
                 "away_team": {
                     "id": match.away_team.id,
                     "name": match.away_team.name,
-                    "country_code": match.away_team.country_code
                 },
                 "date": match.date.isoformat(),
                 "status": match.status
@@ -474,7 +472,6 @@ class PredictionService:
                 third_place_teams.append({
                     "id": team.id,
                     "name": team.name,
-                    "country_code": team.country_code,
                     "group_id": pred.group_id,
                     "group_name": group_name
                 })

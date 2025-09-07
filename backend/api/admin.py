@@ -28,8 +28,6 @@ class KnockoutMatchRequest(BaseModel):
 
 class TeamRequest(BaseModel):
     name: str
-    country_code: str
-    flag_url: str = None
 
 class MultipleTeamsRequest(BaseModel):
     teams: List[TeamRequest]
@@ -46,9 +44,7 @@ def create_team(team_request: TeamRequest, db: Session = Depends(get_db)):
     """
     result = TeamService.create_team(
         db, 
-        team_request.name, 
-        team_request.country_code, 
-        team_request.flag_url
+        team_request.name
     )
     
     if "error" in result:
@@ -63,9 +59,7 @@ def create_multiple_teams(teams_request: MultipleTeamsRequest, db: Session = Dep
     """
     teams_data = [
         {
-            "name": team.name,
-            "country_code": team.country_code,
-            "flag_url": team.flag_url
+            "name": team.name
         }
         for team in teams_request.teams
     ]

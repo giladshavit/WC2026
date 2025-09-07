@@ -366,7 +366,6 @@
                         ${teams.map(team => `
                             <div style="background: #f7fafc; padding: 15px; border-radius: 10px; border: 2px solid #e2e8f0; text-align: center;">
                                 <h4 style="color: #2d3748; margin-bottom: 5px;">${team.name}</h4>
-                                <p style="color: #718096; font-size: 0.9rem;">${team.country_code}</p>
                                 ${team.group_letter ? `<p style="color: #667eea; font-weight: bold;">בית ${team.group_letter}</p>` : ''}
                             </div>
                         `).join('')}
@@ -393,7 +392,6 @@
                                     ${group.teams.map(team => `
                                         <div style="background: white; padding: 10px; border-radius: 5px; border: 1px solid #e2e8f0; text-align: center;">
                                             <strong>${team.name}</strong><br>
-                                            <small style="color: #718096;">${team.country_code}</small>
                                         </div>
                                     `).join('')}
                                 </div>
@@ -492,7 +490,6 @@
                                                         <div>
                                                             <strong>${team.name}</strong>
                                                             <br>
-                                                            <small style="color: #718096;">${team.country_code || ''}</small>
                                                         </div>
                                                     </div>
                                                     ${position ? `
@@ -552,14 +549,12 @@
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                     <div style="text-align: center; flex: 1;">
                                         <strong>${match.home_team.name}</strong><br>
-                                        <small style="color: #718096;">${match.home_team.country_code}</small>
                                     </div>
                                     <div style="text-align: center; margin: 0 20px; font-size: 1.5rem; font-weight: bold; color: #667eea;">
                                         VS
                                     </div>
                                     <div style="text-align: center; flex: 1;">
                                         <strong>${match.away_team.name}</strong><br>
-                                        <small style="color: #718096;">${match.away_team.country_code}</small>
                                     </div>
                                 </div>
                                 
@@ -810,7 +805,6 @@
                             <div>
                                 <strong>${team.name}</strong>
                                 <br>
-                                <small style="color: #718096;">${team.country_code}</small>
                             </div>
                             <select id="position_${team.id}" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; min-width: 80px;">
                                 <option value="">בחר מקום</option>
@@ -1120,7 +1114,6 @@
                                             ${team.name}
                                         </div>
                                         <div style="font-size: 0.9rem; color: #718096; margin-bottom: 5px;">
-                                            ${team.country_code || ''}
                                         </div>
                                         <div style="font-size: 0.8rem; color: #a0aec0;">
                                             בית ${team.group_name}

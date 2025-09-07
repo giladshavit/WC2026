@@ -40,7 +40,7 @@ class GroupService:
             "id": group.id,
             "name": group.name,
             "teams": [
-                {"id": team.id, "name": team.name, "country_code": team.country_code, "position": i+1} 
+                {"id": team.id, "name": team.name, "position": i+1} 
                 for i, team in enumerate(teams) if team is not None
             ]
         }
