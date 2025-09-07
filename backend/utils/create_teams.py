@@ -49,22 +49,10 @@ def create_teams():
             
             # לולאה על הבתים (עמודות) - A עד L
             for group_index, group_letter in enumerate(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']):
-                # מיקום 1 - מהעמודות (כותרות)
-                if group_index < len(df.columns):
-                    team_name = df.columns[group_index]
-                    if pd.notna(team_name) and str(team_name).strip():
-                        teams_data.append({
-                            "id": team_id,
-                            "name": str(team_name).strip(),
-                            "group": group_letter,
-                            "position": 1
-                        })
-                        team_id += 1
-                
                 # מיקומים 2-4 - מהשורות
-                for position in range(3):  # 0-2 (שורות 2-4)
+                for position in range(4):  # 0-2 (שורות 2-4)
                     if group_index < len(df.columns) and position < len(df):
-                        team_name = df.iloc[position, group_index]
+                        team_name = df.iloc[position-1, group_index]
                         if pd.notna(team_name) and str(team_name).strip():
                             teams_data.append({
                                 "id": team_id,
