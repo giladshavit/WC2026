@@ -477,3 +477,44 @@ class PredictionService:
                 })
         
         return third_place_teams
+    
+    @staticmethod
+    def create_or_update_batch_group_predictions(db: Session, user_id: int, predictions_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        יצירה או עדכון ניחושי בתים מרובים
+        """
+        try:
+            saved_predictions = []
+            errors = []
+            
+            for prediction_data in predictions_data:
+                group_id = prediction_data.get("group_id")
+                first_place = prediction_data.get("first_place")
+                second_place = prediction_data.get("second_place")
+                third_place = prediction_data.get("third_place")
+                fourth_place = prediction_data.get("fourth_place")
+                
+                if not all([group_id, first_place, second_place, third_place, fourth_place]):
+                    errors.append(f"Missing data for group {group_id}")
+                    continue
+                
+                # שמירת הניחוש
+                result = PredictionService.create_or_update_group_prediction(
+                    db, user_id, group_id, first_place, second_place, third_place, fourth_place
+                )
+                
+                if "error" in result:
+                    errors.append(f"Error saving group {group_id}: {result['error']}")
+                else:
+                    saved_predictions.append(result)
+            
+            return {
+                "saved_predictions": saved_predictions,
+                "errors": errors,
+                "total_saved": len(saved_predictions),
+                "total_errors": len(errors),
+                "success": len(errors) == 0
+            }
+            
+        except Exception as e:
+            return {"error": f"Batch save failed: {str(e)}"}

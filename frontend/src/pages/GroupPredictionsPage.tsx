@@ -31,8 +31,15 @@ const GroupPredictionsPage: React.FC = () => {
   const [predictions, setPredictions] = useState<GroupPrediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<number | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  
+  // Force reset editMode on component mount
+  useEffect(() => {
+    setEditMode(false);
+  }, []);
+  const [hasChanges, setHasChanges] = useState(false);
   const [tempPredictions, setTempPredictions] = useState<{ [key: number]: number[] }>({});
+
 
   const userId = 1; // Hardcoded for now
 
@@ -47,6 +54,7 @@ const GroupPredictionsPage: React.FC = () => {
       setGroups(response.data);
     } catch (error) {
       console.error('Error fetching groups:', error);
+      setLoading(false);
     }
   };
 
@@ -115,29 +123,41 @@ const GroupPredictionsPage: React.FC = () => {
       });
     }
     
-    setEditingGroup(groupId);
+    setEditMode(true);
   };
 
-  const handleSaveGroup = async (groupId: number) => {
-    const positions = tempPredictions[groupId];
-    if (!positions || positions.length !== 4) return;
-
+  const saveAllChanges = async () => {
     setSaving(true);
     try {
-      await axios.post('http://127.0.0.1:8000/api/predictions/group-stage', {
-        group_id: groupId,
+      // הכנת הנתונים לשמירה מרובה
+      const predictionsData = Object.entries(tempPredictions).map(([groupId, positions]) => ({
+        group_id: parseInt(groupId),
         first_place: positions[0],
         second_place: positions[1],
         third_place: positions[2],
-        fourth_place: positions[3],
-        user_id: userId
+        fourth_place: positions[3]
+      }));
+      
+      // שמירה מרובה עם ה-API החדש
+      const response = await axios.post('http://127.0.0.1:8000/api/predictions/group-stage/batch', {
+        user_id: userId,
+        predictions: predictionsData
       });
       
-      // Refresh predictions
-      await fetchPredictions();
-      setEditingGroup(null);
+      if (response.data.success) {
+        // עדכון המצב
+        await fetchPredictions();
+        setEditMode(false);
+        setHasChanges(false);
+        setTempPredictions({});
+        
+        alert(`נשמרו בהצלחה ${response.data.total_saved} ניחושי בתים!`);
+      } else {
+        alert(`שגיאה בשמירה: ${response.data.errors.join(', ')}`);
+      }
     } catch (error) {
-      console.error('Error saving prediction:', error);
+      console.error('Error saving predictions:', error);
+      alert('שגיאה בשמירת הניחושים');
     } finally {
       setSaving(false);
     }
@@ -162,47 +182,25 @@ const GroupPredictionsPage: React.FC = () => {
       ...tempPredictions,
       [groupId]: positions
     });
+    
+    setHasChanges(true);
   };
 
   const renderGroup = (group: Group) => {
     const prediction = getPredictionForGroup(group.id);
-    const isEditing = editingGroup === group.id;
-    const positions = isEditing ? tempPredictions[group.id] : (prediction ? getPositionsFromPrediction(prediction) : undefined);
+    const positions = editMode && tempPredictions[group.id] 
+      ? tempPredictions[group.id] 
+      : (prediction ? getPositionsFromPrediction(prediction) : undefined);
 
     return (
       <div key={group.id} className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold text-gray-800">בית {group.name}</h3>
           <div className="space-x-2">
-            {!isEditing ? (
-              <button
-                onClick={() => handleEditGroup(group.id)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition duration-200"
-              >
-                ערוך
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => handleSaveGroup(group.id)}
-                  disabled={saving}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition duration-200 disabled:opacity-50"
-                >
-                  {saving ? 'שומר...' : 'שמור'}
-                </button>
-                <button
-                  onClick={() => handleResetGroup(group.id)}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition duration-200"
-                >
-                  איפוס
-                </button>
-                <button
-                  onClick={() => setEditingGroup(null)}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition duration-200"
-                >
-                  ביטול
-                </button>
-              </>
+            {editMode && tempPredictions[group.id] && (
+              <span className="text-sm text-orange-600 font-medium">
+                (שונה)
+              </span>
             )}
           </div>
         </div>
@@ -235,7 +233,7 @@ const GroupPredictionsPage: React.FC = () => {
                     <span className="font-medium">{team.name}</span>
                   </div>
                   
-                  {isEditing && (
+                  {editMode && (
                     <div className="flex space-x-1">
                       {index > 0 && (
                         <button
@@ -274,7 +272,7 @@ const GroupPredictionsPage: React.FC = () => {
           </div>
         )}
         
-        {isEditing && (
+        {editMode && tempPredictions[group.id] && (
           <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-yellow-800 text-sm">
               ⚠️ שינוי ניחוש בבית זה עלול להשפיע על ניחושי "מקומות 3"
@@ -301,20 +299,74 @@ const GroupPredictionsPage: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">ניחושי בתים</h1>
-        <button
-          onClick={() => navigate('/')}
-          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition duration-200"
-        >
-          חזרה לדף הבית
-        </button>
+      <button
+        onClick={() => alert('הכפתור עובד!')}
+        style={{
+          backgroundColor: 'red',
+          color: 'white',
+          padding: '20px',
+          fontSize: '20px',
+          border: 'none',
+          borderRadius: '10px',
+          margin: '20px',
+          cursor: 'pointer'
+        }}
+      >
+        🚨 כפתור בדיקה - לחץ עליי!
+      </button>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-4">ניחושי בתים 🏆</h1>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => alert('הכפתור עובד!')}
+            className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded transition duration-200"
+          >
+            🚨 בדיקה
+          </button>
+          <span className="text-sm text-gray-500">editMode: {editMode.toString()}</span>
+          {!editMode ? (
+            <button
+              onClick={() => setEditMode(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded transition duration-200"
+            >
+              🔧 ערוך ניחושים
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={saveAllChanges}
+                disabled={saving || !hasChanges}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition duration-200 disabled:opacity-50"
+              >
+                {saving ? 'שומר...' : '💾 שמור הכל'}
+              </button>
+              <button
+                onClick={() => {
+                  setEditMode(false);
+                  setHasChanges(false);
+                  setTempPredictions({});
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded transition duration-200"
+              >
+                ביטול
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => navigate('/')}
+            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition duration-200"
+          >
+            חזרה לדף הבית
+          </button>
+        </div>
       </div>
 
       <div className="mb-6 p-4 bg-blue-50 rounded-lg">
         <h2 className="text-lg font-semibold text-blue-800 mb-2">הוראות:</h2>
         <ul className="text-blue-700 space-y-1">
-          <li>• לחץ על "ערוך" כדי לשנות את הסדר של הקבוצות בבית</li>
+          <li>• לחץ על "ערוך ניחושים" כדי להתחיל לערוך</li>
+          <li>• גרור קבוצות כדי לשנות את הסדר בכל בית</li>
+          <li>• לחץ על "שמור הכל" כדי לשמור את כל השינויים</li>
           <li>• המקום הראשון (צהוב) - עולה ישירות לשמינית הגמר</li>
           <li>• המקום השני (אפור) - עולה ישירות לשמינית הגמר</li>
           <li>• המקום השלישי (כתום) - יכול לעלות לשמינית הגמר אם הוא בין 4 השלישים הטובים ביותר</li>

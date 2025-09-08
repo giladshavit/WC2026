@@ -31,6 +31,10 @@ class ThirdPlacePredictionRequest(BaseModel):
     team_ids: List[int]  # רשימה של 8 team IDs שיעלו
     user_id: int
 
+class BatchGroupPredictionRequest(BaseModel):
+    user_id: int
+    predictions: List[Dict[str, Any]]  # רשימה של ניחושי בתים
+
 @router.get("/groups", response_model=List[Dict[str, Any]])
 def get_groups_with_teams(db: Session = Depends(get_db)):
     """
@@ -75,6 +79,23 @@ def get_user_group_predictions(user_id: int, db: Session = Depends(get_db)):
     מביא את כל ניחושי הבתים של המשתמש
     """
     return PredictionService.get_group_predictions(db, user_id)
+
+@router.post("/predictions/group-stage/batch", response_model=Dict[str, Any])
+def create_or_update_batch_group_predictions(
+    batch_request: BatchGroupPredictionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    יצירה או עדכון ניחושי בתים מרובים
+    """
+    result = PredictionService.create_or_update_batch_group_predictions(
+        db, batch_request.user_id, batch_request.predictions
+    )
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
 
 @router.post("/predictions/third-place", response_model=Dict[str, Any])
 def create_or_update_third_place_prediction(

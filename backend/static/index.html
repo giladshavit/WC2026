@@ -281,7 +281,14 @@
             </div>
             
         <div id="group-predictions" class="section" style="display: none;">
-            <h2>ניחושי הבתים</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">ניחושי הבתים</h2>
+                <button onclick="toggleGroupEditMode()" 
+                        style="background: #3182ce; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: bold;"
+                        id="group_edit_btn">
+                    ערוך ניחושים
+                </button>
+            </div>
             <div id="group-predictions-content" class="loading">טוען ניחושי בתים...</div>
         </div>
         
@@ -443,16 +450,11 @@
                                 <div style="background: #f7fafc; padding: 20px; border-radius: 10px; border: 2px solid ${prediction ? '#2f855a' : '#e2e8f0'};">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                         <h3 style="color: #667eea; margin: 0;">בית ${group.name}</h3>
-                                        <div id="group-actions-${groupId}" style="display: none; gap: 10px;">
-                                            <button onclick="resetGroupSelection(${groupId})" 
-                                                    style="background: #e2e8f0; color: #4a5568; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
-                                                אפס
-                                            </button>
-                                            <button onclick="saveGroupPrediction(${groupId})" 
-                                                    style="background: #2f855a; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
-                                                שמור
-                                            </button>
-                                        </div>
+                                        ${groupEditMode ? `
+                                            <span style="color: #ed8936; font-size: 0.9rem; font-weight: bold;">
+                                                ${groupChanges[groupId] ? '(שונה)' : ''}
+                                            </span>
+                                        ` : ''}
                                     </div>
                                     
                                     <div style="space-y: 8px;">
@@ -461,11 +463,17 @@
                                                 return '';
                                             }
                                             
-                                            const position = prediction ? 
-                                                (team.id === prediction.first_place ? 1 :
-                                                 team.id === prediction.second_place ? 2 :
-                                                 team.id === prediction.third_place ? 3 :
-                                                 team.id === prediction.fourth_place ? 4 : null) : null;
+                                            // משתמש במצב העריכה החדש אם הוא פעיל
+                                            let position = null;
+                                            if (groupEditMode && groupChanges[groupId]) {
+                                                position = groupChanges[groupId].indexOf(team.id) + 1;
+                                                if (position === 0) position = null;
+                                            } else if (prediction) {
+                                                position = (team.id === prediction.first_place ? 1 :
+                                                           team.id === prediction.second_place ? 2 :
+                                                           team.id === prediction.third_place ? 3 :
+                                                           team.id === prediction.fourth_place ? 4 : null);
+                                            }
                                             
                                             const bgColor = position === 1 ? '#fef5e7' : 
                                                           position === 2 ? '#f7fafc' : 
@@ -478,7 +486,7 @@
                                                                position === 4 ? '#fc8181' : '#e2e8f0';
                                             
                                             return `
-                                                <div onclick="selectTeam(${groupId}, ${team.id})" 
+                                                <div onclick="${groupEditMode ? `moveTeamInGroup(${groupId}, ${team.id})` : `selectTeam(${groupId}, ${team.id})`}" 
                                                      style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: ${bgColor}; border-radius: 8px; border-left: 4px solid ${borderColor}; cursor: pointer; transition: all 0.3s ease;"
                                                      onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" 
                                                      onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'"
@@ -910,19 +918,21 @@
         }
         
         function updateGroupDisplay(groupId) {
-            if (!tempGroupSelections[groupId]) return;
+            // משתמש במצב העריכה החדש אם הוא פעיל
+            const selections = groupEditMode ? groupChanges[groupId] : tempGroupSelections[groupId];
+            if (!selections) return;
             
             // מעדכן את התצוגה של כל קבוצה בבית
-            const teamElements = document.querySelectorAll(`[onclick*="selectTeam(${groupId},"]`);
+            const teamElements = document.querySelectorAll(`[onclick*="${groupId},"]`);
             
             teamElements.forEach(teamElement => {
                 // מחלץ את teamId מה-onclick
                 const onclickAttr = teamElement.getAttribute('onclick');
-                const teamIdMatch = onclickAttr.match(/selectTeam\((\d+), (\d+)\)/);
+                const teamIdMatch = onclickAttr.match(/\((\d+), (\d+)\)/);
                 if (!teamIdMatch) return;
                 
                 const teamId = parseInt(teamIdMatch[2]);
-                const position = tempGroupSelections[groupId].indexOf(teamId) + 1;
+                const position = selections.indexOf(teamId) + 1;
                 
                 if (position > 0) {
                     // קבוצה נבחרה
@@ -1053,6 +1063,109 @@
                 console.error('שגיאה בשמירת החיזוי:', error);
                 alert('שגיאה בשמירת החיזוי');
             }
+        }
+        
+        // משתנים למצב עריכה כללי
+        let groupEditMode = false;
+        let groupChanges = {};
+        
+        function toggleGroupEditMode() {
+            groupEditMode = !groupEditMode;
+            const btn = document.getElementById('group_edit_btn');
+            
+            if (groupEditMode) {
+                btn.textContent = 'שמור הכל';
+                btn.style.background = '#2f855a';
+                btn.onclick = saveAllGroupPredictions;
+                // נכנס למצב עריכה
+                loadGroupPredictions();
+            } else {
+                btn.textContent = 'ערוך ניחושים';
+                btn.style.background = '#3182ce';
+                btn.onclick = toggleGroupEditMode;
+                // יוצא ממצב עריכה
+                groupChanges = {};
+                loadGroupPredictions();
+            }
+        }
+        
+        async function saveAllGroupPredictions() {
+            try {
+                if (Object.keys(groupChanges).length === 0) {
+                    alert('אין שינויים לשמירה');
+                    return;
+                }
+                
+                // הכנת הנתונים לשמירה מרובה
+                const predictionsData = Object.entries(groupChanges).map(([groupId, positions]) => ({
+                    group_id: parseInt(groupId),
+                    first_place: positions[0],
+                    second_place: positions[1],
+                    third_place: positions[2],
+                    fourth_place: positions[3]
+                }));
+                
+                // שמירה מרובה עם ה-API החדש
+                const response = await fetch('/api/predictions/group-stage/batch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: 1,
+                        predictions: predictionsData
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        alert(`נשמרו בהצלחה ${result.total_saved} ניחושי בתים!`);
+                        groupChanges = {};
+                        groupEditMode = false;
+                        const btn = document.getElementById('group_edit_btn');
+                        btn.textContent = 'ערוך ניחושים';
+                        btn.style.background = '#3182ce';
+                        btn.onclick = toggleGroupEditMode;
+                        loadGroupPredictions();
+                    } else {
+                        alert(`שגיאה בשמירה: ${result.errors.join(', ')}`);
+                    }
+                } else {
+                    throw new Error('שגיאה בשמירה');
+                }
+                
+            } catch (error) {
+                console.error('שגיאה בשמירת הניחושים:', error);
+                alert('שגיאה בשמירת הניחושים');
+            }
+        }
+        
+        function moveTeamInGroup(groupId, teamId) {
+            // אם אין שינויים עבור הבית הזה, יוצר מערך חדש
+            if (!groupChanges[groupId]) {
+                groupChanges[groupId] = [null, null, null, null];
+            }
+            
+            // מוצא את המיקום הנוכחי של הקבוצה
+            const currentPosition = groupChanges[groupId].indexOf(teamId);
+            
+            if (currentPosition !== -1) {
+                // אם הקבוצה כבר במקום, מסיר אותה
+                groupChanges[groupId][currentPosition] = null;
+            } else {
+                // מוצא את המיקום הפנוי הראשון
+                const firstEmpty = groupChanges[groupId].indexOf(null);
+                if (firstEmpty !== -1) {
+                    groupChanges[groupId][firstEmpty] = teamId;
+                } else {
+                    // אם אין מקום פנוי, מחליף את המיקום הראשון
+                    groupChanges[groupId][0] = teamId;
+                }
+            }
+            
+            // מעדכן את התצוגה
+            updateGroupDisplay(groupId);
         }
         
         // משתנה לשמירת בחירות זמניות של העולות
