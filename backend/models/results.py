@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-from models.base import Base
+from .base import Base
 
 class GroupStageResult(Base):
     __tablename__ = "group_stage_results"
@@ -65,4 +65,3 @@ class KnockoutStageResult(Base):
     team_1_obj = relationship("Team", foreign_keys=[team_1])
     team_2_obj = relationship("Team", foreign_keys=[team_2])
     winner_team = relationship("Team", foreign_keys=[winner_team_id])
-

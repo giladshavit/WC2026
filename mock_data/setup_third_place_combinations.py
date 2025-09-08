@@ -32,15 +32,14 @@ def parse_combination_line(line):
     # Create the combination object
     return {
         'id': combination_number,
-        'combination': ' '.join(combination_parts),
-        'group_a_3rd': combination_parts[0] if len(combination_parts) > 0 else None,
-        'group_b_3rd': combination_parts[1] if len(combination_parts) > 1 else None,
-        'group_c_3rd': combination_parts[2] if len(combination_parts) > 2 else None,
-        'group_d_3rd': combination_parts[3] if len(combination_parts) > 3 else None,
-        'group_e_3rd': combination_parts[4] if len(combination_parts) > 4 else None,
-        'group_f_3rd': combination_parts[5] if len(combination_parts) > 5 else None,
-        'group_g_3rd': combination_parts[6] if len(combination_parts) > 6 else None,
-        'group_h_3rd': combination_parts[7] if len(combination_parts) > 7 else None,
+        'match_1A': combination_parts[0] if len(combination_parts) > 0 else None,
+        'match_1B': combination_parts[1] if len(combination_parts) > 1 else None,
+        'match_1D': combination_parts[2] if len(combination_parts) > 2 else None,
+        'match_1E': combination_parts[3] if len(combination_parts) > 3 else None,
+        'match_1G': combination_parts[4] if len(combination_parts) > 4 else None,
+        'match_1I': combination_parts[5] if len(combination_parts) > 5 else None,
+        'match_1K': combination_parts[6] if len(combination_parts) > 6 else None,
+        'match_1L': combination_parts[7] if len(combination_parts) > 7 else None,
         'hash_key': hash_key
     }
 
@@ -90,7 +89,7 @@ def setup_third_place_combinations():
                 if not existing:
                     combination = ThirdPlaceCombination(**combination_data)
                     db.add(combination)
-                    print(f"Added combination {combination_data['id']}: {combination_data['combination']}")
+                    print(f"Added combination {combination_data['id']}: {combination_data['hash_key']}")
                 else:
                     print(f"Combination {combination_data['id']} already exists")
         

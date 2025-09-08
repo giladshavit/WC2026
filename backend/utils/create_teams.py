@@ -28,7 +28,7 @@ def create_teams():
         
         # קורא את הנתונים מהגוגל שיטס
         print("קורא נתונים מהגוגל שיטס...")
-        google_sheet_url = "https://docs.google.com/spreadsheets/d/1D9zV9rivLeDUql_6bMvFEdZ3gOpMnG015WNL9iGfX4g/export?format=csv&gid=255491779&range=A2:L5"
+        google_sheet_url = "https://docs.google.com/spreadsheets/d/1D9zV9rivLeDUql_6bMvFEdZ3gOpMnG015WNL9iGfX4g/export?format=csv&gid=255491779&range=A1:L5"
         
         try:
             response = requests.get(google_sheet_url)
@@ -49,16 +49,16 @@ def create_teams():
             
             # לולאה על הבתים (עמודות) - A עד L
             for group_index, group_letter in enumerate(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']):
-                # מיקומים 2-4 - מהשורות
-                for position in range(4):  # 0-2 (שורות 2-4)
+                # מיקומים 1-4 - מהשורות 0-3 (כולל השורה הראשונה)
+                for position in range(len(df)):  # כל השורות
                     if group_index < len(df.columns) and position < len(df):
-                        team_name = df.iloc[position-1, group_index]
+                        team_name = df.iloc[position, group_index]
                         if pd.notna(team_name) and str(team_name).strip():
                             teams_data.append({
                                 "id": team_id,
                                 "name": str(team_name).strip(),
                                 "group": group_letter,
-                                "position": position + 2  # המיקום הוא 2-4
+                                "position": position + 1  # המיקום הוא 1-4
                             })
                             team_id += 1
             

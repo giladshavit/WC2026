@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-from models.base import Base
+from .base import Base
 
 class Group(Base):
     __tablename__ = "groups"

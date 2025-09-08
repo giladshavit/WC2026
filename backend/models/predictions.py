@@ -1,8 +1,8 @@
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-from models.team import Team
-from models.base import Base
+from .team import Team
+from .base import Base
 
 class MatchPrediction(Base):
     __tablename__ = "match_predictions"
