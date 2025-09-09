@@ -110,22 +110,24 @@ def create_matches_template():
         # ========================================
         
         # שלב 32 הגדולות (16 משחקים) - ID 73-88
+        # התבנית צריכה להיות פשוטה - כל קבוצה ראשונה משחקת נגד קבוצה ממקום 3
+        # הסדר הנכון: 1A, 1B, 1D, 1E, 1G, 1I, 1K, 1L
         round32_matches = [
             {"id": 73, "team_1": "2A", "team_2": "2B", "winner_destination": "90_1"},
-            {"id": 74, "team_1": "1E", "team_2": "Best_3rd_ABCDF", "winner_destination": "89_1"},
+            {"id": 74, "team_1": "1A", "team_2": "3rd_team_1", "winner_destination": "89_1"},
             {"id": 75, "team_1": "1F", "team_2": "2C", "winner_destination": "90_2"},
             {"id": 76, "team_1": "1C", "team_2": "2F", "winner_destination": "91_1"},
-            {"id": 77, "team_1": "1I", "team_2": "Best_3rd_CDFGH", "winner_destination": "89_2"},
+            {"id": 77, "team_1": "1B", "team_2": "3rd_team_2", "winner_destination": "89_2"},
             {"id": 78, "team_1": "2E", "team_2": "2I", "winner_destination": "91_2"},
-            {"id": 79, "team_1": "1A", "team_2": "Best_3rd_CEFHI", "winner_destination": "92_1"},
-            {"id": 80, "team_1": "1L", "team_2": "Best_3rd_EHIJK", "winner_destination": "92_2"},
-            {"id": 81, "team_1": "1D", "team_2": "Best_3rd_BEFIJ", "winner_destination": "94_1"},
-            {"id": 82, "team_1": "1G", "team_2": "Best_3rd_AEHIJ", "winner_destination": "94_2"},
+            {"id": 79, "team_1": "1D", "team_2": "3rd_team_3", "winner_destination": "92_1"},
+            {"id": 80, "team_1": "1E", "team_2": "3rd_team_4", "winner_destination": "92_2"},
+            {"id": 81, "team_1": "1G", "team_2": "3rd_team_5", "winner_destination": "94_1"},
+            {"id": 82, "team_1": "1I", "team_2": "3rd_team_6", "winner_destination": "94_2"},
             {"id": 83, "team_1": "2K", "team_2": "2L", "winner_destination": "93_1"},
             {"id": 84, "team_1": "1H", "team_2": "2J", "winner_destination": "93_2"},
-            {"id": 85, "team_1": "1B", "team_2": "Best_3rd_EFGIJ", "winner_destination": "96_1"},
+            {"id": 85, "team_1": "1K", "team_2": "3rd_team_7", "winner_destination": "96_1"},
             {"id": 86, "team_1": "1J", "team_2": "2H", "winner_destination": "95_1"},
-            {"id": 87, "team_1": "1K", "team_2": "Best_3rd_DEIJL", "winner_destination": "96_2"},
+            {"id": 87, "team_1": "1L", "team_2": "3rd_team_8", "winner_destination": "96_2"},
             {"id": 88, "team_1": "2D", "team_2": "2G", "winner_destination": "95_2"}
         ]
         

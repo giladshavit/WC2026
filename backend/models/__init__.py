@@ -1,6 +1,7 @@
 # This file makes the models directory a Python package
 
 from .third_place_combinations import ThirdPlaceCombination
+from .column_mapping import ColumnMapping
 from .results import GroupStageResult, ThirdPlaceResult, KnockoutStageResult
 from .groups import Group
 from .matches import Match
@@ -10,6 +11,7 @@ from .user import User
 
 __all__ = [
     'ThirdPlaceCombination',
+    'ColumnMapping',
     'GroupStageResult', 
     'ThirdPlaceResult', 
     'KnockoutStageResult',

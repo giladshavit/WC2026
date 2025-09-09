@@ -49,8 +49,8 @@ def create_teams():
             
             # לולאה על הבתים (עמודות) - A עד L
             for group_index, group_letter in enumerate(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']):
-                # מיקומים 1-4 - מהשורות 0-3 (כולל השורה הראשונה)
-                for position in range(len(df)):  # כל השורות
+                # מיקומים 1-4 - מהשורות 2-5 (מדלג על השורה הראשונה שהיא כותרת)
+                for position in range(1, len(df)):  # שורות 2-5
                     if group_index < len(df.columns) and position < len(df):
                         team_name = df.iloc[position, group_index]
                         if pd.notna(team_name) and str(team_name).strip():
@@ -58,7 +58,7 @@ def create_teams():
                                 "id": team_id,
                                 "name": str(team_name).strip(),
                                 "group": group_letter,
-                                "position": position + 1  # המיקום הוא 1-4
+                                "position": position  # המיקום הוא 1-4
                             })
                             team_id += 1
             

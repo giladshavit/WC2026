@@ -78,7 +78,7 @@ class KnockoutStagePrediction(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     stage = Column(String, nullable=False)  # round16, quarter, semi, final
     knockout_match_id = Column(Integer, ForeignKey("matches.id"), nullable=False)  # עכשיו משתמש בטבלת matches המאוחדת
-    winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

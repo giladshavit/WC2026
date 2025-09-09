@@ -31,23 +31,21 @@ def create_all_combinations():
         
         # יוצר כל קומבינציה
         for i, combo in enumerate(all_combinations, 1):
-            # מיון אלפביתי
-            sorted_combo = sorted(combo)
+            # יוצר hash key ממוין (רק לצורך חיפוש)
+            hash_key = ''.join(sorted(combo))
             
-            # יוצר hash key
-            hash_key = ''.join(sorted_combo)
-            
-            # יוצר את הרשומה
+            # יוצר את הרשומה - כל עמודה מכילה את הקבוצה ממקום 3 שמשחקת מול הקבוצה הראשונה
+            # חשוב: שומרים על הסדר המקורי של הקומבינציה!
             combination = ThirdPlaceCombination(
                 id=i,
-                match_1A=f"3{sorted_combo[0]}",
-                match_1B=f"3{sorted_combo[1]}",
-                match_1D=f"3{sorted_combo[2]}",
-                match_1E=f"3{sorted_combo[3]}",
-                match_1G=f"3{sorted_combo[4]}",
-                match_1I=f"3{sorted_combo[5]}",
-                match_1K=f"3{sorted_combo[6]}",
-                match_1L=f"3{sorted_combo[7]}",
+                match_1A=f"3{combo[0]}",  # הקבוצה ממקום 3 שמשחקת מול 1A
+                match_1B=f"3{combo[1]}",  # הקבוצה ממקום 3 שמשחקת מול 1B
+                match_1D=f"3{combo[2]}",  # הקבוצה ממקום 3 שמשחקת מול 1D
+                match_1E=f"3{combo[3]}",  # הקבוצה ממקום 3 שמשחקת מול 1E
+                match_1G=f"3{combo[4]}",  # הקבוצה ממקום 3 שמשחקת מול 1G
+                match_1I=f"3{combo[5]}",  # הקבוצה ממקום 3 שמשחקת מול 1I
+                match_1K=f"3{combo[6]}",  # הקבוצה ממקום 3 שמשחקת מול 1K
+                match_1L=f"3{combo[7]}",  # הקבוצה ממקום 3 שמשחקת מול 1L
                 hash_key=hash_key
             )
             

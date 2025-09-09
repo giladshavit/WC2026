@@ -112,6 +112,30 @@ def create_or_update_third_place_prediction(
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     
+    # מריץ את הסקריפט לבניית הבראקט אוטומטית
+    try:
+        import subprocess
+        import os
+        
+        # מריץ את הסקריפט לבניית הבראקט
+        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "build_knockout_bracket.py")
+        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
+        
+        subprocess.run(
+            [python_path, script_path],
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(os.path.dirname(__file__))
+        )
+        
+        result["bracket_rebuilt"] = True
+        result["message"] = result.get("message", "") + " הבראקט נבנה מחדש אוטומטית."
+        
+    except Exception as e:
+        # לא נכשל אם הסקריפט לא עובד - רק נוסיף הודעה
+        result["bracket_rebuilt"] = False
+        result["bracket_error"] = str(e)
+    
     return result
 
 @router.get("/users/{user_id}/third-place-predictions", response_model=List[Dict[str, Any]])
