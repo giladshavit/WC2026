@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>32 הגדולות - מונדיאל 2026</title>
+    <title>חצי גמר - מונדיאל 2026</title>
     <style>
         * {
             margin: 0;
@@ -143,17 +143,6 @@
             font-weight: bold;
         }
 
-        .winner-info {
-            background: #e8f5e8;
-            color: #2d5a2d;
-            padding: 8px 12px;
-            border-radius: 8px;
-            margin-top: 10px;
-            text-align: center;
-            font-weight: bold;
-            border: 2px solid #51cf66;
-        }
-
         .match-template {
             font-size: 0.8em;
             color: #888;
@@ -170,15 +159,6 @@
 
         .error {
             background: #ff6b6b;
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .success {
-            background: #51cf66;
             color: white;
             padding: 15px;
             border-radius: 10px;
@@ -207,15 +187,15 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏆 32 הגדולות</h1>
-            <p>משחקי שלב הנוקאאוט לפי הניחושים שלך</p>
+            <h1>🏆 חצי גמר</h1>
+            <p>משחקי חצי הגמר לפי הניחושים שלך</p>
         </div>
 
         <div class="nav-buttons">
             <a href="/" class="nav-btn">🏠 דף הבית</a>
+            <a href="/knockout" class="nav-btn">32 הגדולות</a>
             <a href="/round16" class="nav-btn">16 הגדולות</a>
             <a href="/quarter" class="nav-btn">רבע גמר</a>
-            <a href="/semi" class="nav-btn">חצי גמר</a>
             <a href="/final" class="nav-btn">גמר</a>
         </div>
 
@@ -225,14 +205,14 @@
         </div>
 
         <div id="content">
-            <div class="loading">טוען משחקי 32 הגדולות...</div>
+            <div class="loading">טוען משחקי חצי גמר...</div>
         </div>
     </div>
 
     <script>
         async function loadKnockoutPredictions() {
             try {
-                const response = await fetch('/api/knockout/predictions?stage=round32');
+                const response = await fetch('/api/knockout/predictions?stage=semi');
                 const data = await response.json();
                 
                 if (data.success) {
@@ -251,7 +231,7 @@
             const content = document.getElementById('content');
             
             if (predictions.length === 0) {
-                content.innerHTML = '<div class="error">לא נמצאו ניחושים לשלב 32 הגדולות</div>';
+                content.innerHTML = '<div class="error">לא נמצאו ניחושים לחצי גמר</div>';
                 return;
             }
 
@@ -313,27 +293,12 @@
 
         function updateStats(count) {
             const statsText = document.getElementById('stats-text');
-            statsText.textContent = `נמצאו ${count} משחקי 32 הגדולות`;
+            statsText.textContent = `נמצאו ${count} משחקי חצי גמר`;
         }
 
         function showError(message) {
             const content = document.getElementById('content');
             content.innerHTML = `<div class="error">${message}</div>`;
-        }
-
-        function showSuccess(message) {
-            const content = document.getElementById('content');
-            const successDiv = document.createElement('div');
-            successDiv.className = 'success';
-            successDiv.textContent = message;
-            content.insertBefore(successDiv, content.firstChild);
-            
-            // הסר הודעה אחרי 3 שניות
-            setTimeout(() => {
-                if (successDiv.parentNode) {
-                    successDiv.parentNode.removeChild(successDiv);
-                }
-            }, 3000);
         }
 
         async function selectWinner(button) {

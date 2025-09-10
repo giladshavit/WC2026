@@ -42,6 +42,22 @@ def read_root():
 def knockout_page():
     return FileResponse("static/knockout.html")
 
+@app.get("/round16")
+def round16_page():
+    return FileResponse("static/round16.html")
+
+@app.get("/quarter")
+def quarter_page():
+    return FileResponse("static/quarter.html")
+
+@app.get("/semi")
+def semi_page():
+    return FileResponse("static/semi.html")
+
+@app.get("/final")
+def final_page():
+    return FileResponse("static/final.html")
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}

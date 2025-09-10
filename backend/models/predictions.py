@@ -78,6 +78,8 @@ class KnockoutStagePrediction(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     knockout_result_id = Column(Integer, ForeignKey("knockout_stage_results.id"), nullable=False)  # קישור לתוצאה
     template_match_id = Column(Integer, ForeignKey("matches_template.id"), nullable=False)  # קישור לטמפלייט (למסלול)
+    team1_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # קבוצה ראשונה
+    team2_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # קבוצה שנייה
     winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -86,4 +88,6 @@ class KnockoutStagePrediction(Base):
     user = relationship("User")
     knockout_result = relationship("KnockoutStageResult")  # קישור לתוצאה
     # template_match = relationship("MatchTemplate", foreign_keys=[template_match_id])  # קישור לטמפלייט - זמנית מושבת
-    winner_team = relationship("Team")
+    team1 = relationship("Team", foreign_keys=[team1_id])
+    team2 = relationship("Team", foreign_keys=[team2_id])
+    winner_team = relationship("Team", foreign_keys=[winner_team_id])

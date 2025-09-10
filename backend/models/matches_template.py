@@ -12,6 +12,7 @@ class MatchTemplate(Base):
     date = Column(DateTime, nullable=False)
     group = Column(String, nullable=True)  # A, B, C, D... (only for group stage)
     winner_destination = Column(String, nullable=True)  # 90_1, 89_2, etc. (only for knockout)
+    knockout_id = Column(Integer, nullable=True)  # ID של הניחוש הנוקאאוט המתאים
     
     def __repr__(self):
         return f"<MatchTemplate(id={self.id}, stage='{self.stage}', {self.team_1} vs {self.team_2})>"
