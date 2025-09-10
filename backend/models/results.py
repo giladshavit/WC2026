@@ -51,17 +51,15 @@ class KnockoutStageResult(Base):
     __tablename__ = "knockout_stage_results"
     
     id = Column(Integer, primary_key=True, index=True)
-    match_id = Column(Integer, ForeignKey("matches.id"), nullable=False)
-    next_match_id = Column(Integer, ForeignKey("matches.id"), nullable=True)  # nullable לגמר!
-    team_1 = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    team_2 = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    match_id = Column(Integer, ForeignKey("matches.id"), nullable=False)  # מתייחס ל-matches (73-104)
+    team_1 = Column(Integer, ForeignKey("teams.id"), nullable=True)  # nullable עד שיהיו תוצאות
+    team_2 = Column(Integer, ForeignKey("teams.id"), nullable=True)  # nullable עד שיהיו תוצאות
+    winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # nullable עד שיהיו תוצאות
     
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
     match = relationship("Match", foreign_keys=[match_id])
-    next_match = relationship("Match", foreign_keys=[next_match_id])
     team_1_obj = relationship("Team", foreign_keys=[team_1])
     team_2_obj = relationship("Team", foreign_keys=[team_2])
     winner_team = relationship("Team", foreign_keys=[winner_team_id])

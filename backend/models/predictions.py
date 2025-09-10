@@ -76,13 +76,14 @@ class KnockoutStagePrediction(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    stage = Column(String, nullable=False)  # round16, quarter, semi, final
-    knockout_match_id = Column(Integer, ForeignKey("matches.id"), nullable=False)  # עכשיו משתמש בטבלת matches המאוחדת
+    knockout_result_id = Column(Integer, ForeignKey("knockout_stage_results.id"), nullable=False)  # קישור לתוצאה
+    template_match_id = Column(Integer, ForeignKey("matches_template.id"), nullable=False)  # קישור לטמפלייט (למסלול)
     winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     user = relationship("User")
-    knockout_match = relationship("Match")  # עכשיו משתמש במודל Match המאוחד
+    knockout_result = relationship("KnockoutStageResult")  # קישור לתוצאה
+    # template_match = relationship("MatchTemplate", foreign_keys=[template_match_id])  # קישור לטמפלייט - זמנית מושבת
     winner_team = relationship("Team")

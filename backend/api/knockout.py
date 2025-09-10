@@ -55,15 +55,13 @@ def get_knockout_predictions(db: Session = Depends(get_db)):
         from models.team import Team
         from models.third_place_combinations import ThirdPlaceCombination
         
-        predictions = db.query(KnockoutStagePrediction).filter(
-            KnockoutStagePrediction.stage == 'round32'
-        ).all()
+        predictions = db.query(KnockoutStagePrediction).all()
         
         result = []
         for pred in predictions:
             # מוצא את התבנית
             template = db.query(MatchTemplate).filter(
-                MatchTemplate.id == pred.knockout_match_id
+                MatchTemplate.id == pred.template_match_id
             ).first()
             
             if template:
@@ -73,7 +71,7 @@ def get_knockout_predictions(db: Session = Depends(get_db)):
                 
                 result.append({
                     "id": pred.id,
-                    "match_id": pred.knockout_match_id,
+                    "match_id": pred.template_match_id,
                     "template": f"{template.team_1} vs {template.team_2}",
                     "home_team": home_team_name,
                     "away_team": away_team_name,

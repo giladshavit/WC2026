@@ -149,7 +149,6 @@ def build_team_mapping(db, group_predictions, combination):
 
 def find_team_for_template(db, team_source, team_mapping, combination=None, match_template=None):
     """מוצא את הקבוצה המתאימה לפי התבנית"""
-    
     if team_source.startswith('3rd_team_'):  # 3rd_team_1
         # מחפש במיפוי של עולות ממקום 3
         # 3rd_team_1 -> צריך למצוא את הקבוצה המתאימה לפי הקומבינציה
@@ -238,16 +237,26 @@ def create_knockout_predictions(db, team_mapping, combination):
         if home_team and away_team:
             # בודק אם כבר קיים prediction
             existing = db.query(KnockoutStagePrediction).filter(
-                KnockoutStagePrediction.knockout_match_id == template.id
+                KnockoutStagePrediction.template_match_id == template.id
             ).first()
             
             if not existing:
-                prediction = KnockoutStagePrediction(
-                    user_id=1,  # ברירת מחדל - user 1
-                    stage='round32',
-                    knockout_match_id=template.id,  # משתמש ב-ID של התבנית
-                    winner_team_id=None  # לא מנחשים על המנצחת כרגע
-                )
+                # מוצא את ה-KnockoutStageResult המתאים
+                from models.results import KnockoutStageResult
+                result = db.query(KnockoutStageResult).filter(
+                    KnockoutStageResult.match_id == template.id
+                ).first()
+                
+                if result:
+                    prediction = KnockoutStagePrediction(
+                        user_id=1,  # ברירת מחדל - user 1
+                        knockout_result_id=result.id,
+                        template_match_id=template.id,
+                        winner_team_id=None  # לא מנחשים על המנצחת כרגע
+                    )
+                else:
+                    print(f"  לא נמצא KnockoutStageResult עבור match_id {template.id}")
+                    continue
                 
                 db.add(prediction)
                 print(f"  נוצר prediction עבור משחק {template.id}: {home_team.name} vs {away_team.name}")

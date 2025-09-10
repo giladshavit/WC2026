@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>32 הגדולות - מונדיאל 2026</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .nav-buttons {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .nav-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 0 10px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            border: 2px solid rgba(255,255,255,0.3);
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-2px);
+        }
+
+        .matches-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .match-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .match-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+
+        .match-header {
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .match-id {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .match-teams {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .match-template {
+            font-size: 0.8em;
+            color: #888;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            margin: 50px 0;
+        }
+
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .success {
+            background: #51cf66;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .stats {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .stats h3 {
+            margin-bottom: 10px;
+        }
+
+        .stats p {
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏆 32 הגדולות</h1>
+            <p>משחקי שלב הנוקאאוט לפי הניחושים שלך</p>
+        </div>
+
+        <div class="nav-buttons">
+            <a href="/" class="nav-btn">🏠 דף הבית</a>
+            <a href="/docs" class="nav-btn" target="_blank">📚 API Docs</a>
+        </div>
+
+        <div class="stats" id="stats">
+            <h3>📊 סטטיסטיקות</h3>
+            <p id="stats-text">טוען נתונים...</p>
+        </div>
+
+        <div id="content">
+            <div class="loading">טוען משחקי 32 הגדולות...</div>
+        </div>
+    </div>
+
+    <script>
+        async function loadKnockoutPredictions() {
+            try {
+                const response = await fetch('/api/knockout/predictions');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayPredictions(data.predictions);
+                    updateStats(data.count);
+                } else {
+                    showError('שגיאה בטעינת הנתונים');
+                }
+            } catch (error) {
+                console.error('Error loading predictions:', error);
+                showError('שגיאה בחיבור לשרת');
+            }
+        }
+
+        function displayPredictions(predictions) {
+            const content = document.getElementById('content');
+            
+            if (predictions.length === 0) {
+                content.innerHTML = '<div class="error">לא נמצאו ניחושים לשלב 32 הגדולות</div>';
+                return;
+            }
+
+            const matchesGrid = document.createElement('div');
+            matchesGrid.className = 'matches-grid';
+
+            predictions.forEach((prediction, index) => {
+                const matchCard = document.createElement('div');
+                matchCard.className = 'match-card';
+                
+                matchCard.innerHTML = `
+                    <div class="match-header">
+                        <div class="match-id">משחק ${prediction.match_id}</div>
+                        <div class="match-teams">${prediction.display}</div>
+                        <div class="match-template">${prediction.template}</div>
+                    </div>
+                `;
+                
+                matchesGrid.appendChild(matchCard);
+            });
+
+            content.innerHTML = '';
+            content.appendChild(matchesGrid);
+        }
+
+        function updateStats(count) {
+            const statsText = document.getElementById('stats-text');
+            statsText.textContent = `נמצאו ${count} משחקי 32 הגדולות`;
+        }
+
+        function showError(message) {
+            const content = document.getElementById('content');
+            content.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        // טוען את הנתונים כשהדף נטען
+        document.addEventListener('DOMContentLoaded', loadKnockoutPredictions);
+    </script>
+</body>
+</html>
