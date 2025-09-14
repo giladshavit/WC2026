@@ -35,6 +35,10 @@ class BatchGroupPredictionRequest(BaseModel):
     user_id: int
     predictions: List[Dict[str, Any]]  # רשימה של ניחושי בתים
 
+class UpdateKnockoutPredictionRequest(BaseModel):
+    winner_team_number: int  # 1 או 2
+    winner_team_name: str
+
 @router.get("/groups", response_model=List[Dict[str, Any]])
 def get_groups_with_teams(db: Session = Depends(get_db)):
     """
@@ -233,3 +237,37 @@ def create_or_update_batch_predictions(
         raise HTTPException(status_code=400, detail=result["error"])
     
     return result
+
+@router.get("/predictions/knockout")
+def get_knockout_predictions(
+    user_id: int = 1,  # TODO: זה צריך לבוא מ-authentication
+    stage: str = None, 
+    db: Session = Depends(get_db)
+):
+    """
+    מביא את כל ניחושי הנוקאאוט של המשתמש
+    אם stage מוגדר, מסנן לפי השלב
+    """
+    try:
+        result = PredictionService.get_knockout_predictions(db, user_id, stage)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"שגיאה בקבלת ניחושי הנוקאאוט: {str(e)}")
+
+@router.put("/predictions/knockout/{prediction_id}")
+def update_knockout_prediction_winner(
+    prediction_id: int,
+    request: UpdateKnockoutPredictionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    מעדכן ניחוש נוקאאוט - בוחר קבוצה מנצחת ומעדכן את השלבים הבאים
+    """
+    try:
+        result = PredictionService.update_knockout_prediction_winner(db, prediction_id, request)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"שגיאה בעדכון הניחוש: {str(e)}")

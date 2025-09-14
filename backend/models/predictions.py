@@ -78,6 +78,7 @@ class KnockoutStagePrediction(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     knockout_result_id = Column(Integer, ForeignKey("knockout_stage_results.id"), nullable=False)  # קישור לתוצאה
     template_match_id = Column(Integer, ForeignKey("matches_template.id"), nullable=False)  # קישור לטמפלייט (למסלול)
+    stage = Column(String(20), nullable=False)  # round32, round16, quarter, semi, final, third_place
     team1_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # קבוצה ראשונה
     team2_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # קבוצה שנייה
     winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)

@@ -252,6 +252,7 @@ def create_knockout_predictions(db, team_mapping, combination):
                         user_id=1,  # ברירת מחדל - user 1
                         knockout_result_id=result.id,
                         template_match_id=template.id,
+                        stage=template.stage,  # הוספנו את השדה stage
                         winner_team_id=None  # לא מנחשים על המנצחת כרגע
                     )
                 else:

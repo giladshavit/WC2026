@@ -212,12 +212,12 @@
     <script>
         async function loadKnockoutPredictions() {
             try {
-                const response = await fetch('/api/knockout/predictions?stage=final');
+                const response = await fetch('/api/predictions/knockout?user_id=1&stage=final');
                 const data = await response.json();
                 
-                if (data.success) {
-                    displayPredictions(data.predictions);
-                    updateStats(data.count);
+                if (Array.isArray(data)) {
+                    displayPredictions(data);
+                    updateStats(data.length);
                 } else {
                     showError('שגיאה בטעינת הנתונים');
                 }
@@ -243,9 +243,8 @@
                 matchCard.className = 'match-card';
                 
                 // פירוק שמות הקבוצות
-                const teams = prediction.display.split(' vs ');
-                const team1 = teams[0] || 'קבוצה 1';
-                const team2 = teams[1] || 'קבוצה 2';
+                const team1 = prediction.team1_name || 'קבוצה 1';
+                const team2 = prediction.team2_name || 'קבוצה 2';
                 
                 // בדיקה אם יש ניחוש קיים
                 const hasWinner = prediction.winner_team_id;
@@ -262,7 +261,7 @@
                 
                 matchCard.innerHTML = `
                     <div class="match-header">
-                        <div class="match-id">משחק ${prediction.match_id}</div>
+                        <div class="match-id">משחק ${prediction.template_match_id}</div>
                         <div class="match-teams">
                             <button class="team-button ${team1Selected}" 
                                     data-prediction-id="${prediction.id}" 
@@ -315,7 +314,7 @@
             button.classList.add('selected');
             
             try {
-                const response = await fetch(`/api/knockout/predictions/${predictionId}`, {
+                const response = await fetch(`/api/predictions/knockout/${predictionId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',

@@ -104,6 +104,7 @@ def build_knockout_bracket():
                             user_id=1,
                             knockout_result_id=result.id,
                             template_match_id=template.id,
+                            stage=template.stage,  # הוספנו את השדה stage
                             winner_team_id=None
                         )
                     else:
