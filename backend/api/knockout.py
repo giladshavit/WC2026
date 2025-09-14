@@ -5,8 +5,15 @@ from pydantic import BaseModel
 import subprocess
 import sys
 import os
+from datetime import datetime
 
 from database import get_db
+from models.predictions import KnockoutStagePrediction, GroupStagePrediction, ThirdPlacePrediction
+from models.matches_template import MatchTemplate
+from models.team import Team
+from models.third_place_combinations import ThirdPlaceCombination
+from models.user import User
+from models.results import KnockoutStageResult
 
 router = APIRouter()
 
@@ -56,12 +63,6 @@ def get_knockout_predictions(stage: str = None, db: Session = Depends(get_db)):
     אם אין ניחושים לשלב המבוקש, יוצר אותם אוטומטית
     """
     try:
-        from models.predictions import KnockoutStagePrediction, GroupStagePrediction, ThirdPlacePrediction
-        from models.matches_template import MatchTemplate
-        from models.team import Team
-        from models.third_place_combinations import ThirdPlaceCombination
-        from models.user import User
-        from models.results import KnockoutStageResult
         
         # אם לא צוין שלב, מחזיר את כל הניחושים
         if stage:
@@ -92,9 +93,7 @@ def get_knockout_predictions(stage: str = None, db: Session = Depends(get_db)):
         result = []
         for pred in predictions:
             # מוצא את התבנית
-            template = db.query(MatchTemplate).filter(
-                MatchTemplate.id == pred.template_match_id
-            ).first()
+            template = get_template_by_id(pred.template_match_id, db)
             
             if template:
                 # מוצא את שמות הקבוצות - עכשיו פשוט יותר!
@@ -126,252 +125,11 @@ def get_knockout_predictions(stage: str = None, db: Session = Depends(get_db)):
             detail=f"שגיאה בקבלת הניחושים: {str(e)}"
         )
 
-def get_team_name_for_template(db, team_source):
-    """
-    מוצא את שם הקבוצה האמיתי לפי התבנית (כמו 1A, 2B, Best_3rd_ABCDF)
-    """
-    try:
-        from models.predictions import GroupStagePrediction, ThirdPlacePrediction
-        from models.team import Team
-        from models.third_place_combinations import ThirdPlaceCombination
-        
-        if team_source.startswith('3rd_team_'):
-            # זה קבוצה ממקום 3 - צריך למצוא אותה דרך third_place_combinations
-            # קודם מוצא את הקומבינציה המתאימה
-            third_place_predictions = db.query(ThirdPlacePrediction).all()
-            if not third_place_predictions:
-                return f"קבוצה ממקום 3 ({team_source})"
-            
-            # בונה רשימת עולות ממקום 3
-            advancing_teams = []
-            for pred in third_place_predictions:
-                # מוצא את כל הקבוצות העולות
-                team_ids = [
-                    pred.first_team_qualifying,
-                    pred.second_team_qualifying,
-                    pred.third_team_qualifying,
-                    pred.fourth_team_qualifying,
-                    pred.fifth_team_qualifying,
-                    pred.sixth_team_qualifying,
-                    pred.seventh_team_qualifying,
-                    pred.eighth_team_qualifying
-                ]
-                
-                for team_id in team_ids:
-                    team = db.query(Team).filter(Team.id == team_id).first()
-                    if team:
-                        advancing_teams.append(team.group_letter)
-            
-            advancing_teams.sort()
-            hash_key = ''.join(advancing_teams)
-            
-            # מוצא את הקומבינציה המתאימה
-            combination = db.query(ThirdPlaceCombination).filter(
-                ThirdPlaceCombination.hash_key == hash_key
-            ).first()
-            
-            if not combination:
-                return f"קבוצה ממקום 3 ({team_source})"
-            
-            # מוצא את הקבוצה המתאימה לפי התבנית
-            # team_source הוא כמו "3rd_team_1" - צריך למצוא את הקבוצה המתאימה
-            # הסדר הנכון: 1A, 1B, 1D, 1E, 1G, 1I, 1K, 1L
-            if team_source == "3rd_team_1":
-                # זה משחק נגד 1A, אז צריך את match_1A
-                team_letter = combination.match_1A
-            elif team_source == "3rd_team_2":
-                # זה משחק נגד 1B, אז צריך את match_1B
-                team_letter = combination.match_1B
-            elif team_source == "3rd_team_3":
-                # זה משחק נגד 1D, אז צריך את match_1D
-                team_letter = combination.match_1D
-            elif team_source == "3rd_team_4":
-                # זה משחק נגד 1E, אז צריך את match_1E
-                team_letter = combination.match_1E
-            elif team_source == "3rd_team_5":
-                # זה משחק נגד 1G, אז צריך את match_1G
-                team_letter = combination.match_1G
-            elif team_source == "3rd_team_6":
-                # זה משחק נגד 1I, אז צריך את match_1I
-                team_letter = combination.match_1I
-            elif team_source == "3rd_team_7":
-                # זה משחק נגד 1K, אז צריך את match_1K
-                team_letter = combination.match_1K
-            elif team_source == "3rd_team_8":
-                # זה משחק נגד 1L, אז צריך את match_1L
-                team_letter = combination.match_1L
-            else:
-                return f"קבוצה ממקום 3 ({team_source})"
-            
-            # מוצא את הקבוצה במקום 3 בבית המתאים
-            if team_letter:
-                # team_letter הוא כמו "3A" - צריך לחלץ את האות
-                if len(team_letter) >= 2 and team_letter[0] == '3':
-                    group_letter = team_letter[1]
-                    
-                    group_predictions = db.query(GroupStagePrediction).all()
-                    for group_pred in group_predictions:
-                        if group_pred.group.name == group_letter:
-                            third_place_team = db.query(Team).filter(Team.id == group_pred.third_place).first()
-                            if third_place_team:
-                                return third_place_team.name
-                
-                return f"קבוצה ממקום 3 ({team_source})"
-            else:
-                return f"קבוצה ממקום 3 ({team_source})"
-        
-        else:
-            # זה קבוצה רגילה (1A, 2B, וכו')
-            if len(team_source) >= 2 and team_source[0].isdigit():
-                position = int(team_source[0])
-                group_letter = team_source[1]
-                
-                # מוצא את הקבוצה במקום המתאים בבית המתאים
-                group_predictions = db.query(GroupStagePrediction).all()
-                for group_pred in group_predictions:
-                    if group_pred.group.name == group_letter:
-                        team_id = None
-                        if position == 1:
-                            team_id = group_pred.first_place
-                        elif position == 2:
-                            team_id = group_pred.second_place
-                        elif position == 3:
-                            team_id = group_pred.third_place
-                        elif position == 4:
-                            team_id = group_pred.fourth_place
-                        
-                        if team_id:
-                            team = db.query(Team).filter(Team.id == team_id).first()
-                            if team:
-                                return team.name
-                
-                return f"קבוצה {team_source}"
-            else:
-                return f"קבוצה {team_source}"
-                
-    except Exception as e:
-        print(f"Error getting team name for {team_source}: {e}")
-        return f"קבוצה {team_source}"
-
-def get_team_id_for_template(db, team_source):
-    """
-    מוצא את ID הקבוצה האמיתי לפי התבנית (כמו 1A, 2B, Best_3rd_ABCDF)
-    """
-    try:
-        from models.predictions import GroupStagePrediction, ThirdPlacePrediction
-        from models.team import Team
-        from models.third_place_combinations import ThirdPlaceCombination
-        
-        if team_source.startswith('3rd_team_'):
-            # זה קבוצה ממקום 3 - צריך למצוא אותה דרך third_place_combinations
-            # קודם מוצא את הקומבינציה המתאימה
-            third_place_predictions = db.query(ThirdPlacePrediction).all()
-            if not third_place_predictions:
-                return None
-            
-            # בונה רשימת עולות ממקום 3
-            advancing_teams = []
-            for pred in third_place_predictions:
-                # מוצא את כל הקבוצות העולות
-                team_ids = [
-                    pred.first_team_qualifying,
-                    pred.second_team_qualifying,
-                    pred.third_team_qualifying,
-                    pred.fourth_team_qualifying,
-                    pred.fifth_team_qualifying,
-                    pred.sixth_team_qualifying,
-                    pred.seventh_team_qualifying,
-                    pred.eighth_team_qualifying
-                ]
-                
-                for team_id in team_ids:
-                    team = db.query(Team).filter(Team.id == team_id).first()
-                    if team:
-                        advancing_teams.append(team.group_letter)
-            
-            advancing_teams.sort()
-            hash_key = ''.join(advancing_teams)
-            
-            # מוצא את הקומבינציה המתאימה
-            combination = db.query(ThirdPlaceCombination).filter(
-                ThirdPlaceCombination.hash_key == hash_key
-            ).first()
-            
-            if not combination:
-                return None
-            
-            # מוצא את הקבוצה המתאימה לפי התבנית
-            if team_source == "3rd_team_1":
-                team_letter = combination.match_1A
-            elif team_source == "3rd_team_2":
-                team_letter = combination.match_1B
-            elif team_source == "3rd_team_3":
-                team_letter = combination.match_1D
-            elif team_source == "3rd_team_4":
-                team_letter = combination.match_1E
-            elif team_source == "3rd_team_5":
-                team_letter = combination.match_1G
-            elif team_source == "3rd_team_6":
-                team_letter = combination.match_1I
-            elif team_source == "3rd_team_7":
-                team_letter = combination.match_1K
-            elif team_source == "3rd_team_8":
-                team_letter = combination.match_1L
-            else:
-                return None
-            
-            # מוצא את הקבוצה במקום 3 בבית המתאים
-            if team_letter:
-                # team_letter הוא כמו "3A" - צריך לחלץ את האות
-                if len(team_letter) >= 2 and team_letter[0] == '3':
-                    group_letter = team_letter[1]
-                    
-                    group_predictions = db.query(GroupStagePrediction).all()
-                    for group_pred in group_predictions:
-                        if group_pred.group.name == group_letter:
-                            return group_pred.third_place
-                
-                return None
-            else:
-                return None
-        
-        else:
-            # זה קבוצה רגילה (1A, 2B, וכו')
-            if len(team_source) >= 2 and team_source[0].isdigit():
-                position = int(team_source[0])
-                group_letter = team_source[1]
-                
-                # מוצא את הקבוצה במקום המתאים בבית המתאים
-                group_predictions = db.query(GroupStagePrediction).all()
-                for group_pred in group_predictions:
-                    if group_pred.group.name == group_letter:
-                        team_id = None
-                        if position == 1:
-                            team_id = group_pred.first_place
-                        elif position == 2:
-                            team_id = group_pred.second_place
-                        elif position == 3:
-                            team_id = group_pred.third_place
-                        elif position == 4:
-                            team_id = group_pred.fourth_place
-                        
-                        return team_id
-                
-                return None
-            else:
-                return None
-                
-    except Exception as e:
-        print(f"Error getting team ID for {team_source}: {e}")
-        return None
 
 def create_predictions_for_stage(db, stage, templates):
     """
     יוצר ניחושים לשלב מסוים לפי הניחושים הקיימים מהשלב הקודם
     """
-    from models.user import User
-    from models.results import KnockoutStageResult
-    from models.predictions import KnockoutStagePrediction
     
     # מוצא משתמש (אנחנו מניחים שיש משתמש אחד)
     user = db.query(User).first()
@@ -440,7 +198,6 @@ def get_winner_from_previous_stage(db, match_id):
     """
     מוצא את המנצחת ממשחק קודם לפי match_id
     """
-    from models.predictions import KnockoutStagePrediction
     
     # מוצא את הניחוש של המשחק הקודם
     previous_prediction = db.query(KnockoutStagePrediction).filter(
@@ -454,107 +211,115 @@ def get_winner_from_previous_stage(db, match_id):
     print(f"לא נמצא מנצחת למשחק {match_id}")
     return None
 
-def clear_chain_predictions(db, prediction, previous_winner_id):
+def find_next_knockout_prediction(db, prediction):
     """
-    מוחק את כל הניחושים הבאים בשרשרת כשמשתמש משנה ניחוש
-    רק אם הקבוצה המנצחת הקודמת מופיעה בניחוש הבא
+    מוצא את הניחוש הבא בשרשרת הנוקאאוט
+    מחזיר: KnockoutStagePrediction או None אם לא נמצא
     """
-    from models.predictions import KnockoutStagePrediction
-    from models.matches_template import MatchTemplate
-    
     # מוצא את התבנית של הניחוש הנוכחי
-    current_template = db.query(MatchTemplate).filter(
-        MatchTemplate.id == prediction.template_match_id
-    ).first()
+    current_template = get_template_by_id(prediction.template_match_id, db)
     
     if not current_template or not current_template.winner_destination:
-        return  # אין destination, לא צריך למחוק כלום
+        return None  # אין destination
     
     # מפרסר את ה-destination
     try:
         dest_parts = current_template.winner_destination.split('_')
         next_match_id = int(dest_parts[0])
-        position = int(dest_parts[1])
     except:
-        return
+        return None
     
     # מוצא את הניחוש הבא
     next_prediction = db.query(KnockoutStagePrediction).filter(
         KnockoutStagePrediction.template_match_id == next_match_id
     ).first()
     
+    return next_prediction
+
+def get_next_knockout_position(db, prediction):
+    """
+    מוצא את המיקום (position) של הניחוש הבא בשרשרת הנוקאאוט
+    מחזיר: int (1 או 2) או None אם לא נמצא
+    """
+    # מוצא את התבנית של הניחוש הנוכחי
+    current_template = get_template_by_id(prediction.template_match_id, db)
+    
+    if not current_template or not current_template.winner_destination:
+        return None  # אין destination
+    
+    # מפרסר את ה-destination
+    try:
+        dest_parts = current_template.winner_destination.split('_')
+        position = int(dest_parts[1])
+        return position
+    except:
+        return None
+
+def remove_prev_winner_from_next_stages(db, prediction, previous_winner_id):
+    """
+    מסיר את הקבוצה המנצחת הקודמת מכל השלבים הבאים בשרשרת
+    """
+    
+    if not previous_winner_id:
+        return
+    
+    # מוצא את הניחוש הבא
+    next_prediction = find_next_knockout_prediction(db, prediction)
+    
     if not next_prediction:
         return  # אין ניחוש למחוק
     
+    # מוצא את המיקום
+    position = get_next_knockout_position(db, prediction)
+    
+    if not position:
+        return  # אין position
+    
     # בודק אם הקבוצה המנצחת הקודמת מופיעה בניחוש הבא
+    team_removed = False
+    
     if position == 1 and next_prediction.team1_id == previous_winner_id:
         # הקבוצה המנצחת הקודמת מופיעה בניחוש הבא - מוחק אותה
         next_prediction.team1_id = None
-        # מוחק גם את המנצחת אם היא הקבוצה שמחקנו
-        if next_prediction.winner_team_id == previous_winner_id:
-            next_prediction.winner_team_id = None
+        team_removed = True
         print(f"נמחקה קבוצה {previous_winner_id} מניחוש {next_prediction.id} (position 1)")
     elif position == 2 and next_prediction.team2_id == previous_winner_id:
         # הקבוצה המנצחת הקודמת מופיעה בניחוש הבא - מוחק אותה
         next_prediction.team2_id = None
-        # מוחק גם את המנצחת אם היא הקבוצה שמחקנו
-        if next_prediction.winner_team_id == previous_winner_id:
-            next_prediction.winner_team_id = None
+        team_removed = True
         print(f"נמחקה קבוצה {previous_winner_id} מניחוש {next_prediction.id} (position 2)")
-    else:
-        # הקבוצה המנצחת הקודמת לא מופיעה בניחוש הבא - לא צריך לעשות כלום
-        print(f"הקבוצה המנצחת הקודמת {previous_winner_id} לא מופיעה בניחוש הבא {next_prediction.id}")
-        return
+    
+    # מוחק גם את המנצחת אם היא הקבוצה שמחקנו
+    if next_prediction.winner_team_id == previous_winner_id:
+        next_prediction.winner_team_id = None
+        print(f"נמחקה מנצחת {previous_winner_id} מניחוש {next_prediction.id}")
     
     # אם שתי הקבוצות נמחקו, מוחק את כל הניחוש
     if not next_prediction.team1_id and not next_prediction.team2_id:
         db.delete(next_prediction)
-        print(f"נמחק ניחוש {next_prediction.id}")
-    else:
-        print(f"נמחקה קבוצה {position} מניחוש {next_prediction.id}")
+        print(f"נמחק ניחוש {next_prediction.id} (אין קבוצות)")
+        return  # לא צריך להמשיך כי הניחוש נמחק
     
-    # ממשיך בשרשרת
-    clear_chain_predictions(db, next_prediction, previous_winner_id)
+    # ממשיך בשרשרת רק אם הסרנו קבוצה או אם יש עדיין קבוצות בניחוש
+    if team_removed or (next_prediction.team1_id or next_prediction.team2_id):
+        remove_prev_winner_from_next_stages(db, next_prediction, previous_winner_id)
 
-def create_next_stage_predictions(db, prediction):
+def update_next_stage_prediction(db, prediction):
     """
     יוצר ניחושים לשלב הבא אם צריך, לפי ה-winner_destination של הניחוש הנוכחי
     """
-    from models.matches_template import MatchTemplate
-    from models.user import User
-    from models.results import KnockoutStageResult
     
-    # מוצא את התבנית של הניחוש הנוכחי
-    current_template = db.query(MatchTemplate).filter(
-        MatchTemplate.id == prediction.template_match_id
-    ).first()
+    # מוצא את הניחוש הבא
+    existing_prediction = find_next_knockout_prediction(db, prediction)
     
-    if not current_template or not current_template.winner_destination:
-        return  # אין destination, לא צריך ליצור ניחושים לשלב הבא
+    if not existing_prediction:
+        return  # אין destination או לא נמצא template
     
-    # מפרסר את ה-destination (למשל "90_1" -> match_id=90, position=1)
-    try:
-        dest_parts = current_template.winner_destination.split('_')
-        next_match_id = int(dest_parts[0])
-        position = int(dest_parts[1])
-    except:
-        print(f"לא ניתן לפרסר destination: {current_template.winner_destination}")
-        return
+    # מוצא את המיקום
+    position = get_next_knockout_position(db, prediction)
     
-    # מוצא את התבנית של המשחק הבא
-    next_template = db.query(MatchTemplate).filter(
-        MatchTemplate.id == next_match_id
-    ).first()
-    
-    if not next_template:
-        print(f"לא נמצא template למשחק {next_match_id}")
-        return
-    
-    # בדוק אם כבר יש ניחוש למשחק הבא
-    from models.predictions import KnockoutStagePrediction
-    existing_prediction = db.query(KnockoutStagePrediction).filter(
-        KnockoutStagePrediction.template_match_id == next_match_id
-    ).first()
+    if not position:
+        return  # אין position
     
     if existing_prediction:
         # עדכן את הקבוצה המתאימה
@@ -569,6 +334,11 @@ def create_next_stage_predictions(db, prediction):
         user = db.query(User).first()
         if not user:
             return
+        
+        # מוצא את ה-match_id הבא
+        current_template = get_template_by_id(prediction.template_match_id, db)
+        dest_parts = current_template.winner_destination.split('_')
+        next_match_id = int(dest_parts[0])
         
         # מוצא את ה-result המתאים
         result = db.query(KnockoutStageResult).filter(
@@ -600,30 +370,11 @@ def get_knockout_prediction(prediction_id: int, db: Session = Depends(get_db)):
     מביא ניחוש נוקאאוט ספציפי לפי ID
     """
     try:
-        from models.predictions import KnockoutStagePrediction
-        from models.matches_template import MatchTemplate
-        from models.team import Team
         
-        prediction = db.query(KnockoutStagePrediction).filter(
-            KnockoutStagePrediction.id == prediction_id
-        ).first()
-        
-        if not prediction:
-            raise HTTPException(
-                status_code=404,
-                detail="ניחוש לא נמצא"
-            )
+        prediction = get_knockout_prediction_by_id(prediction_id, db)
         
         # מוצא את התבנית
-        template = db.query(MatchTemplate).filter(
-            MatchTemplate.id == prediction.template_match_id
-        ).first()
-        
-        if not template:
-            raise HTTPException(
-                status_code=404,
-                detail="תבנית משחק לא נמצאה"
-            )
+        template = get_template_by_id(prediction.template_match_id, db)
         
         # מוצא את שמות הקבוצות - עכשיו פשוט יותר!
         team1_name = prediction.team1.name if prediction.team1 else "קבוצה 1"
@@ -654,6 +405,82 @@ def get_knockout_prediction(prediction_id: int, db: Session = Depends(get_db)):
             detail=f"שגיאה בקבלת הניחוש: {str(e)}"
         )
 
+def get_winner_team_id(prediction, winner_team_number):
+    """מחזיר את ID הקבוצה המנצחת לפי מספר הקבוצה"""
+    if winner_team_number == 1:
+        return prediction.team1_id
+    elif winner_team_number == 2:
+        return prediction.team2_id
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="מספר קבוצה לא תקין (חייב להיות 1 או 2)"
+        )
+
+def get_knockout_prediction_by_id(prediction_id, db):
+    """מוצא ניחוש נוקאאוט לפי ID"""
+    
+    prediction = db.query(KnockoutStagePrediction).filter(
+        KnockoutStagePrediction.id == prediction_id
+    ).first()
+    
+    if not prediction:
+        raise HTTPException(
+            status_code=404,
+            detail="ניחוש לא נמצא"
+        )
+    
+    return prediction
+
+def get_template_by_id(template_id, db):
+    """מוצא תבנית משחק לפי ID"""
+    
+    template = db.query(MatchTemplate).filter(
+        MatchTemplate.id == template_id
+    ).first()
+    
+    if not template:
+        raise HTTPException(
+            status_code=404,
+            detail="תבנית משחק לא נמצאה"
+        )
+    
+    return template
+
+def create_success_response(prediction, message, db, request=None):
+    """יוצר תגובת הצלחה"""
+    
+    # מוצא את שם הקבוצה המנצחת
+    winner_team = None
+    if prediction.winner_team_id:
+        winner_team = db.query(Team).filter(Team.id == prediction.winner_team_id).first()
+    
+    winner_team_name = winner_team.name if winner_team else (request.winner_team_name if request else None)
+    
+    return {
+        "success": True,
+        "message": message,
+        "prediction": {
+            "id": prediction.id,
+            "winner_team_id": prediction.winner_team_id,
+            "winner_team_name": winner_team_name,
+            "updated_at": prediction.updated_at
+        }
+    }
+
+def update_next_stages(db, prediction, previous_winner_id):
+    """
+    מעדכן את השלבים הבאים:
+    1. משבץ את המנצחת החדשה במשחק הבא
+    2. מסיר את המנצחת הקודמת מכל השלבים הבאים
+    """
+    # 1. עדכון המשחק הבא עם המנצחת החדשה
+    update_next_stage_prediction(db, prediction)
+    
+    # 2. הסרת המנצחת הקודמת מכל השלבים הבאים
+    if previous_winner_id:
+        remove_prev_winner_from_next_stages(db, prediction, previous_winner_id)
+
 @router.put("/knockout/predictions/{prediction_id}")
 def update_knockout_prediction(
     prediction_id: int, 
@@ -661,47 +488,14 @@ def update_knockout_prediction(
     db: Session = Depends(get_db)
 ):
     """
-    מעדכן ניחוש נוקאאוט - בוחר קבוצה מנצחת ומעדכן את ה-destination
+    מעדכן ניחוש נוקאאוט - בוחר קבוצה מנצחת ומעדכן את השלבים הבאים
     """
     try:
-        from models.predictions import KnockoutStagePrediction
-        from models.matches_template import MatchTemplate
-        from models.team import Team
-        from datetime import datetime
         
-        # מוצא את הניחוש
-        prediction = db.query(KnockoutStagePrediction).filter(
-            KnockoutStagePrediction.id == prediction_id
-        ).first()
-        
-        if not prediction:
-            raise HTTPException(
-                status_code=404,
-                detail="ניחוש לא נמצא"
-            )
-        
-        # מוצא את התבנית
-        template = db.query(MatchTemplate).filter(
-            MatchTemplate.id == prediction.template_match_id
-        ).first()
-        
-        if not template:
-            raise HTTPException(
-                status_code=404,
-                detail="תבנית משחק לא נמצאה"
-            )
-        
-        # מוצא את ID הקבוצה המנצחת - עכשיו פשוט יותר!
-        winner_team_id = None
-        if request.winner_team_number == 1:
-            winner_team_id = prediction.team1_id
-        elif request.winner_team_number == 2:
-            winner_team_id = prediction.team2_id
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail="מספר קבוצה לא תקין (חייב להיות 1 או 2)"
-            )
+        # 1. אימות וטעינת נתונים
+        prediction = get_knockout_prediction_by_id(prediction_id, db)
+        template = get_template_by_id(prediction.template_match_id, db)
+        winner_team_id = get_winner_team_id(prediction, request.winner_team_number)
         
         if not winner_team_id:
             raise HTTPException(
@@ -709,56 +503,22 @@ def update_knockout_prediction(
                 detail="לא ניתן למצוא את ID הקבוצה המנצחת"
             )
         
-        # שומר את הקבוצה המנצחת הקודמת BEFORE העדכון
-        previous_winner_id = prediction.winner_team_id
-        
-        # בודק אם המנצחת השתנתה
-        if previous_winner_id == winner_team_id:
-            # המנצחת לא השתנתה - לא צריך לעשות כלום
+        # 2. בדיקה אם המנצחת השתנתה
+        if prediction.winner_team_id == winner_team_id:
             print(f"המנצחת לא השתנתה: {winner_team_id}")
-            
-            # מוצא את שם הקבוצה המנצחת
-            winner_team = db.query(Team).filter(Team.id == winner_team_id).first()
-            winner_team_name = winner_team.name if winner_team else request.winner_team_name
-            
-            return {
-                "success": True,
-                "message": "המנצחת לא השתנתה",
-                "prediction": {
-                    "id": prediction.id,
-                    "winner_team_id": winner_team_id,
-                    "winner_team_name": winner_team_name,
-                    "updated_at": prediction.updated_at
-                }
-            }
+            return create_success_response(prediction, "המנצחת לא השתנתה", db, request)
         
-        # מעדכן את הניחוש
+        # 3. עדכון המנצחת
+        previous_winner_id = prediction.winner_team_id
         prediction.winner_team_id = winner_team_id
         prediction.updated_at = datetime.utcnow()
         
-        # מוחק את השרשרת הקודמת רק אם המנצחת השתנתה
-        clear_chain_predictions(db, prediction, previous_winner_id)
+        # 4. עדכון השלבים הבאים
+        update_next_stages(db, prediction, previous_winner_id)
         
-        # שומר את השינויים
+        # 5. שמירה והחזרת תגובה
         db.commit()
-        
-        # יוצר ניחושים לשלב הבא אם צריך
-        create_next_stage_predictions(db, prediction)
-        
-        # מוצא את שם הקבוצה המנצחת
-        winner_team = db.query(Team).filter(Team.id == winner_team_id).first()
-        winner_team_name = winner_team.name if winner_team else request.winner_team_name
-        
-        return {
-            "success": True,
-            "message": f"ניחוש עודכן בהצלחה: {winner_team_name} נבחרה כמנצחת",
-            "prediction": {
-                "id": prediction.id,
-                "winner_team_id": winner_team_id,
-                "winner_team_name": winner_team_name,
-                "updated_at": prediction.updated_at
-            }
-        }
+        return create_success_response(prediction, f"ניחוש עודכן בהצלחה", db, request)
         
     except HTTPException:
         raise
