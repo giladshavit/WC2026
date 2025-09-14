@@ -81,6 +81,7 @@ class KnockoutStagePrediction(Base):
     team1_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # קבוצה ראשונה
     team2_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # קבוצה שנייה
     winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    status = Column(String(20), nullable=True, default="gray")  # green/yellow/red/gray
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
