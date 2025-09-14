@@ -454,9 +454,10 @@ def get_winner_from_previous_stage(db, match_id):
     print(f"לא נמצא מנצחת למשחק {match_id}")
     return None
 
-def clear_chain_predictions(db, prediction):
+def clear_chain_predictions(db, prediction, previous_winner_id):
     """
     מוחק את כל הניחושים הבאים בשרשרת כשמשתמש משנה ניחוש
+    רק אם הקבוצה המנצחת הקודמת מופיעה בניחוש הבא
     """
     from models.predictions import KnockoutStagePrediction
     from models.matches_template import MatchTemplate
@@ -485,11 +486,25 @@ def clear_chain_predictions(db, prediction):
     if not next_prediction:
         return  # אין ניחוש למחוק
     
-    # מוחק את הקבוצה מהניחוש הבא
-    if position == 1:
+    # בודק אם הקבוצה המנצחת הקודמת מופיעה בניחוש הבא
+    if position == 1 and next_prediction.team1_id == previous_winner_id:
+        # הקבוצה המנצחת הקודמת מופיעה בניחוש הבא - מוחק אותה
         next_prediction.team1_id = None
-    elif position == 2:
+        # מוחק גם את המנצחת אם היא הקבוצה שמחקנו
+        if next_prediction.winner_team_id == previous_winner_id:
+            next_prediction.winner_team_id = None
+        print(f"נמחקה קבוצה {previous_winner_id} מניחוש {next_prediction.id} (position 1)")
+    elif position == 2 and next_prediction.team2_id == previous_winner_id:
+        # הקבוצה המנצחת הקודמת מופיעה בניחוש הבא - מוחק אותה
         next_prediction.team2_id = None
+        # מוחק גם את המנצחת אם היא הקבוצה שמחקנו
+        if next_prediction.winner_team_id == previous_winner_id:
+            next_prediction.winner_team_id = None
+        print(f"נמחקה קבוצה {previous_winner_id} מניחוש {next_prediction.id} (position 2)")
+    else:
+        # הקבוצה המנצחת הקודמת לא מופיעה בניחוש הבא - לא צריך לעשות כלום
+        print(f"הקבוצה המנצחת הקודמת {previous_winner_id} לא מופיעה בניחוש הבא {next_prediction.id}")
+        return
     
     # אם שתי הקבוצות נמחקו, מוחק את כל הניחוש
     if not next_prediction.team1_id and not next_prediction.team2_id:
@@ -499,7 +514,7 @@ def clear_chain_predictions(db, prediction):
         print(f"נמחקה קבוצה {position} מניחוש {next_prediction.id}")
     
     # ממשיך בשרשרת
-    clear_chain_predictions(db, next_prediction)
+    clear_chain_predictions(db, next_prediction, previous_winner_id)
 
 def create_next_stage_predictions(db, prediction):
     """
@@ -694,12 +709,35 @@ def update_knockout_prediction(
                 detail="לא ניתן למצוא את ID הקבוצה המנצחת"
             )
         
+        # שומר את הקבוצה המנצחת הקודמת BEFORE העדכון
+        previous_winner_id = prediction.winner_team_id
+        
+        # בודק אם המנצחת השתנתה
+        if previous_winner_id == winner_team_id:
+            # המנצחת לא השתנתה - לא צריך לעשות כלום
+            print(f"המנצחת לא השתנתה: {winner_team_id}")
+            
+            # מוצא את שם הקבוצה המנצחת
+            winner_team = db.query(Team).filter(Team.id == winner_team_id).first()
+            winner_team_name = winner_team.name if winner_team else request.winner_team_name
+            
+            return {
+                "success": True,
+                "message": "המנצחת לא השתנתה",
+                "prediction": {
+                    "id": prediction.id,
+                    "winner_team_id": winner_team_id,
+                    "winner_team_name": winner_team_name,
+                    "updated_at": prediction.updated_at
+                }
+            }
+        
         # מעדכן את הניחוש
         prediction.winner_team_id = winner_team_id
         prediction.updated_at = datetime.utcnow()
         
-        # מוחק את השרשרת הקודמת
-        clear_chain_predictions(db, prediction)
+        # מוחק את השרשרת הקודמת רק אם המנצחת השתנתה
+        clear_chain_predictions(db, prediction, previous_winner_id)
         
         # שומר את השינויים
         db.commit()
