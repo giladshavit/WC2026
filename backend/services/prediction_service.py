@@ -705,20 +705,17 @@ class PredictionService:
         # מוצא את התבנית של הניחוש הנוכחי
         current_template = PredictionService.get_template_by_id(db, prediction.template_match_id)
         
-        if not current_template or not current_template.winner_destination:
+        if not current_template or not current_template.winner_next_knockout_match:
             return None, None  # אין destination
         
-        # מפרסר את ה-destination
-        try:
-            dest_parts = current_template.winner_destination.split('_')
-            next_match_id = int(dest_parts[0])
-            position = int(dest_parts[1])
-        except:
-            return None, None
+        # משתמש בשדות החדשים
+        next_match_id = current_template.winner_next_knockout_match
+        position = current_template.winner_next_position
         
         # מוצא את הניחוש הבא
         next_prediction = db.query(KnockoutStagePrediction).filter(
-            KnockoutStagePrediction.template_match_id == next_match_id
+            KnockoutStagePrediction.template_match_id == next_match_id,
+            KnockoutStagePrediction.user_id == prediction.user_id
         ).first()
         
         return next_prediction, position
@@ -729,15 +726,11 @@ class PredictionService:
         בודק אם צריך ליצור ניחוש חדש לשלב הבא ויוצר אותו אם נדרש
         מחזיר: KnockoutStagePrediction או None
         """
-        if not template.winner_destination:
+        if not template.winner_next_knockout_match:
             return None
         
-        # מוצא את ה-ID של המשחק הבא מה-winner_destination
-        try:
-            dest_parts = template.winner_destination.split('_')
-            next_match_id = int(dest_parts[0])
-        except:
-            return None
+        # משתמש בשדות החדשים
+        next_match_id = template.winner_next_knockout_match
         
         # בודק אם קיים ניחוש למשחק הבא
         existing_next_prediction = db.query(KnockoutStagePrediction).filter(
@@ -800,16 +793,11 @@ class PredictionService:
         # מוצא את התבנית של הניחוש הנוכחי
         current_template = PredictionService.get_template_by_id(db, prediction.template_match_id)
         
-        if not current_template or not current_template.winner_destination:
+        if not current_template or not current_template.winner_next_knockout_match:
             return None  # אין destination
         
-        # מפרסר את ה-destination
-        try:
-            dest_parts = current_template.winner_destination.split('_')
-            position = int(dest_parts[1])
-            return position
-        except:
-            return None
+        # משתמש בשדה החדש
+        return current_template.winner_next_position
 
     @staticmethod
     def remove_prev_winner_from_next_stages(db: Session, prediction, previous_winner_id):
