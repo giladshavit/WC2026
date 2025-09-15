@@ -11,7 +11,8 @@ class MatchTemplate(Base):
     status = Column(String, default="scheduled")  # scheduled, live, finished
     date = Column(DateTime, nullable=False)
     group = Column(String, nullable=True)  # A, B, C, D... (only for group stage)
-    winner_destination = Column(String, nullable=True)  # 90_1, 89_2, etc. (only for knockout)
+    winner_next_knockout_match = Column(Integer, nullable=True)  # ID של המשחק הבא (only for knockout)
+    winner_next_position = Column(Integer, nullable=True)  # 1 או 2 - המיקום במשחק הבא (only for knockout)
     knockout_id = Column(Integer, nullable=True)  # ID של הניחוש הנוקאאוט המתאים
     
     def __repr__(self):
