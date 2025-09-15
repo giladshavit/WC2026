@@ -807,23 +807,20 @@ class PredictionService:
         if not previous_winner_id or not prediction:
             return
         
-        # בדיקה פשוטה: האם המנצחת הנוכחית היא הקבוצה שצריך למחוק
-        if prediction.winner_team_id == previous_winner_id:
-            # מוחק את המנצחת
-            prediction.winner_team_id = None
-            print(f"נמחקה מנצחת {previous_winner_id} מניחוש {prediction.id}")
+        # בדיקה: אם המנצחת הנוכחית שונה מהקבוצה שצריך למחוק - לא עושים כלום
+        if prediction.winner_team_id != previous_winner_id:
+            return
+        
+        # מוחק את המנצחת
+        prediction.winner_team_id = None
+        print(f"נמחקה מנצחת {previous_winner_id} מניחוש {prediction.id}")
         
         # מוצא את הניחוש הבא בשרשרת
         next_prediction, next_position = PredictionService.find_next_knockout_prediction_and_position(db, prediction)
         
         if next_prediction and next_position:
-            # מוחק את הקבוצה מהמיקום המתאים בניחוש הבא
-            if next_position == 1:
-                next_prediction.team1_id = None
-                print(f"נמחקה קבוצה {previous_winner_id} מניחוש {next_prediction.id} (position 1)")
-            elif next_position == 2:
-                next_prediction.team2_id = None
-                print(f"נמחקה קבוצה {previous_winner_id} מניחוש {next_prediction.id} (position 2)")
+            # קורא לפונקציה update_next_stage_prediction
+            PredictionService.update_next_stage_prediction(db, prediction, next_prediction, next_position)
         
         # קורא לפונקציה שוב עם הניחוש הבא
         if next_prediction:
