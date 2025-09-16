@@ -114,20 +114,20 @@ def create_matches_template():
         # הסדר הנכון: 1A, 1B, 1D, 1E, 1G, 1I, 1K, 1L
         round32_matches = [
             {"id": 73, "team_1": "2A", "team_2": "2B", "winner_next_knockout_match": 90, "winner_next_position": 1},
-            {"id": 74, "team_1": "1A", "team_2": "3rd_team_1", "winner_next_knockout_match": 89, "winner_next_position": 1},
+            {"id": 74, "team_1": "1E", "team_2": "3rd_team_1", "winner_next_knockout_match": 89, "winner_next_position": 1},
             {"id": 75, "team_1": "1F", "team_2": "2C", "winner_next_knockout_match": 90, "winner_next_position": 2},
             {"id": 76, "team_1": "1C", "team_2": "2F", "winner_next_knockout_match": 91, "winner_next_position": 1},
-            {"id": 77, "team_1": "1B", "team_2": "3rd_team_2", "winner_next_knockout_match": 89, "winner_next_position": 2},
+            {"id": 77, "team_1": "1I", "team_2": "3rd_team_2", "winner_next_knockout_match": 89, "winner_next_position": 2},
             {"id": 78, "team_1": "2E", "team_2": "2I", "winner_next_knockout_match": 91, "winner_next_position": 2},
-            {"id": 79, "team_1": "1D", "team_2": "3rd_team_3", "winner_next_knockout_match": 92, "winner_next_position": 1},
-            {"id": 80, "team_1": "1E", "team_2": "3rd_team_4", "winner_next_knockout_match": 92, "winner_next_position": 2},
-            {"id": 81, "team_1": "1G", "team_2": "3rd_team_5", "winner_next_knockout_match": 94, "winner_next_position": 1},
-            {"id": 82, "team_1": "1I", "team_2": "3rd_team_6", "winner_next_knockout_match": 94, "winner_next_position": 2},
+            {"id": 79, "team_1": "1A", "team_2": "3rd_team_3", "winner_next_knockout_match": 92, "winner_next_position": 1},
+            {"id": 80, "team_1": "1L", "team_2": "3rd_team_4", "winner_next_knockout_match": 92, "winner_next_position": 2},
+            {"id": 81, "team_1": "1D", "team_2": "3rd_team_5", "winner_next_knockout_match": 94, "winner_next_position": 1},
+            {"id": 82, "team_1": "1G", "team_2": "3rd_team_6", "winner_next_knockout_match": 94, "winner_next_position": 2},
             {"id": 83, "team_1": "2K", "team_2": "2L", "winner_next_knockout_match": 93, "winner_next_position": 1},
             {"id": 84, "team_1": "1H", "team_2": "2J", "winner_next_knockout_match": 93, "winner_next_position": 2},
-            {"id": 85, "team_1": "1K", "team_2": "3rd_team_7", "winner_next_knockout_match": 96, "winner_next_position": 1},
+            {"id": 85, "team_1": "1B", "team_2": "3rd_team_7", "winner_next_knockout_match": 96, "winner_next_position": 1},
             {"id": 86, "team_1": "1J", "team_2": "2H", "winner_next_knockout_match": 95, "winner_next_position": 1},
-            {"id": 87, "team_1": "1L", "team_2": "3rd_team_8", "winner_next_knockout_match": 96, "winner_next_position": 2},
+            {"id": 87, "team_1": "1K", "team_2": "3rd_team_8", "winner_next_knockout_match": 96, "winner_next_position": 2},
             {"id": 88, "team_1": "2D", "team_2": "2G", "winner_next_knockout_match": 95, "winner_next_position": 2}
         ]
         
