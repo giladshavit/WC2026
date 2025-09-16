@@ -12,8 +12,6 @@ class Group(Base):
     team_2 = Column(Integer, ForeignKey("teams.id"), nullable=False)
     team_3 = Column(Integer, ForeignKey("teams.id"), nullable=False)
     team_4 = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    first_place_match_id = Column(Integer, nullable=True)  # לאיזה משחק מקום ראשון מיועד
-    second_place_match_id = Column(Integer, nullable=True)  # לאיזה משחק מקום שני מיועד
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships

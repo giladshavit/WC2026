@@ -4,6 +4,7 @@ from .third_place_combinations import ThirdPlaceCombination
 from .column_mapping import ColumnMapping
 from .results import GroupStageResult, ThirdPlaceResult, KnockoutStageResult
 from .groups import Group
+from .group_template import GroupTemplate
 from .matches import Match
 from .predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
 from .team import Team
@@ -16,6 +17,7 @@ __all__ = [
     'ThirdPlaceResult', 
     'KnockoutStageResult',
     'Group',
+    'GroupTemplate',
     'Match',
     'MatchPrediction',
     'GroupStagePrediction', 
