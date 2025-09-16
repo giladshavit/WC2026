@@ -5,6 +5,7 @@ from models.user import User
 from models.matches import Match
 from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
 from models.groups import Group
+from models.group_template import GroupTemplate
 from models.team import Team
 from models.matches_template import MatchTemplate
 from models.results import KnockoutStageResult
@@ -348,10 +349,15 @@ class PredictionService:
         if not group:
             return
         
+        # מוצא את ה-GroupTemplate לפי שם הקבוצה
+        group_template = db.query(GroupTemplate).filter(GroupTemplate.group_name == group.name).first()
+        if not group_template:
+            return
+        
         if position == 1:
-            match_id = group.first_place_match_id
+            match_id = group_template.first_place_match_id
         elif position == 2:
-            match_id = group.second_place_match_id
+            match_id = group_template.second_place_match_id
         else:
             return  # מיקום לא תקין
         
@@ -999,8 +1005,8 @@ class PredictionService:
         else:
             # המנצחת לא השתנתה, אבל הקבוצות השתנו
             # אם המנצחת היא None, מעדכן סטטוס לאדום
-            if prediction.winner_team_id is None:
-                PredictionService.set_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT)
+            if prediction.winner_team_id:
+                PredictionService.set_status(prediction, PredictionStatus.MIGHT_CHANGE_PREDICT)
                 db.commit()
 
     @staticmethod
