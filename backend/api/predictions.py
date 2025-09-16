@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 from pydantic import BaseModel
+from dataclasses import dataclass
 
-from services.prediction_service import PredictionService
+from services.prediction_service import PredictionService, PlacesPredictions
 from services.group_service import GroupService
 from database import get_db
 
@@ -64,18 +65,31 @@ def create_or_update_group_prediction(
     db: Session = Depends(get_db)
 ):
     """
-    יצירה או עדכון ניחוש לשלב הבתים
+    יצירה או עדכון ניחוש לבית
     """
-    result = PredictionService.create_or_update_group_prediction(
-        db, group_prediction.user_id, group_prediction.group_id, 
-        group_prediction.first_place, group_prediction.second_place, 
-        group_prediction.third_place, group_prediction.fourth_place
-    )
-    
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    return result
+    try:
+        # יצירת PlacesPredictions object
+        places = PlacesPredictions(
+            first_place=group_prediction.first_place,
+            second_place=group_prediction.second_place,
+            third_place=group_prediction.third_place,
+            fourth_place=group_prediction.fourth_place
+        )
+        
+        result = PredictionService.create_or_update_group_prediction(
+            db, 
+            group_prediction.user_id, 
+            group_prediction.group_id, 
+            places
+        )
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"שגיאה בעדכון ניחוש הבית: {str(e)}"
+        )
 
 @router.get("/users/{user_id}/group-predictions", response_model=List[Dict[str, Any]])
 def get_user_group_predictions(user_id: int, db: Session = Depends(get_db)):
@@ -271,3 +285,69 @@ def update_knockout_prediction_winner(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"שגיאה בעדכון הניחוש: {str(e)}")
+
+@staticmethod
+def update_group_prediction_basic(db, existing_prediction, places: PlacesPredictions):
+    """
+    עדכון בסיסי של המקומות
+    """
+    existing_prediction.first_place = places.first_place
+    existing_prediction.second_place = places.second_place
+    existing_prediction.third_place = places.third_place
+    existing_prediction.fourth_place = places.fourth_place
+    db.commit()
+
+@staticmethod
+def handle_third_place_change(db, user_id, old_third_place, new_third_place):
+    """
+    טיפול בשינוי מקום 3
+    """
+    third_place_changed = old_third_place != new_third_place
+    
+    if third_place_changed:
+        PredictionService.update_third_place_predictions(db, user_id, old_third_place, new_third_place)
+    
+    return third_place_changed
+
+@staticmethod
+def update_third_place_predictions(db, user_id, old_third_place, new_third_place):
+    """
+    עדכון ניחושי מקום 3
+    """
+    # מביא את חיזויי העולות הקיימים
+    third_place_prediction = db.query(ThirdPlacePrediction).filter(
+        ThirdPlacePrediction.user_id == user_id
+    ).first()
+
+    if third_place_prediction:
+        # בודק אם הקבוצה הישנה במקום 3 נבחרה
+        old_team_selected = False
+        new_team_selected = False
+
+        # בודק אם הקבוצה החדשה כבר נבחרה
+        for i in range(1, 9):  # first_team_qualifying עד eighth_team_qualifying
+            team_field = getattr(third_place_prediction,
+                                 f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying")
+            if team_field == old_third_place:
+                old_team_selected = True
+                # מחליף את הקבוצה הישנה בחדשה
+                setattr(third_place_prediction,
+                        f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying",
+                        new_third_place)
+                break
+            elif team_field == new_third_place:
+                new_team_selected = True
+
+        # אם הקבוצה החדשה כבר נבחרה והקבוצה הישנה גם נבחרה - מחליף ביניהם
+        if new_team_selected and old_team_selected:
+            # מוצא את המיקום של הקבוצה החדשה ומחליף אותה בקבוצה הישנה
+            for i in range(1, 9):
+                team_field = getattr(third_place_prediction,
+                                     f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying")
+                if team_field == new_third_place:
+                    setattr(third_place_prediction,
+                            f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying",
+                            old_third_place)
+                    break
+
+        db.commit()

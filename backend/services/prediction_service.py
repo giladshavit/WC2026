@@ -1,4 +1,5 @@
 from typing import Dict, List, Any, Optional
+from dataclasses import dataclass
 from sqlalchemy.orm import Session
 from models.user import User
 from models.matches import Match
@@ -16,6 +17,13 @@ class PredictionStatus(Enum):
     PREDICTED = "predicted"  # המשתמש ניחש והניחוש תקין
     MIGHT_CHANGE_PREDICT = "might_change_predict"  # הקבוצות השתנו, אולי המשתמש ירצה לבחון מחדש
     MUST_CHANGE_PREDICT = "must_change_predict"  # חייב לקבוע את המנצחת כי הניחוש לא תקין/אין ניחוש
+
+@dataclass
+class PlacesPredictions:
+    first_place: int
+    second_place: int
+    third_place: int
+    fourth_place: int
 
 class PredictionService:
     
@@ -262,10 +270,9 @@ class PredictionService:
         }
     
     @staticmethod
-    def create_or_update_group_prediction(db: Session, user_id: int, group_id: int, first_place: int, second_place: int, third_place: int, fourth_place: int) -> Dict[str, Any]:
+    def create_or_update_group_prediction(db: Session, user_id: int, group_id: int, places: PlacesPredictions) -> Dict[str, Any]:
         """
         יצירה או עדכון ניחוש לבית
-        first_place, second_place, third_place, fourth_place: team IDs למקומות השונים
         """
         # בודק אם יש כבר ניחוש לבית הזה
         existing_prediction = db.query(GroupStagePrediction).filter(
@@ -273,96 +280,177 @@ class PredictionService:
             GroupStagePrediction.group_id == group_id
         ).first()
         
-        # בודק אם המקום השלישי השתנה
-        third_place_changed = False
-        old_third_place = None
-        if existing_prediction and existing_prediction.third_place != third_place:
-            third_place_changed = True
-            old_third_place = existing_prediction.third_place
-        
         if existing_prediction:
-            # מעדכן ניחוש קיים
-            existing_prediction.first_place = first_place
-            existing_prediction.second_place = second_place
-            existing_prediction.third_place = third_place
-            existing_prediction.fourth_place = fourth_place
-            db.commit()
-            
-            # אם המקום השלישי השתנה, מעדכן את חיזויי העולות
-            if third_place_changed:
-                # מביא את חיזויי העולות הקיימים
-                third_place_prediction = db.query(ThirdPlacePrediction).filter(
-                    ThirdPlacePrediction.user_id == user_id
-                ).first()
-                
-                if third_place_prediction:
-                    # בודק אם הקבוצה הישנה במקום 3 נבחרה
-                    old_team_selected = False
-                    new_team_selected = False
-                    
-                    # בודק אם הקבוצה החדשה כבר נבחרה
-                    for i in range(1, 9):  # first_team_qualifying עד eighth_team_qualifying
-                        team_field = getattr(third_place_prediction, f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i-1]}_team_qualifying")
-                        if team_field == old_third_place:
-                            old_team_selected = True
-                            # מחליף את הקבוצה הישנה בחדשה
-                            setattr(third_place_prediction, f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i-1]}_team_qualifying", third_place)
-                            break
-                        elif team_field == third_place:
-                            new_team_selected = True
-                    
-                    # אם הקבוצה החדשה כבר נבחרה והקבוצה הישנה גם נבחרה - מחליף ביניהם
-                    if new_team_selected and old_team_selected:
-                        # מוצא את המיקום של הקבוצה החדשה ומחליף אותה בקבוצה הישנה
-                        for i in range(1, 9):
-                            team_field = getattr(third_place_prediction, f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i-1]}_team_qualifying")
-                            if team_field == third_place:
-                                setattr(third_place_prediction, f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i-1]}_team_qualifying", old_third_place)
-                                break
-                    
-                    db.commit()
-            
-            return {
-                "id": existing_prediction.id,
-                "group_id": group_id,
-                "first_place": first_place,
-                "second_place": second_place,
-                "third_place": third_place,
-                "fourth_place": fourth_place,
-                "updated": True,
-                "third_place_changed": third_place_changed
-            }
+            return PredictionService.update_group_prediction(db, existing_prediction, places, user_id)
         else:
-            # יוצר ניחוש חדש
-            new_prediction = GroupStagePrediction(
-                user_id=user_id,
-                group_id=group_id,
-                first_place=first_place,
-                second_place=second_place,
-                third_place=third_place,
-                fourth_place=fourth_place
-            )
-            db.add(new_prediction)
+            return PredictionService.create_new_group_prediction(db, places, group_id, user_id)
+
+    @staticmethod
+    def update_group_prediction(db, existing_prediction, places: PlacesPredictions, user_id):
+        # עדכון בסיסי של המקומות
+        old_third_place = existing_prediction.third_place
+        PredictionService.update_group_prediction_basic(db, existing_prediction, places, user_id, existing_prediction.group_id)
+        
+        # טיפול בשינוי מקום 3
+        third_place_changed = PredictionService.handle_third_place_change(db, user_id, old_third_place, places.third_place)
+        
+        return {
+            "id": existing_prediction.id,
+            "group_id": existing_prediction.group_id,
+            "first_place": places.first_place,
+            "second_place": places.second_place,
+            "third_place": places.third_place,
+            "fourth_place": places.fourth_place,
+            "updated": True,
+            "third_place_changed": third_place_changed
+        }
+
+    @staticmethod
+    def update_group_prediction_basic(db, existing_prediction, places: PlacesPredictions, user_id, group_id):
+        """
+        עדכון בסיסי של המקומות + טיפול בשינויים במקומות 1-2
+        """
+        # שמירת הערכים הישנים
+        old_first_place = existing_prediction.first_place
+        old_second_place = existing_prediction.second_place
+        
+        # עדכון המקומות
+        existing_prediction.first_place = places.first_place
+        existing_prediction.second_place = places.second_place
+        existing_prediction.third_place = places.third_place
+        existing_prediction.fourth_place = places.fourth_place
+        
+        # בדיקה אם מקום 1 השתנה
+        if old_first_place != places.first_place:
+            PredictionService.handle_first_second_place_change(db, user_id, group_id, 1, old_first_place, places.first_place)
+        
+        # בדיקה אם מקום 2 השתנה
+        if old_second_place != places.second_place:
+            PredictionService.handle_first_second_place_change(db, user_id, group_id, 2, old_second_place, places.second_place)
+        
+        db.commit()
+
+    @staticmethod
+    def handle_first_second_place_change(db, user_id, group_id, position, old_team, new_team):
+        """
+        טיפול בשינוי מקום 1 או 2
+        
+        Args:
+            db: Session
+            user_id: ID של המשתמש
+            group_id: ID של הקבוצה
+            position: 1 או 2 (מקום ראשון או שני)
+            old_team: ID של הקבוצה הישנה
+            new_team: ID של הקבוצה החדשה
+        """
+        # מוצא את ה-match_id לפי המיקום
+        group = db.query(Group).filter(Group.id == group_id).first()
+        if not group:
+            return
+        
+        if position == 1:
+            match_id = group.first_place_match_id
+        elif position == 2:
+            match_id = group.second_place_match_id
+        else:
+            return  # מיקום לא תקין
+        
+        if not match_id:
+            return
+        
+        # מוצא את הניחוש הנוקאאוט הרלוונטי
+        knockout_prediction = PredictionService.get_knockout_prediction_by_user_and_match_id(db, user_id, match_id)
+        if not knockout_prediction:
+            return
+        
+        # קורא לפונקציה התשתיתית
+        PredictionService.update_knockout_prediction_teams(db, knockout_prediction, old_team, new_team)
+
+    @staticmethod
+    def handle_third_place_change(db, user_id, old_third_place, new_third_place):
+        """
+        טיפול בשינוי מקום 3
+        """
+        third_place_changed = old_third_place != new_third_place
+        
+        if third_place_changed:
+            PredictionService.update_third_place_predictions(db, user_id, old_third_place, new_third_place)
+        
+        return third_place_changed
+
+    @staticmethod
+    def update_third_place_predictions(db, user_id, old_third_place, new_third_place):
+        """
+        עדכון ניחושי מקום 3
+        """
+        # מביא את חיזויי העולות הקיימים
+        third_place_prediction = db.query(ThirdPlacePrediction).filter(
+            ThirdPlacePrediction.user_id == user_id
+        ).first()
+
+        if third_place_prediction:
+            # בודק אם הקבוצה הישנה במקום 3 נבחרה
+            old_team_selected = False
+            new_team_selected = False
+
+            # בודק אם הקבוצה החדשה כבר נבחרה
+            for i in range(1, 9):  # first_team_qualifying עד eighth_team_qualifying
+                team_field = getattr(third_place_prediction,
+                                     f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying")
+                if team_field == old_third_place:
+                    old_team_selected = True
+                    # מחליף את הקבוצה הישנה בחדשה
+                    setattr(third_place_prediction,
+                            f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying",
+                            new_third_place)
+                    break
+                elif team_field == new_third_place:
+                    new_team_selected = True
+
+            # אם הקבוצה החדשה כבר נבחרה והקבוצה הישנה גם נבחרה - מחליף ביניהם
+            if new_team_selected and old_team_selected:
+                # מוצא את המיקום של הקבוצה החדשה ומחליף אותה בקבוצה הישנה
+                for i in range(1, 9):
+                    team_field = getattr(third_place_prediction,
+                                         f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying")
+                    if team_field == new_third_place:
+                        setattr(third_place_prediction,
+                                f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying",
+                                old_third_place)
+                        break
+
             db.commit()
-            db.refresh(new_prediction)
-            
-            # אם זה ניחוש חדש, מוחק את חיזויי העולות הקיימים
-            db.query(ThirdPlacePrediction).filter(
-                ThirdPlacePrediction.user_id == user_id
-            ).delete()
-            db.commit()
-            
-            return {
-                "id": new_prediction.id,
-                "group_id": group_id,
-                "first_place": first_place,
-                "second_place": second_place,
-                "third_place": third_place,
-                "fourth_place": fourth_place,
-                "updated": False,
-                "third_place_changed": True
-            }
-    
+
+    @staticmethod
+    def create_new_group_prediction(db, places: PlacesPredictions, group_id, user_id):
+        new_prediction = GroupStagePrediction(
+            user_id=user_id,
+            group_id=group_id,
+            first_place=places.first_place,
+            second_place=places.second_place,
+            third_place=places.third_place,
+            fourth_place=places.fourth_place
+        )
+        db.add(new_prediction)
+        db.commit()
+        db.refresh(new_prediction)
+        
+        # אם זה ניחוש חדש, מוחק את חיזויי העולות הקיימים
+        db.query(ThirdPlacePrediction).filter(
+            ThirdPlacePrediction.user_id == user_id
+        ).delete()
+        db.commit()
+        
+        return {
+            "id": new_prediction.id,
+            "group_id": group_id,
+            "first_place": places.first_place,
+            "second_place": places.second_place,
+            "third_place": places.third_place,
+            "fourth_place": places.fourth_place,
+            "updated": False
+        }
+
     @staticmethod
     def get_group_predictions(db: Session, user_id: int) -> List[Dict[str, Any]]:
         """
@@ -518,7 +606,7 @@ class PredictionService:
                 
                 # שמירת הניחוש
                 result = PredictionService.create_or_update_group_prediction(
-                    db, user_id, group_id, first_place, second_place, third_place, fourth_place
+                    db, user_id, group_id, PlacesPredictions(first_place, second_place, third_place, fourth_place)
                 )
                 
                 if "error" in result:
@@ -914,3 +1002,23 @@ class PredictionService:
             if prediction.winner_team_id is None:
                 PredictionService.set_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT)
                 db.commit()
+
+    @staticmethod
+    def get_knockout_prediction_by_user_and_match_id(db: Session, user_id: int, match_id: int):
+        """
+        מוצא ניחוש נוקאאוט לפי user_id ו-match_id
+        
+        Args:
+            db: Session
+            user_id: ID של המשתמש
+            match_id: ID של המשחק (template_match_id)
+            
+        Returns:
+            KnockoutStagePrediction או None אם לא נמצא
+        """
+        prediction = db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.user_id == user_id,
+            KnockoutStagePrediction.template_match_id == match_id
+        ).first()
+        
+        return prediction
