@@ -10,8 +10,22 @@ from models.results import KnockoutStageResult
 from fastapi import HTTPException
 from datetime import datetime
 import json
+from enum import Enum
+
+class PredictionStatus(Enum):
+    PREDICTED = "predicted"  # המשתמש ניחש והניחוש תקין
+    MIGHT_CHANGE_PREDICT = "might_change_predict"  # הקבוצות השתנו, אולי המשתמש ירצה לבחון מחדש
+    MUST_CHANGE_PREDICT = "must_change_predict"  # חייב לקבוע את המנצחת כי הניחוש לא תקין/אין ניחוש
 
 class PredictionService:
+    
+    @staticmethod
+    def set_status(prediction, status: PredictionStatus):
+        """
+        מעדכן את הסטטוס של ניחוש נוקאאוט
+        """
+        prediction.status = status.value
+        prediction.updated_at = datetime.utcnow()
     
     @staticmethod
     def get_match_prediction(db: Session, user_id: int, match_id: int) -> Dict[str, Any]:
@@ -591,6 +605,7 @@ class PredictionService:
             # 3. בדיקה אם המנצחת השתנתה
             if prediction.winner_team_id == winner_team_id:
                 print(f"המנצחת לא השתנתה: {winner_team_id}")
+                PredictionService.set_status(prediction, PredictionStatus.PREDICTED)
                 return PredictionService.create_success_response(db, prediction, "המנצחת לא השתנתה", request)
             
             # 4. עדכון המנצחת
@@ -598,7 +613,10 @@ class PredictionService:
             prediction.winner_team_id = winner_team_id
             prediction.updated_at = datetime.utcnow()
             
-            # 5. עדכון השלבים הבאים
+            # 5. עדכון סטטוס ל-PREDICTED
+            PredictionService.set_status(prediction, PredictionStatus.PREDICTED)
+            
+            # 6. עדכון השלבים הבאים
             if next_prediction:
                 PredictionService.update_next_stages(db, prediction, previous_winner_id)
             
@@ -782,6 +800,9 @@ class PredictionService:
         db.add(new_prediction)
         db.flush()  # כדי לקבל את ה-ID
         
+        # מעדכן סטטוס ל-MUST_CHANGE_PREDICT
+        PredictionService.set_status(new_prediction, PredictionStatus.MUST_CHANGE_PREDICT)
+        
         return new_prediction
 
     @staticmethod
@@ -808,12 +829,17 @@ class PredictionService:
             return
         
         # בדיקה: אם המנצחת הנוכחית שונה מהקבוצה שצריך למחוק - לא עושים כלום
-        if prediction.winner_team_id != previous_winner_id:
+        if prediction.winner_team_id and prediction.winner_team_id != previous_winner_id:
+            # עדכון סטטוס ל-MIGHT_CHANGE_PREDICT
+            PredictionService.set_status(prediction, PredictionStatus.MIGHT_CHANGE_PREDICT)
             return
         
         # מוחק את המנצחת
         prediction.winner_team_id = None
         print(f"נמחקה מנצחת {previous_winner_id} מניחוש {prediction.id}")
+        
+        # עדכון סטטוס ל-MUST_CHANGE_PREDICT
+        PredictionService.set_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT)
         
         # מוצא את הניחוש הבא בשרשרת
         next_prediction, next_position = PredictionService.find_next_knockout_prediction_and_position(db, prediction)

@@ -78,11 +78,25 @@
             padding: 20px;
             box-shadow: 0 8px 25px rgba(0,0,0,0.1);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 3px solid transparent;
         }
 
         .match-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+
+        /* צבעי סטטוס */
+        .match-card.status-predicted {
+            border: 5px solid #51cf66 !important; /* ירוק */
+        }
+
+        .match-card.status-must_change_predict {
+            border: 5px solid #ff6b6b !important; /* אדום */
+        }
+
+        .match-card.status-might_change_predict {
+            border: 5px solid #ffd43b !important; /* צהוב */
         }
 
         .match-header {
@@ -159,6 +173,32 @@
             color: #888;
             margin-top: 5px;
             font-style: italic;
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-indicator.predicted {
+            background: #51cf66;
+            color: white;
+        }
+
+        .status-indicator.must-change-predict {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .status-indicator.might-change-predict {
+            background: #ffd43b;
+            color: #333;
         }
 
         .loading {
@@ -238,6 +278,9 @@
                 if (Array.isArray(data)) {
                     displayPredictions(data);
                     updateStats(data.length);
+                } else if (data.success && data.predictions) {
+                    displayPredictions(data.predictions);
+                    updateStats(data.predictions.length);
                 } else {
                     showError('שגיאה בטעינת הנתונים');
                 }
@@ -260,7 +303,7 @@
 
             predictions.forEach((prediction, index) => {
                 const matchCard = document.createElement('div');
-                matchCard.className = 'match-card';
+                matchCard.className = `match-card status-${prediction.status || 'must-change-predict'}`;
                 
                 // פירוק שמות הקבוצות
                 const team1 = prediction.team1_name || 'קבוצה 1';
@@ -279,7 +322,11 @@
                     team2Selected = 'selected';
                 }
                 
+                // קביעת טקסט הסטטוס
+                const statusText = getStatusText(prediction.status);
+                
                 matchCard.innerHTML = `
+                    <div class="status-indicator ${prediction.status || 'must-change-predict'}">${statusText}</div>
                     <div class="match-header">
                         <div class="match-id">משחק ${prediction.template_match_id}</div>
                         <div class="match-teams">
@@ -313,6 +360,19 @@
         function updateStats(count) {
             const statsText = document.getElementById('stats-text');
             statsText.textContent = `נמצאו ${count} משחקי 32 הגדולות`;
+        }
+
+        function getStatusText(status) {
+            switch(status) {
+                case 'predicted':
+                    return '✓ ניחוש תקין';
+                case 'must_change_predict':
+                    return '! צריך ניחוש';
+                case 'might_change_predict':
+                    return '? בדוק מחדש';
+                default:
+                    return '! צריך ניחוש';
+            }
         }
 
         function showError(message) {
@@ -366,6 +426,17 @@
                     showError(`שגיאה בעדכון הניחוש: ${data.message}`);
                     // הסר את הסימון במקרה של שגיאה
                     button.classList.remove('selected');
+                } else {
+                    // עדכון הסטטוס של הכרטיס ל-predicted
+                    const matchCard = button.closest('.match-card');
+                    matchCard.className = 'match-card status-predicted';
+                    
+                    // עדכון האינדיקטור
+                    const statusIndicator = matchCard.querySelector('.status-indicator');
+                    if (statusIndicator) {
+                        statusIndicator.className = 'status-indicator predicted';
+                        statusIndicator.textContent = '✓ ניחוש תקין';
+                    }
                 }
             } catch (error) {
                 console.error('Error updating prediction:', error);

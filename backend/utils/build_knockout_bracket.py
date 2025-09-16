@@ -253,7 +253,8 @@ def create_knockout_predictions(db, team_mapping, combination):
                         knockout_result_id=result.id,
                         template_match_id=template.id,
                         stage=template.stage,  # הוספנו את השדה stage
-                        winner_team_id=None  # לא מנחשים על המנצחת כרגע
+                        winner_team_id=None,  # לא מנחשים על המנצחת כרגע
+                        status="must_change_predict"  # סטטוס התחלתי
                     )
                 else:
                     print(f"  לא נמצא KnockoutStageResult עבור match_id {template.id}")

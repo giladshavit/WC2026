@@ -107,7 +107,8 @@ def build_knockout_bracket():
                             stage=template.stage,  # הוספנו את השדה stage
                             team1_id=home_team.id,
                             team2_id=away_team.id,
-                            winner_team_id=None
+                            winner_team_id=None,
+                            status="must_change_predict"  # סטטוס התחלתי
                         )
                     else:
                         print(f"  לא נמצא KnockoutStageResult עבור match_id {template.id}")

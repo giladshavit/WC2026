@@ -110,6 +110,7 @@ def get_knockout_predictions(stage: str = None, db: Session = Depends(get_db)):
                     "display": f"{team1_name} vs {team2_name}",
                     "winner_team_id": pred.winner_team_id,
                     "winner_team_name": winner_team_name,
+                    "status": pred.status,
                     "created_at": pred.created_at
                 })
         
@@ -180,7 +181,8 @@ def create_predictions_for_stage(db, stage, templates):
             template_match_id=template.id,
             team1_id=team1_id,
             team2_id=team2_id,
-            winner_team_id=None  # עדיין לא נבחר
+            winner_team_id=None,  # עדיין לא נבחר
+            status="must_change_predict"  # סטטוס התחלתי
         )
         
         db.add(prediction)
@@ -356,7 +358,8 @@ def update_next_stage_prediction(db, prediction):
             template_match_id=next_match_id,
             team1_id=prediction.winner_team_id if position == 1 else None,
             team2_id=prediction.winner_team_id if position == 2 else None,
-            winner_team_id=None
+            winner_team_id=None,
+            status="must_change_predict"  # סטטוס התחלתי
         )
         
         db.add(new_prediction)
@@ -392,6 +395,7 @@ def get_knockout_prediction(prediction_id: int, db: Session = Depends(get_db)):
                 "display": f"{team1_name} vs {team2_name}",
                 "winner_team_id": prediction.winner_team_id,
                 "winner_team_name": winner_team_name,
+                "status": prediction.status,
                 "created_at": prediction.created_at,
                 "updated_at": prediction.updated_at
             }
