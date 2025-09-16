@@ -1,4 +1,4 @@
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
 from models.user import User
 from models.matches import Match
@@ -583,6 +583,44 @@ class PredictionService:
             raise Exception(f"שגיאה בקבלת ניחושי הנוקאאוט: {str(e)}")
 
     @staticmethod
+    def update_knockout_prediction_with_winner(db: Session, prediction, winner_team_id: Optional[int] = None):
+        """
+        פונקציה פנימית לעדכון ניחוש נוקאאוט עם מנצחת חדשה
+        
+        Args:
+            db: Session
+            prediction: הניחוש לעדכון
+            winner_team_id: ID של הקבוצה המנצחת (אופציונלי - יכול להיות None)
+        """
+        # 1. בדיקה אם צריך ליצור ניחוש חדש לשלב הבא
+        template = PredictionService.get_template_by_id(db, prediction.template_match_id)
+        next_prediction = PredictionService.create_next_stage_if_needed(db, prediction, template)
+        
+        # 2. בדיקה אם המנצחת השתנתה
+        if prediction.winner_team_id == winner_team_id and winner_team_id is not None:
+            PredictionService.set_status(prediction, PredictionStatus.PREDICTED)
+            db.commit()
+            return PredictionService.create_success_response(db, prediction, "המנצחת לא השתנתה")
+        
+        # 3. עדכון המנצחת
+        previous_winner_id = prediction.winner_team_id
+        prediction.winner_team_id = winner_team_id
+        prediction.updated_at = datetime.utcnow()
+        
+        # 4. עדכון סטטוס
+        PredictionService.set_status(prediction, PredictionStatus.PREDICTED if winner_team_id else PredictionStatus.MUST_CHANGE_PREDICT)
+        
+        # 5. עדכון השלבים הבאים
+        if next_prediction:
+            PredictionService.update_next_stages(db, prediction, previous_winner_id)
+        
+        # 6. שמירה
+        db.commit()
+        
+        return PredictionService.create_success_response(db, prediction, "ניחוש עודכן בהצלחה")
+
+
+    @staticmethod
     def update_knockout_prediction_winner(db: Session, prediction_id: int, request) -> Dict[str, Any]:
         """
         מעדכן ניחוש נוקאאוט - בוחר קבוצה מנצחת ומעדכן את השלבים הבאים
@@ -590,7 +628,6 @@ class PredictionService:
         try:
             # 1. אימות וטעינת נתונים
             prediction = PredictionService.get_knockout_prediction_by_id(db, prediction_id)
-            template = PredictionService.get_template_by_id(db, prediction.template_match_id)
             winner_team_id = PredictionService.get_winner_team_id(prediction, request.winner_team_number)
             
             if not winner_team_id:
@@ -599,30 +636,10 @@ class PredictionService:
                     detail="לא ניתן למצוא את ID הקבוצה המנצחת"
                 )
             
-            # 2. בדיקה אם צריך ליצור ניחוש חדש לשלב הבא
-            next_prediction = PredictionService.create_next_stage_if_needed(db, prediction, template)
+            # 2. קורא לפונקציה הפנימית
+            result = PredictionService.update_knockout_prediction_with_winner(db, prediction, winner_team_id)
             
-            # 3. בדיקה אם המנצחת השתנתה
-            if prediction.winner_team_id == winner_team_id:
-                print(f"המנצחת לא השתנתה: {winner_team_id}")
-                PredictionService.set_status(prediction, PredictionStatus.PREDICTED)
-                return PredictionService.create_success_response(db, prediction, "המנצחת לא השתנתה", request)
-            
-            # 4. עדכון המנצחת
-            previous_winner_id = prediction.winner_team_id
-            prediction.winner_team_id = winner_team_id
-            prediction.updated_at = datetime.utcnow()
-            
-            # 5. עדכון סטטוס ל-PREDICTED
-            PredictionService.set_status(prediction, PredictionStatus.PREDICTED)
-            
-            # 6. עדכון השלבים הבאים
-            if next_prediction:
-                PredictionService.update_next_stages(db, prediction, previous_winner_id)
-            
-            # 6. שמירה והחזרת תגובה
-            db.commit()
-            return PredictionService.create_success_response(db, prediction, f"ניחוש עודכן בהצלחה", request)
+            return result
             
         except HTTPException:
             raise
@@ -632,7 +649,6 @@ class PredictionService:
                 status_code=500,
                 detail=f"שגיאה בעדכון הניחוש: {str(e)}"
             )
-
     @staticmethod
     def get_knockout_prediction_by_id(db: Session, prediction_id: int):
         """מוצא ניחוש נוקאאוט לפי ID"""
@@ -867,3 +883,34 @@ class PredictionService:
             next_prediction.team2_id = prediction.winner_team_id
         
         print(f"עודכן ניחוש {next_prediction.id} - position {position} עם קבוצה {prediction.winner_team_id}")
+
+    @staticmethod
+    def update_knockout_prediction_teams(db: Session, prediction, old_team_id: int, new_team_id: int):
+        """
+        פונקציה תשתיתית לעדכון ניחוש נוקאאוט - מחליפה קבוצה ומעדכנת את השלבים הבאים
+        
+        Args:
+            db: Session
+            prediction: הניחוש לעדכון
+            old_team_id: ID של הקבוצה הישנה
+            new_team_id: ID של הקבוצה החדשה
+        """
+        # מבצע את החילוף
+        if prediction.team1_id == old_team_id:
+            prediction.team1_id = new_team_id
+        elif prediction.team2_id == old_team_id:
+            prediction.team2_id = new_team_id
+        else:
+            # הקבוצה הישנה לא נמצאה בניחוש
+            return
+        
+        # בודק אם המנצחת היא הקבוצה הקודמת
+        if prediction.winner_team_id == old_team_id:
+            # קורא לפונקציה update_knockout_prediction_with_winner עם winner_team_id שהוא None
+            return PredictionService.update_knockout_prediction_with_winner(db, prediction, None)
+        else:
+            # המנצחת לא השתנתה, אבל הקבוצות השתנו
+            # אם המנצחת היא None, מעדכן סטטוס לאדום
+            if prediction.winner_team_id is None:
+                PredictionService.set_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT)
+                db.commit()
