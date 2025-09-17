@@ -401,21 +401,33 @@ class PredictionService:
         if not third_place_prediction:
             return
 
-        # Find and replace old team with new team
-        # Get all qualifying team fields dynamically
-        qualifying_fields = [attr for attr in dir(third_place_prediction) if attr.endswith('_team_qualifying')]
-        
-        for field_name in qualifying_fields:
-            team_field = getattr(third_place_prediction, field_name)
-            if team_field == old_third_place:
-                # Replace old team with new team
-                setattr(third_place_prediction, field_name, new_third_place)
-                break
+        # Replace the team in third place prediction
+        if PredictionService.replace_team_in_third_place_prediction(third_place_prediction, old_third_place, new_third_place):
+            # Find and update knockout prediction if the old team is in team2 position
+            knockout_prediction = PredictionService.get_knockout_prediction_by_user_and_team2(db, user_id, old_third_place)
+            if knockout_prediction:
+                PredictionService.update_knockout_prediction_teams(db, knockout_prediction, old_third_place, new_third_place)
 
         # Mark this group as changed
         PredictionService.update_third_place_prediction_changed_groups(third_place_prediction, group_name)
         
         db.commit()
+
+    @staticmethod
+    def replace_team_in_third_place_prediction(prediction, old_team_id, new_team_id):
+        """
+        Find and replace a team in third place prediction
+        Returns True if team was found and replaced, False otherwise
+        """
+        # Get all qualifying team fields dynamically
+        qualifying_fields = [attr for attr in dir(prediction) if attr.endswith('_team_qualifying')]
+        
+        for field_name in qualifying_fields:
+            if getattr(prediction, field_name) == old_team_id:
+                setattr(prediction, field_name, new_team_id)
+                return True
+        
+        return False
 
     @staticmethod
     def update_third_place_prediction_changed_groups(prediction, group_name):
@@ -1044,6 +1056,26 @@ class PredictionService:
         prediction = db.query(KnockoutStagePrediction).filter(
             KnockoutStagePrediction.user_id == user_id,
             KnockoutStagePrediction.template_match_id == match_id
+        ).first()
+        
+        return prediction
+
+    @staticmethod
+    def get_knockout_prediction_by_user_and_team2(db: Session, user_id: int, team2_id: int):
+        """
+        Find a knockout prediction by user_id and team2_id (for third place teams)
+        
+        Args:
+            db: Session
+            user_id: User ID
+            team2_id: Team ID in team2 position
+            
+        Returns:
+            KnockoutStagePrediction or None if not found
+        """
+        prediction = db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.user_id == user_id,
+            KnockoutStagePrediction.team2_id == team2_id
         ).first()
         
         return prediction
