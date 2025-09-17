@@ -292,8 +292,12 @@ class PredictionService:
         old_third_place = existing_prediction.third_place
         PredictionService.update_group_prediction_basic(db, existing_prediction, places, user_id, existing_prediction.group_id)
         
+        # Get group name for third place change tracking
+        group = db.query(Group).filter(Group.id == existing_prediction.group_id).first()
+        group_name = group.name if group else None
+        
         # Handle third place change
-        third_place_changed = PredictionService.handle_third_place_change(db, user_id, old_third_place, places.third_place)
+        third_place_changed = PredictionService.handle_third_place_change(db, user_id, old_third_place, places.third_place, group_name)
         
         return {
             "id": existing_prediction.id,
@@ -373,58 +377,71 @@ class PredictionService:
         PredictionService.update_knockout_prediction_teams(db, knockout_prediction, old_team, new_team)
 
     @staticmethod
-    def handle_third_place_change(db, user_id, old_third_place, new_third_place):
+    def handle_third_place_change(db, user_id, old_third_place, new_third_place, group_name):
         """
         Handle change in 3rd place
         """
         third_place_changed = old_third_place != new_third_place
         
-        if third_place_changed:
-            PredictionService.update_third_place_predictions(db, user_id, old_third_place, new_third_place)
+        if third_place_changed and group_name:
+            PredictionService.update_third_place_predictions(db, user_id, old_third_place, new_third_place, group_name)
         
         return third_place_changed
 
     @staticmethod
-    def update_third_place_predictions(db, user_id, old_third_place, new_third_place):
+    def update_third_place_predictions(db, user_id, old_third_place, new_third_place, group_name):
         """
-        Update third-place predictions
+        Update third-place predictions and mark the group as changed
         """
         # Get existing qualifying predictions
         third_place_prediction = db.query(ThirdPlacePrediction).filter(
             ThirdPlacePrediction.user_id == user_id
         ).first()
 
+        if not third_place_prediction:
+            return
+
+        # Find and replace old team with new team
+        # Get all qualifying team fields dynamically
+        qualifying_fields = [attr for attr in dir(third_place_prediction) if attr.endswith('_team_qualifying')]
+        
+        for field_name in qualifying_fields:
+            team_field = getattr(third_place_prediction, field_name)
+            if team_field == old_third_place:
+                # Replace old team with new team
+                setattr(third_place_prediction, field_name, new_third_place)
+                break
+
+        # Mark this group as changed
+        PredictionService.update_third_place_prediction_changed_groups(third_place_prediction, group_name)
+        
+        db.commit()
+
+    @staticmethod
+    def update_third_place_prediction_changed_groups(prediction, group_name):
+        """
+        Add a group to the changed_groups list in ThirdPlacePrediction
+        """
+        # Get current changed groups
+        current_changed = prediction.changed_groups or ""
+        changed_list = current_changed.split(",") if current_changed else []
+        
+        # Add group if not already in list
+        if group_name not in changed_list:
+            changed_list.append(group_name)
+            prediction.changed_groups = ",".join(changed_list)
+
+    @staticmethod
+    def clear_changed_groups_from_third_place_prediction(db, user_id):
+        """
+        Clear the changed_groups field when user updates third place predictions
+        """
+        third_place_prediction = db.query(ThirdPlacePrediction).filter(
+            ThirdPlacePrediction.user_id == user_id
+        ).first()
+        
         if third_place_prediction:
-            # Check if old team in 3rd place was selected
-            old_team_selected = False
-            new_team_selected = False
-
-            # Check if new team is already selected
-            for i in range(1, 9):  # first_team_qualifying to eighth_team_qualifying
-                team_field = getattr(third_place_prediction,
-                                     f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying")
-                if team_field == old_third_place:
-                    old_team_selected = True
-                    # Replace old team with new team
-                    setattr(third_place_prediction,
-                            f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying",
-                            new_third_place)
-                    break
-                elif team_field == new_third_place:
-                    new_team_selected = True
-
-            # If new team is already selected and old team is also selected - swap them
-            if new_team_selected and old_team_selected:
-                # Find position of new team and replace it with old team
-                for i in range(1, 9):
-                    team_field = getattr(third_place_prediction,
-                                         f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying")
-                    if team_field == new_third_place:
-                        setattr(third_place_prediction,
-                                f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying",
-                                old_third_place)
-                        break
-
+            third_place_prediction.changed_groups = None
             db.commit()
 
     @staticmethod
@@ -501,6 +518,8 @@ class PredictionService:
             existing_prediction.sixth_team_qualifying = advancing_team_ids[5]
             existing_prediction.seventh_team_qualifying = advancing_team_ids[6]
             existing_prediction.eighth_team_qualifying = advancing_team_ids[7]
+            # Clear changed groups when user updates predictions
+            existing_prediction.changed_groups = None
             db.commit()
             
             return {
@@ -552,6 +571,7 @@ class PredictionService:
                 pred.seventh_team_qualifying,
                 pred.eighth_team_qualifying
             ],
+            "changed_groups": pred.changed_groups,  # Groups with changed 3rd place
             "created_at": pred.created_at.isoformat(),
             "updated_at": pred.updated_at.isoformat()
         } for pred in predictions]

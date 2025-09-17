@@ -56,6 +56,7 @@ class ThirdPlacePrediction(Base):
     sixth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
     seventh_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
     eighth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    changed_groups = Column(String(50), nullable=True)  # JSON string like "A,B,C" for groups with changed 3rd place
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

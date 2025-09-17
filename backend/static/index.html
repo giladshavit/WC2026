@@ -1200,16 +1200,35 @@
                 // טוען חיזויים קיימים של העולות
                 const existingResponse = await fetch('/api/users/1/third-place-predictions');
                 let existingPredictions = [];
+                let changedGroups = [];
                 if (existingResponse.ok) {
                     const existingData = await existingResponse.json();
                     // אם יש חיזויים, לוקח את הראשון (אמור להיות רק אחד)
                     if (existingData && existingData.length > 0) {
                         existingPredictions = existingData[0].advancing_team_ids || [];
+                        // קבל את הקבוצות שהשתנו
+                        if (existingData[0].changed_groups) {
+                            changedGroups = existingData[0].changed_groups.split(',').filter(g => g.trim());
+                        }
                     }
                 }
                 
                 const content = `
                     <div style="max-width: 800px; margin: 0 auto;">
+                        ${changedGroups.length > 0 ? `
+                        <div style="background: #fef5e7; border: 2px solid #f6ad55; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px;">
+                                <div style="width: 12px; height: 12px; background: #f6ad55; border-radius: 50%;"></div>
+                                <h3 style="color: #c05621; margin: 0; font-size: 1.1rem;">קבוצות עם שינוי במקום השלישי</h3>
+                            </div>
+                            <p style="color: #c05621; margin: 0 0 8px 0;">
+                                הבתים הבאים שינו את המקום השלישי שלהם: <strong>${changedGroups.join(', ')}</strong>
+                            </p>
+                            <p style="color: #9c4221; margin: 0; font-size: 0.9rem;">
+                                💡 מומלץ לבדוק את הניחושים שלך עבור הקבוצות האלה
+                            </p>
+                        </div>
+                        ` : ''}
                         <div style="background: #f7fafc; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
                             <h3 style="color: #667eea; margin: 0 0 10px 0;">בחר 8 קבוצות שיעלו מתוך ${thirdPlaceTeams.length} קבוצות במקום 3</h3>
                             <p style="color: #718096; margin: 0;">לחץ על קבוצה כדי לבחור אותה כעולה</p>
@@ -1218,14 +1237,18 @@
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
                             ${thirdPlaceTeams.map(team => {
                                 const isSelected = existingPredictions.includes(team.id);
+                                const isGroupChanged = changedGroups.includes(team.group_name);
                                 return `
                                     <div onclick="toggleThirdPlaceTeam(${team.id})" 
-                                         style="padding: 15px; background: ${isSelected ? '#e6fffa' : '#ffffff'}; border: 2px solid ${isSelected ? '#2f855a' : '#e2e8f0'}; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; text-align: center;"
+                                         style="padding: 15px; background: ${isSelected ? '#e6fffa' : '#ffffff'}; border: 2px solid ${isSelected ? '#2f855a' : '#e2e8f0'}; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; text-align: center; position: relative; ${isGroupChanged ? 'box-shadow: 0 0 0 4px rgba(246, 173, 85, 0.3);' : ''}"
                                          onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" 
-                                         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'"
+                                         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='${isGroupChanged ? '0 0 0 4px rgba(246, 173, 85, 0.3)' : 'none'}'"
                                          id="third-place-team-${team.id}">
-                                        <div style="font-weight: bold; color: ${isSelected ? '#2f855a' : '#4a5568'}; margin-bottom: 5px;">
-                                            ${team.name}
+                                        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 5px;">
+                                            <div style="font-weight: bold; color: ${isSelected ? '#2f855a' : '#4a5568'};">
+                                                ${team.name}
+                                            </div>
+                                            ${isGroupChanged ? '<div style="width: 8px; height: 8px; background: #f6ad55; border-radius: 50%;" title="המקום השלישי בבית זה השתנה"></div>' : ''}
                                         </div>
                                         <div style="font-size: 0.9rem; color: #718096; margin-bottom: 5px;">
                                         </div>
