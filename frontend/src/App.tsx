@@ -6,6 +6,7 @@ import PredictionsPage from './pages/PredictionsPage';
 import ThirdPlacePredictionsPage from './pages/ThirdPlacePredictionsPage';
 
 function App() {
+  console.log('DEBUG: App component loaded');
   return (
     <Router>
       <div className="min-h-screen bg-gray-100">

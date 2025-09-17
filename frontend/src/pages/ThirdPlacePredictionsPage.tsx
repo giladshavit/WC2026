@@ -64,6 +64,7 @@ const ThirdPlacePredictionsPage: React.FC = () => {
         const existingPrediction = predictionResponse.data[0];
         setPrediction(existingPrediction);
         
+        
         // בודק איזה קבוצות השתנו
         const currentEligibleTeamIds = teamsResponse.data.map((team: ThirdPlaceTeam) => team.team_id);
         const removedTeams = existingPrediction.advancing_team_ids.filter(
@@ -152,6 +153,7 @@ const ThirdPlacePredictionsPage: React.FC = () => {
     return eligibleTeams.find(team => team.team_id === teamId);
   };
 
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -202,6 +204,7 @@ const ThirdPlacePredictionsPage: React.FC = () => {
           <li>• הקבוצות שלא ייבחרו לא יעלו לשלב הבא</li>
         </ul>
       </div>
+
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
