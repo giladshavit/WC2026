@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-סקריפט ליצירת טבלת matches_template עם כל המשחקים
+Script to create the matches_template table with all matches
 """
 
 import sys
@@ -13,30 +13,30 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
 
 def create_matches_template():
-    """יוצר את טבלת matches_template עם כל המשחקים"""
+    """Create the matches_template table with all matches"""
     Session = sessionmaker(bind=engine)
     session = Session()
     
     try:
-        # יוצר את הטבלה אם היא לא קיימת
+        # Create the table if it does not exist
         MatchTemplate.__table__.create(engine, checkfirst=True)
         
-        # מוחק את כל המשחקים הקיימים
+        # Delete all existing matches
         session.query(MatchTemplate).delete()
         
-        # תאריכים בסיסיים
-        group_stage_start = datetime(2026, 6, 15)  # 15 ביוני 2026
-        knockout_start = datetime(2026, 7, 1)      # 1 ביולי 2026
+        # Base dates
+        group_stage_start = datetime(2026, 6, 15)  # June 15, 2026
+        knockout_start = datetime(2026, 7, 1)      # July 1, 2026
         
         matches = []
         
         # ========================================
-        # יצירת משחקי הבתים (72 משחקים)
+        # Create group stage matches (72 matches)
         # ========================================
         
         groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
         
-        # מחזור 1 (24 משחקים) - ID 1-24
+        # Round 1 (24 matches) - ID 1-24
         for i, group in enumerate(groups):
             # A1 vs A2
             matches.append(MatchTemplate(
@@ -59,7 +59,7 @@ def create_matches_template():
                 group=group
             ))
         
-        # מחזור 2 (24 משחקים) - ID 25-48
+        # Round 2 (24 matches) - ID 25-48
         for i, group in enumerate(groups):
             # A1 vs A3
             matches.append(MatchTemplate(
@@ -82,7 +82,7 @@ def create_matches_template():
                 group=group
             ))
         
-        # מחזור 3 (24 משחקים) - ID 49-72
+        # Round 3 (24 matches) - ID 49-72
         for i, group in enumerate(groups):
             # A4 vs A1
             matches.append(MatchTemplate(
@@ -106,12 +106,12 @@ def create_matches_template():
             ))
         
         # ========================================
-        # יצירת משחקי הנוקאאוט (32 משחקים)
+        # Create knockout matches (32 matches)
         # ========================================
         
-        # שלב 32 הגדולות (16 משחקים) - ID 73-88
-        # התבנית צריכה להיות פשוטה - כל קבוצה ראשונה משחקת נגד קבוצה ממקום 3
-        # הסדר הנכון: 1A, 1B, 1D, 1E, 1G, 1I, 1K, 1L
+        # Round of 32 (16 matches) - ID 73-88
+        # Template: each 1st place team plays a 3rd place team
+        # Order: 1A, 1B, 1D, 1E, 1G, 1I, 1K, 1L
         round32_matches = [
             {"id": 73, "team_1": "2A", "team_2": "2B", "winner_next_knockout_match": 90, "winner_next_position": 1},
             {"id": 74, "team_1": "1E", "team_2": "3rd_team_1", "winner_next_knockout_match": 89, "winner_next_position": 1},
@@ -143,7 +143,7 @@ def create_matches_template():
                 winner_next_position=match_data["winner_next_position"]
             ))
         
-        # שלב 16 הגדולות (8 משחקים) - ID 89-96
+        # Round of 16 (8 matches) - ID 89-96
         round16_matches = [
             {"id": 89, "team_1": "Winner_M74", "team_2": "Winner_M77", "winner_next_knockout_match": 97, "winner_next_position": 1},
             {"id": 90, "team_1": "Winner_M73", "team_2": "Winner_M75", "winner_next_knockout_match": 97, "winner_next_position": 2},
@@ -167,7 +167,7 @@ def create_matches_template():
                 winner_next_position=match_data["winner_next_position"]
             ))
         
-        # רבעי גמר (4 משחקים) - ID 97-100
+        # Quarter finals (4 matches) - ID 97-100
         quarter_matches = [
             {"id": 97, "team_1": "Winner_M89", "team_2": "Winner_M90", "winner_next_knockout_match": 101, "winner_next_position": 1},
             {"id": 98, "team_1": "Winner_M93", "team_2": "Winner_M94", "winner_next_knockout_match": 101, "winner_next_position": 2},
@@ -187,7 +187,7 @@ def create_matches_template():
                 winner_next_position=match_data["winner_next_position"]
             ))
         
-        # חצאי גמר (2 משחקים) - ID 101-102
+        # Semi finals (2 matches) - ID 101-102
         semi_matches = [
             {"id": 101, "team_1": "Winner_M97", "team_2": "Winner_M98", "winner_next_knockout_match": 104, "winner_next_position": 1},
             {"id": 102, "team_1": "Winner_M99", "team_2": "Winner_M100", "winner_next_knockout_match": 104, "winner_next_position": 2}
@@ -205,7 +205,7 @@ def create_matches_template():
                 winner_next_position=match_data["winner_next_position"]
             ))
         
-        # קרב על מקום 3 - ID 103
+        # Third-place match - ID 103
         matches.append(MatchTemplate(
             id=103,
             stage="third_place",
@@ -217,7 +217,7 @@ def create_matches_template():
             winner_next_position=None
         ))
         
-        # גמר - ID 104
+        # Final - ID 104
         matches.append(MatchTemplate(
             id=104,
             stage="final",
@@ -229,31 +229,31 @@ def create_matches_template():
             winner_next_position=None
         ))
         
-        # מוסיף את כל המשחקים
+        # Add all matches
         session.add_all(matches)
         session.commit()
         
-        print(f"נוצרו {len(matches)} משחקים בהצלחה!")
+        print(f"Created {len(matches)} matches successfully!")
         
-        # מציג סיכום
-        print("\nסיכום משחקים שנוצרו:")
+        # Summary
+        print("\nSummary of created matches:")
         print("=" * 50)
-        print(f"משחקי בתים: 72 משחקים (ID: 1-72)")
-        print(f"שלב 32 הגדולות: 16 משחקים (ID: 73-88)")
-        print(f"שלב 16 הגדולות: 8 משחקים (ID: 89-96)")
-        print(f"רבעי גמר: 4 משחקים (ID: 97-100)")
-        print(f"חצאי גמר: 2 משחקים (ID: 101-102)")
-        print(f"קרב על מקום 3: 1 משחק (ID: 103)")
-        print(f"גמר: 1 משחק (ID: 104)")
-        print(f"סה\"כ: {len(matches)} משחקים")
+        print(f"Group stage: 72 matches (ID: 1-72)")
+        print(f"Round of 32: 16 matches (ID: 73-88)")
+        print(f"Round of 16: 8 matches (ID: 89-96)")
+        print(f"Quarter finals: 4 matches (ID: 97-100)")
+        print(f"Semi finals: 2 matches (ID: 101-102)")
+        print(f"Third-place: 1 match (ID: 103)")
+        print(f"Final: 1 match (ID: 104)")
+        print(f"Total: {len(matches)} matches")
         
-        # מציג כמה דוגמאות
-        print("\nדוגמאות למשחקי בתים:")
+        # Show some examples
+        print("\nExamples - group stage:")
         group_matches = session.query(MatchTemplate).filter(MatchTemplate.stage == "group").limit(6).all()
         for match in group_matches:
-            print(f"ID {match.id}: {match.team_1} vs {match.team_2} (בית {match.group})")
+            print(f"ID {match.id}: {match.team_1} vs {match.team_2} (Group {match.group})")
         
-        print("\nדוגמאות למשחקי נוקאאוט:")
+        print("\nExamples - knockout:")
         knockout_matches = session.query(MatchTemplate).filter(MatchTemplate.stage.in_(["round32", "round16", "quarter", "semi", "final", "third_place"])).limit(5).all()
         for match in knockout_matches:
             if match.winner_next_knockout_match:
@@ -263,7 +263,7 @@ def create_matches_template():
         
     except Exception as e:
         session.rollback()
-        print(f"שגיאה ביצירת המשחקים: {e}")
+        print(f"Error creating matches: {e}")
     finally:
         session.close()
 

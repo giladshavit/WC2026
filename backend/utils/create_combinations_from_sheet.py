@@ -13,31 +13,31 @@ from models.third_place_combinations import ThirdPlaceCombination
 from itertools import combinations
 
 def create_all_combinations_from_sheet():
-    """יוצר את כל 495 הקומבינציות מהגיליון האלקטרוני"""
+    """Create all 495 combinations from the spreadsheet"""
     
     db = SessionLocal()
     try:
-        # מוחק את כל הרשומות הקיימות
+        # Delete all existing records
         db.query(ThirdPlaceCombination).delete()
-        print("נוקתה הטבלה הקיימת")
+        print("Existing table cleaned")
         
-        # יוצר את כל הקומבינציות
+        # Create all combinations
         groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
         all_combinations = list(combinations(groups, 8))
         
-        print(f"יוצר {len(all_combinations)} קומבינציות...")
+        print(f"Creating {len(all_combinations)} combinations...")
         
-        # הקומבינציות מהגיליון האלקטרוני
-        # אני אעתיק אותן ידנית מהגיליון
+        # Combinations from the official sheet
+        # To be copied manually from the sheet
         sheet_combinations = [
-            # שורה 2 (Option 1): 3E	3J	3I	3F	3H	3G	3L	3K
+            # Row 2 (Option 1): 3E 3J 3I 3F 3H 3G 3L 3K
             {'hash_key': 'ABCDEFGH', 'match_1A': '3E', 'match_1B': '3J', 'match_1D': '3I', 'match_1E': '3F', 'match_1G': '3H', 'match_1I': '3G', 'match_1K': '3L', 'match_1L': '3K'},
-            # שורה 3 (Option 2): 3H	3G	3I	3D	3J	3F	3L	3K
+            # Row 3 (Option 2): 3H 3G 3I 3D 3J 3F 3L 3K
             {'hash_key': 'ABCDEFGI', 'match_1A': '3H', 'match_1B': '3G', 'match_1D': '3I', 'match_1E': '3D', 'match_1G': '3J', 'match_1I': '3F', 'match_1K': '3L', 'match_1L': '3K'},
-            # ... אני צריך להעתיק את כל 495 הקומבינציות
+            # ... need to copy all 495 combinations
         ]
         
-        # בינתיים אני אצור רק את הקומבינציה הנוכחית
+        # For now, create only the current combination
         current_combination = {
             'hash_key': 'DEFGHIKL',
             'match_1A': '3H',
@@ -50,7 +50,7 @@ def create_all_combinations_from_sheet():
             'match_1L': '3E'
         }
         
-        # יוצר את הקומבינציה הנוכחית
+        # Create the current combination
         combination = ThirdPlaceCombination(
             id=1,
             match_1A=current_combination['match_1A'],
@@ -67,12 +67,12 @@ def create_all_combinations_from_sheet():
         db.add(combination)
         db.commit()
         
-        print("✅ נוצרה קומבינציה אחת (הנוכחית)")
-        print("⚠️  צריך להעתיק את כל 495 הקומבינציות מהגיליון")
+        print("✅ Created one combination (current)")
+        print("⚠️ Need to copy all 495 combinations from the sheet")
         
     except Exception as e:
         db.rollback()
-        print(f"❌ שגיאה: {e}")
+        print(f"❌ Error: {e}")
     finally:
         db.close()
 

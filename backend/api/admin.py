@@ -40,7 +40,7 @@ class UpdateTeamGroupRequest(BaseModel):
 @router.post("/admin/teams", response_model=Dict[str, Any])
 def create_team(team_request: TeamRequest, db: Session = Depends(get_db)):
     """
-    יוצר קבוצה חדשה (admin only)
+    Create a new team (admin only)
     """
     result = TeamService.create_team(
         db, 
@@ -55,7 +55,7 @@ def create_team(team_request: TeamRequest, db: Session = Depends(get_db)):
 @router.post("/admin/teams/batch", response_model=Dict[str, Any])
 def create_multiple_teams(teams_request: MultipleTeamsRequest, db: Session = Depends(get_db)):
     """
-    יוצר מספר קבוצות בבת אחת (admin only)
+    Create multiple teams at once (admin only)
     """
     teams_data = [
         {
@@ -70,7 +70,7 @@ def create_multiple_teams(teams_request: MultipleTeamsRequest, db: Session = Dep
 @router.put("/admin/teams/{team_id}/group", response_model=Dict[str, Any])
 def update_team_group(team_id: int, group_request: UpdateTeamGroupRequest, db: Session = Depends(get_db)):
     """
-    מעדכן קבוצה עם מידע על הבית שלה (admin only)
+    Update a team with its group information (admin only)
     """
     result = TeamService.update_team_group(
         db, 
@@ -87,14 +87,14 @@ def update_team_group(team_id: int, group_request: UpdateTeamGroupRequest, db: S
 @router.get("/admin/teams", response_model=List[Dict[str, Any]])
 def get_all_teams(db: Session = Depends(get_db)):
     """
-    מביא את כל הקבוצות (admin only)
+    Get all teams (admin only)
     """
     return TeamService.get_all_teams(db)
 
 @router.post("/admin/matches/group-stage", response_model=Dict[str, Any])
 def create_group_stage_match(match_request: GroupStageMatchRequest, db: Session = Depends(get_db)):
     """
-    יוצר משחק שלב בתים (admin only)
+    Create a group stage match (admin only)
     """
     result = MatchService.create_group_stage_match(
         db, 
@@ -112,7 +112,7 @@ def create_group_stage_match(match_request: GroupStageMatchRequest, db: Session 
 @router.post("/admin/matches/knockout", response_model=Dict[str, Any])
 def create_knockout_match(match_request: KnockoutMatchRequest, db: Session = Depends(get_db)):
     """
-    יוצר משחק נוקאאוט (admin only)
+    Create a knockout match (admin only)
     """
     result = MatchService.create_knockout_match(
         db,
@@ -132,7 +132,7 @@ def create_knockout_match(match_request: KnockoutMatchRequest, db: Session = Dep
 @router.post("/admin/groups", response_model=Dict[str, Any])
 def create_group(group_name: str, db: Session = Depends(get_db)):
     """
-    יוצר בית חדש (admin only)
+    Create a new group (admin only)
     """
     result = GroupService.create_group(db, group_name)
     
@@ -144,7 +144,7 @@ def create_group(group_name: str, db: Session = Depends(get_db)):
 @router.get("/admin/groups", response_model=List[Dict[str, Any]])
 def get_all_groups(db: Session = Depends(get_db)):
     """
-    מביא את כל הבתים (admin only)
+    Get all groups (admin only)
     """
     return GroupService.get_all_groups(db)
 
@@ -159,7 +159,7 @@ def create_group_result(
     db: Session = Depends(get_db)
 ):
     """
-    יוצר תוצאה לבית (admin only)
+    Create a result for a group (admin only)
     """
     result = GroupService.create_group_result(
         db, group_id, team_id, position, points, goals_for, goals_against
@@ -173,7 +173,7 @@ def create_group_result(
 @router.get("/admin/groups/{group_id}/results", response_model=List[Dict[str, Any]])
 def get_group_results(group_id: int, db: Session = Depends(get_db)):
     """
-    מביא את תוצאות הבית (admin only)
+    Get group results (admin only)
     """
     return GroupService.get_group_results(db, group_id)
 
@@ -186,14 +186,14 @@ class UpdateGroupRequest(BaseModel):
 @router.put("/admin/groups/{group_name}", response_model=Dict[str, Any])
 def update_group(group_name: str, update_request: UpdateGroupRequest, db: Session = Depends(get_db)):
     """
-    מעדכן בית עם הקבוצות שלו (admin only)
+    Update a group with its teams (admin only)
     """
-    # מוצא את הבית לפי שם
+    # Find group by name
     group = db.query(Group).filter(Group.name == group_name).first()
     if not group:
         raise HTTPException(status_code=404, detail=f"Group {group_name} not found")
     
-    # מעדכן את הקבוצות
+    # Update teams
     group.team_1 = update_request.team_1
     group.team_2 = update_request.team_2
     group.team_3 = update_request.team_3

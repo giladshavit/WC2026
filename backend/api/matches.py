@@ -10,6 +10,6 @@ router = APIRouter()
 @router.get("/matches", response_model=List[Dict[str, Any]])
 def get_all_matches_with_predictions(user_id: int, db: Session = Depends(get_db)):
     """
-    מביא את כל המשחקים עם הניחושים של המשתמש
+    Get all matches with the user's predictions
     """
     return MatchService.get_all_matches_with_predictions(db, user_id)

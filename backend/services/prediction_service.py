@@ -15,9 +15,9 @@ import json
 from enum import Enum
 
 class PredictionStatus(Enum):
-    PREDICTED = "predicted"  # המשתמש ניחש והניחוש תקין
-    MIGHT_CHANGE_PREDICT = "might_change_predict"  # הקבוצות השתנו, אולי המשתמש ירצה לבחון מחדש
-    MUST_CHANGE_PREDICT = "must_change_predict"  # חייב לקבוע את המנצחת כי הניחוש לא תקין/אין ניחוש
+    PREDICTED = "predicted"  # User predicted and prediction is valid
+    MIGHT_CHANGE_PREDICT = "might_change_predict"  # Teams changed, user might want to re-evaluate
+    MUST_CHANGE_PREDICT = "must_change_predict"  # Must determine winner because prediction is invalid/missing
 
 @dataclass
 class PlacesPredictions:
@@ -31,7 +31,7 @@ class PredictionService:
     @staticmethod
     def set_status(prediction, status: PredictionStatus):
         """
-        מעדכן את הסטטוס של ניחוש נוקאאוט
+        Updates the status of a knockout prediction
         """
         prediction.status = status.value
         prediction.updated_at = datetime.utcnow()
@@ -39,7 +39,7 @@ class PredictionService:
     @staticmethod
     def get_match_prediction(db: Session, user_id: int, match_id: int) -> Dict[str, Any]:
         """
-        מביא חיזוי למשחק ספציפי
+        Gets prediction for a specific match
         """
         prediction = db.query(MatchPrediction).filter(
             MatchPrediction.user_id == user_id,
@@ -61,41 +61,41 @@ class PredictionService:
     @staticmethod
     def get_user_predictions(db: Session, user_id: int) -> Dict[str, Any]:
         """
-        מביא את כל הניחושים של המשתמש
+        Get all user's predictions
         """
-        # מביא את פרטי המשתמש
+        # Get user details
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             return {"error": "User not found"}
         
-        # מביא את כל ניחושי המשחקים עם relationships
+        # Get all match predictions with relationships
         match_predictions = db.query(MatchPrediction).filter(
             MatchPrediction.user_id == user_id
         ).all()
         
-        # מביא את כל ניחושי הבתים
+        # Get all group predictions
         group_predictions = db.query(GroupStagePrediction).filter(
             GroupStagePrediction.user_id == user_id
         ).all()
         
-        # מביא את כל ניחושי מקומות 3
+        # Get all third place predictions
         third_place_predictions = db.query(ThirdPlacePrediction).filter(
             ThirdPlacePrediction.user_id == user_id
         ).all()
         
-        # מביא את כל ניחושי הנוקאאוט
+        # Get all knockout predictions
         knockout_predictions = db.query(KnockoutStagePrediction).filter(
             KnockoutStagePrediction.user_id == user_id
         ).all()
         
-        # ממיר למילון עם פרטי משחקים - עכשיו עם relationships ישירים
+        # Convert to dictionary with match details - now with direct relationships
         match_predictions_with_details = []
         for pred in match_predictions:
-            # עכשיו יש לנו relationship ישיר למשחק
+            # Now we have direct relationship to match
             match = pred.match
             
             if not match:
-                continue  # דלג אם לא נמצא המשחק
+                continue  # Skip if match not found
             
             match_details = {
                 "id": match.id,
@@ -112,7 +112,7 @@ class PredictionService:
                 "status": match.status
             }
             
-            # מוסיף פרטים ספציפיים לפי סוג המשחק
+            # Add specific details based on match type
             if match.is_group_stage:
                 match_details["group"] = match.group
             elif match.is_knockout:
@@ -120,11 +120,11 @@ class PredictionService:
                 match_details["home_team_source"] = match.home_team_source
                 match_details["away_team_source"] = match.away_team_source
             
-            # מוסיף תוצאה אמיתית אם המשחק הסתיים
+            # Add real result if match is finished
             actual_result = None
             if match.status == "finished":
-                # TODO: כאן נצטרך להוסיף טבלת תוצאות אמיתיות
-                # כרגע נחזיר None
+                # TODO: Here we need to add real results table
+                # For now return None
                 actual_result = None
             
             match_predictions_with_details.append({
@@ -138,7 +138,7 @@ class PredictionService:
                 "updated_at": pred.updated_at.isoformat()
             })
         
-        # ממיר למילון
+        # Convert to dictionary
         return {
             "user": {
                 "id": user.id,
@@ -184,33 +184,33 @@ class PredictionService:
     @staticmethod
     def create_or_update_match_prediction(db: Session, user_id: int, match_id: int, home_score: int, away_score: int) -> Dict[str, Any]:
         """
-        יצירה או עדכון ניחוש למשחק בודד
+        Create or update a single match prediction
         """
-        # מביא את פרטי המשחק כדי לקבוע את המנצח
+        # Get match details to determine winner
         match = db.query(Match).filter(Match.id == match_id).first()
         if not match:
             return {"error": "Match not found"}
         
-        # קובע את המנצח לפי התוצאה
+        # Determine winner based on result
         predicted_winner = None
         if home_score > away_score:
             predicted_winner = match.home_team_id
         elif away_score > home_score:
             predicted_winner = match.away_team_id
-        # אם תיקו, predicted_winner נשאר None
+        # If draw, predicted_winner remains None
         
-        # בודק אם יש כבר ניחוש למשחק הזה
+        # Check if prediction already exists for this match
         existing_prediction = db.query(MatchPrediction).filter(
             MatchPrediction.user_id == user_id,
             MatchPrediction.match_id == match_id
         ).first()
         
         if existing_prediction:
-            # מעדכן ניחוש קיים
+            # Update existing prediction
             existing_prediction.home_score = home_score
             existing_prediction.away_score = away_score
             existing_prediction.predicted_winner = predicted_winner
-            # updated_at מתעדכן אוטומטית
+            # updated_at is updated automatically
             db.commit()
             
             return {
@@ -222,7 +222,7 @@ class PredictionService:
                 "updated": True
             }
         else:
-            # יוצר ניחוש חדש
+            # Create new prediction
             new_prediction = MatchPrediction(
                 user_id=user_id,
                 match_id=match_id,
@@ -246,7 +246,7 @@ class PredictionService:
     @staticmethod
     def create_or_update_batch_predictions(db: Session, user_id: int, predictions: List[Dict]) -> Dict[str, Any]:
         """
-        יצירה או עדכון ניחושים מרובים
+        Create or update multiple match predictions
         """
         results = []
         
@@ -258,7 +258,7 @@ class PredictionService:
             if not all([match_id, home_score is not None, away_score is not None]):
                 return {"error": f"Missing data for match {match_id}"}
             
-            # משתמש בפונקציה הקיימת לכל ניחוש
+            # Use existing function for each prediction
             result = PredictionService.create_or_update_match_prediction(
                 db, user_id, match_id, home_score, away_score
             )
@@ -273,9 +273,9 @@ class PredictionService:
     @staticmethod
     def create_or_update_group_prediction(db: Session, user_id: int, group_id: int, places: PlacesPredictions) -> Dict[str, Any]:
         """
-        יצירה או עדכון ניחוש לבית
+        Create or update a group prediction
         """
-        # בודק אם יש כבר ניחוש לבית הזה
+        # Check if prediction already exists for this group
         existing_prediction = db.query(GroupStagePrediction).filter(
             GroupStagePrediction.user_id == user_id,
             GroupStagePrediction.group_id == group_id
@@ -288,11 +288,11 @@ class PredictionService:
 
     @staticmethod
     def update_group_prediction(db, existing_prediction, places: PlacesPredictions, user_id):
-        # עדכון בסיסי של המקומות
+        # Basic update of places
         old_third_place = existing_prediction.third_place
         PredictionService.update_group_prediction_basic(db, existing_prediction, places, user_id, existing_prediction.group_id)
         
-        # טיפול בשינוי מקום 3
+        # Handle third place change
         third_place_changed = PredictionService.handle_third_place_change(db, user_id, old_third_place, places.third_place)
         
         return {
@@ -309,23 +309,23 @@ class PredictionService:
     @staticmethod
     def update_group_prediction_basic(db, existing_prediction, places: PlacesPredictions, user_id, group_id):
         """
-        עדכון בסיסי של המקומות + טיפול בשינויים במקומות 1-2
+        Basic update of places + handle changes in 1st/2nd places
         """
-        # שמירת הערכים הישנים
+        # Save old values
         old_first_place = existing_prediction.first_place
         old_second_place = existing_prediction.second_place
         
-        # עדכון המקומות
+        # Update places
         existing_prediction.first_place = places.first_place
         existing_prediction.second_place = places.second_place
         existing_prediction.third_place = places.third_place
         existing_prediction.fourth_place = places.fourth_place
         
-        # בדיקה אם מקום 1 השתנה
+        # Check if first place changed
         if old_first_place != places.first_place:
             PredictionService.handle_first_second_place_change(db, user_id, group_id, 1, old_first_place, places.first_place)
         
-        # בדיקה אם מקום 2 השתנה
+        # Check if second place changed
         if old_second_place != places.second_place:
             PredictionService.handle_first_second_place_change(db, user_id, group_id, 2, old_second_place, places.second_place)
         
@@ -334,22 +334,22 @@ class PredictionService:
     @staticmethod
     def handle_first_second_place_change(db, user_id, group_id, position, old_team, new_team):
         """
-        טיפול בשינוי מקום 1 או 2
+        Handle a change in 1st or 2nd place
         
         Args:
             db: Session
-            user_id: ID של המשתמש
-            group_id: ID של הקבוצה
-            position: 1 או 2 (מקום ראשון או שני)
-            old_team: ID של הקבוצה הישנה
-            new_team: ID של הקבוצה החדשה
+            user_id: user ID
+            group_id: group ID
+            position: 1 or 2 (first or second place)
+            old_team: old team ID
+            new_team: new team ID
         """
-        # מוצא את ה-match_id לפי המיקום
+        # Find match_id by position
         group = db.query(Group).filter(Group.id == group_id).first()
         if not group:
             return
         
-        # מוצא את ה-GroupTemplate לפי שם הקבוצה
+        # Find GroupTemplate by group name
         group_template = db.query(GroupTemplate).filter(GroupTemplate.group_name == group.name).first()
         if not group_template:
             return
@@ -359,23 +359,23 @@ class PredictionService:
         elif position == 2:
             match_id = group_template.second_place_match_id
         else:
-            return  # מיקום לא תקין
+            return  # Invalid position
         
         if not match_id:
             return
         
-        # מוצא את הניחוש הנוקאאוט הרלוונטי
+        # Find relevant knockout prediction
         knockout_prediction = PredictionService.get_knockout_prediction_by_user_and_match_id(db, user_id, match_id)
         if not knockout_prediction:
             return
         
-        # קורא לפונקציה התשתיתית
+        # Call foundational function
         PredictionService.update_knockout_prediction_teams(db, knockout_prediction, old_team, new_team)
 
     @staticmethod
     def handle_third_place_change(db, user_id, old_third_place, new_third_place):
         """
-        טיפול בשינוי מקום 3
+        Handle change in 3rd place
         """
         third_place_changed = old_third_place != new_third_place
         
@@ -387,25 +387,25 @@ class PredictionService:
     @staticmethod
     def update_third_place_predictions(db, user_id, old_third_place, new_third_place):
         """
-        עדכון ניחושי מקום 3
+        Update third-place predictions
         """
-        # מביא את חיזויי העולות הקיימים
+        # Get existing qualifying predictions
         third_place_prediction = db.query(ThirdPlacePrediction).filter(
             ThirdPlacePrediction.user_id == user_id
         ).first()
 
         if third_place_prediction:
-            # בודק אם הקבוצה הישנה במקום 3 נבחרה
+            # Check if old team in 3rd place was selected
             old_team_selected = False
             new_team_selected = False
 
-            # בודק אם הקבוצה החדשה כבר נבחרה
-            for i in range(1, 9):  # first_team_qualifying עד eighth_team_qualifying
+            # Check if new team is already selected
+            for i in range(1, 9):  # first_team_qualifying to eighth_team_qualifying
                 team_field = getattr(third_place_prediction,
                                      f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying")
                 if team_field == old_third_place:
                     old_team_selected = True
-                    # מחליף את הקבוצה הישנה בחדשה
+                    # Replace old team with new team
                     setattr(third_place_prediction,
                             f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying",
                             new_third_place)
@@ -413,9 +413,9 @@ class PredictionService:
                 elif team_field == new_third_place:
                     new_team_selected = True
 
-            # אם הקבוצה החדשה כבר נבחרה והקבוצה הישנה גם נבחרה - מחליף ביניהם
+            # If new team is already selected and old team is also selected - swap them
             if new_team_selected and old_team_selected:
-                # מוצא את המיקום של הקבוצה החדשה ומחליף אותה בקבוצה הישנה
+                # Find position of new team and replace it with old team
                 for i in range(1, 9):
                     team_field = getattr(third_place_prediction,
                                          f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying")
@@ -441,7 +441,7 @@ class PredictionService:
         db.commit()
         db.refresh(new_prediction)
         
-        # אם זה ניחוש חדש, מוחק את חיזויי העולות הקיימים
+        # If this is a new prediction, delete existing qualifying predictions
         db.query(ThirdPlacePrediction).filter(
             ThirdPlacePrediction.user_id == user_id
         ).delete()
@@ -460,7 +460,7 @@ class PredictionService:
     @staticmethod
     def get_group_predictions(db: Session, user_id: int) -> List[Dict[str, Any]]:
         """
-        מביא את כל ניחושי הבתים של המשתמש
+        Get all user's group predictions
         """
         predictions = db.query(GroupStagePrediction).filter(
             GroupStagePrediction.user_id == user_id
@@ -480,10 +480,10 @@ class PredictionService:
     @staticmethod
     def create_or_update_third_place_prediction(db: Session, user_id: int, advancing_team_ids: List[int]) -> Dict[str, Any]:
         """
-        יצירה או עדכון ניחוש למקומות 3
-        advancing_team_ids: רשימה של 8 team IDs שיעלו
+        Create or update third-place qualification prediction
+        advancing_team_ids: a list of 8 team IDs that will advance
         """
-        # בודק אם יש כבר ניחוש למקומות 3
+        # Check if third place prediction already exists
         existing_prediction = db.query(ThirdPlacePrediction).filter(
             ThirdPlacePrediction.user_id == user_id
         ).first()
@@ -492,7 +492,7 @@ class PredictionService:
             return {"error": "Must provide exactly 8 team IDs"}
         
         if existing_prediction:
-            # מעדכן ניחוש קיים
+            # Update existing prediction
             existing_prediction.first_team_qualifying = advancing_team_ids[0]
             existing_prediction.second_team_qualifying = advancing_team_ids[1]
             existing_prediction.third_team_qualifying = advancing_team_ids[2]
@@ -509,7 +509,7 @@ class PredictionService:
                 "updated": True
             }
         else:
-            # יוצר ניחוש חדש
+            # Create new prediction
             new_prediction = ThirdPlacePrediction(
                 user_id=user_id,
                 first_team_qualifying=advancing_team_ids[0],
@@ -534,7 +534,7 @@ class PredictionService:
     @staticmethod
     def get_third_place_predictions(db: Session, user_id: int) -> List[Dict[str, Any]]:
         """
-        מביא את ניחושי המקומות 3 של המשתמש
+        Get user's third-place predictions
         """
         predictions = db.query(ThirdPlacePrediction).filter(
             ThirdPlacePrediction.user_id == user_id
@@ -559,9 +559,9 @@ class PredictionService:
     @staticmethod
     def get_third_place_eligible_teams(db: Session, user_id: int) -> List[Dict[str, Any]]:
         """
-        מביא את 12 הקבוצות שמגיעות ממקום 3 לפי ניחושי הבתים של המשתמש
+        Get the 12 teams that are 3rd-place candidates based on the user's group predictions
         """
-        # מביא את כל ניחושי הבתים של המשתמש
+        # Get all user's group predictions
         group_predictions = db.query(GroupStagePrediction).filter(
             GroupStagePrediction.user_id == user_id
         ).all()
@@ -572,14 +572,14 @@ class PredictionService:
         third_place_teams = []
         
         for pred in group_predictions:
-            third_place_team_id = pred.third_place  # מיקום 3
+            third_place_team_id = pred.third_place  # 3rd place
             
-            # מביא את פרטי הקבוצה
+            # Get team details
             team = db.query(Team).filter(Team.id == third_place_team_id).first()
             if team:
-                # מביא את שם הבית
+                # Get group name
                 group = db.query(Group).filter(Group.id == pred.group_id).first()
-                group_name = group.name if group else f"בית {pred.group_id}"
+                group_name = group.name if group else f"Group {pred.group_id}"
                 
                 third_place_teams.append({
                     "id": team.id,
@@ -593,7 +593,7 @@ class PredictionService:
     @staticmethod
     def create_or_update_batch_group_predictions(db: Session, user_id: int, predictions_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        יצירה או עדכון ניחושי בתים מרובים
+        Create or update multiple group predictions
         """
         try:
             saved_predictions = []
@@ -610,7 +610,7 @@ class PredictionService:
                     errors.append(f"Missing data for group {group_id}")
                     continue
                 
-                # שמירת הניחוש
+                # Save prediction
                 result = PredictionService.create_or_update_group_prediction(
                     db, user_id, group_id, PlacesPredictions(first_place, second_place, third_place, fourth_place)
                 )
@@ -634,23 +634,22 @@ class PredictionService:
     @staticmethod
     def get_knockout_predictions(db: Session, user_id: int, stage: str = None) -> List[Dict[str, Any]]:
         """
-        מביא את כל ניחושי הנוקאאוט של המשתמש
-        אם stage מוגדר, מסנן לפי השלב
+        Get all user's knockout predictions. If stage is provided, filter by that stage.
         """
         try:
-            # בונה את השאילתה הבסיסית
+            # Build basic query
             query = db.query(KnockoutStagePrediction).filter(
                 KnockoutStagePrediction.user_id == user_id
             )
             
-            # אם stage מוגדר, מוסיף סינון
+            # If stage is defined, add filtering
             if stage:
                 query = query.filter(KnockoutStagePrediction.stage == stage)
             
-            # מביא את הניחושים
+            # Get predictions
             predictions = query.all()
             
-            # ממיר לרשימה של dictionaries
+            # Convert to list of dictionaries
             result = []
             for prediction in predictions:
                 result.append({
@@ -665,7 +664,7 @@ class PredictionService:
                     "status": prediction.status,
                     "created_at": prediction.created_at,
                     "updated_at": prediction.updated_at,
-                    # הוספת שמות הקבוצות אם קיימות
+                    # Add team names if they exist
                     "team1_name": prediction.team1.name if prediction.team1 else None,
                     "team2_name": prediction.team2.name if prediction.team2 else None,
                     "winner_team_name": prediction.winner_team.name if prediction.winner_team else None
@@ -674,63 +673,63 @@ class PredictionService:
             return result
             
         except Exception as e:
-            raise Exception(f"שגיאה בקבלת ניחושי הנוקאאוט: {str(e)}")
+            raise Exception(f"Error fetching knockout predictions: {str(e)}")
 
     @staticmethod
     def update_knockout_prediction_with_winner(db: Session, prediction, winner_team_id: Optional[int] = None):
         """
-        פונקציה פנימית לעדכון ניחוש נוקאאוט עם מנצחת חדשה
+        Internal function to update a knockout prediction with a new winner
         
         Args:
             db: Session
-            prediction: הניחוש לעדכון
-            winner_team_id: ID של הקבוצה המנצחת (אופציונלי - יכול להיות None)
+            prediction: prediction to update
+            winner_team_id: ID of the winner team (optional - can be None)
         """
-        # 1. בדיקה אם צריך ליצור ניחוש חדש לשלב הבא
+        # 1. Check if need to create new prediction for next stage
         template = PredictionService.get_template_by_id(db, prediction.template_match_id)
         next_prediction = PredictionService.create_next_stage_if_needed(db, prediction, template)
         
-        # 2. בדיקה אם המנצחת השתנתה
+        # 2. Check if winner changed
         if prediction.winner_team_id == winner_team_id and winner_team_id is not None:
             PredictionService.set_status(prediction, PredictionStatus.PREDICTED)
             db.commit()
-            return PredictionService.create_success_response(db, prediction, "המנצחת לא השתנתה")
+            return PredictionService.create_success_response(db, prediction, "Winner did not change")
         
-        # 3. עדכון המנצחת
+        # 3. Update winner
         previous_winner_id = prediction.winner_team_id
         prediction.winner_team_id = winner_team_id
         prediction.updated_at = datetime.utcnow()
         
-        # 4. עדכון סטטוס
+        # 4. Update status
         PredictionService.set_status(prediction, PredictionStatus.PREDICTED if winner_team_id else PredictionStatus.MUST_CHANGE_PREDICT)
         
-        # 5. עדכון השלבים הבאים
+        # 5. Update next stages
         if next_prediction:
             PredictionService.update_next_stages(db, prediction, previous_winner_id)
         
-        # 6. שמירה
+        # 6. Save
         db.commit()
         
-        return PredictionService.create_success_response(db, prediction, "ניחוש עודכן בהצלחה")
+        return PredictionService.create_success_response(db, prediction, "Prediction updated successfully")
 
 
     @staticmethod
     def update_knockout_prediction_winner(db: Session, prediction_id: int, request) -> Dict[str, Any]:
         """
-        מעדכן ניחוש נוקאאוט - בוחר קבוצה מנצחת ומעדכן את השלבים הבאים
+        Update a knockout prediction - choose winner and update subsequent stages
         """
         try:
-            # 1. אימות וטעינת נתונים
+            # 1. Validation and data loading
             prediction = PredictionService.get_knockout_prediction_by_id(db, prediction_id)
             winner_team_id = PredictionService.get_winner_team_id(prediction, request.winner_team_number)
             
             if not winner_team_id:
                 raise HTTPException(
                     status_code=400,
-                    detail="לא ניתן למצוא את ID הקבוצה המנצחת"
+                    detail="Unable to resolve winner team ID"
                 )
             
-            # 2. קורא לפונקציה הפנימית
+            # 2. Call the internal function
             result = PredictionService.update_knockout_prediction_with_winner(db, prediction, winner_team_id)
             
             return result
@@ -741,11 +740,11 @@ class PredictionService:
             db.rollback()
             raise HTTPException(
                 status_code=500,
-                detail=f"שגיאה בעדכון הניחוש: {str(e)}"
+                detail=f"Error updating prediction: {str(e)}"
             )
     @staticmethod
     def get_knockout_prediction_by_id(db: Session, prediction_id: int):
-        """מוצא ניחוש נוקאאוט לפי ID"""
+        """Finds knockout prediction by ID"""
         prediction = db.query(KnockoutStagePrediction).filter(
             KnockoutStagePrediction.id == prediction_id
         ).first()
@@ -753,14 +752,14 @@ class PredictionService:
         if not prediction:
             raise HTTPException(
                 status_code=404,
-                detail="ניחוש לא נמצא"
+                detail="Prediction not found"
             )
         
         return prediction
 
     @staticmethod
     def get_template_by_id(db: Session, template_id: int):
-        """מוצא תבנית משחק לפי ID"""
+        """Finds match template by ID"""
         template = db.query(MatchTemplate).filter(
             MatchTemplate.id == template_id
         ).first()
@@ -768,14 +767,14 @@ class PredictionService:
         if not template:
             raise HTTPException(
                 status_code=404,
-                detail="תבנית משחק לא נמצאה"
+                detail="Match template not found"
             )
         
         return template
 
     @staticmethod
     def get_winner_team_id(prediction, winner_team_number: int):
-        """מחזיר את ID הקבוצה המנצחת לפי מספר הקבוצה"""
+        """Returns the winner team ID by team number"""
         if winner_team_number == 1:
             return prediction.team1_id
         elif winner_team_number == 2:
@@ -783,13 +782,13 @@ class PredictionService:
         else:
             raise HTTPException(
                 status_code=400,
-                detail="מספר קבוצה לא תקין (חייב להיות 1 או 2)"
+                detail="Invalid team number (must be 1 or 2)"
             )
 
     @staticmethod
     def create_success_response(db: Session, prediction, message: str, request=None):
-        """יוצר תגובת הצלחה"""
-        # מוצא את שם הקבוצה המנצחת
+        """Creates success response"""
+        # Find winner team name
         winner_team = None
         if prediction.winner_team_id:
             winner_team = db.query(Team).filter(Team.id == prediction.winner_team_id).first()
@@ -810,37 +809,37 @@ class PredictionService:
     @staticmethod
     def update_next_stages(db: Session, prediction, previous_winner_id):
         """
-        מעדכן את השלבים הבאים:
-        1. משבץ את המנצחת החדשה במשחק הבא
-        2. מסיר את המנצחת הקודמת מכל השלבים הבאים
+        Update next stages:
+        1. Place new winner into the next match
+        2. Remove the previous winner from all subsequent stages
         """
-        # מוצא את הניחוש הבא ואת המיקום
+        # Find the next prediction and its position
         next_prediction, position = PredictionService.find_next_knockout_prediction_and_position(db, prediction)
         
-        # 1. עדכון המשחק הבא עם המנצחת החדשה
+        # 1. Update the next match with the new winner
         PredictionService.update_next_stage_prediction(db, prediction, next_prediction, position)
         
-        # 2. הסרת המנצחת הקודמת מכל השלבים הבאים
+        # 2. Remove the previous winner from all subsequent stages
         if previous_winner_id and next_prediction:
             PredictionService.remove_prev_winner_from_next_stages(db, next_prediction, previous_winner_id)
 
     @staticmethod
     def find_next_knockout_prediction_and_position(db: Session, prediction):
         """
-        מוצא את הניחוש הבא בשרשרת הנוקאאוט ואת המיקום שלו
-        מחזיר: tuple (next_prediction, position) או (None, None) אם לא נמצא
+        Find the next prediction in the knockout chain and its position
+        Returns: tuple (next_prediction, position) or (None, None) if not found
         """
-        # מוצא את התבנית של הניחוש הנוכחי
+        # Find the template of the current prediction
         current_template = PredictionService.get_template_by_id(db, prediction.template_match_id)
         
         if not current_template or not current_template.winner_next_knockout_match:
-            return None, None  # אין destination
+            return None, None  # No destination
         
-        # משתמש בשדות החדשים
+        # Use the new fields
         next_match_id = current_template.winner_next_knockout_match
         position = current_template.winner_next_position
         
-        # מוצא את הניחוש הבא
+        # Find the next prediction
         next_prediction = db.query(KnockoutStagePrediction).filter(
             KnockoutStagePrediction.template_match_id == next_match_id,
             KnockoutStagePrediction.user_id == prediction.user_id
@@ -851,16 +850,16 @@ class PredictionService:
     @staticmethod
     def create_next_stage_if_needed(db: Session, prediction, template):
         """
-        בודק אם צריך ליצור ניחוש חדש לשלב הבא ויוצר אותו אם נדרש
-        מחזיר: KnockoutStagePrediction או None
+        Check whether a next-stage prediction is needed and create it if required
+        Returns: KnockoutStagePrediction or None
         """
         if not template.winner_next_knockout_match:
             return None
         
-        # משתמש בשדות החדשים
+        # Use the new fields
         next_match_id = template.winner_next_knockout_match
         
-        # בודק אם קיים ניחוש למשחק הבא
+        # Check whether a prediction already exists for the next match
         existing_next_prediction = db.query(KnockoutStagePrediction).filter(
             KnockoutStagePrediction.template_match_id == next_match_id,
             KnockoutStagePrediction.user_id == prediction.user_id
@@ -869,36 +868,36 @@ class PredictionService:
         if existing_next_prediction:
             return existing_next_prediction
         
-        # צריך ליצור ניחוש חדש לשלב הבא
+        # Create a new prediction for the next stage
         next_prediction = PredictionService.create_next_stage_prediction(db, prediction, next_match_id)
         if next_prediction:
-            print(f"נוצר ניחוש חדש לשלב הבא: {next_prediction.id}")
+            print(f"Created new next-stage prediction: {next_prediction.id}")
         return next_prediction
 
     @staticmethod
     def create_next_stage_prediction(db: Session, prediction, next_match_id):
         """
-        יוצר ניחוש חדש לשלב הבא בשרשרת הנוקאאוט
+        Create a new prediction for the next stage in the knockout chain
         """
-        # מוצא את ה-result המתאים
+        # Find the matching result
         result = db.query(KnockoutStageResult).filter(
             KnockoutStageResult.match_id == next_match_id
         ).first()
         
         if not result:
-            print(f"לא נמצא KnockoutStageResult עבור match_id {next_match_id}")
+            print(f"KnockoutStageResult not found for match_id {next_match_id}")
             return None
         
-        # מוצא את התבנית של השלב הבא
+        # Find the template of the next stage
         next_template = db.query(MatchTemplate).filter(
             MatchTemplate.id == next_match_id
         ).first()
         
         if not next_template:
-            print(f"לא נמצא MatchTemplate עבור match_id {next_match_id}")
+            print(f"MatchTemplate not found for match_id {next_match_id}")
             return None
         
-        # יוצר ניחוש חדש
+        # Create a new prediction
         new_prediction = KnockoutStagePrediction(
             user_id=prediction.user_id,
             knockout_result_id=result.id,
@@ -908,9 +907,9 @@ class PredictionService:
         )
         
         db.add(new_prediction)
-        db.flush()  # כדי לקבל את ה-ID
+        db.flush()  # To get the ID
         
-        # מעדכן סטטוס ל-MUST_CHANGE_PREDICT
+        # Update status to MUST_CHANGE_PREDICT
         PredictionService.set_status(new_prediction, PredictionStatus.MUST_CHANGE_PREDICT)
         
         return new_prediction
@@ -918,93 +917,93 @@ class PredictionService:
     @staticmethod
     def get_next_knockout_position(db: Session, prediction):
         """
-        מוצא את המיקום (position) של הניחוש הנוכחי בשרשרת הנוקאאוט
-        מחזיר: int (1 או 2) או None אם לא נמצא
+        Find the position (1 or 2) of the current prediction in the knockout chain
+        Returns: int (1 or 2) or None if not found
         """
-        # מוצא את התבנית של הניחוש הנוכחי
+        # Find the template of the current prediction
         current_template = PredictionService.get_template_by_id(db, prediction.template_match_id)
         
         if not current_template or not current_template.winner_next_knockout_match:
-            return None  # אין destination
+            return None  # No destination
         
-        # משתמש בשדה החדש
+        # Use the new field
         return current_template.winner_next_position
 
     @staticmethod
     def remove_prev_winner_from_next_stages(db: Session, prediction, previous_winner_id):
         """
-        מסיר את הקבוצה המנצחת הקודמת מכל השלבים הבאים בשרשרת
+        Remove the previous winner team from all subsequent stages in the chain
         """
         if not previous_winner_id or not prediction:
             return
         
-        # בדיקה: אם המנצחת הנוכחית שונה מהקבוצה שצריך למחוק - לא עושים כלום
+        # Check: if current winner differs from the team to remove - do nothing
         if prediction.winner_team_id and prediction.winner_team_id != previous_winner_id:
-            # עדכון סטטוס ל-MIGHT_CHANGE_PREDICT
+            # Update status to MIGHT_CHANGE_PREDICT
             PredictionService.set_status(prediction, PredictionStatus.MIGHT_CHANGE_PREDICT)
             return
         
-        # מוחק את המנצחת
+        # Remove winner
         prediction.winner_team_id = None
-        print(f"נמחקה מנצחת {previous_winner_id} מניחוש {prediction.id}")
+        print(f"Removed winner {previous_winner_id} from prediction {prediction.id}")
         
-        # עדכון סטטוס ל-MUST_CHANGE_PREDICT
+        # Update status to MUST_CHANGE_PREDICT
         PredictionService.set_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT)
         
-        # מוצא את הניחוש הבא בשרשרת
+        # Find the next prediction in the chain
         next_prediction, next_position = PredictionService.find_next_knockout_prediction_and_position(db, prediction)
         
         if next_prediction and next_position:
-            # קורא לפונקציה update_next_stage_prediction
+            # Call update_next_stage_prediction
             PredictionService.update_next_stage_prediction(db, prediction, next_prediction, next_position)
         
-        # קורא לפונקציה שוב עם הניחוש הבא
+        # Call recursively with the next prediction
         if next_prediction:
             PredictionService.remove_prev_winner_from_next_stages(db, next_prediction, previous_winner_id)
 
     @staticmethod
     def update_next_stage_prediction(db: Session, prediction, next_prediction, position):
         """
-        מעדכן את הניחוש הבא בשרשרת הנוקאאוט עם המנצחת החדשה
+        Update the next prediction in the knockout chain with the new winner
         """
         if not next_prediction or not position:
-            return  # אין destination או לא נמצא template או אין position
+            return  # No destination or template or position not found
         
-        # עדכן את הקבוצה המתאימה
+        # Update the appropriate team field
         if position == 1:
             next_prediction.team1_id = prediction.winner_team_id
         elif position == 2:
             next_prediction.team2_id = prediction.winner_team_id
         
-        print(f"עודכן ניחוש {next_prediction.id} - position {position} עם קבוצה {prediction.winner_team_id}")
+        print(f"Updated prediction {next_prediction.id} - position {position} with team {prediction.winner_team_id}")
 
     @staticmethod
     def update_knockout_prediction_teams(db: Session, prediction, old_team_id: int, new_team_id: int):
         """
-        פונקציה תשתיתית לעדכון ניחוש נוקאאוט - מחליפה קבוצה ומעדכנת את השלבים הבאים
+        Foundational function to update a knockout prediction - swap team and update subsequent stages
         
         Args:
             db: Session
-            prediction: הניחוש לעדכון
-            old_team_id: ID של הקבוצה הישנה
-            new_team_id: ID של הקבוצה החדשה
+            prediction: prediction to update
+            old_team_id: old team ID
+            new_team_id: new team ID
         """
-        # מבצע את החילוף
+        # Perform the swap
         if prediction.team1_id == old_team_id:
             prediction.team1_id = new_team_id
         elif prediction.team2_id == old_team_id:
             prediction.team2_id = new_team_id
         else:
-            # הקבוצה הישנה לא נמצאה בניחוש
+            # Old team not found in prediction
             return
         
-        # בודק אם המנצחת היא הקבוצה הקודמת
+        # Check if the current winner equals the old team
         if prediction.winner_team_id == old_team_id:
-            # קורא לפונקציה update_knockout_prediction_with_winner עם winner_team_id שהוא None
+            # Call update_knockout_prediction_with_winner with winner_team_id None
             return PredictionService.update_knockout_prediction_with_winner(db, prediction, None)
         else:
-            # המנצחת לא השתנתה, אבל הקבוצות השתנו
-            # אם המנצחת היא None, מעדכן סטטוס לאדום
+            # Winner did not change, but teams changed
+            # If winner is None, update status to red
             if prediction.winner_team_id:
                 PredictionService.set_status(prediction, PredictionStatus.MIGHT_CHANGE_PREDICT)
                 db.commit()
@@ -1012,15 +1011,15 @@ class PredictionService:
     @staticmethod
     def get_knockout_prediction_by_user_and_match_id(db: Session, user_id: int, match_id: int):
         """
-        מוצא ניחוש נוקאאוט לפי user_id ו-match_id
+        Find knockout prediction by user_id and match_id
         
         Args:
             db: Session
-            user_id: ID של המשתמש
-            match_id: ID של המשחק (template_match_id)
+            user_id: user ID
+            match_id: match ID (template_match_id)
             
         Returns:
-            KnockoutStagePrediction או None אם לא נמצא
+            KnockoutStagePrediction or None if not found
         """
         prediction = db.query(KnockoutStagePrediction).filter(
             KnockoutStagePrediction.user_id == user_id,

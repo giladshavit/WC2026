@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-סקריפט ליצירת GroupTemplate עם המיפוי של הקבוצות למשחקי round32
+Script to create GroupTemplate with group to round32 matches mapping
 """
 
 import sys
@@ -12,15 +12,15 @@ from models.group_template import GroupTemplate
 
 def create_group_template():
     """
-    יוצר את הטבלה GroupTemplate עם המיפוי של הקבוצות למשחקי round32
+    Creates GroupTemplate table with group to round32 matches mapping
     """
     db = SessionLocal()
     
     try:
-        # מחיקת נתונים קיימים
+        # Delete existing data
         db.query(GroupTemplate).delete()
         
-        # המיפוי לפי הטבלה שנתת
+        # Mapping based on the provided table
         group_mappings = [
             ("A", 79, 73),  # A: first_place -> 79, second_place -> 73
             ("B", 85, 73),  # B: first_place -> 85, second_place -> 73
@@ -36,7 +36,7 @@ def create_group_template():
             ("L", 80, 83),  # L: first_place -> 80, second_place -> 83
         ]
         
-        print("🔧 יוצר GroupTemplate עם המיפוי של הקבוצות למשחקי round32...")
+        print("🔧 Creating GroupTemplate with group to round32 matches mapping...")
         
         for group_name, first_place_match_id, second_place_match_id in group_mappings:
             group_template = GroupTemplate(
@@ -45,13 +45,13 @@ def create_group_template():
                 second_place_match_id=second_place_match_id
             )
             db.add(group_template)
-            print(f"  נוצר template עבור קבוצה {group_name}: first_place -> {first_place_match_id}, second_place -> {second_place_match_id}")
+            print(f"  Created template for group {group_name}: first_place -> {first_place_match_id}, second_place -> {second_place_match_id}")
         
         db.commit()
-        print(f"✅ נוצרו {len(group_mappings)} GroupTemplate records בהצלחה!")
+        print(f"✅ Successfully created {len(group_mappings)} GroupTemplate records!")
         
     except Exception as e:
-        print(f"❌ שגיאה ביצירת GroupTemplate: {e}")
+        print(f"❌ Error creating GroupTemplate: {e}")
         db.rollback()
         raise
     finally:

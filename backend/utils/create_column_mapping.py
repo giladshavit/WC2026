@@ -11,15 +11,15 @@ from database import SessionLocal
 from models.column_mapping import ColumnMapping
 
 def create_column_mapping():
-    """יוצר את טבלת המיפוי"""
+    """Create the column mapping table"""
     
     db = SessionLocal()
     try:
-        # מנקה את הטבלה הקיימת
+        # Clear existing table
         db.query(ColumnMapping).delete()
-        print("נוקתה טבלת המיפוי הקיימת")
+        print("Existing mapping table cleared")
         
-        # יוצר את המיפויים
+        # Create mappings
         mappings = [
             ("match_1A", "1A"),
             ("match_1B", "1B"),
@@ -37,17 +37,21 @@ def create_column_mapping():
                 display_name=display_name
             )
             db.add(mapping)
-            print(f"נוצר מיפוי: {match_col} -> {display_name}")
+            print(f"Created mapping: {match_col} -> {display_name}")
         
         db.commit()
-        print("✅ טבלת המיפוי נוצרה בהצלחה!")
+        print("✅ Mapping table created successfully!")
         
     except Exception as e:
         db.rollback()
-        print(f"❌ שגיאה: {e}")
+        print(f"❌ Error: {e}")
     finally:
         db.close()
 
 if __name__ == "__main__":
     create_column_mapping()
+
+
+
+
 

@@ -4,7 +4,7 @@ from .base import Base
 class ColumnMapping(Base):
     __tablename__ = 'column_mapping'
     
-    # טבלת מיפוי מ-match_1A ל-1A
+    # Mapping table from match_1A to 1A
     match_column = Column(String(20), primary_key=True)  # match_1A
     display_name = Column(String(10), nullable=False)    # 1A
     

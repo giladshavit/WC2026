@@ -8,8 +8,8 @@ class Match(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     stage = Column(String, nullable=False)  # "group", "round32", "round16", "quarter", "semi", "final"
-    home_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # nullable למשחקי נוקאאוט
-    away_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # nullable למשחקי נוקאאוט
+    home_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # nullable for knockout matches
+    away_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # nullable for knockout matches
     status = Column(String, default="scheduled")  # scheduled, live, finished
     date = Column(DateTime, nullable=False)
     

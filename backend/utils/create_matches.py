@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-סקריפט ליצירת משחקי הבתים (matches) על בסיס matches_template
-+ משחקי הנוקאאוט
+Script to create group matches (matches) based on matches_template
++ knockout matches
 """
 
 import sys
@@ -15,56 +15,56 @@ from models.team import Team
 from sqlalchemy.orm import sessionmaker
 
 def create_group_matches():
-    """יוצר את משחקי הבתים על בסיס matches_template"""
+    """Create group matches based on matches_template"""
     Session = sessionmaker(bind=engine)
     session = Session()
     
     try:
-        # יוצר את הטבלה אם היא לא קיימת
+        # Create the table if it does not exist
         Match.__table__.create(engine, checkfirst=True)
         
-        # מוחק את כל המשחקים הקיימים
+        # Delete all existing matches
         session.query(Match).delete()
         
-        # מביא את כל משחקי הבתים מ-matches_template
+        # Fetch all group-stage matches from matches_template
         group_templates = session.query(MatchTemplate).filter(MatchTemplate.stage == "group").all()
         
-        print(f"נמצאו {len(group_templates)} משחקי בתים ב-template")
+        print(f"Found {len(group_templates)} group-stage matches in template")
         
-        # יוצר מיפוי של קבוצות לפי שם ומיקום
+        # Create mapping of teams by group and position
         teams_mapping = {}
         teams = session.query(Team).all()
         
-        # יוצר מיפוי: "A1" -> team_id
+        # Create mapping: "A1" -> team_id
         for team in teams:
             key = f"{team.group_letter}{team.group_position}"
             teams_mapping[key] = team.id
         
-        print(f"נוצר מיפוי של {len(teams_mapping)} קבוצות")
+        print(f"Created mapping for {len(teams_mapping)} teams")
         
-        # יוצר את משחקי הבתים
+        # Create group matches
         matches_created = 0
         for template in group_templates:
-            # מוצא את ה-team_id עבור team_1 ו-team_2
+            # Resolve team IDs for team_1 and team_2
             team_1_id = teams_mapping.get(template.team_1)
             team_2_id = teams_mapping.get(template.team_2)
             
             if team_1_id and team_2_id:
                 match = Match(
-                    id=template.id,  # שומר על אותו ID כמו ב-template
+                    id=template.id,  # keep same ID as template
                     stage=template.stage,
                     home_team_id=team_1_id,
                     away_team_id=team_2_id,
                     status=template.status,
                     date=template.date,
                     group=template.group,
-                    match_number=template.id  # משתמש ב-ID כמספר משחק
+                    match_number=template.id  # use ID as match number
                 )
                 session.add(match)
                 matches_created += 1
             else:
-                print(f"שגיאה: לא נמצאו קבוצות עבור {template.team_1} או {template.team_2}")
-                # יוצר משחק גם אם לא נמצאו קבוצות (למקרה של טעויות בנתונים)
+                print(f"Error: Teams not found for {template.team_1} or {template.team_2}")
+                # Create a match even if teams were not found (data safety)
                 match = Match(
                     id=template.id,
                     stage=template.stage,
@@ -79,69 +79,69 @@ def create_group_matches():
                 matches_created += 1
         
         session.commit()
-        print(f"נוצרו {matches_created} משחקי בתים בהצלחה!")
+        print(f"Created {matches_created} group matches successfully!")
         
-        # מציג סיכום
-        print("\nסיכום משחקי בתים שנוצרו:")
+        # Summary
+        print("\nSummary of created group matches:")
         print("=" * 50)
         
-        # מציג לפי בתים
+        # Show by groups
         for group in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']:
             group_matches = session.query(Match).filter(Match.group == group).order_by(Match.id).all()
-            print(f"\nבית {group}:")
+            print(f"\nGroup {group}:")
             for match in group_matches:
                 home_team = session.query(Team).filter(Team.id == match.home_team_id).first()
                 away_team = session.query(Team).filter(Team.id == match.away_team_id).first()
                 print(f"  ID {match.id}: {home_team.name} vs {away_team.name}")
         
-        # מציג כמה דוגמאות
-        print("\nדוגמאות למשחקים:")
+        # Show some examples
+        print("\nExamples:")
         sample_matches = session.query(Match).limit(6).all()
         for match in sample_matches:
             home_team = session.query(Team).filter(Team.id == match.home_team_id).first()
             away_team = session.query(Team).filter(Team.id == match.away_team_id).first()
-            print(f"ID {match.id}: {home_team.name} vs {away_team.name} (בית {match.group})")
+            print(f"ID {match.id}: {home_team.name} vs {away_team.name} (Group {match.group})")
         
     except Exception as e:
         session.rollback()
-        print(f"שגיאה ביצירת משחקי הבתים: {e}")
+        print(f"Error creating group matches: {e}")
     finally:
         session.close()
 
 def create_knockout_matches():
-    """יוצר את משחקי הנוקאאוט (ID 73-104)"""
+    """Create knockout matches (ID 73-104)"""
     Session = sessionmaker(bind=engine)
     session = Session()
     
     try:
-        # מביא את כל משחקי הנוקאאוט מ-matches_template
+        # Fetch all knockout matches from matches_template
         knockout_templates = session.query(MatchTemplate).filter(
             MatchTemplate.stage.in_(["round32", "round16", "quarter", "semi", "final", "third_place"])
         ).order_by(MatchTemplate.id).all()
         
-        print(f"נמצאו {len(knockout_templates)} משחקי נוקאאוט ב-template")
+        print(f"Found {len(knockout_templates)} knockout matches in template")
         
-        # יוצר את משחקי הנוקאאוט
+        # Create knockout matches
         matches_created = 0
         for template in knockout_templates:
             match = Match(
-                id=template.id,  # שומר על אותו ID כמו ב-template
+                id=template.id,  # keep same ID as template
                 stage=template.stage,
-                home_team_id=None,  # עדיין לא נקבע
-                away_team_id=None,  # עדיין לא נקבע
-                status="not_scheduled",  # הסטטוס החדש
+                home_team_id=None,  # not set yet
+                away_team_id=None,  # not set yet
+                status="not_scheduled",  # initial status
                 date=template.date,
-                group=None,  # אין בתים בשלב הנוקאאוט
+                group=None,  # no groups in knockout stage
                 match_number=template.id
             )
             session.add(match)
             matches_created += 1
         
         session.commit()
-        print(f"נוצרו {matches_created} משחקי נוקאאוט בהצלחה!")
+        print(f"Created {matches_created} knockout matches successfully!")
         
-        # מציג סיכום לפי שלבים
-        print("\nסיכום משחקי נוקאאוט שנוצרו:")
+        # Summary by stages
+        print("\nSummary of created knockout matches:")
         print("=" * 50)
         
         stages = ["round32", "round16", "quarter", "semi", "final", "third_place"]
@@ -150,30 +150,30 @@ def create_knockout_matches():
             if stage_matches:
                 print(f"\n{stage.upper()}:")
                 for match in stage_matches:
-                    print(f"  ID {match.id}: {match.stage} - לא נקבע עדיין")
+                print(f"  ID {match.id}: {match.stage} - not set yet")
         
     except Exception as e:
         session.rollback()
-        print(f"שגיאה ביצירת משחקי הנוקאאוט: {e}")
+        print(f"Error creating knockout matches: {e}")
     finally:
         session.close()
 
 
 def create_all_matches():
-    """יוצר את כל המשחקים - בתים ונוקאאוט"""
-    print("🚀 מתחיל ליצור את כל המשחקים...")
+    """Create all matches - group and knockout"""
+    print("🚀 Starting to create all matches...")
     print("=" * 60)
     
-    # יוצר משחקי בתים
-    print("\n🏠 יוצר משחקי בתים...")
+    # Create group matches
+    print("\n🏠 Creating group matches...")
     create_group_matches()
     
-    # יוצר משחקי נוקאאוט
-    print("\n⚽ יוצר משחקי נוקאאוט...")
+    # Create knockout matches
+    print("\n⚽ Creating knockout matches...")
     create_knockout_matches()
     
-    print("\n✅ סיום! כל המשחקים נוצרו בהצלחה!")
-    print("💡 הערה: כדי ליצור תוצאות נוקאאוט, הרץ את create_knockout_results.py")
+    print("\n✅ Done! All matches created successfully!")
+    print("💡 Note: To create knockout results, run create_knockout_results.py")
 
 if __name__ == "__main__":
     create_all_matches()

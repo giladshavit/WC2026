@@ -15,21 +15,21 @@ from models.team import Team
 from models.groups import Group
 
 def build_knockout_bracket():
-    """בונה את הבראקט של 32 הגדולות לפי הניחושים - גרסה פשוטה"""
+    """Builds the round of 32 bracket based on predictions - simple version"""
     
     db = SessionLocal()
     try:
-        print("🏆 בונה את הבראקט של 32 הגדולות...")
+        print("🏆 Building the round of 32 bracket...")
         
-        # שלב 1: קורא את הניחושים של העולות ממקום 3
+        # Step 1: Read third place qualifying predictions
         third_place_predictions = db.query(ThirdPlacePrediction).all()
         if not third_place_predictions:
-            print("❌ לא נמצאו ניחושי עולות ממקום 3!")
+            print("❌ No third place qualifying predictions found!")
             return
         
         prediction = third_place_predictions[0]
         
-        # שלב 2: בונה את רשימת העולות ממקום 3 (בסדר המקורי!)
+        # Step 2: Build the list of third-place qualifiers (original order!)
         qualifying_teams = [
             prediction.first_team_qualifying,
             prediction.second_team_qualifying,
@@ -41,28 +41,28 @@ def build_knockout_bracket():
             prediction.eighth_team_qualifying
         ]
         
-        # מוצא את הבתים של הקבוצות העולות (בסדר המקורי!)
+        # Find the groups of the qualifying teams (original order!)
         third_place_groups = []
         for team_id in qualifying_teams:
             team = db.query(Team).filter(Team.id == team_id).first()
             if team:
                 third_place_groups.append(team.group_letter)
         
-        print(f"עולות ממקום 3 (סדר מקורי): {third_place_groups}")
+        print(f"Third-place qualifiers (original order): {third_place_groups}")
         
-        # שלב 3: מוצא את הקומבינציה המתאימה
-        hash_key = ''.join(sorted(third_place_groups))  # רק לצורך חיפוש
+        # Step 3: Find the matching combination
+        hash_key = ''.join(sorted(third_place_groups))  # for lookup only
         combination = db.query(ThirdPlaceCombination).filter(
             ThirdPlaceCombination.hash_key == hash_key
         ).first()
         
         if not combination:
-            print(f"❌ לא נמצאה קומבינציה עבור {hash_key}")
+            print(f"❌ No combination found for {hash_key}")
             return
         
-        print(f"נמצאה קומבינציה ID {combination.id}")
+        print(f"Found combination ID {combination.id}")
         
-        # שלב 4: יוצר מיפוי פשוט
+        # Step 4: Create simple mapping
         third_team_mapping = {
             '3rd_team_1': 'match_1A',
             '3rd_team_2': 'match_1B', 
@@ -74,26 +74,26 @@ def build_knockout_bracket():
             '3rd_team_8': 'match_1L'
         }
         
-        # שלב 5: יוצר KnockoutStagePrediction records
+        # Step 5: Create KnockoutStagePrediction records
         round32_templates = db.query(MatchTemplate).filter(
             MatchTemplate.stage == 'round32'
         ).order_by(MatchTemplate.id).all()
         
-        print(f"יוצר {len(round32_templates)} KnockoutStagePrediction records...")
+        print(f"Creating {len(round32_templates)} KnockoutStagePrediction records...")
         
         for template in round32_templates:
-            # מוצא את הקבוצות המתאימות
+            # Resolve the participating teams
             home_team = get_team_for_source(db, template.team_1)
             away_team = get_team_for_source(db, template.team_2, combination, third_team_mapping)
             
             if home_team and away_team:
-                # בודק אם כבר קיים prediction
+                # Check if a prediction already exists
                 existing = db.query(KnockoutStagePrediction).filter(
                     KnockoutStagePrediction.template_match_id == template.id
                 ).first()
                 
                 if not existing:
-                    # מוצא את ה-KnockoutStageResult המתאים
+                    # Find the matching KnockoutStageResult
                     from models.results import KnockoutStageResult
                     result = db.query(KnockoutStageResult).filter(
                         KnockoutStageResult.match_id == template.id
@@ -104,47 +104,47 @@ def build_knockout_bracket():
                             user_id=1,
                             knockout_result_id=result.id,
                             template_match_id=template.id,
-                            stage=template.stage,  # הוספנו את השדה stage
+                            stage=template.stage,  # include stage field
                             team1_id=home_team.id,
                             team2_id=away_team.id,
                             winner_team_id=None,
-                            status="must_change_predict"  # סטטוס התחלתי
+                            status="must_change_predict"  # initial status
                         )
                     else:
-                        print(f"  לא נמצא KnockoutStageResult עבור match_id {template.id}")
+                        print(f"  KnockoutStageResult not found for match_id {template.id}")
                         continue
                     
                     db.add(prediction)
-                    print(f"  נוצר prediction עבור משחק {template.id}: {home_team.name} vs {away_team.name}")
+                    print(f"  Created prediction for match {template.id}: {home_team.name} vs {away_team.name}")
                 else:
-                    print(f"  prediction עבור משחק {template.id} כבר קיים")
+                    print(f"  Prediction for match {template.id} already exists")
             else:
-                print(f"  לא הצליח למצוא קבוצות עבור משחק {template.id}")
+                print(f"  Failed to resolve teams for match {template.id}")
         
         db.commit()
-        print("\n✅ הבראקט נבנה בהצלחה!")
+        print("\n✅ Bracket built successfully!")
         
     except Exception as e:
         db.rollback()
-        print(f"❌ שגיאה: {e}")
+        print(f"❌ Error: {e}")
         import traceback
         traceback.print_exc()
     finally:
         db.close()
 
 def get_team_for_source(db, team_source, combination=None, third_team_mapping=None):
-    """מוצא את הקבוצה המתאימה לפי התבנית - גרסה פשוטה"""
+    """Find the appropriate team according to the template - simple version"""
     
     if team_source.startswith('3rd_team_'):
-        # זה קבוצה ממקום 3
+        # Third-place team
         if combination and third_team_mapping:
-            # מוצא את העמודה המתאימה
+            # Find the corresponding column name
             column_name = third_team_mapping[team_source]  # 3rd_team_1 -> match_1A
             
-            # מוצא את הערך מהקומבינציה
+            # Get the value from the combination
             third_place_source = getattr(combination, column_name)  # 3A, 3B, etc.
             
-            # מוצא את הקבוצה ממקום 3 בבית המתאים
+            # Resolve the 3rd-place team in the appropriate group
             group_letter = third_place_source[1]  # 3A -> A
             group = db.query(Group).filter(Group.name == group_letter).first()
             
@@ -159,7 +159,7 @@ def get_team_for_source(db, team_source, combination=None, third_team_mapping=No
         return None
     
     else:
-        # זה קבוצה רגילה (1A, 2B, etc.)
+        # Regular team (1A, 2B, etc.)
         if len(team_source) >= 2 and team_source[0].isdigit():
             group_letter = team_source[1]  # 1A -> A
             position = int(team_source[0])  # 1A -> 1

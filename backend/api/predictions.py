@@ -29,28 +29,28 @@ class GroupPredictionRequest(BaseModel):
     user_id: int
 
 class ThirdPlacePredictionRequest(BaseModel):
-    team_ids: List[int]  # רשימה של 8 team IDs שיעלו
+    team_ids: List[int]  # List of 8 team IDs that will advance
     user_id: int
 
 class BatchGroupPredictionRequest(BaseModel):
     user_id: int
-    predictions: List[Dict[str, Any]]  # רשימה של ניחושי בתים
+    predictions: List[Dict[str, Any]]  # List of group predictions
 
 class UpdateKnockoutPredictionRequest(BaseModel):
-    winner_team_number: int  # 1 או 2
+    winner_team_number: int  # 1 or 2
     winner_team_name: str
 
 @router.get("/groups", response_model=List[Dict[str, Any]])
 def get_groups_with_teams(db: Session = Depends(get_db)):
     """
-    מביא את כל הבתים עם הקבוצות שלהם
+    Get all groups with their teams
     """
     return GroupService.get_all_groups_with_teams(db)
 
 @router.get("/groups/{group_name}", response_model=Dict[str, Any])
 def get_group_with_teams(group_name: str, db: Session = Depends(get_db)):
     """
-    מביא בית ספציפי עם הקבוצות שלו
+    Get a specific group with its teams
     """
     result = GroupService.get_group_with_teams(db, group_name)
     
@@ -65,10 +65,10 @@ def create_or_update_group_prediction(
     db: Session = Depends(get_db)
 ):
     """
-    יצירה או עדכון ניחוש לבית
+    Create or update a group prediction
     """
     try:
-        # יצירת PlacesPredictions object
+        # Create PlacesPredictions object
         places = PlacesPredictions(
             first_place=group_prediction.first_place,
             second_place=group_prediction.second_place,
@@ -88,13 +88,13 @@ def create_or_update_group_prediction(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"שגיאה בעדכון ניחוש הבית: {str(e)}"
+            detail=f"Error updating group prediction: {str(e)}"
         )
 
 @router.get("/users/{user_id}/group-predictions", response_model=List[Dict[str, Any]])
 def get_user_group_predictions(user_id: int, db: Session = Depends(get_db)):
     """
-    מביא את כל ניחושי הבתים של המשתמש
+    Get all user's group predictions
     """
     return PredictionService.get_group_predictions(db, user_id)
 
@@ -104,7 +104,7 @@ def create_or_update_batch_group_predictions(
     db: Session = Depends(get_db)
 ):
     """
-    יצירה או עדכון ניחושי בתים מרובים
+    Create or update multiple group predictions
     """
     result = PredictionService.create_or_update_batch_group_predictions(
         db, batch_request.user_id, batch_request.predictions
@@ -121,7 +121,7 @@ def create_or_update_third_place_prediction(
     db: Session = Depends(get_db)
 ):
     """
-    יצירה או עדכון ניחוש למקומות 3
+    Create or update a third-place prediction
     """
     result = PredictionService.create_or_update_third_place_prediction(
         db, third_place_prediction.user_id, third_place_prediction.team_ids
@@ -130,12 +130,12 @@ def create_or_update_third_place_prediction(
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     
-    # מריץ את הסקריפט לבניית הבראקט אוטומטית
+    # Run script to build the bracket automatically
     try:
         import subprocess
         import os
         
-        # מריץ את הסקריפט לבניית הבראקט
+        # Execute the bracket build script
         script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "build_knockout_bracket.py")
         python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
         
@@ -147,10 +147,10 @@ def create_or_update_third_place_prediction(
         )
         
         result["bracket_rebuilt"] = True
-        result["message"] = result.get("message", "") + " הבראקט נבנה מחדש אוטומטית."
+        result["message"] = result.get("message", "") + " Bracket rebuilt automatically."
         
     except Exception as e:
-        # לא נכשל אם הסקריפט לא עובד - רק נוסיף הודעה
+        # Do not fail if the script errors - just add a note
         result["bracket_rebuilt"] = False
         result["bracket_error"] = str(e)
     
@@ -159,21 +159,21 @@ def create_or_update_third_place_prediction(
 @router.get("/users/{user_id}/third-place-predictions", response_model=List[Dict[str, Any]])
 def get_user_third_place_predictions(user_id: int, db: Session = Depends(get_db)):
     """
-    מביא את ניחושי המקומות 3 של המשתמש
+    Get user's third-place predictions
     """
     return PredictionService.get_third_place_predictions(db, user_id)
 
 @router.get("/users/{user_id}/third-place-eligible-teams", response_model=List[Dict[str, Any]])
 def get_third_place_eligible_teams(user_id: int, db: Session = Depends(get_db)):
     """
-    מביא את 12 הקבוצות שמגיעות ממקום 3 לפי ניחושי הבתים של המשתמש
+    Get the 12 teams that are third-place candidates based on the user's group predictions
     """
     return PredictionService.get_third_place_eligible_teams(db, user_id)
 
 @router.get("/users/{user_id}/predictions", response_model=Dict[str, Any])
 def get_user_predictions(user_id: int, db: Session = Depends(get_db)):
     """
-    מביא את כל הניחושים של המשתמש
+    Get all user's predictions
     """
     result = PredictionService.get_user_predictions(db, user_id)
     
@@ -186,11 +186,11 @@ def get_user_predictions(user_id: int, db: Session = Depends(get_db)):
 def create_or_update_match_prediction(
     match_id: int, 
     prediction: MatchPredictionRequest, 
-    user_id: int,  # TODO: זה צריך לבוא מ-authentication
+    user_id: int,  # TODO: should come from authentication
     db: Session = Depends(get_db)
 ):
     """
-    יצירה או עדכון ניחוש למשחק בודד
+    Create or update a single match prediction
     """
     result = PredictionService.create_or_update_match_prediction(
         db, user_id, match_id, prediction.home_score, prediction.away_score
@@ -208,22 +208,22 @@ def update_single_prediction(
     db: Session = Depends(get_db)
 ):
     """
-    עדכון ניחוש בודד (home_score או away_score)
+    Update a single prediction (home_score or away_score)
     """
-    user_id = 1  # TODO: זה צריך לבוא מ-authentication
+    user_id = 1  # TODO: should come from authentication
     
-    # מביא את החיזוי הנוכחי
+    # Fetch current prediction
     current_prediction = PredictionService.get_match_prediction(db, user_id, match_id)
     
     if not current_prediction:
-        # יוצר חיזוי חדש
+        # Create a new prediction
         home_score = prediction_data.get('home_score', 0)
         away_score = prediction_data.get('away_score', 0)
         result = PredictionService.create_or_update_match_prediction(
             db, user_id, match_id, home_score, away_score
         )
     else:
-        # מעדכן חיזוי קיים
+        # Update existing prediction
         home_score = prediction_data.get('home_score', current_prediction.get('home_score', 0))
         away_score = prediction_data.get('away_score', current_prediction.get('away_score', 0))
         result = PredictionService.create_or_update_match_prediction(
@@ -241,7 +241,7 @@ def create_or_update_batch_predictions(
     db: Session = Depends(get_db)
 ):
     """
-    יצירה או עדכון ניחושים מרובים
+    Create or update multiple predictions
     """
     result = PredictionService.create_or_update_batch_predictions(
         db, batch_request.user_id, batch_request.predictions
@@ -254,19 +254,18 @@ def create_or_update_batch_predictions(
 
 @router.get("/predictions/knockout")
 def get_knockout_predictions(
-    user_id: int = 1,  # TODO: זה צריך לבוא מ-authentication
+    user_id: int = 1,  # TODO: should come from authentication
     stage: str = None, 
     db: Session = Depends(get_db)
 ):
     """
-    מביא את כל ניחושי הנוקאאוט של המשתמש
-    אם stage מוגדר, מסנן לפי השלב
+    Get all user's knockout predictions. If stage is provided, filter by stage.
     """
     try:
         result = PredictionService.get_knockout_predictions(db, user_id, stage)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"שגיאה בקבלת ניחושי הנוקאאוט: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching knockout predictions: {str(e)}")
 
 @router.put("/predictions/knockout/{prediction_id}")
 def update_knockout_prediction_winner(
@@ -275,7 +274,7 @@ def update_knockout_prediction_winner(
     db: Session = Depends(get_db)
 ):
     """
-    מעדכן ניחוש נוקאאוט - בוחר קבוצה מנצחת ומעדכן את השלבים הבאים
+    Update a knockout prediction - choose winner and update next stages
     """
     try:
         result = PredictionService.update_knockout_prediction_winner(db, prediction_id, request)
@@ -284,12 +283,12 @@ def update_knockout_prediction_winner(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"שגיאה בעדכון הניחוש: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating prediction: {str(e)}")
 
 @staticmethod
 def update_group_prediction_basic(db, existing_prediction, places: PlacesPredictions):
     """
-    עדכון בסיסי של המקומות
+    Basic update of places
     """
     existing_prediction.first_place = places.first_place
     existing_prediction.second_place = places.second_place
@@ -300,7 +299,7 @@ def update_group_prediction_basic(db, existing_prediction, places: PlacesPredict
 @staticmethod
 def handle_third_place_change(db, user_id, old_third_place, new_third_place):
     """
-    טיפול בשינוי מקום 3
+    Handle change in 3rd place
     """
     third_place_changed = old_third_place != new_third_place
     
@@ -312,25 +311,25 @@ def handle_third_place_change(db, user_id, old_third_place, new_third_place):
 @staticmethod
 def update_third_place_predictions(db, user_id, old_third_place, new_third_place):
     """
-    עדכון ניחושי מקום 3
+    Update third-place predictions
     """
-    # מביא את חיזויי העולות הקיימים
+    # Fetch existing third-place qualifying predictions
     third_place_prediction = db.query(ThirdPlacePrediction).filter(
         ThirdPlacePrediction.user_id == user_id
     ).first()
 
     if third_place_prediction:
-        # בודק אם הקבוצה הישנה במקום 3 נבחרה
+        # Check if the old third-place team is selected
         old_team_selected = False
         new_team_selected = False
 
-        # בודק אם הקבוצה החדשה כבר נבחרה
-        for i in range(1, 9):  # first_team_qualifying עד eighth_team_qualifying
+        # Check if the new team is already selected
+        for i in range(1, 9):  # first_team_qualifying to eighth_team_qualifying
             team_field = getattr(third_place_prediction,
                                  f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying")
             if team_field == old_third_place:
                 old_team_selected = True
-                # מחליף את הקבוצה הישנה בחדשה
+                # Replace old team with new team
                 setattr(third_place_prediction,
                         f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying",
                         new_third_place)
@@ -338,9 +337,9 @@ def update_third_place_predictions(db, user_id, old_third_place, new_third_place
             elif team_field == new_third_place:
                 new_team_selected = True
 
-        # אם הקבוצה החדשה כבר נבחרה והקבוצה הישנה גם נבחרה - מחליף ביניהם
+        # If the new team is already selected and the old team is also selected - swap them
         if new_team_selected and old_team_selected:
-            # מוצא את המיקום של הקבוצה החדשה ומחליף אותה בקבוצה הישנה
+            # Find the position of the new team and swap with the old team
             for i in range(1, 9):
                 team_field = getattr(third_place_prediction,
                                      f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying")

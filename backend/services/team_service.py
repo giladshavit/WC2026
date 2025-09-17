@@ -7,9 +7,9 @@ class TeamService:
     @staticmethod
     def create_team(db: Session, name: str) -> Dict[str, Any]:
         """
-        יוצר קבוצה חדשה
+        Create a new team
         """
-        # בודק אם הקבוצה כבר קיימת
+        # Check if the team already exists
         existing_team = db.query(Team).filter(Team.name == name).first()
         
         if existing_team:
@@ -33,7 +33,7 @@ class TeamService:
     @staticmethod
     def update_team_group(db: Session, team_id: int, group_letter: str, group_position: int) -> Dict[str, Any]:
         """
-        מעדכן קבוצה עם מידע על הבית שלה
+        Update a team with its group information
         """
         team = db.query(Team).filter(Team.id == team_id).first()
         
@@ -57,7 +57,7 @@ class TeamService:
     @staticmethod
     def get_all_teams(db: Session) -> List[Dict[str, Any]]:
         """
-        מביא את כל הקבוצות
+        Get all teams
         """
         teams = db.query(Team).all()
         return [
@@ -75,7 +75,7 @@ class TeamService:
     @staticmethod
     def create_multiple_teams(db: Session, teams_data: List[Dict]) -> Dict[str, Any]:
         """
-        יוצר מספר קבוצות בבת אחת
+        Create multiple teams at once
         """
         created_teams = []
         errors = []

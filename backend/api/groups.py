@@ -10,14 +10,14 @@ router = APIRouter()
 @router.get("/groups", response_model=List[Dict[str, Any]])
 def get_groups_with_teams(db: Session = Depends(get_db)):
     """
-    מביא את כל הבתים עם הקבוצות שלהם
+    Get all groups with their teams
     """
     return GroupService.get_all_groups_with_teams(db)
 
 @router.get("/groups/{group_name}", response_model=Dict[str, Any])
 def get_group_with_teams(group_name: str, db: Session = Depends(get_db)):
     """
-    מביא בית ספציפי עם הקבוצות שלו
+    Get a specific group with its teams
     """
     result = GroupService.get_group_with_teams(db, group_name)
     

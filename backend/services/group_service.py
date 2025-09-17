@@ -8,7 +8,7 @@ import json
 class GroupService:
     @staticmethod
     def create_group(db: Session, name: str) -> Dict[str, Any]:
-        """יוצר בית חדש"""
+        """Create a new group"""
         existing_group = db.query(Group).filter(Group.name == name).first()
         if existing_group:
             return {"error": f"Group {name} already exists"}
@@ -22,18 +22,18 @@ class GroupService:
     
     @staticmethod
     def get_all_groups(db: Session) -> List[Dict[str, Any]]:
-        """מביא את כל הבתים"""
+        """Get all groups"""
         groups = db.query(Group).all()
         return [{"id": group.id, "name": group.name} for group in groups]
     
     @staticmethod
     def get_group_with_teams(db: Session, group_name: str) -> Dict[str, Any]:
-        """מביא בית עם הקבוצות שלו"""
+        """Get a group with its teams"""
         group = db.query(Group).filter(Group.name == group_name).first()
         if not group:
             return {"error": f"Group {group_name} not found"}
         
-        # מביא את הקבוצות דרך ה-relationships החדשים
+        # Fetch teams via relationships
         teams = [group.team_1_obj, group.team_2_obj, group.team_3_obj, group.team_4_obj]
         
         return {
@@ -47,7 +47,7 @@ class GroupService:
     
     @staticmethod
     def get_all_groups_with_teams(db: Session) -> List[Dict[str, Any]]:
-        """מביא את כל הבתים עם הקבוצות שלהם"""
+        """Get all groups with their teams"""
         groups = db.query(Group).all()
         result = []
         
@@ -61,7 +61,7 @@ class GroupService:
     @staticmethod
     def create_group_stage_result(db: Session, group_id: int, first_place: int, 
                                 second_place: int, third_place: int, fourth_place: int) -> Dict[str, Any]:
-        """יוצר תוצאה לבית (כל 4 המקומות בבת אחת)"""
+        """Create a result for a group (all 4 places at once)"""
         existing_result = db.query(GroupStageResult).filter(
             GroupStageResult.group_id == group_id
         ).first()
@@ -85,7 +85,7 @@ class GroupService:
     
     @staticmethod
     def get_group_stage_results(db: Session, group_id: int) -> Dict[str, Any]:
-        """מביא את תוצאות הבית"""
+        """Get group results"""
         result = db.query(GroupStageResult).filter(GroupStageResult.group_id == group_id).first()
         
         if not result:

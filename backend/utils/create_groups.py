@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-סקריפט ליצירת הבתים (groups)
+Script to create groups
 """
 
 import sys
@@ -13,26 +13,26 @@ from models.team import Team
 from sqlalchemy.orm import sessionmaker
 
 def create_groups():
-    """יוצר את כל הבתים"""
+    """Create all groups"""
     Session = sessionmaker(bind=engine)
     session = Session()
     
     try:
-        # יוצר את הטבלה אם היא לא קיימת
+        # Create the table if it does not exist
         Group.__table__.create(engine, checkfirst=True)
         
-        # מוחק את כל הבתים הקיימים
+        # Delete all existing groups
         session.query(Group).delete()
         
-        # מביא את כל הקבוצות
+        # Fetch all teams
         teams = session.query(Team).all()
-        print(f"נמצאו {len(teams)} קבוצות")
+        print(f"Found {len(teams)} teams")
         
-        # יוצר את הבתים עם הקבוצות
+        # Create groups with their teams
         for group_letter in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']:
-            # מביא את 4 הקבוצות של הבית הזה
+            # Fetch the 4 teams for this group
             group_teams = [team for team in teams if team.group_letter == group_letter]
-            group_teams.sort(key=lambda x: x.group_position)  # ממיין לפי מיקום
+            group_teams.sort(key=lambda x: x.group_position)  # sort by position
             
             if len(group_teams) == 4:
                 group = Group(
@@ -44,23 +44,23 @@ def create_groups():
                     team_4=group_teams[3].id
                 )
                 session.add(group)
-                print(f"בית {group_letter}: {group_teams[0].name}, {group_teams[1].name}, {group_teams[2].name}, {group_teams[3].name}")
+                print(f"Group {group_letter}: {group_teams[0].name}, {group_teams[1].name}, {group_teams[2].name}, {group_teams[3].name}")
             else:
-                print(f"שגיאה: בית {group_letter} מכיל {len(group_teams)} קבוצות במקום 4")
+                print(f"Error: Group {group_letter} contains {len(group_teams)} teams instead of 4")
         
         session.commit()
-        print(f"נוצרו 12 בתים בהצלחה!")
+        print(f"12 groups created successfully!")
         
-        # מציג סיכום
-        print("\nסיכום בתים שנוצרו:")
+        # Summary
+        print("\nGroups summary:")
         print("=" * 30)
         for group_letter in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']:
             group_id = ord(group_letter) - ord('A') + 1
-            print(f"בית {group_letter} (ID: {group_id})")
+            print(f"Group {group_letter} (ID: {group_id})")
         
     except Exception as e:
         session.rollback()
-        print(f"שגיאה ביצירת הבתים: {e}")
+        print(f"Error creating groups: {e}")
     finally:
         session.close()
 

@@ -11,9 +11,9 @@ class Team(Base):
     
     # Group stage information
     group_letter = Column(CHAR(1), nullable=True)  # A, B, C, D, E, F, G, H, I, J, K, L
-    group_position = Column(Integer, nullable=True)  # 1, 2, 3, 4 (מיקום בבית)
-    goals_for = Column(Integer, default=0)  # מספר שערי זכות
-    goals_against = Column(Integer, default=0)  # מספר שערי חובה
+    group_position = Column(Integer, nullable=True)  # 1, 2, 3, 4 (position in group)
+    goals_for = Column(Integer, default=0)  # goals scored
+    goals_against = Column(Integer, default=0)  # goals conceded
     
     created_at = Column(DateTime, default=datetime.utcnow)
     

@@ -9,7 +9,7 @@ class MatchPrediction(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    match_id = Column(Integer, ForeignKey("matches.id"), nullable=False)  # עכשיו רק טבלה אחת!
+    match_id = Column(Integer, ForeignKey("matches.id"), nullable=False)  # Single matches table
     home_score = Column(Integer, nullable=False)
     away_score = Column(Integer, nullable=False)
     predicted_winner = Column(Integer, ForeignKey("teams.id"), nullable=True)  # NULL for draw
@@ -18,7 +18,7 @@ class MatchPrediction(Base):
     
     # Relationships
     user = relationship("User")
-    match = relationship("Match")  # עכשיו יש לנו relationship ישיר!
+    match = relationship("Match")  # Direct relationship
     winner_team = relationship("Team", foreign_keys=[predicted_winner])
 
 class GroupStagePrediction(Base):
@@ -76,11 +76,11 @@ class KnockoutStagePrediction(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    knockout_result_id = Column(Integer, ForeignKey("knockout_stage_results.id"), nullable=False)  # קישור לתוצאה
-    template_match_id = Column(Integer, ForeignKey("matches_template.id"), nullable=False)  # קישור לטמפלייט (למסלול)
+    knockout_result_id = Column(Integer, ForeignKey("knockout_stage_results.id"), nullable=False)  # Link to result
+    template_match_id = Column(Integer, ForeignKey("matches_template.id"), nullable=False)  # Link to template (path)
     stage = Column(String(20), nullable=False)  # round32, round16, quarter, semi, final, third_place
-    team1_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # קבוצה ראשונה
-    team2_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # קבוצה שנייה
+    team1_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # First team
+    team2_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # Second team
     winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     status = Column(String(20), nullable=True, default="gray")  # green/yellow/red/gray
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -88,8 +88,8 @@ class KnockoutStagePrediction(Base):
     
     # Relationships
     user = relationship("User")
-    knockout_result = relationship("KnockoutStageResult")  # קישור לתוצאה
-    # template_match = relationship("MatchTemplate", foreign_keys=[template_match_id])  # קישור לטמפלייט - זמנית מושבת
+    knockout_result = relationship("KnockoutStageResult")  # Link to result
+    # template_match = relationship("MatchTemplate", foreign_keys=[template_match_id])  # Link to template - temporarily disabled
     team1 = relationship("Team", foreign_keys=[team1_id])
     team2 = relationship("Team", foreign_keys=[team2_id])
     winner_team = relationship("Team", foreign_keys=[winner_team_id])

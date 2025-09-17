@@ -10,7 +10,7 @@ router = APIRouter()
 @router.get("/teams", response_model=List[Dict[str, Any]])
 def get_teams(db: Session = Depends(get_db)):
     """
-    מביא את כל הקבוצות
+    Get all teams
     """
     teams = db.query(Team).all()
     return [
@@ -28,7 +28,7 @@ def get_teams(db: Session = Depends(get_db)):
 @router.get("/teams/{team_id}", response_model=Dict[str, Any])
 def get_team(team_id: int, db: Session = Depends(get_db)):
     """
-    מביא קבוצה ספציפית
+    Get a specific team
     """
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:

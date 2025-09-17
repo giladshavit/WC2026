@@ -20,41 +20,41 @@ from models.team import Team
 from models.groups import Group
 
 def build_knockout_bracket():
-    """בונה את הבראקט של 32 הגדולות לפי הניחושים"""
+    """Build the Round of 32 bracket based on predictions"""
     
     db = SessionLocal()
     try:
-        print("🏆 בונה את הבראקט של 32 הגדולות...")
+        print("🏆 Building the Round of 32 bracket...")
         
-        # שלב 1: קורא את הניחושים של הבתים
-        print("\n📊 קורא ניחושי בתים...")
+        # Step 1: Read group predictions
+        print("\n📊 Reading group predictions...")
         group_predictions = db.query(GroupStagePrediction).all()
         
         if not group_predictions:
-            print("❌ לא נמצאו ניחושי בתים! צריך ליצור ניחושים קודם.")
+            print("❌ No group predictions found! Please create predictions first.")
             return
         
-        print(f"נמצאו {len(group_predictions)} ניחושי בתים")
+        print(f"Found {len(group_predictions)} group predictions")
         
-        # שלב 2: קורא את הניחושים של העולות ממקום 3
-        print("\n🥉 קורא ניחושי עולות ממקום 3...")
+        # Step 2: Read third-place predictions
+        print("\n🥉 Reading third-place predictions...")
         third_place_predictions = db.query(ThirdPlacePrediction).all()
         
         if not third_place_predictions:
-            print("❌ לא נמצאו ניחושי עולות ממקום 3! צריך ליצור ניחושים קודם.")
+            print("❌ No third-place predictions found! Please create predictions first.")
             return
         
-        print(f"נמצאו {len(third_place_predictions)} ניחושי עולות ממקום 3")
+        print(f"Found {len(third_place_predictions)} third-place predictions")
         
-        # שלב 3: בונה את רשימת העולות ממקום 3
-        print("\n🔍 בונה רשימת עולות ממקום 3...")
+        # Step 3: Build the list of third-place qualifying groups
+        print("\n🔍 Building list of third-place qualifying groups...")
         third_place_groups = []
         
-        # לוקח את הניחוש הראשון (אנחנו מניחים שיש ניחוש אחד)
+        # Use the first prediction (we assume there is one)
         if third_place_predictions:
             prediction = third_place_predictions[0]
             
-            # מוצא את הבתים של הקבוצות העולות
+            # Resolve the groups of the qualifying teams
             qualifying_teams = [
                 prediction.first_team_qualifying,
                 prediction.second_team_qualifying,
@@ -72,55 +72,55 @@ def build_knockout_bracket():
                 if team and team.group_letter not in third_place_groups:
                     third_place_groups.append(team.group_letter)
         
-        # יוצר hash key ממוין (רק לצורך חיפוש)
+        # Create a sorted hash key (for lookup only)
         hash_key = ''.join(sorted(third_place_groups))
-        print(f"עולות ממקום 3 (סדר מקורי): {third_place_groups}")
-        print(f"Hash key (ממוין): {hash_key}")
+        print(f"Third-place qualifiers (original order): {third_place_groups}")
+        print(f"Hash key (sorted): {hash_key}")
         
-        # שלב 4: מוצא את הקומבינציה המתאימה
-        print("\n🎯 מוצא קומבינציה מתאימה...")
+        # Step 4: Find the matching combination
+        print("\n🎯 Finding matching combination...")
         combination = db.query(ThirdPlaceCombination).filter(
             ThirdPlaceCombination.hash_key == hash_key
         ).first()
         
         if not combination:
-            print(f"❌ לא נמצאה קומבינציה עבור {hash_key}")
+            print(f"❌ No combination found for {hash_key}")
             return
         
-        print(f"נמצאה קומבינציה ID {combination.id}: {combination.hash_key}")
+        print(f"Found combination ID {combination.id}: {combination.hash_key}")
         
-        # שלב 5: בונה את מיפוי הקבוצות
-        print("\n🗺️ בונה מיפוי קבוצות...")
+        # Step 5: Build team mapping
+        print("\n🗺️ Building team mapping...")
         team_mapping = build_team_mapping(db, group_predictions, combination)
         
-        # שלב 6: יוצר KnockoutStagePrediction records (לא משחקים אמיתיים!)
-        print("\n📝 יוצר KnockoutStagePrediction records...")
+        # Step 6: Create KnockoutStagePrediction records (not real matches!)
+        print("\n📝 Creating KnockoutStagePrediction records...")
         create_knockout_predictions(db, team_mapping, combination)
         
         db.commit()
-        print("\n✅ הבראקט נבנה בהצלחה!")
+        print("\n✅ Bracket built successfully!")
         
     except Exception as e:
         db.rollback()
-        print(f"❌ שגיאה: {e}")
+        print(f"❌ Error: {e}")
         import traceback
         traceback.print_exc()
     finally:
         db.close()
 
 def build_team_mapping(db, group_predictions, combination):
-    """בונה מיפוי של קבוצות למשחקי 32 הגדולות"""
+    """Build mapping of teams for Round of 32 matches"""
     
     team_mapping = {}
     
-    # יוצר dictionary של ניחושי בתים
+    # Create a dictionary of group predictions
     group_predictions_dict = {}
     for pred in group_predictions:
-        # מוצא את שם הבית דרך ה-relationship
+        # Resolve group name via relationship
         group_name = pred.group.name
         group_predictions_dict[group_name] = pred
     
-    # מיפוי קבוצות לפי התבנית
+    # Map teams according to the template
     mapping_rules = {
         'match_1A': combination.match_1A,  # 3A -> match_1A
         'match_1B': combination.match_1B,  # 3B -> match_1B
@@ -132,10 +132,9 @@ def build_team_mapping(db, group_predictions, combination):
         'match_1L': combination.match_1L,  # 3H -> match_1L
     }
     
-    # מיפוי קבוצות לפי התבנית של משחקי 32 הגדולות
-    # זה צריך להתאים לתבנית של MatchTemplate
+    # Mapping for the Round of 32 must match MatchTemplate
     
-    print("מיפוי קבוצות:")
+    print("Team mapping:")
     for match_key, third_place_group in mapping_rules.items():
         group_letter = third_place_group[1]  # 3A -> A
         if group_letter in group_predictions_dict:
@@ -143,12 +142,12 @@ def build_team_mapping(db, group_predictions, combination):
             third_place_team = db.query(Team).filter(Team.id == pred.third_place).first()
             if third_place_team:
                 team_mapping[match_key] = third_place_team
-                print(f"  {match_key}: {third_place_team.name} (בית {group_letter}, מקום 3)")
+                print(f"  {match_key}: {third_place_team.name} (Group {group_letter}, 3rd place)")
     
     return team_mapping
 
 def find_team_for_template(db, team_source, team_mapping, combination=None, match_template=None):
-    """מוצא את הקבוצה המתאימה לפי התבנית"""
+    """Find the team according to the template"""
     if team_source.startswith('3rd_team_'):  # 3rd_team_1
         # מחפש במיפוי של עולות ממקום 3
         # 3rd_team_1 -> צריך למצוא את הקבוצה המתאימה לפי הקומבינציה
@@ -190,21 +189,21 @@ def find_team_for_template(db, team_source, team_mapping, combination=None, matc
             print(f"  ⚠️  לא הצליח למצוא קבוצה עבור {team_source}")
             return None
         return None
-    elif team_source.startswith('3'):  # מקום 3
-        # מחפש במיפוי של עולות ממקום 3
+    elif team_source.startswith('3'):  # 3rd place
+        # Search in third-place mapping
         for match_key, team in team_mapping.items():
             if team_source in match_key:
                 return team
-    else:  # מקום 1 או 2
-        # מחפש בניחושי הבתים
-        # team_source יכול להיות "1A", "2B", "3C", etc.
+    else:  # 1st or 2nd place
+        # Search in group predictions
+        # team_source can be "1A", "2B", "3C", etc.
         if len(team_source) >= 2 and team_source[0].isdigit():
             group_letter = team_source[1]  # 1A -> A
             position = int(team_source[0])  # 1A -> 1
         else:
             return None
         
-        # מוצא את הבית לפי האות
+        # Find group by letter
         group = db.query(Group).filter(Group.name == group_letter).first()
         if group:
             group_pred = db.query(GroupStagePrediction).filter(

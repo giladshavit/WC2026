@@ -10,15 +10,15 @@ class MatchService:
     @staticmethod
     def get_all_matches_with_predictions(db: Session, user_id: int) -> List[Dict[str, Any]]:
         """
-        מביא את כל המשחקים עם הניחושים של המשתמש
+        Get all matches with the user's predictions
         """
-        # מביא את כל המשחקים
+        # Fetch all matches
         matches = db.query(Match).all()
         
         matches_with_predictions = []
         
         for match in matches:
-            # מביא את הניחוש של המשתמש למשחק הזה
+            # Fetch the user's prediction for this match
             prediction = db.query(MatchPrediction).filter(
                 MatchPrediction.user_id == user_id,
                 MatchPrediction.match_id == match.id
@@ -42,10 +42,10 @@ class MatchService:
                     "away_score": prediction.away_score if prediction else None,
                     "predicted_winner": prediction.predicted_winner if prediction else None
                 },
-                "can_edit": match.status == "scheduled"  # אפשר לערוך רק משחקים שעדיין לא התקיימו
+                "can_edit": match.status == "scheduled"  # Can edit only matches that haven't been played
             }
             
-            # מוסיף פרטים ספציפיים לפי סוג המשחק
+            # Add specific details according to match type
             if match.is_group_stage:
                 match_data["group"] = match.group
             elif match.is_knockout:
@@ -55,7 +55,7 @@ class MatchService:
             
             matches_with_predictions.append(match_data)
         
-        # ממיין לפי תאריך
+        # Sort by date
         matches_with_predictions.sort(key=lambda x: x["date"])
         
         return matches_with_predictions
@@ -63,9 +63,9 @@ class MatchService:
     @staticmethod
     def create_group_stage_match(db: Session, home_team_id: int, away_team_id: int, group: str, date: datetime) -> Dict[str, Any]:
         """
-        יוצר משחק שלב בתים
+        Create a group stage match
         """
-        # בודק שהקבוצות קיימות
+        # Validate both teams exist
         home_team = db.query(Team).filter(Team.id == home_team_id).first()
         away_team = db.query(Team).filter(Team.id == away_team_id).first()
         
@@ -104,7 +104,7 @@ class MatchService:
     @staticmethod
     def create_knockout_match(db: Session, stage: str, match_number: int, home_team_source: str, away_team_source: str, date: datetime) -> Dict[str, Any]:
         """
-        יוצר משחק נוקאאוט
+        Create a knockout match
         """
         match = Match(
             stage=stage,
