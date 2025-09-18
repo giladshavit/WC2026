@@ -35,7 +35,7 @@ const PredictionsPage: React.FC = () => {
 
   const fetchMatches = async () => {
     try {
-      const response = await axios.get('/api/matches?user_id=1'); // TODO: get real user ID
+      const response = await axios.get('/api/matches');
       setMatches(response.data);
     } catch (error) {
       console.error('Error fetching matches:', error);
@@ -68,8 +68,7 @@ const PredictionsPage: React.FC = () => {
       }));
 
       await axios.post('/api/predictions/batch', {
-        predictions: predictionsToSave,
-        user_id: 1  // TODO: get real user ID from authentication
+        predictions: predictionsToSave
       });
 
       setIsEditing(false);
@@ -89,8 +88,6 @@ const PredictionsPage: React.FC = () => {
       await axios.put(`/api/matches/${matchId}/predictions`, {
         home_score: prediction.home,
         away_score: prediction.away
-      }, {
-        params: { user_id: 1 }  // TODO: get real user ID from authentication
       });
 
       // Remove from editing state

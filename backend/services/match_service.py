@@ -65,6 +65,50 @@ class MatchService:
         return matches_with_predictions
 
     @staticmethod
+    def get_all_matches_basic(db: Session) -> List[Dict[str, Any]]:
+        """
+        Return matches without user context. Filters out matches where either team is None.
+        """
+        matches = db.query(Match).all()
+        results: List[Dict[str, Any]] = []
+        
+        for match in matches:
+            # Skip matches where either team is None (e.g., knockout placeholders)
+            if not match.home_team or not match.away_team:
+                continue
+            
+            match_data = {
+                "id": match.id,
+                "stage": match.stage,
+                "home_team": {
+                    "id": match.home_team.id if match.home_team else None,
+                    "name": match.home_team.name if match.home_team else None,
+                },
+                "away_team": {
+                    "id": match.away_team.id if match.away_team else None,
+                    "name": match.away_team.name if match.away_team else None,
+                },
+                "date": match.date.isoformat(),
+                "status": match.status,
+                # No user context; expose empty user_prediction placeholder for UI compatibility
+                "user_prediction": {
+                    "home_score": None,
+                    "away_score": None,
+                    "predicted_winner": None,
+                    "points": None,
+                },
+                "can_edit": match.status == "scheduled",
+            }
+            
+            # Group details for group-stage matches
+            if match.is_group_stage:
+                match_data["group"] = match.group
+            
+            results.append(match_data)
+        
+        return results
+
+    @staticmethod
     def create_group_stage_match(db: Session, home_team_id: int, away_team_id: int, group: str, date: datetime) -> Dict[str, Any]:
         """
         Create a group stage match
