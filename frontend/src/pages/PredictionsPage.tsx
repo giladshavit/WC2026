@@ -35,7 +35,7 @@ const PredictionsPage: React.FC = () => {
 
   const fetchMatches = async () => {
     try {
-      const response = await axios.get('/api/matches?user_id=1'); // TODO: get real user ID
+      const response = await axios.get('/api/matches');
       setMatches(response.data);
     } catch (error) {
       console.error('Error fetching matches:', error);

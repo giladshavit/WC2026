@@ -8,9 +8,9 @@ from models.team import Team
 class MatchService:
     
     @staticmethod
-    def get_all_matches_with_predictions(db: Session, user_id: int) -> List[Dict[str, Any]]:
+    def get_all_matches_with_predictions(db: Session) -> List[Dict[str, Any]]:
         """
-        Get all matches with the user's predictions
+        Get all matches (user-agnostic)
         """
         # Fetch all matches
         matches = db.query(Match).all()
@@ -18,11 +18,8 @@ class MatchService:
         matches_with_predictions = []
         
         for match in matches:
-            # Fetch the user's prediction for this match
-            prediction = db.query(MatchPrediction).filter(
-                MatchPrediction.user_id == user_id,
-                MatchPrediction.match_id == match.id
-            ).first()
+            # User-agnostic: do not fetch user predictions
+            prediction = None
             
             # Skip matches where either team is None
             if not match.home_team or not match.away_team:
@@ -41,10 +38,11 @@ class MatchService:
                 },
                 "date": match.date.isoformat(),
                 "status": match.status,
+                # User-agnostic placeholder for UI compatibility
                 "user_prediction": {
-                    "home_score": prediction.home_score if prediction else None,
-                    "away_score": prediction.away_score if prediction else None,
-                    "predicted_winner": prediction.predicted_winner if prediction else None
+                    "home_score": None,
+                    "away_score": None,
+                    "predicted_winner": None
                 },
                 "can_edit": match.status == "scheduled"  # Can edit only matches that haven't been played
             }
