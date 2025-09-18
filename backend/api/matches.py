@@ -8,8 +8,8 @@ from database import get_db
 router = APIRouter()
 
 @router.get("/matches", response_model=List[Dict[str, Any]])
-def get_all_matches(db: Session = Depends(get_db)):
+def get_all_matches_with_predictions(user_id: int, db: Session = Depends(get_db)):
     """
-    Get all matches without user context (filters out matches with undefined teams)
+    Get all matches with the user's predictions
     """
-    return MatchService.get_all_matches_basic(db)
+    return MatchService.get_all_matches_with_predictions(db, user_id)
