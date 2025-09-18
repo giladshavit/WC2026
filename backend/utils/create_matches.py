@@ -150,7 +150,7 @@ def create_knockout_matches():
             if stage_matches:
                 print(f"\n{stage.upper()}:")
                 for match in stage_matches:
-                print(f"  ID {match.id}: {match.stage} - not set yet")
+                    print(f"  ID {match.id}: {match.stage} - not set yet")
         
     except Exception as e:
         session.rollback()
