@@ -13,6 +13,7 @@ from fastapi import HTTPException
 from datetime import datetime
 import json
 from enum import Enum
+from models.third_place_combinations import ThirdPlaceCombination
 
 class PredictionStatus(Enum):
     PREDICTED = "predicted"  # User predicted and prediction is valid
@@ -534,6 +535,11 @@ class PredictionService:
             existing_prediction.changed_groups = None
             db.commit()
             
+            # After commit and before return (in both update and create branches)
+            PredictionService.update_knockout_predictions_for_third_place_combination_change(
+                db, user_id, advancing_team_ids
+            )
+            
             return {
                 "id": existing_prediction.id,
                 "advancing_team_ids": advancing_team_ids,
@@ -1011,31 +1017,18 @@ class PredictionService:
 
     @staticmethod
     def update_knockout_prediction_teams(db: Session, prediction, old_team_id: int, new_team_id: int):
-        """
-        Foundational function to update a knockout prediction - swap team and update subsequent stages
-        
-        Args:
-            db: Session
-            prediction: prediction to update
-            old_team_id: old team ID
-            new_team_id: new team ID
-        """
+        if old_team_id == new_team_id:
+            return
         # Perform the swap
         if prediction.team1_id == old_team_id:
             prediction.team1_id = new_team_id
         elif prediction.team2_id == old_team_id:
             prediction.team2_id = new_team_id
         else:
-            # Old team not found in prediction
             return
-        
-        # Check if the current winner equals the old team
         if prediction.winner_team_id == old_team_id:
-            # Call update_knockout_prediction_with_winner with winner_team_id None
             return PredictionService.update_knockout_prediction_with_winner(db, prediction, None)
         else:
-            # Winner did not change, but teams changed
-            # If winner is None, update status to red
             if prediction.winner_team_id:
                 PredictionService.set_status(prediction, PredictionStatus.MIGHT_CHANGE_PREDICT)
                 db.commit()
@@ -1079,3 +1072,83 @@ class PredictionService:
         ).first()
         
         return prediction
+
+    @staticmethod
+    def create_new_hash_key(db: Session, advancing_team_ids: List[int]) -> str:
+        letters = []
+        for team_id in advancing_team_ids:
+            team = db.query(Team).filter(Team.id == team_id).first()
+            if team and team.group_letter:
+                letters.append(team.group_letter)
+        return ''.join(sorted(letters))
+
+    @staticmethod
+    def find_third_places_combination_by_hash_key(db: Session, hash_key: str):
+        return db.query(ThirdPlaceCombination).filter(
+            ThirdPlaceCombination.hash_key == hash_key
+        ).first()
+
+    @staticmethod
+    def update_knockout_predictions_for_third_place_combination_change(db: Session, user_id: int, advancing_team_ids: List[int]):
+        # Build hash key and find combination (like the script)
+        hash_key = PredictionService.create_new_hash_key(db, advancing_team_ids)
+        combination = PredictionService.find_third_places_combination_by_hash_key(db, hash_key)
+        if not combination:
+            return
+
+        # Same mapping as the script
+        third_team_mapping = {
+            '3rd_team_1': 'match_1A',
+            '3rd_team_2': 'match_1B',
+            '3rd_team_3': 'match_1D',
+            '3rd_team_4': 'match_1E',
+            '3rd_team_5': 'match_1G',
+            '3rd_team_6': 'match_1I',
+            '3rd_team_7': 'match_1K',
+            '3rd_team_8': 'match_1L'
+        }
+
+        # Relevant Round of 32 templates: only where team_2 uses third-place source
+        templates = db.query(MatchTemplate).filter(
+            MatchTemplate.stage == 'round32'
+        ).all()
+        relevant_templates = [t for t in templates if t.team_2.startswith('3rd_team_')]
+
+        # Helper: new_team2 for third-place sources (using lines 142-159 from script)
+        def resolve_third_place_team(team_source: str):
+            column_name = third_team_mapping[team_source]
+            third_place_source = getattr(combination, column_name)  # e.g., '3A'
+            group_letter = third_place_source[1]  # 'A'
+
+            group = db.query(Group).filter(Group.name == group_letter).first()
+            if not group:
+                return None
+
+            group_pred = db.query(GroupStagePrediction).filter(
+                GroupStagePrediction.group_id == group.id
+            ).first()
+            if not group_pred:
+                return None
+
+            return db.query(Team).filter(Team.id == group_pred.third_place).first()
+
+        # Iterate relevant templates and update predictions
+        for template in relevant_templates:
+            # Find the user's prediction for this match
+            prediction = db.query(KnockoutStagePrediction).filter(
+                KnockoutStagePrediction.user_id == user_id,
+                KnockoutStagePrediction.template_match_id == template.id
+            ).first()
+            if not prediction:
+                continue
+
+            old_team2_id = prediction.team2_id
+
+            # Compute the new team2 from the combination
+            new_team = resolve_third_place_team(template.team_2)
+            new_team2_id = new_team.id if new_team else None
+            if not new_team2_id:
+                continue
+
+            # Apply the foundational updater (includes early no-op if equal)
+            PredictionService.update_knockout_prediction_teams(db, prediction, old_team2_id, new_team2_id)
