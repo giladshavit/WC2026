@@ -136,11 +136,12 @@ def create_or_update_third_place_prediction(
         import os
         
         # Execute the bracket build script
-        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "build_knockout_bracket.py")
+        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "build_knockout_bracket_simple.py")
         python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
+        user_id_arg = str(third_place_prediction.user_id)
         
         subprocess.run(
-            [python_path, script_path],
+            [python_path, script_path, user_id_arg],
             capture_output=True,
             text=True,
             cwd=os.path.dirname(os.path.dirname(__file__))

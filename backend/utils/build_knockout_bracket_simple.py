@@ -14,6 +14,10 @@ from models.matches_template import MatchTemplate
 from models.team import Team
 from models.groups import Group
 
+user_id = 1
+if len(sys.argv) >= 2 and sys.argv[1].isdigit():
+    user_id = int(sys.argv[1])
+
 def build_knockout_bracket():
     """Builds the round of 32 bracket based on predictions - simple version"""
     
@@ -22,9 +26,11 @@ def build_knockout_bracket():
         print("🏆 Building the round of 32 bracket...")
         
         # Step 1: Read third place qualifying predictions
-        third_place_predictions = db.query(ThirdPlacePrediction).all()
+        third_place_predictions = db.query(ThirdPlacePrediction).filter(
+            ThirdPlacePrediction.user_id == user_id
+        ).all()
         if not third_place_predictions:
-            print("❌ No third place qualifying predictions found!")
+            print(f"❌ No third place qualifying predictions found for user_id={user_id}!")
             return
         
         prediction = third_place_predictions[0]
@@ -89,6 +95,7 @@ def build_knockout_bracket():
             if home_team and away_team:
                 # Check if a prediction already exists
                 existing = db.query(KnockoutStagePrediction).filter(
+                    KnockoutStagePrediction.user_id == user_id,
                     KnockoutStagePrediction.template_match_id == template.id
                 ).first()
                 
@@ -101,7 +108,7 @@ def build_knockout_bracket():
                     
                     if result:
                         prediction = KnockoutStagePrediction(
-                            user_id=1,
+                            user_id=user_id,
                             knockout_result_id=result.id,
                             template_match_id=template.id,
                             stage=template.stage,  # include stage field
@@ -150,7 +157,8 @@ def get_team_for_source(db, team_source, combination=None, third_team_mapping=No
             
             if group:
                 group_pred = db.query(GroupStagePrediction).filter(
-                    GroupStagePrediction.group_id == group.id
+                    GroupStagePrediction.group_id == group.id,
+                    GroupStagePrediction.user_id == user_id
                 ).first()
                 
                 if group_pred:
@@ -167,7 +175,8 @@ def get_team_for_source(db, team_source, combination=None, third_team_mapping=No
             group = db.query(Group).filter(Group.name == group_letter).first()
             if group:
                 group_pred = db.query(GroupStagePrediction).filter(
-                    GroupStagePrediction.group_id == group.id
+                    GroupStagePrediction.group_id == group.id,
+                    GroupStagePrediction.user_id == user_id
                 ).first()
                 
                 if group_pred:
