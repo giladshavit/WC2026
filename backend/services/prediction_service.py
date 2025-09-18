@@ -536,7 +536,7 @@ class PredictionService:
             db.commit()
             
             # After commit and before return (in both update and create branches)
-            PredictionService.update_knockout_predictions_for_third_place_combination_change(
+            PredictionService.update_knockout_predictions_by_new_third_places_qualified(
                 db, user_id, advancing_team_ids
             )
             
@@ -1089,7 +1089,7 @@ class PredictionService:
         ).first()
 
     @staticmethod
-    def update_knockout_predictions_for_third_place_combination_change(db: Session, user_id: int, advancing_team_ids: List[int]):
+    def update_knockout_predictions_by_new_third_places_qualified(db: Session, user_id: int, advancing_team_ids: List[int]):
         # Build hash key and find combination (like the script)
         hash_key = PredictionService.create_new_hash_key(db, advancing_team_ids)
         combination = PredictionService.find_third_places_combination_by_hash_key(db, hash_key)
