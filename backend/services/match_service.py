@@ -24,16 +24,20 @@ class MatchService:
                 MatchPrediction.match_id == match.id
             ).first()
             
+            # Skip matches where either team is None
+            if not match.home_team or not match.away_team:
+                continue
+            
             match_data = {
                 "id": match.id,
                 "stage": match.stage,
                 "home_team": {
-                    "id": match.home_team.id,
-                    "name": match.home_team.name,
+                    "id": match.home_team.id if match.home_team else None,
+                    "name": match.home_team.name if match.home_team else None,
                 },
                 "away_team": {
-                    "id": match.away_team.id,
-                    "name": match.away_team.name,
+                    "id": match.away_team.id if match.away_team else None,
+                    "name": match.away_team.name if match.away_team else None,
                 },
                 "date": match.date.isoformat(),
                 "status": match.status,
