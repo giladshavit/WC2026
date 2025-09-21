@@ -13,6 +13,7 @@ class MatchPrediction(Base):
     home_score = Column(Integer, nullable=False)
     away_score = Column(Integer, nullable=False)
     predicted_winner = Column(Integer, ForeignKey("teams.id"), nullable=True)  # NULL for draw
+    points = Column(Integer, nullable=True)  # Points awarded for this prediction
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
