@@ -7,6 +7,7 @@ from datetime import datetime
 from services.match_service import MatchService
 from services.team_service import TeamService
 from services.group_service import GroupService
+from services.results_service import ResultsService
 from models.groups import Group
 from database import get_db
 
@@ -147,6 +148,10 @@ class UpdateGroupRequest(BaseModel):
     team_3: int
     team_4: int
 
+class MatchResultRequest(BaseModel):
+    home_team_score: int
+    away_team_score: int
+
 @router.put("/admin/groups/{group_name}", response_model=Dict[str, Any])
 def update_group(group_name: str, update_request: UpdateGroupRequest, db: Session = Depends(get_db)):
     """
@@ -167,3 +172,34 @@ def update_group(group_name: str, update_request: UpdateGroupRequest, db: Sessio
     db.refresh(group)
     
     return {"id": group.id, "name": group.name, "updated": True}
+
+# Match results endpoints
+@router.get("/admin/matches/results", response_model=List[Dict[str, Any]])
+def get_all_matches_with_results(db: Session = Depends(get_db)):
+    """
+    Get all matches with their current results (admin only)
+    Only returns matches where both teams are defined
+    """
+    return ResultsService.get_all_matches_with_results(db)
+
+@router.put("/admin/matches/{match_id}/result", response_model=Dict[str, Any])
+def update_match_result(
+    match_id: int, 
+    result_request: MatchResultRequest, 
+    db: Session = Depends(get_db)
+):
+    """
+    Update or create a match result (admin only)
+    """
+    try:
+        result = ResultsService.update_match_result(
+            db=db,
+            match_id=match_id,
+            home_team_score=result_request.home_team_score,
+            away_team_score=result_request.away_team_score
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

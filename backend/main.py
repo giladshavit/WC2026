@@ -58,6 +58,10 @@ def semi_page():
 def final_page():
     return FileResponse("static/final.html")
 
+@app.get("/admin-results")
+def admin_results_page():
+    return FileResponse("static/admin_results.html")
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
