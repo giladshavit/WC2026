@@ -3,6 +3,16 @@ from sqlalchemy import Column, String, Integer, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from .base import Base
 
+class MatchResult(Base):
+    __tablename__ = "match_results"
+    
+    # Scores for a specific match. Keep minimal schema by design.
+    id = Column(Integer, primary_key=True, index=True)
+    match_id = Column(Integer, ForeignKey("matches.id"), nullable=True)
+    home_team_score = Column(Integer, nullable=True)
+    away_team_score = Column(Integer, nullable=True)
+    winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+
 class GroupStageResult(Base):
     __tablename__ = "group_stage_results"
     
