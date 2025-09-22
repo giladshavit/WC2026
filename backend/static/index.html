@@ -238,6 +238,11 @@
         <div class="header">
             <h1>🏆 World Cup 2026 Predictions</h1>
             <p>מערכת חיזויים למונדיאל 2026</p>
+            <div id="total-points" style="margin-top: 10px;">
+                <span style="background: #667eea; color: white; padding: 8px 16px; border-radius: 20px; font-size: 1.1rem; font-weight: bold;">
+                    סה"כ נקודות: <span id="points-count">0</span>
+                </span>
+            </div>
         </div>
         
         <div class="nav">
@@ -541,6 +546,17 @@
                 const response = await fetch('/api/matches?user_id=1');
                 const matches = await response.json();
                 
+                // Calculate total points
+                const totalPoints = matches.reduce((sum, match) => {
+                    return sum + (match.user_prediction.points || 0);
+                }, 0);
+                
+                // Update total points display
+                const pointsCountElement = document.getElementById('points-count');
+                if (pointsCountElement) {
+                    pointsCountElement.textContent = totalPoints;
+                }
+                
                 const content = `
                     <div class="matches-grid">
                         ${matches.map(match => `
@@ -549,7 +565,8 @@
                                     <h4 style="color: #667eea; margin: 0;">בית ${match.group}</h4>
                                     <div style="display: flex; align-items: center; gap: 10px;">
                                         ${match.user_prediction.home_score !== null && match.user_prediction.away_score !== null ? 
-                                            '<span style="background: #2f855a; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">יש חיזוי</span>' : 
+                                            `<span style="background: #2f855a; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">יש חיזוי</span>
+                                             <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;">${match.user_prediction.points || 0} נקודות</span>` : 
                                             '<span style="background: #e2e8f0; color: #718096; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">אין חיזוי</span>'
                                         }
                                         <span style="color: #718096; font-size: 0.9rem;">${new Date(match.date).toLocaleDateString('he-IL')}</span>
@@ -592,6 +609,13 @@
                                             id="save_btn_${match.id}">
                                         שמור חיזוי
                                     </button>
+                                    ${match.user_prediction.home_score !== null && match.user_prediction.away_score !== null ? 
+                                        `<div style="margin-top: 8px;">
+                                            <span style="background: #667eea; color: white; padding: 4px 12px; border-radius: 15px; font-size: 0.9rem; font-weight: bold;">
+                                                ${match.user_prediction.points || 0} נקודות
+                                            </span>
+                                        </div>` : ''
+                                    }
                                 </div>
                                 
                                 <div style="text-align: center; margin-top: 10px; color: #718096; font-size: 0.9rem;">

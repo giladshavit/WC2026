@@ -4,6 +4,7 @@ from sqlalchemy import and_
 from models.matches import Match
 from models.results import MatchResult
 from models.team import Team
+from .scoring_service import ScoringService
 
 
 class ResultsService:
@@ -108,6 +109,9 @@ class ResultsService:
         
         db.commit()
         db.refresh(result)
+        
+        # Update scoring for all users who predicted this match
+        ScoringService.update_match_scoring_for_all_users(db, result)
         
         return {
             "match_id": match_id,
