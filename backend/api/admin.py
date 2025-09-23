@@ -152,6 +152,12 @@ class MatchResultRequest(BaseModel):
     home_team_score: int
     away_team_score: int
 
+class GroupStageResultRequest(BaseModel):
+    first_place_team_id: int
+    second_place_team_id: int
+    third_place_team_id: int
+    fourth_place_team_id: int
+
 @router.put("/admin/groups/{group_name}", response_model=Dict[str, Any])
 def update_group(group_name: str, update_request: UpdateGroupRequest, db: Session = Depends(get_db)):
     """
@@ -197,6 +203,38 @@ def update_match_result(
             match_id=match_id,
             home_team_score=result_request.home_team_score,
             away_team_score=result_request.away_team_score
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+# Group results endpoints
+@router.get("/admin/groups/results", response_model=List[Dict[str, Any]])
+def get_all_groups_with_results(db: Session = Depends(get_db)):
+    """
+    Get all groups with their current results (admin only)
+    """
+    return ResultsService.get_all_groups_with_results(db)
+
+@router.put("/admin/groups/{group_id}/result", response_model=Dict[str, Any])
+def update_group_stage_result(
+    group_id: int,
+    result_request: GroupStageResultRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Update or create a group stage result (admin only)
+    """
+    try:
+        result = ResultsService.update_group_stage_result(
+            db=db,
+            group_id=group_id,
+            first_place_team_id=result_request.first_place_team_id,
+            second_place_team_id=result_request.second_place_team_id,
+            third_place_team_id=result_request.third_place_team_id,
+            fourth_place_team_id=result_request.fourth_place_team_id
         )
         return result
     except ValueError as e:

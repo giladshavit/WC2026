@@ -32,6 +32,7 @@ class GroupStagePrediction(Base):
     second_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
     third_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
     fourth_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    points = Column(Integer, default=0, nullable=False)  # Points awarded for this group prediction
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

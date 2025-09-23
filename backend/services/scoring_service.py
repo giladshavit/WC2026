@@ -1,8 +1,8 @@
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from models.predictions import MatchPrediction
-from models.results import MatchResult
+from models.predictions import MatchPrediction, GroupStagePrediction
+from models.results import MatchResult, GroupStageResult
 from models.user import User
 
 
@@ -14,6 +14,15 @@ class ScoringService:
         'exact_score': 3,      # Exact score prediction
         'correct_winner': 1,   # Correct winner/draw prediction
         'wrong': 0            # Wrong prediction
+    }
+    
+    # חוקי ניקוד לניחושי בתים
+    GROUP_PREDICTION_RULES = {
+        'first_place': 5,     # פגיעה מדויקת במקום 1
+        'second_place': 4,    # פגיעה מדויקת במקום 2  
+        'third_place': 3,     # פגיעה מדויקת במקום 3
+        'fourth_place': 0,    # מקום 4 - אין ניקוד
+        'wrong': 0           # קבוצה לא נכונה
     }
     
     @staticmethod
@@ -147,5 +156,77 @@ class ScoringService:
             "message": f"Updated scoring for {len(updated_users)} users",
             "updated_users": len(updated_users),
             "match_id": result.match_id
+        }
+    
+    @staticmethod
+    def calculate_group_prediction_points(prediction: GroupStagePrediction, result: GroupStageResult) -> int:
+        """
+        Calculate points for a group stage prediction based on the actual result.
+        
+        Args:
+            prediction: GroupStagePrediction object
+            result: GroupStageResult object
+            
+        Returns:
+            int: Total points awarded for this group prediction
+        """
+        if not prediction or not result:
+            return 0
+        
+        total_points = 0
+        
+        # Check each position
+        prediction_positions = [
+            (prediction.first_place, result.first_place, 'first_place'),
+            (prediction.second_place, result.second_place, 'second_place'),
+            (prediction.third_place, result.third_place, 'third_place'),
+            (prediction.fourth_place, result.fourth_place, 'fourth_place')
+        ]
+        
+        for pred_team, actual_team, position in prediction_positions:
+            if pred_team == actual_team:
+                total_points += ScoringService.GROUP_PREDICTION_RULES[position]
+        
+        return total_points
+    
+    @staticmethod
+    def update_group_scoring_for_all_users(db: Session, result: GroupStageResult) -> Dict[str, Any]:
+        """
+        Update scoring for all users who predicted a specific group.
+        This is called when a group result is updated.
+        
+        Args:
+            db: Database session
+            result: GroupStageResult object that was just updated
+            
+        Returns:
+            Dict with summary of the operation
+        """
+        # Get all users who predicted this group
+        predictions = db.query(GroupStagePrediction).filter(
+            GroupStagePrediction.group_id == result.group_id
+        ).all()
+        
+        updated_users = set()
+        for prediction in predictions:
+            # Calculate new points for this prediction
+            new_points = ScoringService.calculate_group_prediction_points(prediction, result)
+            
+            # Update prediction points
+            old_points = prediction.points
+            prediction.points = new_points
+            
+            # Update user total points
+            user = db.query(User).filter(User.id == prediction.user_id).first()
+            if user:
+                user.total_points = user.total_points - old_points + new_points
+                updated_users.add(prediction.user_id)
+        
+        db.commit()
+        
+        return {
+            "message": f"Updated group scoring for {len(updated_users)} users",
+            "updated_users": len(updated_users),
+            "group_id": result.group_id
         }
     

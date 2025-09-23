@@ -503,6 +503,7 @@ class PredictionService:
             "second_place": pred.second_place,
             "third_place": pred.third_place,
             "fourth_place": pred.fourth_place,
+            "points": pred.points,
             "created_at": pred.created_at.isoformat(),
             "updated_at": pred.updated_at.isoformat()
         } for pred in predictions]

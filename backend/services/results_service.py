@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from models.matches import Match
-from models.results import MatchResult
+from models.results import MatchResult, GroupStageResult
 from models.team import Team
 from .scoring_service import ScoringService
 
@@ -120,3 +120,95 @@ class ResultsService:
             "winner_team_id": result.winner_team_id,
             "message": "Match result updated successfully"
         }
+    
+    @staticmethod
+    def update_group_stage_result(
+        db: Session,
+        group_id: int,
+        first_place_team_id: int,
+        second_place_team_id: int,
+        third_place_team_id: int,
+        fourth_place_team_id: int
+    ) -> Dict[str, Any]:
+        """
+        Update or create a group stage result.
+        """
+        # Validate that all teams are different
+        team_ids = [first_place_team_id, second_place_team_id, third_place_team_id, fourth_place_team_id]
+        if len(set(team_ids)) != 4:
+            raise ValueError("All 4 teams must be different")
+        
+        # Check if result already exists
+        existing_result = db.query(GroupStageResult).filter(
+            GroupStageResult.group_id == group_id
+        ).first()
+        
+        if existing_result:
+            # Update existing result
+            existing_result.first_place = first_place_team_id
+            existing_result.second_place = second_place_team_id
+            existing_result.third_place = third_place_team_id
+            existing_result.fourth_place = fourth_place_team_id
+            result = existing_result
+        else:
+            # Create new result
+            result = GroupStageResult(
+                group_id=group_id,
+                first_place=first_place_team_id,
+                second_place=second_place_team_id,
+                third_place=third_place_team_id,
+                fourth_place=fourth_place_team_id
+            )
+            db.add(result)
+        
+        db.commit()
+        db.refresh(result)
+        
+        # Update scoring for all users who predicted this group
+        ScoringService.update_group_scoring_for_all_users(db, result)
+        
+        return {
+            "group_id": group_id,
+            "first_place": result.first_place,
+            "second_place": result.second_place,
+            "third_place": result.third_place,
+            "fourth_place": result.fourth_place,
+            "message": "Group stage result updated successfully"
+        }
+    
+    @staticmethod
+    def get_all_groups_with_results(db: Session) -> List[Dict[str, Any]]:
+        """
+        Get all groups with their current results (admin only).
+        """
+        from models.groups import Group
+        
+        groups = db.query(Group).all()
+        groups_with_results = []
+        
+        for group in groups:
+            # Get the result if it exists
+            result = db.query(GroupStageResult).filter(
+                GroupStageResult.group_id == group.id
+            ).first()
+            
+            group_data = {
+                "group_id": group.id,
+                "group_name": group.name,
+                "teams": [
+                    {"id": group.team_1_obj.id, "name": group.team_1_obj.name},
+                    {"id": group.team_2_obj.id, "name": group.team_2_obj.name},
+                    {"id": group.team_3_obj.id, "name": group.team_3_obj.name},
+                    {"id": group.team_4_obj.id, "name": group.team_4_obj.name}
+                ],
+                "result": {
+                    "first_place": result.first_place if result else None,
+                    "second_place": result.second_place if result else None,
+                    "third_place": result.third_place if result else None,
+                    "fourth_place": result.fourth_place if result else None
+                } if result else None
+            }
+            
+            groups_with_results.append(group_data)
+        
+        return groups_with_results

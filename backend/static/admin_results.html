@@ -3,61 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Match Results</title>
+    <title>Admin - Results Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .loading {
-            opacity: 0.6;
-            pointer-events: none;
-        }
+        .loading { opacity: 0.6; pointer-events: none; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-button { background: #f3f4f6; color: #6b7280; }
+        .tab-button.active { background: #3b82f6; color: white; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8">
-        <div class="max-w-6xl mx-auto">
+        <div class="max-w-7xl mx-auto">
             <div class="bg-white rounded-lg shadow-md p-6">
-                <h1 class="text-3xl font-bold text-gray-800 mb-6">Admin - Match Results</h1>
+                <h1 class="text-3xl font-bold text-gray-800 mb-6">Admin - Results Management</h1>
                 
-                <div id="loading" class="text-center py-8">
-                    <div class="text-xl">Loading matches...</div>
+                <!-- Tab Navigation -->
+                <div class="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg">
+                    <button 
+                        onclick="switchTab('matches')" 
+                        id="tab-matches"
+                        class="tab-button active px-4 py-2 rounded-md font-medium transition-colors"
+                    >
+                        Match Results
+                    </button>
+                    <button 
+                        onclick="switchTab('groups')" 
+                        id="tab-groups"
+                        class="tab-button px-4 py-2 rounded-md font-medium transition-colors"
+                    >
+                        Group Results
+                    </button>
                 </div>
-                
-                <div id="matches-container" class="hidden">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full bg-white border border-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Match ID
-                                    </th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Stage
-                                    </th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Date
-                                    </th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Home Team
-                                    </th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Away Team
-                                    </th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Result
-                                    </th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody id="matches-tbody" class="bg-white divide-y divide-gray-200">
-                                <!-- Matches will be populated here -->
-                            </tbody>
-                        </table>
+
+                <!-- Match Results Tab -->
+                <div id="matches-tab" class="tab-content active">
+                    <div id="matches-loading" class="text-center py-8">
+                        <div class="text-xl">Loading matches...</div>
                     </div>
                     
-                    <div id="no-matches" class="hidden text-center py-8 text-gray-500">
-                        No matches found with both teams defined.
+                    <div id="matches-container" class="hidden">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white border border-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Match ID</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stage</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Home Team</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Away Team</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="matches-tbody" class="bg-white divide-y divide-gray-200">
+                                    <!-- Matches will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div id="no-matches" class="hidden text-center py-8 text-gray-500">
+                            No matches found with both teams defined.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group Results Tab -->
+                <div id="groups-tab" class="tab-content">
+                    <div id="groups-loading" class="text-center py-8">
+                        <div class="text-xl">Loading groups...</div>
+                    </div>
+                    
+                    <div id="groups-container" class="hidden">
+                        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            <!-- Groups will be populated here -->
+                        </div>
+                        
+                        <div id="no-groups" class="hidden text-center py-8 text-gray-500">
+                            No groups found.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -66,7 +91,35 @@
 
     <script>
         let matches = [];
+        let groups = [];
         let editingMatchId = null;
+        let editingGroupId = null;
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Add active class to selected button
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            
+            // Load data for the selected tab
+            if (tabName === 'matches' && matches.length === 0) {
+                fetchMatches();
+            } else if (tabName === 'groups' && groups.length === 0) {
+                fetchGroups();
+            }
+        }
 
         // Fetch matches from API
         async function fetchMatches() {
@@ -77,11 +130,29 @@
                     renderMatches();
                 } else {
                     console.error('Failed to fetch matches');
-                    showError('Failed to fetch matches');
+                    showError('matches', 'Failed to fetch matches');
                 }
             } catch (error) {
                 console.error('Error fetching matches:', error);
-                showError('Error fetching matches');
+                showError('matches', 'Error fetching matches');
+            }
+        }
+
+        // Fetch groups from API
+        async function fetchGroups() {
+            try {
+                const response = await fetch('/api/admin/groups/results');
+                if (response.ok) {
+                    groups = await response.json();
+                    // Always try to render - function will handle if tab is not active
+                    renderGroups();
+                } else {
+                    console.error('Failed to fetch groups');
+                    showError('groups', 'Failed to fetch groups');
+                }
+            } catch (error) {
+                console.error('Error fetching groups:', error);
+                showError('groups', 'Error fetching groups');
             }
         }
 
@@ -89,8 +160,14 @@
         function renderMatches() {
             const tbody = document.getElementById('matches-tbody');
             const noMatches = document.getElementById('no-matches');
-            const loading = document.getElementById('loading');
+            const loading = document.getElementById('matches-loading');
             const container = document.getElementById('matches-container');
+
+            // Safety check - make sure elements exist
+            if (!tbody || !noMatches || !loading || !container) {
+                console.error('Required DOM elements not found for renderMatches');
+                return;
+            }
 
             loading.classList.add('hidden');
             container.classList.remove('hidden');
@@ -107,21 +184,11 @@
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50';
                 row.innerHTML = `
-                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${match.match_id}
-                    </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${getStageDisplayName(match.stage)}
-                    </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${formatDate(match.date)}
-                    </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${match.home_team.name}
-                    </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${match.away_team.name}
-                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${match.match_id}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${getStageDisplayName(match.stage)}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(match.date)}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">${match.home_team.name}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">${match.away_team.name}</td>
                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                         <span class="font-medium">
                             ${match.result.home_team_score !== null && match.result.away_team_score !== null
@@ -143,66 +210,121 @@
             });
         }
 
-        // Edit match function
+        // Render groups
+        function renderGroups() {
+            try {
+                const container = document.getElementById('groups-container');
+                const noGroups = document.getElementById('no-groups');
+                const loading = document.getElementById('groups-loading');
+
+                // Safety check - make sure elements exist
+                if (!container || !noGroups || !loading) {
+                    console.warn('Groups tab not active - skipping render');
+                    return;
+                }
+
+            loading.classList.add('hidden');
+            container.classList.remove('hidden');
+
+            if (groups.length === 0) {
+                noGroups.classList.remove('hidden');
+                return;
+            }
+
+            noGroups.classList.add('hidden');
+            container.innerHTML = '';
+
+            groups.forEach(group => {
+                const groupCard = document.createElement('div');
+                groupCard.className = 'bg-white border border-gray-200 rounded-lg p-4';
+                
+                let teamsHtml = '';
+                group.teams.forEach(team => {
+                    teamsHtml += `<div class="text-sm text-gray-600">${team.name}</div>`;
+                });
+
+                let resultHtml = '';
+                if (group.result) {
+                    resultHtml = `
+                        <div class="mt-4">
+                            <h4 class="font-semibold text-gray-800 mb-2">Current Result:</h4>
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-sm">
+                                    <span>1st:</span>
+                                    <span class="font-medium">${getTeamNameById(group.result.first_place, group.teams)}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span>2nd:</span>
+                                    <span class="font-medium">${getTeamNameById(group.result.second_place, group.teams)}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span>3rd:</span>
+                                    <span class="font-medium">${getTeamNameById(group.result.third_place, group.teams)}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span>4th:</span>
+                                    <span class="font-medium">${getTeamNameById(group.result.fourth_place, group.teams)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultHtml = '<div class="mt-4 text-sm text-gray-500">No result set</div>';
+                }
+
+                groupCard.innerHTML = `
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">Group ${group.group_name}</h3>
+                    <div class="mb-3">
+                        <h4 class="font-semibold text-gray-700 mb-1">Teams:</h4>
+                        ${teamsHtml}
+                    </div>
+                    ${resultHtml}
+                    <button
+                        onclick="editGroup(${group.group_id})"
+                        class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                    >
+                        ${group.result ? 'Edit Result' : 'Set Result'}
+                    </button>
+                `;
+                
+                container.appendChild(groupCard);
+            });
+            } catch (error) {
+                console.warn('Error rendering groups:', error);
+            }
+        }
+
+        // Edit match function (existing code)
         function editMatch(matchId) {
             const match = matches.find(m => m.match_id === matchId);
             if (!match) return;
 
             editingMatchId = matchId;
             
-            // Create edit form
             const editForm = document.createElement('div');
             editForm.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
             editForm.innerHTML = `
                 <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
                     <h2 class="text-xl font-bold mb-4">Edit Match Result</h2>
                     <div class="mb-4">
-                        <p class="text-sm text-gray-600 mb-2">
-                            ${match.home_team.name} vs ${match.away_team.name}
-                        </p>
+                        <p class="text-sm text-gray-600 mb-2">${match.home_team.name} vs ${match.away_team.name}</p>
                     </div>
                     <div class="flex items-center space-x-4 mb-6">
                         <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                ${match.home_team.name}
-                            </label>
-                            <input
-                                type="number"
-                                min="0"
-                                id="home-score"
-                                value="${match.result.home_team_score || ''}"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="0"
-                            />
+                            <label class="block text-sm font-medium text-gray-700 mb-1">${match.home_team.name}</label>
+                            <input type="number" min="0" id="home-score" value="${match.result.home_team_score || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
                         </div>
                         <div class="text-2xl font-bold text-gray-500">-</div>
                         <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                ${match.away_team.name}
-                            </label>
-                            <input
-                                type="number"
-                                min="0"
-                                id="away-score"
-                                value="${match.result.away_team_score || ''}"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="0"
-                            />
+                            <label class="block text-sm font-medium text-gray-700 mb-1">${match.away_team.name}</label>
+                            <input type="number" min="0" id="away-score" value="${match.result.away_team_score || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
                         </div>
                     </div>
                     <div class="flex space-x-3">
-                        <button
-                            onclick="saveResult(${matchId})"
-                            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-                        >
-                            Save
-                        </button>
-                        <button
-                            onclick="cancelEdit()"
-                            class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
-                        >
-                            Cancel
-                        </button>
+                        <button onclick="saveMatchResult(${matchId})" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Save</button>
+                        <button onclick="cancelEdit()" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
                     </div>
                 </div>
             `;
@@ -210,8 +332,68 @@
             document.body.appendChild(editForm);
         }
 
-        // Save result function
-        async function saveResult(matchId) {
+        // Edit group function
+        function editGroup(groupId) {
+            const group = groups.find(g => g.group_id === groupId);
+            if (!group) return;
+
+            editingGroupId = groupId;
+            
+            const editForm = document.createElement('div');
+            editForm.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            editForm.innerHTML = `
+                <div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+                    <h2 class="text-xl font-bold mb-4">Set Group ${group.group_name} Result</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">1st Place</label>
+                            <select id="first-place" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Select team</option>
+                                ${group.teams.map(team => `<option value="${team.id}">${team.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">2nd Place</label>
+                            <select id="second-place" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Select team</option>
+                                ${group.teams.map(team => `<option value="${team.id}">${team.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">3rd Place</label>
+                            <select id="third-place" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Select team</option>
+                                ${group.teams.map(team => `<option value="${team.id}">${team.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">4th Place</label>
+                            <select id="fourth-place" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Select team</option>
+                                ${group.teams.map(team => `<option value="${team.id}">${team.name}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex space-x-3 mt-6">
+                        <button onclick="saveGroupResult(${groupId})" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Save</button>
+                        <button onclick="cancelEdit()" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(editForm);
+            
+            // Pre-fill existing values if result exists (after adding to DOM)
+            if (group.result) {
+                document.getElementById('first-place').value = group.result.first_place;
+                document.getElementById('second-place').value = group.result.second_place;
+                document.getElementById('third-place').value = group.result.third_place;
+                document.getElementById('fourth-place').value = group.result.fourth_place;
+            }
+        }
+
+        // Save match result
+        async function saveMatchResult(matchId) {
             const homeScore = parseInt(document.getElementById('home-score').value);
             const awayScore = parseInt(document.getElementById('away-score').value);
 
@@ -223,9 +405,7 @@
             try {
                 const response = await fetch(`/api/admin/matches/${matchId}/result`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         home_team_score: homeScore,
                         away_team_score: awayScore
@@ -233,10 +413,9 @@
                 });
 
                 if (response.ok) {
-                    // Refresh the matches list
                     await fetchMatches();
                     cancelEdit();
-                    alert('Result updated successfully!');
+                    alert('Match result updated successfully!');
                 } else {
                     const errorData = await response.json();
                     alert(`Error: ${errorData.detail}`);
@@ -247,9 +426,57 @@
             }
         }
 
+        // Save group result
+        async function saveGroupResult(groupId) {
+            const firstPlace = parseInt(document.getElementById('first-place').value);
+            const secondPlace = parseInt(document.getElementById('second-place').value);
+            const thirdPlace = parseInt(document.getElementById('third-place').value);
+            const fourthPlace = parseInt(document.getElementById('fourth-place').value);
+
+            // Validate all selections
+            if (!firstPlace || !secondPlace || !thirdPlace || !fourthPlace) {
+                alert('Please select a team for all positions');
+                return;
+            }
+
+            // Validate unique teams
+            const teamIds = [firstPlace, secondPlace, thirdPlace, fourthPlace];
+            if (new Set(teamIds).size !== 4) {
+                alert('Each team must be selected only once');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/groups/${groupId}/result`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        first_place_team_id: firstPlace,
+                        second_place_team_id: secondPlace,
+                        third_place_team_id: thirdPlace,
+                        fourth_place_team_id: fourthPlace
+                    }),
+                });
+
+                if (response.ok) {
+                    // Always refresh groups data
+                    await fetchGroups();
+                    cancelEdit();
+                    alert('Group result updated successfully!');
+                } else {
+                    const errorData = await response.json();
+                    alert(`Error: ${errorData.detail}`);
+                }
+            } catch (error) {
+                console.error('Error updating group result:', error);
+                alert('Error updating group result');
+            }
+        }
+
         // Cancel edit function
         function cancelEdit() {
             editingMatchId = null;
+            editingGroupId = null;
             const editForm = document.querySelector('.fixed.inset-0');
             if (editForm) {
                 editForm.remove();
@@ -260,29 +487,32 @@
         function formatDate(dateString) {
             if (!dateString) return 'TBD';
             return new Date(dateString).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
+                year: 'numeric', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
             });
         }
 
         function getStageDisplayName(stage) {
             const stageMap = {
-                'group': 'Group Stage',
-                'round32': 'Round of 32',
-                'round16': 'Round of 16',
-                'quarter': 'Quarter Finals',
-                'semi': 'Semi Finals',
-                'final': 'Final'
+                'group': 'Group Stage', 'round32': 'Round of 32',
+                'round16': 'Round of 16', 'quarter': 'Quarter Finals',
+                'semi': 'Semi Finals', 'final': 'Final'
             };
             return stageMap[stage] || stage;
         }
 
-        function showError(message) {
-            const loading = document.getElementById('loading');
-            loading.innerHTML = `<div class="text-red-600">${message}</div>`;
+        function getTeamNameById(teamId, teams) {
+            const team = teams.find(t => t.id === teamId);
+            return team ? team.name : 'Unknown';
+        }
+
+        function showError(tab, message) {
+            const loading = document.getElementById(`${tab}-loading`);
+            if (loading) {
+                loading.innerHTML = `<div class="text-red-600">${message}</div>`;
+            } else {
+                console.error(`Error: ${message} (element ${tab}-loading not found)`);
+            }
         }
 
         // Initialize the page
