@@ -1233,11 +1233,13 @@
                 const existingResponse = await fetch('/api/users/1/third-place-predictions');
                 let existingPredictions = [];
                 let changedGroups = [];
+                let thirdPlacePoints = 0;
                 if (existingResponse.ok) {
                     const existingData = await existingResponse.json();
                     // אם יש חיזויים, לוקח את הראשון (אמור להיות רק אחד)
                     if (existingData && existingData.length > 0) {
                         existingPredictions = existingData[0].advancing_team_ids || [];
+                        thirdPlacePoints = existingData[0].points || 0;
                         // קבל את הקבוצות שהשתנו
                         if (existingData[0].changed_groups) {
                             changedGroups = existingData[0].changed_groups.split(',').filter(g => g.trim());
@@ -1262,7 +1264,14 @@
                         </div>
                         ` : ''}
                         <div style="background: #f7fafc; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
-                            <h3 style="color: #667eea; margin: 0 0 10px 0;">בחר 8 קבוצות שיעלו מתוך ${thirdPlaceTeams.length} קבוצות במקום 3</h3>
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 10px;">
+                                <h3 style="color: #667eea; margin: 0;">בחר 8 קבוצות שיעלו מתוך ${thirdPlaceTeams.length} קבוצות במקום 3</h3>
+                                ${existingPredictions.length > 0 ? `
+                                    <span style="background: ${thirdPlacePoints > 0 ? '#667eea' : '#e53e3e'}; color: white; padding: 4px 12px; border-radius: 15px; font-size: 0.9rem; font-weight: bold;">
+                                        ${thirdPlacePoints} נקודות
+                                    </span>
+                                ` : ''}
+                            </div>
                             <p style="color: #718096; margin: 0;">לחץ על קבוצה כדי לבחור אותה כעולה</p>
                         </div>
                         

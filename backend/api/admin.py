@@ -158,6 +158,17 @@ class GroupStageResultRequest(BaseModel):
     third_place_team_id: int
     fourth_place_team_id: int
 
+
+class ThirdPlaceResultRequest(BaseModel):
+    first_team_qualifying: int
+    second_team_qualifying: int
+    third_team_qualifying: int
+    fourth_team_qualifying: int
+    fifth_team_qualifying: int
+    sixth_team_qualifying: int
+    seventh_team_qualifying: int
+    eighth_team_qualifying: int
+
 @router.put("/admin/groups/{group_name}", response_model=Dict[str, Any])
 def update_group(group_name: str, update_request: UpdateGroupRequest, db: Session = Depends(get_db)):
     """
@@ -235,6 +246,41 @@ def update_group_stage_result(
             second_place_team_id=result_request.second_place_team_id,
             third_place_team_id=result_request.third_place_team_id,
             fourth_place_team_id=result_request.fourth_place_team_id
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/admin/third-place/results", response_model=Dict[str, Any])
+def get_third_place_results(db: Session = Depends(get_db)):
+    """
+    Get current third place qualifying results (admin only)
+    """
+    return ResultsService.get_third_place_results(db)
+
+
+@router.put("/admin/third-place/results", response_model=Dict[str, Any])
+def update_third_place_result(
+    request: ThirdPlaceResultRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Update or create third place qualifying results (admin only)
+    """
+    try:
+        result = ResultsService.update_third_place_result(
+            db=db,
+            first_team_qualifying=request.first_team_qualifying,
+            second_team_qualifying=request.second_team_qualifying,
+            third_team_qualifying=request.third_team_qualifying,
+            fourth_team_qualifying=request.fourth_team_qualifying,
+            fifth_team_qualifying=request.fifth_team_qualifying,
+            sixth_team_qualifying=request.sixth_team_qualifying,
+            seventh_team_qualifying=request.seventh_team_qualifying,
+            eighth_team_qualifying=request.eighth_team_qualifying
         )
         return result
     except ValueError as e:

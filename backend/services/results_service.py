@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from models.matches import Match
-from models.results import MatchResult, GroupStageResult
+from models.results import MatchResult, GroupStageResult, ThirdPlaceResult
 from models.team import Team
 from .scoring_service import ScoringService
 
@@ -212,3 +212,133 @@ class ResultsService:
             groups_with_results.append(group_data)
         
         return groups_with_results
+    
+    @staticmethod
+    def get_third_place_results(db: Session) -> Dict[str, Any]:
+        """
+        Get current third place qualifying results and eligible teams (admin only).
+        """
+        result = db.query(ThirdPlaceResult).first()
+        
+        # Get eligible teams (teams that finished in 3rd place)
+        eligible_teams = ResultsService.get_third_place_teams_from_groups(db)
+        
+        response_data = {
+            "eligible_teams": eligible_teams,
+            "has_result": False,
+            "message": "No third place results set yet"
+        }
+        
+        if result:
+            response_data.update({
+                "has_result": True,
+                "result": {
+                    "first_team_qualifying": result.first_team_qualifying,
+                    "second_team_qualifying": result.second_team_qualifying,
+                    "third_team_qualifying": result.third_team_qualifying,
+                    "fourth_team_qualifying": result.fourth_team_qualifying,
+                    "fifth_team_qualifying": result.fifth_team_qualifying,
+                    "sixth_team_qualifying": result.sixth_team_qualifying,
+                    "seventh_team_qualifying": result.seventh_team_qualifying,
+                    "eighth_team_qualifying": result.eighth_team_qualifying
+                }
+            })
+        
+        return response_data
+    
+    @staticmethod
+    def update_third_place_result(
+        db: Session,
+        first_team_qualifying: int,
+        second_team_qualifying: int,
+        third_team_qualifying: int,
+        fourth_team_qualifying: int,
+        fifth_team_qualifying: int,
+        sixth_team_qualifying: int,
+        seventh_team_qualifying: int,
+        eighth_team_qualifying: int
+    ) -> Dict[str, Any]:
+        """
+        Update or create third place qualifying results.
+        """
+        # Validate that all teams are different
+        team_ids = [
+            first_team_qualifying, second_team_qualifying, third_team_qualifying, fourth_team_qualifying,
+            fifth_team_qualifying, sixth_team_qualifying, seventh_team_qualifying, eighth_team_qualifying
+        ]
+        if len(set(team_ids)) != 8:
+            raise ValueError("All 8 teams must be different")
+        
+        # Check if result already exists
+        existing_result = db.query(ThirdPlaceResult).first()
+        
+        if existing_result:
+            # Update existing result
+            existing_result.first_team_qualifying = first_team_qualifying
+            existing_result.second_team_qualifying = second_team_qualifying
+            existing_result.third_team_qualifying = third_team_qualifying
+            existing_result.fourth_team_qualifying = fourth_team_qualifying
+            existing_result.fifth_team_qualifying = fifth_team_qualifying
+            existing_result.sixth_team_qualifying = sixth_team_qualifying
+            existing_result.seventh_team_qualifying = seventh_team_qualifying
+            existing_result.eighth_team_qualifying = eighth_team_qualifying
+            result = existing_result
+        else:
+            # Create new result
+            result = ThirdPlaceResult(
+                first_team_qualifying=first_team_qualifying,
+                second_team_qualifying=second_team_qualifying,
+                third_team_qualifying=third_team_qualifying,
+                fourth_team_qualifying=fourth_team_qualifying,
+                fifth_team_qualifying=fifth_team_qualifying,
+                sixth_team_qualifying=sixth_team_qualifying,
+                seventh_team_qualifying=seventh_team_qualifying,
+                eighth_team_qualifying=eighth_team_qualifying
+            )
+            db.add(result)
+        
+        db.commit()
+        db.refresh(result)
+        
+        # Update scoring for all users who predicted third place qualifying teams
+        ScoringService.update_third_place_scoring_for_all_users(db, result)
+        
+        return {
+            "first_team_qualifying": result.first_team_qualifying,
+            "second_team_qualifying": result.second_team_qualifying,
+            "third_team_qualifying": result.third_team_qualifying,
+            "fourth_team_qualifying": result.fourth_team_qualifying,
+            "fifth_team_qualifying": result.fifth_team_qualifying,
+            "sixth_team_qualifying": result.sixth_team_qualifying,
+            "seventh_team_qualifying": result.seventh_team_qualifying,
+            "eighth_team_qualifying": result.eighth_team_qualifying,
+            "message": "Third place qualifying results updated successfully"
+        }
+    
+    @staticmethod
+    def get_third_place_teams_from_groups(db: Session) -> List[Dict[str, Any]]:
+        """
+        Get all teams that finished in 3rd place from group stage results.
+        This is used to populate the dropdown for third place qualifying selection.
+        """
+        from models.groups import Group
+        
+        groups = db.query(Group).all()
+        third_place_teams = []
+        
+        for group in groups:
+            result = db.query(GroupStageResult).filter(
+                GroupStageResult.group_id == group.id
+            ).first()
+            
+            if result and result.third_place:
+                # Get team details
+                team = db.query(Team).filter(Team.id == result.third_place).first()
+                if team:
+                    third_place_teams.append({
+                        "id": team.id,
+                        "name": team.name,
+                        "group_name": group.name
+                    })
+        
+        return third_place_teams

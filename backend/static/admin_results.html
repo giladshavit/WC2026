@@ -35,6 +35,13 @@
                     >
                         Group Results
                     </button>
+                    <button 
+                        onclick="switchTab('third-place')" 
+                        id="tab-third-place"
+                        class="tab-button px-4 py-2 rounded-md font-medium transition-colors"
+                    >
+                        Third Place Results
+                    </button>
                 </div>
 
                 <!-- Match Results Tab -->
@@ -85,6 +92,69 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Third Place Results Tab -->
+                <div id="third-place-tab" class="tab-content">
+                    <div id="third-place-loading" class="text-center py-8">
+                        <div class="text-xl">Loading third place results...</div>
+                    </div>
+                    
+                    <div id="third-place-container" class="hidden">
+                        <div class="mb-6">
+                            <button 
+                                onclick="editThirdPlaceResult()" 
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                            >
+                                Set Third Place Results
+                            </button>
+                            <p class="text-sm text-gray-600 mt-2">
+                                Note: Only teams that finished in 3rd place from group stage results are available for selection.
+                            </p>
+                        </div>
+                        
+                        <div id="third-place-result-display" class="hidden">
+                            <h3 class="text-lg font-semibold mb-4">Current Third Place Qualifying Teams:</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div class="bg-gray-100 p-3 rounded-lg text-center">
+                                    <div class="font-medium">1st</div>
+                                    <div id="third-place-1st" class="text-sm text-gray-600"></div>
+                                </div>
+                                <div class="bg-gray-100 p-3 rounded-lg text-center">
+                                    <div class="font-medium">2nd</div>
+                                    <div id="third-place-2nd" class="text-sm text-gray-600"></div>
+                                </div>
+                                <div class="bg-gray-100 p-3 rounded-lg text-center">
+                                    <div class="font-medium">3rd</div>
+                                    <div id="third-place-3rd" class="text-sm text-gray-600"></div>
+                                </div>
+                                <div class="bg-gray-100 p-3 rounded-lg text-center">
+                                    <div class="font-medium">4th</div>
+                                    <div id="third-place-4th" class="text-sm text-gray-600"></div>
+                                </div>
+                                <div class="bg-gray-100 p-3 rounded-lg text-center">
+                                    <div class="font-medium">5th</div>
+                                    <div id="third-place-5th" class="text-sm text-gray-600"></div>
+                                </div>
+                                <div class="bg-gray-100 p-3 rounded-lg text-center">
+                                    <div class="font-medium">6th</div>
+                                    <div id="third-place-6th" class="text-sm text-gray-600"></div>
+                                </div>
+                                <div class="bg-gray-100 p-3 rounded-lg text-center">
+                                    <div class="font-medium">7th</div>
+                                    <div id="third-place-7th" class="text-sm text-gray-600"></div>
+                                </div>
+                                <div class="bg-gray-100 p-3 rounded-lg text-center">
+                                    <div class="font-medium">8th</div>
+                                    <div id="third-place-8th" class="text-sm text-gray-600"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="no-third-place-result" class="hidden text-center py-8 text-gray-500">
+                            No third place results set yet.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -92,6 +162,7 @@
     <script>
         let matches = [];
         let groups = [];
+        let thirdPlaceResult = null;
         let editingMatchId = null;
         let editingGroupId = null;
 
@@ -118,6 +189,8 @@
                 fetchMatches();
             } else if (tabName === 'groups' && groups.length === 0) {
                 fetchGroups();
+            } else if (tabName === 'third-place') {
+                fetchThirdPlaceResults();
             }
         }
 
@@ -513,6 +586,188 @@
             } else {
                 console.error(`Error: ${message} (element ${tab}-loading not found)`);
             }
+        }
+
+        // Fetch third place results from API
+        async function fetchThirdPlaceResults() {
+            try {
+                const response = await fetch('/api/admin/third-place/results');
+                if (response.ok) {
+                    const data = await response.json();
+                    thirdPlaceResult = data;
+                    renderThirdPlaceResults();
+                } else {
+                    console.error('Error fetching third place results:', response.statusText);
+                    showError('third-place', 'Error loading third place results');
+                }
+            } catch (error) {
+                console.error('Error fetching third place results:', error);
+                showError('third-place', 'Error loading third place results');
+            }
+        }
+
+        // Render third place results
+        function renderThirdPlaceResults() {
+            try {
+                const loading = document.getElementById('third-place-loading');
+                const container = document.getElementById('third-place-container');
+                const resultDisplay = document.getElementById('third-place-result-display');
+                const noResult = document.getElementById('no-third-place-result');
+
+                if (!loading || !container || !resultDisplay || !noResult) {
+                    console.warn('Required DOM elements not found for renderThirdPlaceResults');
+                    return;
+                }
+
+                loading.classList.add('hidden');
+                container.classList.remove('hidden');
+
+                if (thirdPlaceResult && thirdPlaceResult.has_result) {
+                    const result = thirdPlaceResult.result;
+                    const eligibleTeams = thirdPlaceResult.eligible_teams || [];
+                    
+                    // Display current results
+                    document.getElementById('third-place-1st').textContent = getTeamNameById(result.first_team_qualifying, eligibleTeams);
+                    document.getElementById('third-place-2nd').textContent = getTeamNameById(result.second_team_qualifying, eligibleTeams);
+                    document.getElementById('third-place-3rd').textContent = getTeamNameById(result.third_team_qualifying, eligibleTeams);
+                    document.getElementById('third-place-4th').textContent = getTeamNameById(result.fourth_team_qualifying, eligibleTeams);
+                    document.getElementById('third-place-5th').textContent = getTeamNameById(result.fifth_team_qualifying, eligibleTeams);
+                    document.getElementById('third-place-6th').textContent = getTeamNameById(result.sixth_team_qualifying, eligibleTeams);
+                    document.getElementById('third-place-7th').textContent = getTeamNameById(result.seventh_team_qualifying, eligibleTeams);
+                    document.getElementById('third-place-8th').textContent = getTeamNameById(result.eighth_team_qualifying, eligibleTeams);
+                    
+                    resultDisplay.classList.remove('hidden');
+                    noResult.classList.add('hidden');
+                } else {
+                    resultDisplay.classList.add('hidden');
+                    noResult.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.warn('Error rendering third place results:', error);
+            }
+        }
+
+        // Edit third place result
+        async function editThirdPlaceResult() {
+            // Get both results and eligible teams in one request
+            let teams = [];
+            try {
+                const response = await fetch('/api/admin/third-place/results');
+                if (response.ok) {
+                    const data = await response.json();
+                    teams = data.eligible_teams || [];
+                }
+            } catch (error) {
+                console.error('Error fetching third place data:', error);
+                alert('Error loading third place data');
+                return;
+            }
+            
+            if (teams.length === 0) {
+                alert('No teams available. Please set group stage results first.');
+                return;
+            }
+
+            // Create modal form
+            const editForm = document.createElement('div');
+            editForm.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            editForm.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                    <h3 class="text-xl font-bold mb-4">Set Third Place Qualifying Teams</h3>
+                    
+                    <form id="third-place-form">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            ${[1,2,3,4,5,6,7,8].map(pos => `
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">${pos}${pos === 1 ? 'st' : pos === 2 ? 'nd' : pos === 3 ? 'rd' : 'th'} Place</label>
+                                    <select id="third-place-${pos}" class="w-full p-2 border border-gray-300 rounded-md" required>
+                                        <option value="">Select Team</option>
+                                        ${teams.map(team => `<option value="${team.id}">${team.name} (Group ${team.group_name})</option>`).join('')}
+                                    </select>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3">
+                            <button type="button" onclick="cancelEdit()" class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                                Cancel
+                            </button>
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
+                                Save Results
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+
+            document.body.appendChild(editForm);
+
+            // Pre-fill existing values if result exists
+            if (thirdPlaceResult && thirdPlaceResult.has_result) {
+                const result = thirdPlaceResult.result;
+                const positions = [
+                    'first_team_qualifying', 'second_team_qualifying', 'third_team_qualifying', 'fourth_team_qualifying',
+                    'fifth_team_qualifying', 'sixth_team_qualifying', 'seventh_team_qualifying', 'eighth_team_qualifying'
+                ];
+                
+                positions.forEach((pos, index) => {
+                    const select = document.getElementById(`third-place-${index + 1}`);
+                    if (select && result[pos]) {
+                        select.value = result[pos];
+                    }
+                });
+            }
+
+            // Handle form submission
+            editForm.querySelector('#third-place-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const positions = [1,2,3,4,5,6,7,8];
+                const teamIds = positions.map(pos => {
+                    const select = document.getElementById(`third-place-${pos}`);
+                    return parseInt(select.value);
+                });
+
+                // Validate that all teams are selected and different
+                if (teamIds.some(id => !id)) {
+                    alert('Please select all 8 teams');
+                    return;
+                }
+
+                if (new Set(teamIds).size !== 8) {
+                    alert('All 8 teams must be different');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/admin/third-place/results', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            first_team_qualifying: teamIds[0],
+                            second_team_qualifying: teamIds[1],
+                            third_team_qualifying: teamIds[2],
+                            fourth_team_qualifying: teamIds[3],
+                            fifth_team_qualifying: teamIds[4],
+                            sixth_team_qualifying: teamIds[5],
+                            seventh_team_qualifying: teamIds[6],
+                            eighth_team_qualifying: teamIds[7]
+                        }),
+                    });
+
+                    if (response.ok) {
+                        await fetchThirdPlaceResults();
+                        cancelEdit();
+                        alert('Third place results updated successfully!');
+                    } else {
+                        const errorData = await response.json();
+                        alert(`Error: ${errorData.detail}`);
+                    }
+                } catch (error) {
+                    console.error('Error updating third place results:', error);
+                    alert('Error updating third place results');
+                }
+            });
         }
 
         // Initialize the page

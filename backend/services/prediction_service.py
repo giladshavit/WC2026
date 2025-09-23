@@ -591,6 +591,7 @@ class PredictionService:
                 pred.eighth_team_qualifying
             ],
             "changed_groups": pred.changed_groups,  # Groups with changed 3rd place
+            "points": pred.points,  # Points awarded for this third place prediction
             "created_at": pred.created_at.isoformat(),
             "updated_at": pred.updated_at.isoformat()
         } for pred in predictions]

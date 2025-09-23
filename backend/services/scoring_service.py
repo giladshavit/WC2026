@@ -1,9 +1,10 @@
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from models.predictions import MatchPrediction, GroupStagePrediction
-from models.results import MatchResult, GroupStageResult
+from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction
+from models.results import MatchResult, GroupStageResult, ThirdPlaceResult
 from models.user import User
+from models.team import Team
 
 
 class ScoringService:
@@ -23,6 +24,12 @@ class ScoringService:
         'third_place': 3,     # פגיעה מדויקת במקום 3
         'fourth_place': 0,    # מקום 4 - אין ניקוד
         'wrong': 0           # קבוצה לא נכונה
+    }
+    
+    # חוקי ניקוד לעולות ממקום 3 - לפי דיוק בתים
+    THIRD_PLACE_RULES = {
+        'bonus_per_extra_group': 5,  # 5 נקודות לכל בית נוסף מעבר ל-4 בתים נכונים
+        'minimum_groups_for_points': 4  # צריך לפחות 5 בתים נכונים כדי לקבל נקודות
     }
     
     @staticmethod
@@ -228,5 +235,132 @@ class ScoringService:
             "message": f"Updated group scoring for {len(updated_users)} users",
             "updated_users": len(updated_users),
             "group_id": result.group_id
+        }
+    
+    @staticmethod
+    def calculate_third_place_prediction_points(prediction: ThirdPlacePrediction, result: ThirdPlaceResult, db: Session) -> int:
+        """
+        Calculate points for a third place prediction based on group accuracy.
+        
+        Scoring logic:
+        - Get list of groups from user's prediction
+        - Get list of groups from actual results
+        - Find common groups (correct predictions)
+        - Award 5 points for each group beyond the first 4 correct groups
+        
+        Args:
+            prediction: ThirdPlacePrediction object
+            result: ThirdPlaceResult object
+            db: Database session for team lookups
+            
+        Returns:
+            int: Total points awarded for this third place prediction
+        """
+        if not prediction or not result:
+            return 0
+        
+        # Get all teams from prediction
+        prediction_teams = [
+            prediction.first_team_qualifying,
+            prediction.second_team_qualifying,
+            prediction.third_team_qualifying,
+            prediction.fourth_team_qualifying,
+            prediction.fifth_team_qualifying,
+            prediction.sixth_team_qualifying,
+            prediction.seventh_team_qualifying,
+            prediction.eighth_team_qualifying
+        ]
+        
+        # Get all teams from actual results
+        result_teams = [
+            result.first_team_qualifying,
+            result.second_team_qualifying,
+            result.third_team_qualifying,
+            result.fourth_team_qualifying,
+            result.fifth_team_qualifying,
+            result.sixth_team_qualifying,
+            result.seventh_team_qualifying,
+            result.eighth_team_qualifying
+        ]
+        
+        # Get group names for prediction teams
+        prediction_groups = set()
+        for team_id in prediction_teams:
+            group_name = ScoringService.get_team_group_name(team_id, db)
+            if group_name:
+                prediction_groups.add(group_name)
+        
+        # Get group names for result teams
+        result_groups = set()
+        for team_id in result_teams:
+            group_name = ScoringService.get_team_group_name(team_id, db)
+            if group_name:
+                result_groups.add(group_name)
+        
+        # Find common groups (correct predictions)
+        common_groups = prediction_groups.intersection(result_groups)
+        correct_count = len(common_groups)
+        
+        # Calculate points: bonus points for each correct group beyond the minimum
+        minimum_groups = ScoringService.THIRD_PLACE_RULES['minimum_groups_for_points']
+        bonus_per_group = ScoringService.THIRD_PLACE_RULES['bonus_per_extra_group']
+        
+        if correct_count <= minimum_groups:
+            return 0
+        else:
+            bonus_groups = correct_count - minimum_groups
+            return bonus_groups * bonus_per_group
+    
+    @staticmethod
+    def get_team_group_name(team_id: int, db: Session) -> Optional[str]:
+        """
+        Get the group name for a given team ID.
+        
+        Args:
+            team_id: ID of the team
+            db: Database session
+            
+        Returns:
+            str: Group name (A, B, C, etc.) or None if not found
+        """
+        team = db.query(Team).filter(Team.id == team_id).first()
+        return team.group_letter if team and team.group_letter else None
+    
+    @staticmethod
+    def update_third_place_scoring_for_all_users(db: Session, result: ThirdPlaceResult) -> Dict[str, Any]:
+        """
+        Update scoring for all users who predicted third place qualifying teams.
+        This is called when third place results are updated.
+        
+        Args:
+            db: Database session
+            result: ThirdPlaceResult object that was just updated
+            
+        Returns:
+            Dict with summary of the operation
+        """
+        # Get all users who predicted third place qualifying teams
+        predictions = db.query(ThirdPlacePrediction).all()
+        
+        updated_users = set()
+        for prediction in predictions:
+            # Calculate new points for this prediction
+            new_points = ScoringService.calculate_third_place_prediction_points(prediction, result, db)
+            
+            # Update prediction points
+            old_points = prediction.points
+            prediction.points = new_points
+            
+            # Update user total points
+            user = db.query(User).filter(User.id == prediction.user_id).first()
+            if user:
+                user.total_points = user.total_points - old_points + new_points
+                updated_users.add(prediction.user_id)
+        
+        db.commit()
+        
+        return {
+            "message": f"Updated third place scoring for {len(updated_users)} users",
+            "updated_users": len(updated_users)
         }
     
