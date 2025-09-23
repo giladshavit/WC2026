@@ -68,16 +68,20 @@ def build_knockout_bracket():
         
         print(f"Found combination ID {combination.id}")
         
-        # Step 4: Create simple mapping
+        # Step 4: Create mapping for third-place teams based on the combination
+        # The combination columns are: match_1A, match_1B, match_1D, match_1E, match_1G, match_1I, match_1K, match_1L
+        # But the templates use different mappings:
+        # 3rd_team_1 -> 1E, 3rd_team_2 -> 1I, 3rd_team_3 -> 1A, 3rd_team_4 -> 1L
+        # 3rd_team_5 -> 1D, 3rd_team_6 -> 1G, 3rd_team_7 -> 1B, 3rd_team_8 -> 1K
         third_team_mapping = {
-            '3rd_team_1': 'match_1A',
-            '3rd_team_2': 'match_1B', 
-            '3rd_team_3': 'match_1D',
-            '3rd_team_4': 'match_1E',
-            '3rd_team_5': 'match_1G',
-            '3rd_team_6': 'match_1I',
-            '3rd_team_7': 'match_1K',
-            '3rd_team_8': 'match_1L'
+            '3rd_team_1': 'match_1E',  # 3rd_team_1 -> 1E -> match_1E
+            '3rd_team_2': 'match_1I',  # 3rd_team_2 -> 1I -> match_1I
+            '3rd_team_3': 'match_1A',  # 3rd_team_3 -> 1A -> match_1A
+            '3rd_team_4': 'match_1L',  # 3rd_team_4 -> 1L -> match_1L
+            '3rd_team_5': 'match_1D',  # 3rd_team_5 -> 1D -> match_1D
+            '3rd_team_6': 'match_1G',  # 3rd_team_6 -> 1G -> match_1G
+            '3rd_team_7': 'match_1B',  # 3rd_team_7 -> 1B -> match_1B
+            '3rd_team_8': 'match_1K'   # 3rd_team_8 -> 1K -> match_1K
         }
         
         # Step 5: Create KnockoutStagePrediction records
