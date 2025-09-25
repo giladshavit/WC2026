@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 from services.prediction_service import PredictionService, PlacesPredictions
 from services.group_service import GroupService
+from services.stage_manager import StageManager, Stage
+from models.predictions import KnockoutStagePrediction, ThirdPlacePrediction
 from database import get_db
 
 router = APIRouter()
@@ -68,6 +70,14 @@ def create_or_update_group_prediction(
     Create or update a group prediction
     """
     try:
+        # Check if group predictions are editable at current stage
+        current_stage = StageManager.get_current_stage(db)
+        if current_stage.value > Stage.GROUP_CYCLE_2.value:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Group predictions are no longer editable. Current stage: {current_stage.name}"
+            )
+        
         # Create PlacesPredictions object
         places = PlacesPredictions(
             first_place=group_prediction.first_place,
@@ -106,6 +116,14 @@ def create_or_update_batch_group_predictions(
     """
     Create or update multiple group predictions
     """
+    # Check if group predictions are editable at current stage
+    current_stage = StageManager.get_current_stage(db)
+    if current_stage.value > Stage.GROUP_CYCLE_2.value:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Group predictions are no longer editable. Current stage: {current_stage.name}"
+        )
+    
     result = PredictionService.create_or_update_batch_group_predictions(
         db, batch_request.user_id, batch_request.predictions
     )
@@ -123,6 +141,14 @@ def create_or_update_third_place_prediction(
     """
     Create or update a third-place prediction
     """
+    # Check if third place predictions are editable at current stage
+    current_stage = StageManager.get_current_stage(db)
+    if current_stage.value > Stage.GROUP_CYCLE_3.value:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Third place predictions are no longer editable. Current stage: {current_stage.name}"
+        )
+    
     result = PredictionService.create_or_update_third_place_prediction(
         db, third_place_prediction.user_id, third_place_prediction.team_ids
     )
@@ -193,6 +219,14 @@ def create_or_update_match_prediction(
     """
     Create or update a single match prediction
     """
+    # Check if match predictions are editable (they can be edited until group stage starts)
+    current_stage = StageManager.get_current_stage(db)
+    if current_stage.value > Stage.PRE_GROUP_STAGE.value:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Match predictions are no longer editable. Current stage: {current_stage.name}"
+        )
+    
     result = PredictionService.create_or_update_match_prediction(
         db, user_id, match_id, prediction.home_score, prediction.away_score
     )
@@ -244,6 +278,14 @@ def create_or_update_batch_predictions(
     """
     Create or update multiple predictions
     """
+    # Check if match predictions are editable (they can be edited until group stage starts)
+    current_stage = StageManager.get_current_stage(db)
+    if current_stage.value > Stage.PRE_GROUP_STAGE.value:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Match predictions are no longer editable. Current stage: {current_stage.name}"
+        )
+    
     result = PredictionService.create_or_update_batch_predictions(
         db, batch_request.user_id, batch_request.predictions
     )
@@ -278,6 +320,20 @@ def update_knockout_prediction_winner(
     Update a knockout prediction - choose winner and update next stages
     """
     try:
+        # Check if knockout prediction is editable
+        prediction = db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.id == prediction_id
+        ).first()
+        
+        if not prediction:
+            raise HTTPException(status_code=404, detail="Knockout prediction not found")
+        
+        if not prediction.is_editable:
+            raise HTTPException(
+                status_code=403,
+                detail=f"This knockout prediction is no longer editable. Stage: {prediction.stage}"
+            )
+        
         result = PredictionService.update_knockout_prediction_winner(db, prediction_id, request)
         return result
     except HTTPException:

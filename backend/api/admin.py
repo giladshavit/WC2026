@@ -8,6 +8,7 @@ from services.match_service import MatchService
 from services.team_service import TeamService
 from services.group_service import GroupService
 from services.results_service import ResultsService
+from services.stage_manager import StageManager, Stage
 from models.groups import Group
 from database import get_db
 
@@ -306,3 +307,59 @@ def update_third_place_result(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+# Stage management endpoints
+@router.get("/admin/stage/current")
+def get_current_stage(db: Session = Depends(get_db)):
+    """
+    Get current tournament stage (admin only)
+    """
+    current_stage = StageManager.get_current_stage(db)
+    return {
+        "stage": current_stage.name,
+        "stage_value": current_stage.value,
+        "penalty": current_stage.get_penalty_for()
+    }
+
+@router.put("/admin/stage/update")
+def update_tournament_stage(stage: str, db: Session = Depends(get_db)):
+    """
+    Update tournament stage to specific stage (admin only)
+    """
+    try:
+        new_stage = Stage[stage.upper()]
+        StageManager.set_current_stage(new_stage, db)
+        return {
+            "message": f"Stage updated to {stage}",
+            "stage": new_stage.name,
+            "stage_value": new_stage.value,
+            "penalty": new_stage.get_penalty_for()
+        }
+    except KeyError:
+        raise HTTPException(status_code=400, detail="Invalid stage")
+
+@router.post("/admin/stage/advance")
+def advance_tournament_stage(db: Session = Depends(get_db)):
+    """
+    Advance tournament stage by one (admin only)
+    """
+    new_stage = StageManager.advance_stage(db)
+    return {
+        "message": f"Stage advanced to {new_stage.name}",
+        "stage": new_stage.name,
+        "stage_value": new_stage.value,
+        "penalty": new_stage.get_penalty_for()
+    }
+
+@router.post("/admin/stage/reset")
+def reset_tournament_stage(db: Session = Depends(get_db)):
+    """
+    Reset tournament stage to beginning and make all predictions editable (admin only)
+    """
+    new_stage = StageManager.reset_stage(db)
+    return {
+        "message": "Tournament stage reset to beginning",
+        "stage": new_stage.name,
+        "stage_value": new_stage.value,
+        "penalty": new_stage.get_penalty_for()
+    }

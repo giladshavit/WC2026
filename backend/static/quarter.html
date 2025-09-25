@@ -151,6 +151,23 @@
             color: #2d5a2d;
         }
 
+        .team-name.locked {
+            flex: 1;
+            padding: 15px 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: #f8f9fa;
+            font-size: 1.1em;
+            font-weight: bold;
+            text-align: center;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+
         .vs {
             font-size: 1.5em;
             color: #666;
@@ -305,26 +322,35 @@
                 // קביעת טקסט הסטטוס
                 const statusText = getStatusText(prediction.status);
                 
+                // בדיקה אם הניחוש ניתן לעריכה
+                const isEditable = prediction.is_editable === true;
+                
                 matchCard.innerHTML = `
                     <div class="status-indicator ${prediction.status || 'must-change-predict'}">${statusText}</div>
                     <div class="match-header">
                         <div class="match-id">משחק ${prediction.template_match_id}</div>
                         <div class="match-teams">
-                            <button class="team-button ${team1Selected}" 
-                                    data-prediction-id="${prediction.id}" 
-                                    data-team="1" 
-                                    data-team-name="${team1}"
-                                    onclick="selectWinner(this)">
-                                ${team1}
-                            </button>
-                            <div class="vs">VS</div>
-                            <button class="team-button ${team2Selected}" 
-                                    data-prediction-id="${prediction.id}" 
-                                    data-team="2" 
-                                    data-team-name="${team2}"
-                                    onclick="selectWinner(this)">
-                                ${team2}
-                            </button>
+                            ${isEditable ? `
+                                <button class="team-button ${team1Selected}" 
+                                        data-prediction-id="${prediction.id}" 
+                                        data-team="1" 
+                                        data-team-name="${team1}"
+                                        onclick="selectWinner(this)">
+                                    ${team1}
+                                </button>
+                                <div class="vs">VS</div>
+                                <button class="team-button ${team2Selected}" 
+                                        data-prediction-id="${prediction.id}" 
+                                        data-team="2" 
+                                        data-team-name="${team2}"
+                                        onclick="selectWinner(this)">
+                                    ${team2}
+                                </button>
+                            ` : `
+                                <div class="team-name locked">${team1}</div>
+                                <div class="vs">VS</div>
+                                <div class="team-name locked">${team2}</div>
+                            `}
                         </div>
                         <div class="match-template">${prediction.template}</div>
                         ${prediction.points !== null && prediction.points !== undefined ? `

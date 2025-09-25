@@ -57,7 +57,8 @@ class MatchService:
                 "home_score": prediction.home_score if prediction else None,
                 "away_score": prediction.away_score if prediction else None,
                 "predicted_winner": prediction.predicted_winner if prediction else None,
-                "points": prediction.points if prediction else None
+                "points": prediction.points if prediction else None,
+                "is_editable": prediction.is_editable if prediction else None
             },
             "can_edit": match.status == "scheduled",
         }

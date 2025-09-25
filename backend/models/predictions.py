@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from .team import Team
 from .base import Base
@@ -14,6 +14,7 @@ class MatchPrediction(Base):
     away_score = Column(Integer, nullable=False)
     predicted_winner = Column(Integer, ForeignKey("teams.id"), nullable=True)  # NULL for draw
     points = Column(Integer, default=0, nullable=False)  # Points awarded for this prediction
+    is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -33,6 +34,7 @@ class GroupStagePrediction(Base):
     third_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
     fourth_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
     points = Column(Integer, default=0, nullable=False)  # Points awarded for this group prediction
+    is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -60,6 +62,7 @@ class ThirdPlacePrediction(Base):
     eighth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
     changed_groups = Column(String(50), nullable=True)  # JSON string like "A,B,C" for groups with changed 3rd place
     points = Column(Integer, default=0, nullable=False)  # Points awarded for this third place prediction
+    is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -88,6 +91,7 @@ class KnockoutStagePrediction(Base):
     winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     status = Column(String(20), nullable=True, default="gray")  # green/yellow/red/gray
     points = Column(Integer, default=0, nullable=False)  # Points earned for this prediction
+    is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

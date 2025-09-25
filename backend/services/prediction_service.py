@@ -56,7 +56,9 @@ class PredictionService:
             "match_id": prediction.match_id,
             "home_score": prediction.home_score,
             "away_score": prediction.away_score,
-            "predicted_winner": prediction.predicted_winner
+            "predicted_winner": prediction.predicted_winner,
+            "points": prediction.points,
+            "is_editable": prediction.is_editable
         }
     
     @staticmethod
@@ -504,6 +506,7 @@ class PredictionService:
             "third_place": pred.third_place,
             "fourth_place": pred.fourth_place,
             "points": pred.points,
+            "is_editable": pred.is_editable,
             "created_at": pred.created_at.isoformat(),
             "updated_at": pred.updated_at.isoformat()
         } for pred in predictions]
@@ -592,6 +595,7 @@ class PredictionService:
             ],
             "changed_groups": pred.changed_groups,  # Groups with changed 3rd place
             "points": pred.points,  # Points awarded for this third place prediction
+            "is_editable": pred.is_editable,
             "created_at": pred.created_at.isoformat(),
             "updated_at": pred.updated_at.isoformat()
         } for pred in predictions]
@@ -703,6 +707,7 @@ class PredictionService:
                     "winner_team_id": prediction.winner_team_id,
                     "status": prediction.status,
                     "points": prediction.points,
+                    "is_editable": prediction.is_editable,
                     "created_at": prediction.created_at,
                     "updated_at": prediction.updated_at,
                     # Add team names if they exist
