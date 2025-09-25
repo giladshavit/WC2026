@@ -9,9 +9,20 @@ class MatchResult(Base):
     # Scores for a specific match. Keep minimal schema by design.
     id = Column(Integer, primary_key=True, index=True)
     match_id = Column(Integer, ForeignKey("matches.id"), nullable=True)
-    home_team_score = Column(Integer, nullable=True)
-    away_team_score = Column(Integer, nullable=True)
-    winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    home_team_score = Column(Integer, nullable=True)  # 90 minutes score
+    away_team_score = Column(Integer, nullable=True)  # 90 minutes score
+    winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # Final winner (including extra time/penalties)
+    
+    # Extra time scores (if needed)
+    home_team_score_120 = Column(Integer, nullable=True)  # Goals after extra time
+    away_team_score_120 = Column(Integer, nullable=True)  # Goals after extra time
+    
+    # Penalty shootout (if needed)
+    home_team_penalties = Column(Integer, nullable=True)  # Penalties scored
+    away_team_penalties = Column(Integer, nullable=True)  # Penalties scored
+    
+    # Match outcome type
+    outcome_type = Column(String(20), default='regular')  # 'regular', 'extra_time', 'penalties'
 
 class GroupStageResult(Base):
     __tablename__ = "group_stage_results"

@@ -97,8 +97,20 @@ async def get_user_scoring_breakdown(
             "average_points": match_points / len(match_predictions) if match_predictions else 0
         }
         
-        # For other prediction types, we would need to implement similar logic
-        # For now, we'll just show the structure
+        # Calculate knockout prediction breakdown
+        knockout_predictions = db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.user_id == user_id
+        ).all()
+        
+        knockout_points = 0
+        for prediction in knockout_predictions:
+            if prediction.points:
+                knockout_points += prediction.points
+        
+        breakdown["breakdown"]["knockout_predictions"] = {
+            "total_predictions": len(knockout_predictions),
+            "total_points": knockout_points
+        }
         
         return breakdown
         

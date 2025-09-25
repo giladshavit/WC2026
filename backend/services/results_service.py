@@ -5,6 +5,8 @@ from models.matches import Match
 from models.results import MatchResult, GroupStageResult, ThirdPlaceResult
 from models.team import Team
 from .scoring_service import ScoringService
+from models.matches_template import MatchTemplate
+from models.results import KnockoutStageResult
 
 
 class ResultsService:
@@ -60,11 +62,16 @@ class ResultsService:
         db: Session, 
         match_id: int, 
         home_team_score: int, 
-        away_team_score: int
+        away_team_score: int,
+        home_team_score_120: Optional[int] = None,
+        away_team_score_120: Optional[int] = None,
+        home_team_penalties: Optional[int] = None,
+        away_team_penalties: Optional[int] = None,
+        outcome_type: str = "regular"
     ) -> Dict[str, Any]:
         """
         Update or create a match result.
-        Winner team ID is calculated automatically based on scores.
+        Winner team ID is calculated automatically based on final scores.
         """
         # Verify the match exists and has both teams
         match = db.query(Match).filter(Match.id == match_id).first()
@@ -78,13 +85,14 @@ class ResultsService:
         if home_team_score < 0 or away_team_score < 0:
             raise ValueError("Scores must be non-negative")
         
-        # Calculate winner automatically
-        if home_team_score > away_team_score:
-            winner_team_id = match.home_team_id
-        elif away_team_score > home_team_score:
-            winner_team_id = match.away_team_id
-        else:
-            winner_team_id = 0  # Draw (no team with ID 0)
+        # Calculate winner based on outcome type
+        winner_team_id = ResultsService._calculate_winner(
+            match.home_team_id, match.away_team_id,
+            home_team_score, away_team_score,
+            home_team_score_120, away_team_score_120,
+            home_team_penalties, away_team_penalties,
+            outcome_type
+        )
         
         # Check if result already exists
         existing_result = db.query(MatchResult).filter(
@@ -95,6 +103,11 @@ class ResultsService:
             # Update existing result
             existing_result.home_team_score = home_team_score
             existing_result.away_team_score = away_team_score
+            existing_result.home_team_score_120 = home_team_score_120
+            existing_result.away_team_score_120 = away_team_score_120
+            existing_result.home_team_penalties = home_team_penalties
+            existing_result.away_team_penalties = away_team_penalties
+            existing_result.outcome_type = outcome_type
             existing_result.winner_team_id = winner_team_id
             result = existing_result
         else:
@@ -103,12 +116,22 @@ class ResultsService:
                 match_id=match_id,
                 home_team_score=home_team_score,
                 away_team_score=away_team_score,
+                home_team_score_120=home_team_score_120,
+                away_team_score_120=away_team_score_120,
+                home_team_penalties=home_team_penalties,
+                away_team_penalties=away_team_penalties,
+                outcome_type=outcome_type,
                 winner_team_id=winner_team_id
             )
             db.add(result)
         
         db.commit()
         db.refresh(result)
+        
+        
+        # Update KnockoutStageResult if this is a knockout match
+        if match.is_knockout:
+            ResultsService._update_knockout_stage_result(db, match_id, winner_team_id)
         
         # Update scoring for all users who predicted this match
         ScoringService.update_match_scoring_for_all_users(db, result)
@@ -342,3 +365,204 @@ class ResultsService:
                     })
         
         return third_place_teams
+    
+    @staticmethod
+    def get_knockout_matches_with_results(db: Session) -> List[Dict[str, Any]]:
+        """
+        Get all knockout matches with their current results.
+        Only returns matches where both teams are defined.
+        """
+        from models.matches import Match
+        from models.team import Team
+        from models.results import KnockoutStageResult
+        
+        # Get all knockout matches
+        knockout_matches = db.query(Match).filter(
+            Match.stage.in_(['round32', 'round16', 'quarter', 'semi', 'final'])
+        ).filter(
+            Match.home_team_id.isnot(None),
+            Match.away_team_id.isnot(None)
+        ).all()
+        
+        matches_with_results = []
+        
+        for match in knockout_matches:
+            # Get the knockout stage result
+            knockout_result = db.query(KnockoutStageResult).filter(
+                KnockoutStageResult.match_id == match.id
+            ).first()
+            
+            # Get match result (scores)
+            match_result = db.query(MatchResult).filter(
+                MatchResult.match_id == match.id
+            ).first()
+            
+            # Get team details
+            home_team = db.query(Team).filter(Team.id == match.home_team_id).first()
+            away_team = db.query(Team).filter(Team.id == match.away_team_id).first()
+            
+            if home_team and away_team:
+                match_data = {
+                    "match_id": match.id,
+                    "stage": match.stage,
+                    "home_team": {
+                        "id": home_team.id,
+                        "name": home_team.name
+                    },
+                    "away_team": {
+                        "id": away_team.id,
+                        "name": away_team.name
+                    },
+                    "date": match.date.isoformat() if match.date else None,
+                    "status": match.status,
+                    "knockout_result": None,
+                    "match_result": None,
+                    "has_result": False
+                }
+                
+                # Add knockout result if exists
+                if knockout_result:
+                    match_data["knockout_result"] = {
+                        "team_1": knockout_result.team_1,
+                        "team_2": knockout_result.team_2,
+                        "winner_team_id": knockout_result.winner_team_id
+                    }
+                
+                # Add match result (scores) if exists
+                if match_result:
+                    match_data["match_result"] = {
+                        "home_team_score": match_result.home_team_score,
+                        "away_team_score": match_result.away_team_score,
+                        "home_team_score_120": match_result.home_team_score_120,
+                        "away_team_score_120": match_result.away_team_score_120,
+                        "home_team_penalties": match_result.home_team_penalties,
+                        "away_team_penalties": match_result.away_team_penalties,
+                        "outcome_type": match_result.outcome_type,
+                        "winner_team_id": match_result.winner_team_id
+                    }
+                    match_data["has_result"] = True
+                
+                matches_with_results.append(match_data)
+        
+        return matches_with_results
+    
+    @staticmethod
+    def _calculate_winner(
+        home_team_id: int, away_team_id: int,
+        home_score_90: int, away_score_90: int,
+        home_score_120: Optional[int], away_score_120: Optional[int],
+        home_penalties: Optional[int], away_penalties: Optional[int],
+        outcome_type: str
+    ) -> int:
+        """
+        Calculate the winner based on the outcome type and scores.
+        Returns the team ID of the winner, or 0 for a draw.
+        """
+        if outcome_type == "penalties":
+            # Winner determined by penalties
+            if home_penalties is not None and away_penalties is not None:
+                if home_penalties > away_penalties:
+                    return home_team_id
+                elif away_penalties > home_penalties:
+                    return away_team_id
+                else:
+                    return 0  # Draw in penalties (shouldn't happen)
+            else:
+                return 0  # No penalty data
+        
+        elif outcome_type == "extra_time":
+            # Winner determined by extra time scores
+            if home_score_120 is not None and away_score_120 is not None:
+                if home_score_120 > away_score_120:
+                    return home_team_id
+                elif away_score_120 > home_score_120:
+                    return away_team_id
+                else:
+                    return 0  # Draw after extra time (shouldn't happen)
+            else:
+                return 0  # No extra time data
+        
+        else:  # outcome_type == "regular"
+            # Winner determined by 90-minute scores
+            if home_score_90 > away_score_90:
+                return home_team_id
+            elif away_score_90 > home_score_90:
+                return away_team_id
+            else:
+                return 0  # Draw
+
+    @staticmethod
+    def _update_knockout_stage_result(db: Session, match_id: int, winner_team_id: int):
+        """
+        Update KnockoutStageResult with the winner of the match.
+        This is called when a knockout match result is entered.
+        """
+        from models.results import KnockoutStageResult
+        
+        # Find the knockout stage result for this match
+        knockout_result = db.query(KnockoutStageResult).filter(
+            KnockoutStageResult.match_id == match_id
+        ).first()
+        
+        if knockout_result:
+            # Update the winner
+            knockout_result.winner_team_id = winner_team_id
+            db.commit()
+            db.refresh(knockout_result)
+            print(f"Updated KnockoutStageResult for match {match_id} with winner {winner_team_id}")
+            
+            # Update scoring for knockout stage predictions
+            ScoringService.update_knockout_scoring_for_all_users(db, knockout_result)
+            
+            
+            # Create or update the next knockout match
+            ResultsService._create_or_update_next_knockout_stage(db, match_id, winner_team_id)
+        else:
+            print(f"No KnockoutStageResult found for match {match_id}")
+
+    @staticmethod
+    @staticmethod
+    def _create_or_update_next_knockout_stage(db: Session, match_id: int, winner_team_id: int):
+        """
+        Find the next knockout match and update it with the winner.
+        This is called when a knockout match result is entered.
+        """
+        # Find the template of the current match
+        current_template = db.query(MatchTemplate).filter(
+            MatchTemplate.id == match_id
+        ).first()
+        
+        if not current_template or not current_template.winner_next_knockout_match:
+            print(f"No next match template found for match {match_id}")
+            return
+        
+        # Get next match info from template
+        next_match_id = current_template.winner_next_knockout_match
+        position = current_template.winner_next_position  # 1 or 2
+        
+        print(f"Next match: {next_match_id}, position: {position}, winner: {winner_team_id}")
+        
+        # Find both the knockout result and the match record
+        next_knockout_result = db.query(KnockoutStageResult).filter(
+            KnockoutStageResult.match_id == next_match_id
+        ).first()
+        
+        next_match = db.query(Match).filter(Match.id == next_match_id).first()
+        
+        if not next_knockout_result or not next_match:
+            print(f"No KnockoutStageResult or Match found for next match {next_match_id}")
+            return
+        
+        # Update the knockout result with the winner
+        if position == 1:
+            next_knockout_result.team_1 = winner_team_id
+            next_match.home_team_id = winner_team_id
+            print(f"Updated next match {next_match_id} team_1/home_team with winner {winner_team_id}")
+        elif position == 2:
+            next_knockout_result.team_2 = winner_team_id
+            next_match.away_team_id = winner_team_id
+            print(f"Updated next match {next_match_id} team_2/away_team with winner {winner_team_id}")
+        
+        db.commit()
+        db.refresh(next_knockout_result)
+        db.refresh(next_match)

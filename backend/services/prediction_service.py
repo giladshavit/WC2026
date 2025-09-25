@@ -702,6 +702,7 @@ class PredictionService:
                     "team2_id": prediction.team2_id,
                     "winner_team_id": prediction.winner_team_id,
                     "status": prediction.status,
+                    "points": prediction.points,
                     "created_at": prediction.created_at,
                     "updated_at": prediction.updated_at,
                     # Add team names if they exist

@@ -2,6 +2,9 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction
+from models.predictions import KnockoutStagePrediction
+from models.results import KnockoutStageResult
+from models.matches import Match
 from models.results import MatchResult, GroupStageResult, ThirdPlaceResult
 from models.user import User
 from models.team import Team
@@ -30,6 +33,15 @@ class ScoringService:
     THIRD_PLACE_RULES = {
         'bonus_per_extra_group': 5,  # 5 נקודות לכל בית נוסף מעבר ל-4 בתים נכונים
         'minimum_groups_for_points': 4  # צריך לפחות 5 בתים נכונים כדי לקבל נקודות
+    }
+
+    # חוקי ניקוד למשחקי נוקאאוט - לפי שלב
+    KNOCKOUT_SCORING_RULES = {
+        "round32": 10,    # 32 הגדולות - 10 נקודות למנצח נכון
+        "round16": 15,    # 16 הגדולות - 15 נקודות למנצח נכון
+        "quarter": 20,    # רבע גמר - 20 נקודות למנצח נכון
+        "semi": 30,       # חצי גמר - 30 נקודות למנצח נכון
+        "final": 40       # גמר - 40 נקודות למנצח נכון
     }
     
     @staticmethod
@@ -362,5 +374,61 @@ class ScoringService:
         return {
             "message": f"Updated third place scoring for {len(updated_users)} users",
             "updated_users": len(updated_users)
+        }
+    
+    @staticmethod
+    def calculate_knockout_prediction_points(prediction: KnockoutStagePrediction, result: KnockoutStageResult, stage: str) -> int:
+        """
+        Calculate points for a knockout stage prediction.
+        Points are awarded based on correct winner prediction and stage.
+        """
+        # Get the points for this stage
+        stage_points = ScoringService.KNOCKOUT_SCORING_RULES.get(stage, 0)
+        
+        # Calculate points based on correct winner
+        if prediction.winner_team_id == result.winner_team_id:
+            # Correct winner prediction
+            return stage_points
+        else:
+            # Wrong prediction
+            return 0
+    
+    @staticmethod
+    def update_knockout_scoring_for_all_users(db: Session, knockout_result: KnockoutStageResult) -> Dict[str, Any]:
+        """
+        Update scoring for all users who predicted this knockout match.
+        Points are awarded based on correct winner prediction.
+        """
+        # Get the match to determine the stage
+        match = db.query(Match).filter(Match.id == knockout_result.match_id).first()
+        if not match:
+            return {"message": "Match not found", "updated_users": 0}
+        
+        # Find all predictions for this knockout match
+        predictions = db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.template_match_id == knockout_result.match_id
+        ).all()
+        
+        for prediction in predictions:
+            # Save old points before updating
+            old_points = prediction.points if prediction.points else 0
+            
+            # Calculate new points using the helper function
+            new_points = ScoringService.calculate_knockout_prediction_points(prediction, knockout_result, match.stage)
+            prediction.points = new_points
+            
+            # Update users total points
+            user = db.query(User).filter(User.id == prediction.user_id).first()
+            if user:
+                # Update user total points using the same pattern as other functions
+                user.total_points = user.total_points - old_points + new_points
+        
+        db.commit()
+        
+        return {
+            "message": f"Updated knockout scoring for {len(predictions)} users",
+            "updated_users": len(predictions),
+            "stage": match.stage,
+            "stage_points": ScoringService.KNOCKOUT_SCORING_RULES.get(match.stage, 0)
         }
     

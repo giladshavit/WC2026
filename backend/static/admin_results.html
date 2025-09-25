@@ -19,6 +19,13 @@
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h1 class="text-3xl font-bold text-gray-800 mb-6">Admin - Results Management</h1>
                 
+                <!-- Navigation Buttons -->
+                <div class="mb-6 flex space-x-4">
+                    <a href="/knockout" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        🏆 View Knockout Matches
+                    </a>
+                </div>
+                
                 <!-- Tab Navigation -->
                 <div class="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg">
                     <button 
@@ -41,6 +48,13 @@
                         class="tab-button px-4 py-2 rounded-md font-medium transition-colors"
                     >
                         Third Place Results
+                    </button>
+                    <button 
+                        onclick="switchTab('knockout')" 
+                        id="tab-knockout"
+                        class="tab-button px-4 py-2 rounded-md font-medium transition-colors"
+                    >
+                        Knockout Matches
                     </button>
                 </div>
 
@@ -155,6 +169,34 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Knockout Matches Tab -->
+                <div id="knockout-tab" class="tab-content">
+                    <div id="knockout-loading" class="text-center py-8">
+                        <div class="text-xl">Loading knockout matches...</div>
+                    </div>
+                    
+                    <div id="knockout-container" class="hidden">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white border border-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Match ID</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stage</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Home Team</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Away Team</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="knockout-tbody" class="bg-white divide-y divide-gray-200">
+                                    <!-- Knockout matches will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -163,6 +205,7 @@
         let matches = [];
         let groups = [];
         let thirdPlaceResult = null;
+        let knockoutMatches = [];
         let editingMatchId = null;
         let editingGroupId = null;
 
@@ -191,6 +234,8 @@
                 fetchGroups();
             } else if (tabName === 'third-place') {
                 fetchThirdPlaceResults();
+            } else if (tabName === 'knockout') {
+                fetchKnockoutMatches();
             }
         }
 
@@ -374,34 +419,87 @@
 
             editingMatchId = matchId;
             
+            // Check if this is a knockout match
+            const isKnockout = match.stage && ['round32', 'round16', 'quarter', 'semi', 'final'].includes(match.stage);
+            
             const editForm = document.createElement('div');
             editForm.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-            editForm.innerHTML = `
-                <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            
+            // Build the form content based on match type
+            let formContent = `
+                <div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
                     <h2 class="text-xl font-bold mb-4">Edit Match Result</h2>
                     <div class="mb-4">
                         <p class="text-sm text-gray-600 mb-2">${match.home_team.name} vs ${match.away_team.name}</p>
+                        ${isKnockout ? '<p class="text-xs text-blue-600 mb-2">Knockout Match - Extra time and penalties available</p>' : ''}
                     </div>
-                    <div class="flex items-center space-x-4 mb-6">
-                        <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">${match.home_team.name}</label>
-                            <input type="number" min="0" id="home-score" value="${match.result.home_team_score || ''}" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
+                    
+                    <!-- 90 Minutes Score -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3 text-blue-600">90 Minutes</h3>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">${match.home_team.name}</label>
+                                <input type="number" min="0" id="home-score-90" value="${match.result.home_team_score || ''}" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
+                            </div>
+                            <div class="text-2xl font-bold text-gray-500">-</div>
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">${match.away_team.name}</label>
+                                <input type="number" min="0" id="away-score-90" value="${match.result.away_team_score || ''}" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
+                            </div>
                         </div>
-                        <div class="text-2xl font-bold text-gray-500">-</div>
-                        <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">${match.away_team.name}</label>
-                            <input type="number" min="0" id="away-score" value="${match.result.away_team_score || ''}" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
+                    </div>`;
+            
+            // Add extra time and penalties only for knockout matches
+            if (isKnockout) {
+                formContent += `
+                    <!-- Extra Time Score (Optional) -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3 text-orange-600">Extra Time (Optional)</h3>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">${match.home_team.name}</label>
+                                <input type="number" min="0" id="home-score-120" value="${match.result.home_team_score_120 || ''}" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="0" />
+                            </div>
+                            <div class="text-2xl font-bold text-gray-500">-</div>
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">${match.away_team.name}</label>
+                                <input type="number" min="0" id="away-score-120" value="${match.result.away_team_score_120 || ''}" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="0" />
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Penalties (Optional) -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3 text-red-600">Penalties (Optional)</h3>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">${match.home_team.name}</label>
+                                <input type="number" min="0" id="home-penalties" value="${match.result.home_team_penalties || ''}" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="0" />
+                            </div>
+                            <div class="text-2xl font-bold text-gray-500">-</div>
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">${match.away_team.name}</label>
+                                <input type="number" min="0" id="away-penalties" value="${match.result.away_team_penalties || ''}" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="0" />
+                            </div>
+                        </div>
+                    </div>`;
+            }
+            
+            formContent += `
                     <div class="flex space-x-3">
                         <button onclick="saveMatchResult(${matchId})" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Save</button>
                         <button onclick="cancelEdit()" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
                     </div>
-                </div>
-            `;
+                </div>`;
             
+            editForm.innerHTML = formContent;
             document.body.appendChild(editForm);
         }
 
@@ -467,22 +565,49 @@
 
         // Save match result
         async function saveMatchResult(matchId) {
-            const homeScore = parseInt(document.getElementById('home-score').value);
-            const awayScore = parseInt(document.getElementById('away-score').value);
+            const match = matches.find(m => m.match_id === matchId);
+            const isKnockout = match.stage && ['round32', 'round16', 'quarter', 'semi', 'final'].includes(match.stage);
+            
+            const homeScore90 = parseInt(document.getElementById('home-score-90').value);
+            const awayScore90 = parseInt(document.getElementById('away-score-90').value);
 
-            if (isNaN(homeScore) || isNaN(awayScore) || homeScore < 0 || awayScore < 0) {
-                alert('Please enter valid non-negative scores');
+            if (isNaN(homeScore90) || isNaN(awayScore90) || homeScore90 < 0 || awayScore90 < 0) {
+                alert('Please enter valid non-negative scores for 90 minutes');
                 return;
+            }
+
+            // Build request body
+            let requestBody = {
+                home_team_score: homeScore90,
+                away_team_score: awayScore90,
+                outcome_type: 'regular'
+            };
+
+            // Add knockout-specific fields only if this is a knockout match
+            if (isKnockout) {
+                const homeScore120 = parseInt(document.getElementById('home-score-120').value) || null;
+                const awayScore120 = parseInt(document.getElementById('away-score-120').value) || null;
+                const homePenalties = parseInt(document.getElementById('home-penalties').value) || null;
+                const awayPenalties = parseInt(document.getElementById('away-penalties').value) || null;
+
+                requestBody.home_team_score_120 = homeScore120;
+                requestBody.away_team_score_120 = awayScore120;
+                requestBody.home_team_penalties = homePenalties;
+                requestBody.away_team_penalties = awayPenalties;
+
+                // Determine outcome type
+                if (homePenalties !== null && awayPenalties !== null) {
+                    requestBody.outcome_type = 'penalties';
+                } else if (homeScore120 !== null && awayScore120 !== null) {
+                    requestBody.outcome_type = 'extra_time';
+                }
             }
 
             try {
                 const response = await fetch(`/api/admin/matches/${matchId}/result`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        home_team_score: homeScore,
-                        away_team_score: awayScore
-                    }),
+                    body: JSON.stringify(requestBody),
                 });
 
                 if (response.ok) {
@@ -606,6 +731,22 @@
             }
         }
 
+        // Fetch knockout matches from API
+        async function fetchKnockoutMatches() {
+            try {
+                const response = await fetch('/api/admin/knockout/results');
+                if (response.ok) {
+                    const data = await response.json();
+                    knockoutMatches = data;
+                    renderKnockoutMatches(data);
+                } else {
+                    console.error('Failed to fetch knockout matches');
+                }
+            } catch (error) {
+                console.error('Error fetching knockout matches:', error);
+            }
+        }
+
         // Render third place results
         function renderThirdPlaceResults() {
             try {
@@ -644,6 +785,225 @@
                 }
             } catch (error) {
                 console.warn('Error rendering third place results:', error);
+            }
+        }
+
+        // Render knockout matches
+        function renderKnockoutMatches(matches) {
+            try {
+                const loading = document.getElementById('knockout-loading');
+                const container = document.getElementById('knockout-container');
+                const tbody = document.getElementById('knockout-tbody');
+                
+                if (!loading || !container || !tbody) {
+                    console.error('Required DOM elements not found for renderKnockoutMatches');
+                    return;
+                }
+                
+                loading.classList.add('hidden');
+                container.classList.remove('hidden');
+                
+                tbody.innerHTML = '';
+                
+                if (matches.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-3 text-center text-gray-500">No knockout matches found</td></tr>';
+                    return;
+                }
+                
+                matches.forEach(match => {
+                    const row = document.createElement('tr');
+                    
+                    // Get stage name
+                    const stageNames = {
+                        'round32': '32 הגדולות',
+                        'round16': '16 הגדולות', 
+                        'quarter': 'רבע גמר',
+                        'semi': 'חצי גמר',
+                        'final': 'גמר'
+                    };
+                    
+                    // Format result
+                    let resultText = 'No result';
+                    if (match.has_result && match.match_result) {
+                        const result = match.match_result;
+                        resultText = `${result.home_team_score} - ${result.away_team_score}`;
+                        
+                        if (result.outcome_type === 'extra_time' && result.home_team_score_120 !== null) {
+                            resultText += ` (${result.home_team_score_120} - ${result.away_team_score_120} ET)`;
+                        } else if (result.outcome_type === 'penalties' && result.home_team_penalties !== null) {
+                            resultText += ` (${result.home_team_penalties} - ${result.away_team_penalties} PEN)`;
+                        }
+                        
+                        if (result.winner_team_id) {
+                            const winnerName = result.winner_team_id === match.home_team.id ? 
+                                match.home_team.name : match.away_team.name;
+                            resultText += ` - Winner: ${winnerName}`;
+                        }
+                    }
+                    
+                    row.innerHTML = `
+                        <td class="px-4 py-3 text-sm text-gray-900">${match.match_id}</td>
+                        <td class="px-4 py-3 text-sm text-gray-900">${stageNames[match.stage] || match.stage}</td>
+                        <td class="px-4 py-3 text-sm text-gray-900">${match.date ? new Date(match.date).toLocaleDateString('he-IL') : 'TBD'}</td>
+                        <td class="px-4 py-3 text-sm text-gray-900">${match.home_team.name}</td>
+                        <td class="px-4 py-3 text-sm text-gray-900">${match.away_team.name}</td>
+                        <td class="px-4 py-3 text-sm text-gray-900">${resultText}</td>
+                        <td class="px-4 py-3 text-sm text-gray-900">
+                            <button 
+                                onclick="editKnockoutMatch(${match.match_id})" 
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                            >
+                                ${match.has_result ? 'Edit Result' : 'Set Result'}
+                            </button>
+                        </td>
+                    `;
+                    
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.warn('Error rendering knockout matches:', error);
+            }
+        }
+
+        // Edit knockout match result
+        function editKnockoutMatch(matchId) {
+            const match = knockoutMatches.find(m => m.match_id === matchId);
+            if (!match) return;
+
+            editingMatchId = matchId;
+            
+            // Check if this is a knockout match (it always is in this context)
+            const isKnockout = true; // All matches in knockout tab are knockout matches
+            
+            const editForm = document.createElement('div');
+            editForm.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            
+            // Build the form content
+            let formContent = `
+                <div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+                    <h2 class="text-xl font-bold mb-4">Edit Knockout Match Result</h2>
+                    <div class="mb-4">
+                        <p class="text-sm text-gray-600 mb-2">${match.home_team.name} vs ${match.away_team.name}</p>
+                        <p class="text-xs text-blue-600 mb-2">Knockout Match - Extra time and penalties available</p>
+                    </div>
+                    
+                    <!-- 90 Minutes Score -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3 text-blue-600">90 Minutes</h3>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">${match.home_team.name}</label>
+                                <input type="number" min="0" id="home-score-90" value="${match.match_result?.home_team_score || ''}" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
+                            </div>
+                            <div class="text-2xl font-bold text-gray-500">-</div>
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">${match.away_team.name}</label>
+                                <input type="number" min="0" id="away-score-90" value="${match.match_result?.away_team_score || ''}" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Extra Time Score (Optional) -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3 text-orange-600">Extra Time (Optional)</h3>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">${match.home_team.name}</label>
+                                <input type="number" min="0" id="home-score-120" value="${match.match_result?.home_team_score_120 || ''}" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="0" />
+                            </div>
+                            <div class="text-2xl font-bold text-gray-500">-</div>
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">${match.away_team.name}</label>
+                                <input type="number" min="0" id="away-score-120" value="${match.match_result?.away_team_score_120 || ''}" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="0" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Penalties (Optional) -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3 text-red-600">Penalties (Optional)</h3>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">${match.home_team.name}</label>
+                                <input type="number" min="0" id="home-penalties" value="${match.match_result?.home_team_penalties || ''}" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="0" />
+                            </div>
+                            <div class="text-2xl font-bold text-gray-500">-</div>
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">${match.away_team.name}</label>
+                                <input type="number" min="0" id="away-penalties" value="${match.match_result?.away_team_penalties || ''}" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="0" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex space-x-3">
+                        <button onclick="saveKnockoutMatchResult(${matchId})" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Save</button>
+                        <button onclick="cancelEdit()" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
+                    </div>
+                </div>`;
+            
+            editForm.innerHTML = formContent;
+            document.body.appendChild(editForm);
+        }
+
+        // Save knockout match result
+        async function saveKnockoutMatchResult(matchId) {
+            const match = knockoutMatches.find(m => m.match_id === matchId);
+            
+            const homeScore90 = parseInt(document.getElementById('home-score-90').value);
+            const awayScore90 = parseInt(document.getElementById('away-score-90').value);
+
+            if (isNaN(homeScore90) || isNaN(awayScore90) || homeScore90 < 0 || awayScore90 < 0) {
+                alert('Please enter valid non-negative scores for 90 minutes');
+                return;
+            }
+
+            // Build request body with knockout-specific fields
+            const homeScore120 = parseInt(document.getElementById('home-score-120').value) || null;
+            const awayScore120 = parseInt(document.getElementById('away-score-120').value) || null;
+            const homePenalties = parseInt(document.getElementById('home-penalties').value) || null;
+            const awayPenalties = parseInt(document.getElementById('away-penalties').value) || null;
+
+            let requestBody = {
+                home_team_score: homeScore90,
+                away_team_score: awayScore90,
+                home_team_score_120: homeScore120,
+                away_team_score_120: awayScore120,
+                home_team_penalties: homePenalties,
+                away_team_penalties: awayPenalties,
+                outcome_type: 'regular'
+            };
+
+            // Determine outcome type
+            if (homePenalties !== null && awayPenalties !== null) {
+                requestBody.outcome_type = 'penalties';
+            } else if (homeScore120 !== null && awayScore120 !== null) {
+                requestBody.outcome_type = 'extra_time';
+            }
+
+            try {
+                const response = await fetch(`/api/admin/matches/${matchId}/result`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody),
+                });
+
+                if (response.ok) {
+                    await fetchKnockoutMatches(); // Refresh the knockout matches
+                    cancelEdit();
+                    alert('Knockout match result updated successfully!');
+                } else {
+                    const errorData = await response.json();
+                    alert(`Error: ${errorData.detail}`);
+                }
+            } catch (error) {
+                console.error('Error saving knockout match result:', error);
+                alert('Error saving result');
             }
         }
 

@@ -347,6 +347,13 @@
                             </button>
                         </div>
                         <div class="match-template">${prediction.template}</div>
+                        ${prediction.points !== null && prediction.points !== undefined ? `
+                            <div style="text-align: center; margin-top: 10px;">
+                                <span style="background: ${prediction.points > 0 ? '#667eea' : '#e53e3e'}; color: white; padding: 4px 12px; border-radius: 15px; font-size: 0.9rem; font-weight: bold;">
+                                    ${prediction.points} נקודות
+                                </span>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
                 

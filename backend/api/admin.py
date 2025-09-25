@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -151,6 +151,11 @@ class UpdateGroupRequest(BaseModel):
 class MatchResultRequest(BaseModel):
     home_team_score: int
     away_team_score: int
+    home_team_score_120: Optional[int] = None
+    away_team_score_120: Optional[int] = None
+    home_team_penalties: Optional[int] = None
+    away_team_penalties: Optional[int] = None
+    outcome_type: str = "regular"
 
 class GroupStageResultRequest(BaseModel):
     first_place_team_id: int
@@ -213,13 +218,27 @@ def update_match_result(
             db=db,
             match_id=match_id,
             home_team_score=result_request.home_team_score,
-            away_team_score=result_request.away_team_score
+            away_team_score=result_request.away_team_score,
+            home_team_score_120=result_request.home_team_score_120,
+            away_team_score_120=result_request.away_team_score_120,
+            home_team_penalties=result_request.home_team_penalties,
+            away_team_penalties=result_request.away_team_penalties,
+            outcome_type=result_request.outcome_type
         )
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+# Knockout results endpoints
+@router.get("/admin/knockout/results", response_model=List[Dict[str, Any]])
+def get_knockout_matches_with_results(db: Session = Depends(get_db)):
+    """
+    Get all knockout matches with their current results (admin only)
+    Only returns matches where both teams are defined
+    """
+    return ResultsService.get_knockout_matches_with_results(db)
 
 # Group results endpoints
 @router.get("/admin/groups/results", response_model=List[Dict[str, Any]])
