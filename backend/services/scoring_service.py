@@ -463,9 +463,9 @@ class ScoringService:
         }
     
     @staticmethod
-    def apply_group_prediction_penalty(db: Session, user_id: int, total_changes: int) -> int:
+    def apply_prediction_penalty(db: Session, user_id: int, total_changes: int) -> int:
         """
-        Apply penalty for group prediction changes.
+        Apply penalty for prediction changes (groups, third-place, knockout, etc.).
         Returns the penalty points applied.
         """
         if total_changes == 0:
@@ -479,4 +479,5 @@ class ScoringService:
         
         ScoringService.apply_penalty_to_user(db, user_id, penalty_points)
         return penalty_points
+    
     

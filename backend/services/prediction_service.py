@@ -538,6 +538,9 @@ class PredictionService:
             return {"error": "Must provide exactly 8 team IDs"}
         
         if existing_prediction:
+            # Calculate changes based on groups before updating
+            changes = PredictionService.calculate_third_place_changes(existing_prediction, advancing_team_ids, db)
+            
             # Update existing prediction
             existing_prediction.first_team_qualifying = advancing_team_ids[0]
             existing_prediction.second_team_qualifying = advancing_team_ids[1]
@@ -556,10 +559,17 @@ class PredictionService:
                 db, user_id, advancing_team_ids
             )
             
+            # Apply penalty if there were changes
+            penalty_points = 0
+            if changes > 0:
+                penalty_points = ScoringService.apply_prediction_penalty(db, user_id, changes)
+            
             return {
                 "id": existing_prediction.id,
                 "advancing_team_ids": advancing_team_ids,
-                "updated": True
+                "updated": True,
+                "changes": changes,
+                "penalty_points": penalty_points
             }
         else:
             # Create new prediction
@@ -578,11 +588,64 @@ class PredictionService:
             db.commit()
             db.refresh(new_prediction)
             
-            return {
-                "id": new_prediction.id,
-                "advancing_team_ids": advancing_team_ids,
-                "updated": False
-            }
+            # New prediction counts as 8 changes (all teams)
+            changes = 8
+            penalty_points = 0
+            if changes > 0:
+                penalty_points = ScoringService.apply_prediction_penalty(db, user_id, changes)
+            
+        return {
+            "id": new_prediction.id,
+            "advancing_team_ids": advancing_team_ids,
+            "updated": False,
+            "changes": changes,
+            "penalty_points": penalty_points
+        }
+    
+    @staticmethod
+    def calculate_third_place_changes(
+        old_prediction: ThirdPlacePrediction,
+        new_prediction_teams: List[int],
+        db: Session
+    ) -> int:
+        """
+        Calculate number of changes in third place predictions based on group changes.
+        Returns the number of groups that changed (not individual teams).
+        """
+        # Get old teams
+        old_teams = [
+            old_prediction.first_team_qualifying,
+            old_prediction.second_team_qualifying,
+            old_prediction.third_team_qualifying,
+            old_prediction.fourth_team_qualifying,
+            old_prediction.fifth_team_qualifying,
+            old_prediction.sixth_team_qualifying,
+            old_prediction.seventh_team_qualifying,
+            old_prediction.eighth_team_qualifying
+        ]
+        
+        # Get group names for old and new teams
+        old_groups = PredictionService._get_team_groups(old_teams, db)
+        new_groups = PredictionService._get_team_groups(new_prediction_teams, db)
+        
+        # Calculate changes: only count new groups that were added
+        changes = len(new_groups - old_groups)
+        
+        return changes
+    
+    @staticmethod
+    def _get_team_groups(team_ids: List[int], db: Session) -> set:
+        """
+        Helper function to get group names for a list of team IDs.
+        Returns a set of group names.
+        """
+        groups = set()
+        for team_id in team_ids:
+            if team_id:
+                group_name = ScoringService.get_team_group_name(team_id, db)
+                if group_name:
+                    groups.add(group_name)
+        return groups
     
     @staticmethod
     def get_third_place_predictions(db: Session, user_id: int) -> List[Dict[str, Any]]:
@@ -681,7 +744,7 @@ class PredictionService:
             # Apply penalty if there were changes
             penalty_points = 0
             if total_changes > 0:
-                penalty_points = ScoringService.apply_group_prediction_penalty(db, user_id, total_changes)
+                penalty_points = ScoringService.apply_prediction_penalty(db, user_id, total_changes)
             
             return {
                 "saved_predictions": saved_predictions,
