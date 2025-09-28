@@ -57,6 +57,7 @@
             border: 2px solid rgba(255,255,255,0.3);
             transition: all 0.3s ease;
             font-weight: bold;
+            cursor: pointer;
         }
 
         .nav-btn:hover {
@@ -239,6 +240,70 @@
         .stats p {
             font-size: 1.1em;
         }
+
+        /* מצב batch */
+        .batch-mode {
+            background: rgba(255,193,7,0.1) !important;
+            border: 2px solid #ffc107 !important;
+        }
+
+        .batch-selected {
+            border-color: #ffc107 !important;
+            background: rgba(255,193,7,0.2) !important;
+        }
+
+        .batch-controls {
+            background: rgba(255,193,7,0.1);
+            border: 2px solid #ffc107;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            display: none;
+        }
+
+        .batch-controls.active {
+            display: block;
+        }
+
+        .batch-btn {
+            padding: 12px 24px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .batch-save {
+            background: #28a745;
+            color: white;
+        }
+
+        .batch-save:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .batch-cancel {
+            background: #dc3545;
+            color: white;
+        }
+
+        .batch-cancel:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .batch-count {
+            background: #17a2b8;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin: 0 10px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -252,13 +317,25 @@
             <a href="/" class="nav-btn">🏠 דף הבית</a>
             <a href="/knockout" class="nav-btn">32 הגדולות</a>
             <a href="/round16" class="nav-btn">16 הגדולות</a>
+            <a href="/quarter" class="nav-btn">רבע גמר</a>
             <a href="/semi" class="nav-btn">חצי גמר</a>
             <a href="/final" class="nav-btn">גמר</a>
+            <button onclick="enableBatchMode()" class="nav-btn" id="batchModeBtn" style="background: rgba(255,193,7,0.8); border-color: rgba(255,193,7,0.8);">📝 מצב עדכון מרובה</button>
         </div>
 
         <div class="stats" id="stats">
             <h3>📊 סטטיסטיקות</h3>
             <p id="stats-text">טוען נתונים...</p>
+        </div>
+
+        <div class="batch-controls" id="batchControls">
+            <h3>📝 מצב עדכון מרובה</h3>
+            <p>בחר משחקים ולחץ על קבוצות כדי לעדכן מספר ניחושים בבת אחת</p>
+            <div style="margin: 15px 0;">
+                <span class="batch-count" id="batchCount">0 ניחושים נבחרו</span>
+                <button class="batch-btn batch-save" onclick="saveBatchPredictions()">💾 שמור הכל</button>
+                <button class="batch-btn batch-cancel" onclick="cancelBatchMode()">❌ ביטול</button>
+            </div>
         </div>
 
         <div id="content">
@@ -267,6 +344,10 @@
     </div>
 
     <script>
+        // משתנים גלובליים למצב batch
+        let batchMode = false;
+        let batchPredictions = {}; // {predictionId: {team: number, name: string}}
+
         async function loadKnockoutPredictions() {
             try {
                 const response = await fetch('/api/predictions/knockout?user_id=1&stage=final');
@@ -300,7 +381,11 @@
 
             predictions.forEach((prediction, index) => {
                 const matchCard = document.createElement('div');
-                matchCard.className = `match-card status-${prediction.status || 'must-change-predict'}`;
+                let cardClass = `match-card status-${prediction.status || 'must-change-predict'}`;
+                if (batchMode) {
+                    cardClass += ' batch-mode';
+                }
+                matchCard.className = cardClass;
                 
                 // פירוק שמות הקבוצות
                 const team1 = prediction.team1_name || 'קבוצה 1';
@@ -310,10 +395,17 @@
                 const hasWinner = prediction.winner_team_id;
                 const winnerTeamName = prediction.winner_team_name || '';
                 
+                // בדיקה אם יש בחירה במצב batch
+                const batchSelection = batchPredictions[prediction.id];
+                
                 // קביעת איזה כפתור צריך להיות מסומן
                 let team1Selected = '';
                 let team2Selected = '';
-                if (hasWinner && winnerTeamName && winnerTeamName === team1) {
+                if (batchSelection && batchSelection.name === team1) {
+                    team1Selected = 'batch-selected';
+                } else if (batchSelection && batchSelection.name === team2) {
+                    team2Selected = 'batch-selected';
+                } else if (hasWinner && winnerTeamName && winnerTeamName === team1) {
                     team1Selected = 'selected';
                 } else if (hasWinner && winnerTeamName && winnerTeamName === team2) {
                     team2Selected = 'selected';
@@ -401,10 +493,25 @@
             // הסר בחירה קודמת באותו משחק
             const matchCard = button.closest('.match-card');
             const allButtons = matchCard.querySelectorAll('.team-button');
-            allButtons.forEach(btn => btn.classList.remove('selected'));
+            allButtons.forEach(btn => {
+                btn.classList.remove('selected');
+                btn.classList.remove('batch-selected');
+            });
             
-            // סמן את הקבוצה שנבחרה
-            button.classList.add('selected');
+            if (batchMode) {
+                // מצב batch - רק סימון ללא שליחה לשרת
+                button.classList.add('batch-selected');
+                
+                // שמירת הבחירה במשתנה הגלובלי
+                batchPredictions[predictionId] = {
+                    team: parseInt(teamNumber),
+                    name: teamName
+                };
+                
+                updateBatchCount();
+            } else {
+                // מצב רגיל - שליחה מיידית לשרת
+                button.classList.add('selected');
             
             try {
                 const response = await fetch(`/api/predictions/knockout/${predictionId}`, {
@@ -441,6 +548,131 @@
                 showError('שגיאה בחיבור לשרת');
                 // הסר את הסימון במקרה של שגיאה
                 button.classList.remove('selected');
+            }
+            }
+        }
+
+        // פונקציות מצב batch
+        function enableBatchMode() {
+            batchMode = true;
+            batchPredictions = {};
+            
+            // עדכון הכפתור
+            const btn = document.getElementById('batchModeBtn');
+            btn.textContent = '📝 מצב עדכון מרובה (פעיל)';
+            btn.style.background = 'rgba(40, 167, 69, 0.8)';
+            btn.style.borderColor = 'rgba(40, 167, 69, 0.8)';
+            
+            // הצגת פקדי batch
+            const controls = document.getElementById('batchControls');
+            controls.classList.add('active');
+            
+            // הוספת מחלקה למשחקים
+            const matchCards = document.querySelectorAll('.match-card');
+            matchCards.forEach(card => {
+                card.classList.add('batch-mode');
+            });
+            
+            updateBatchCount();
+            
+            // רענון התצוגה כדי להציג את הבחירות הקיימות
+            loadKnockoutPredictions();
+        }
+
+        function cancelBatchMode() {
+            batchMode = false;
+            batchPredictions = {};
+            
+            // עדכון הכפתור
+            const btn = document.getElementById('batchModeBtn');
+            btn.textContent = '📝 מצב עדכון מרובה';
+            btn.style.background = 'rgba(255,193,7,0.8)';
+            btn.style.borderColor = 'rgba(255,193,7,0.8)';
+            
+            // הסתרת פקדי batch
+            const controls = document.getElementById('batchControls');
+            controls.classList.remove('active');
+            
+            // הסרת מחלקות
+            const matchCards = document.querySelectorAll('.match-card');
+            matchCards.forEach(card => {
+                card.classList.remove('batch-mode');
+            });
+            
+            // הסרת בחירות
+            const selectedButtons = document.querySelectorAll('.batch-selected');
+            selectedButtons.forEach(btn => {
+                btn.classList.remove('batch-selected');
+            });
+            
+            updateBatchCount();
+            
+            // רענון התצוגה
+            loadKnockoutPredictions();
+        }
+
+        function updateBatchCount() {
+            const count = Object.keys(batchPredictions).length;
+            const countElement = document.getElementById('batchCount');
+            countElement.textContent = `${count} ניחושים נבחרו`;
+        }
+
+        async function saveBatchPredictions() {
+            const predictions = Object.entries(batchPredictions).map(([predictionId, data]) => ({
+                prediction_id: parseInt(predictionId),
+                winner_team_number: data.team,
+                winner_team_name: data.name
+            }));
+
+            if (predictions.length === 0) {
+                showError('לא נבחרו ניחושים לעדכון');
+                return;
+            }
+
+            try {
+                const requestBody = {
+                    user_id: 1,
+                    predictions: predictions
+                };
+                
+                const response = await fetch('/api/predictions/knockout/batch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    showError(`שגיאה בעדכון הניחושים: ${data.detail || data.message || data.error || 'שגיאה לא ידועה'}`);
+                } else if (!data.success) {
+                    showError(`שגיאה בעדכון הניחושים: ${data.message || data.error}`);
+                } else {
+                    // הצגת הודעה מפורטת על השינויים
+                    const changedCount = data.changed_predictions || 0;
+                    const unchangedCount = data.unchanged_predictions || 0;
+                    const penaltyPoints = data.penalty_points || 0;
+                    
+                    let message = `עודכנו בהצלחה ${predictions.length} ניחושים!`;
+                    if (changedCount > 0) {
+                        message += `\n${changedCount} ניחושים השתנו`;
+                        if (penaltyPoints > 0) {
+                            message += `\nנגבו ${penaltyPoints} נקודות עונש`;
+                        }
+                    }
+                    if (unchangedCount > 0) {
+                        message += `\n${unchangedCount} ניחושים לא השתנו`;
+                    }
+                    
+                    showSuccess(message);
+                    cancelBatchMode();
+                    loadKnockoutPredictions(); // רענון הנתונים
+                }
+            } catch (error) {
+                console.error('Error saving batch predictions:', error);
+                showError('שגיאה בחיבור לשרת');
             }
         }
 

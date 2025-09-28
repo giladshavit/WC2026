@@ -634,6 +634,81 @@ class PredictionService:
         return changes
     
     @staticmethod
+    def update_batch_knockout_predictions(
+        db: Session, 
+        user_id: int, 
+        predictions_data: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Update multiple knockout predictions at once with penalty calculation
+        """
+        try:
+            updated_predictions = []
+            errors = []
+            total_changes = 0
+            
+            for prediction_data in predictions_data:
+                # Handle both dict and Pydantic model
+                if hasattr(prediction_data, 'prediction_id'):
+                    # Pydantic model
+                    prediction_id = prediction_data.prediction_id
+                    winner_team_number = prediction_data.winner_team_number
+                    winner_team_name = prediction_data.winner_team_name
+                else:
+                    # Dictionary
+                    prediction_id = prediction_data.get("prediction_id")
+                    winner_team_number = prediction_data.get("winner_team_number")
+                    winner_team_name = prediction_data.get("winner_team_name")
+                
+                if not all([prediction_id, winner_team_number, winner_team_name]):
+                    errors.append(f"Missing data for prediction {prediction_id}")
+                    continue
+                
+                # Create request object for the existing function
+                request = type('Request', (), {
+                    'winner_team_number': winner_team_number,
+                    'winner_team_name': winner_team_name
+                })()
+                
+                # Use existing function to update the prediction
+                try:
+                    result = PredictionService.update_knockout_prediction_winner(db, prediction_id, request)
+                    
+                    if "error" in result:
+                        errors.append(f"Error updating prediction {prediction_id}: {result['error']}")
+                    else:
+                        updated_predictions.append(result)
+                        if result.get("changed", False):
+                            total_changes += 1
+                except HTTPException as e:
+                    errors.append(f"HTTP Error updating prediction {prediction_id}: {e.detail}")
+                except Exception as e:
+                    errors.append(f"Error updating prediction {prediction_id}: {str(e)}")
+            
+            # Apply penalty if there were changes
+            penalty_points = 0
+            if total_changes > 0:
+                penalty_points = ScoringService.apply_prediction_penalty(db, user_id, total_changes)
+            
+            # Count how many predictions actually changed
+            changed_predictions = sum(1 for pred in updated_predictions if pred.get("changed", False))
+            
+            return {
+                "updated_predictions": updated_predictions,
+                "errors": errors,
+                "total_updated": len(updated_predictions),
+                "total_errors": len(errors),
+                "total_changes": total_changes,
+                "changed_predictions": changed_predictions,
+                "unchanged_predictions": len(updated_predictions) - changed_predictions,
+                "penalty_points": penalty_points,
+                "success": len(errors) == 0
+            }
+            
+        except Exception as e:
+            return {"error": f"Batch update failed: {str(e)}"}
+    
+    @staticmethod
     def _get_team_groups(team_ids: List[int], db: Session) -> set:
         """
         Helper function to get group names for a list of team IDs.
@@ -823,7 +898,7 @@ class PredictionService:
         if prediction.winner_team_id == winner_team_id and winner_team_id is not None:
             PredictionService.set_status(prediction, PredictionStatus.PREDICTED)
             db.commit()
-            return PredictionService.create_success_response(db, prediction, "Winner did not change")
+            return PredictionService.create_success_response(db, prediction, "Winner did not change", changed=False)
         
         # 3. Update winner
         previous_winner_id = prediction.winner_team_id
@@ -840,7 +915,7 @@ class PredictionService:
         # 6. Save
         db.commit()
         
-        return PredictionService.create_success_response(db, prediction, "Prediction updated successfully")
+        return PredictionService.create_success_response(db, prediction, "Prediction updated successfully", changed=True)
 
 
     @staticmethod
@@ -916,7 +991,7 @@ class PredictionService:
             )
 
     @staticmethod
-    def create_success_response(db: Session, prediction, message: str, request=None):
+    def create_success_response(db: Session, prediction, message: str, request=None, changed: bool = True):
         """Creates success response"""
         # Find winner team name
         winner_team = None
@@ -927,6 +1002,7 @@ class PredictionService:
         
         return {
             "success": True,
+            "changed": changed,
             "message": message,
             "prediction": {
                 "id": prediction.id,

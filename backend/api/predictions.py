@@ -42,6 +42,15 @@ class UpdateKnockoutPredictionRequest(BaseModel):
     winner_team_number: int  # 1 or 2
     winner_team_name: str
 
+class BatchKnockoutPredictionUpdate(BaseModel):
+    prediction_id: int
+    winner_team_number: int  # 1 or 2
+    winner_team_name: str
+
+class BatchKnockoutPredictionRequest(BaseModel):
+    user_id: int
+    predictions: List[BatchKnockoutPredictionUpdate]
+
 @router.get("/groups", response_model=List[Dict[str, Any]])
 def get_groups_with_teams(db: Session = Depends(get_db)):
     """
@@ -354,68 +363,31 @@ def update_knockout_prediction_winner(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating prediction: {str(e)}")
 
-@staticmethod
-def update_group_prediction_basic(db, existing_prediction, places: PlacesPredictions):
+@router.post("/predictions/knockout/batch", response_model=Dict[str, Any])
+async def update_batch_knockout_predictions(
+    request: BatchKnockoutPredictionRequest,
+    db: Session = Depends(get_db)
+):
     """
-    Basic update of places
+    Update multiple knockout predictions at once with penalty calculation
     """
-    existing_prediction.first_place = places.first_place
-    existing_prediction.second_place = places.second_place
-    existing_prediction.third_place = places.third_place
-    existing_prediction.fourth_place = places.fourth_place
-    db.commit()
-
-@staticmethod
-def handle_third_place_change(db, user_id, old_third_place, new_third_place):
-    """
-    Handle change in 3rd place
-    """
-    third_place_changed = old_third_place != new_third_place
+    current_stage = StageManager.get_current_stage(db)
+    if current_stage.value > Stage.ROUND32.value:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Knockout predictions are no longer editable. Current stage: {current_stage.name}"
+        )
     
-    if third_place_changed:
-        PredictionService.update_third_place_predictions(db, user_id, old_third_place, new_third_place)
+    result = PredictionService.update_batch_knockout_predictions(
+        db, request.user_id, request.predictions
+    )
     
-    return third_place_changed
-
-@staticmethod
-def update_third_place_predictions(db, user_id, old_third_place, new_third_place):
-    """
-    Update third-place predictions
-    """
-    # Fetch existing third-place qualifying predictions
-    third_place_prediction = db.query(ThirdPlacePrediction).filter(
-        ThirdPlacePrediction.user_id == user_id
-    ).first()
-
-    if third_place_prediction:
-        # Check if the old third-place team is selected
-        old_team_selected = False
-        new_team_selected = False
-
-        # Check if the new team is already selected
-        for i in range(1, 9):  # first_team_qualifying to eighth_team_qualifying
-            team_field = getattr(third_place_prediction,
-                                 f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying")
-            if team_field == old_third_place:
-                old_team_selected = True
-                # Replace old team with new team
-                setattr(third_place_prediction,
-                        f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying",
-                        new_third_place)
-                break
-            elif team_field == new_third_place:
-                new_team_selected = True
-
-        # If the new team is already selected and the old team is also selected - swap them
-        if new_team_selected and old_team_selected:
-            # Find the position of the new team and swap with the old team
-            for i in range(1, 9):
-                team_field = getattr(third_place_prediction,
-                                     f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying")
-                if team_field == new_third_place:
-                    setattr(third_place_prediction,
-                            f"{['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'][i - 1]}_team_qualifying",
-                            old_third_place)
-                    break
-
-        db.commit()
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    # Return success even if some predictions failed, but log the errors
+    if not result.get("success", False):
+        # Log errors but don't fail the entire request
+        print(f"Some predictions failed: {result.get('errors', [])}")
+    
+    return result
