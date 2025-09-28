@@ -13,6 +13,7 @@ from fastapi import HTTPException
 from datetime import datetime
 import json
 from enum import Enum
+from services.scoring_service import ScoringService
 from models.third_place_combinations import ThirdPlaceCombination
 
 class PredictionStatus(Enum):
@@ -291,6 +292,15 @@ class PredictionService:
 
     @staticmethod
     def update_group_prediction(db, existing_prediction, places: PlacesPredictions, user_id):
+        # חישוב שינויים לפני העדכון
+        changes = 0
+        if existing_prediction.first_place != places.first_place:
+            changes += 1
+        if existing_prediction.second_place != places.second_place:
+            changes += 1
+        if existing_prediction.third_place != places.third_place:
+            changes += 1
+        
         # Basic update of places
         old_third_place = existing_prediction.third_place
         PredictionService.update_group_prediction_basic(db, existing_prediction, places, user_id, existing_prediction.group_id)
@@ -310,6 +320,7 @@ class PredictionService:
             "third_place": places.third_place,
             "fourth_place": places.fourth_place,
             "updated": True,
+            "changes": changes,  # הוספת מספר השינויים
             "third_place_changed": third_place_changed
         }
 
@@ -486,7 +497,8 @@ class PredictionService:
             "second_place": places.second_place,
             "third_place": places.third_place,
             "fourth_place": places.fourth_place,
-            "updated": False
+            "updated": False,
+            "changes": 3  # יצירה חדשה = 3 שינויים
         }
 
     @staticmethod
@@ -642,6 +654,7 @@ class PredictionService:
         try:
             saved_predictions = []
             errors = []
+            total_changes = 0  # סכום כל השינויים
             
             for prediction_data in predictions_data:
                 group_id = prediction_data.get("group_id")
@@ -663,12 +676,20 @@ class PredictionService:
                     errors.append(f"Error saving group {group_id}: {result['error']}")
                 else:
                     saved_predictions.append(result)
+                    total_changes += result.get("changes", 0)  # הוספת השינויים
+            
+            # Apply penalty if there were changes
+            penalty_points = 0
+            if total_changes > 0:
+                penalty_points = ScoringService.apply_group_prediction_penalty(db, user_id, total_changes)
             
             return {
                 "saved_predictions": saved_predictions,
                 "errors": errors,
                 "total_saved": len(saved_predictions),
                 "total_errors": len(errors),
+                "total_changes": total_changes,
+                "penalty_points": penalty_points,
                 "success": len(errors) == 0
             }
             

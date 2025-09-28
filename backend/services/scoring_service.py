@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction
@@ -8,6 +8,7 @@ from models.matches import Match
 from models.results import MatchResult, GroupStageResult, ThirdPlaceResult
 from models.user import User
 from models.team import Team
+from services.stage_manager import StageManager, Stage
 
 
 class ScoringService:
@@ -431,4 +432,51 @@ class ScoringService:
             "stage": match.stage,
             "stage_points": ScoringService.KNOCKOUT_SCORING_RULES.get(match.stage, 0)
         }
+    
+    # === PENALTY SYSTEM ===
+    
+    @staticmethod
+    def calculate_penalty_points(changes: int, current_stage: Stage) -> int:
+        """Calculate penalty points based on number of changes and current stage."""
+        penalty_per_change = current_stage.get_penalty_for()
+        return changes * penalty_per_change
+    
+    @staticmethod
+    def apply_penalty_to_user(db: Session, user_id: int, penalty_points: int) -> Dict[str, Any]:
+        """Apply penalty points to user's total score."""
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return {"error": "User not found"}
+        
+        old_points = user.total_points
+        new_points = max(0, old_points - penalty_points)
+        
+        user.total_points = new_points
+        db.commit()
+        
+        return {
+            "user_id": user_id,
+            "old_points": old_points,
+            "new_points": new_points,
+            "penalty_applied": penalty_points,
+            "actual_deduction": old_points - new_points
+        }
+    
+    @staticmethod
+    def apply_group_prediction_penalty(db: Session, user_id: int, total_changes: int) -> int:
+        """
+        Apply penalty for group prediction changes.
+        Returns the penalty points applied.
+        """
+        if total_changes == 0:
+            return 0
+        
+        current_stage = StageManager.get_current_stage(db)
+        penalty_points = ScoringService.calculate_penalty_points(total_changes, current_stage)
+        
+        if penalty_points == 0:
+            return 0
+        
+        ScoringService.apply_penalty_to_user(db, user_id, penalty_points)
+        return penalty_points
     

@@ -92,6 +92,13 @@ class StageManager:
         return Stage.PRE_GROUP_STAGE
     
     @staticmethod
+    def _block_knockout_predictions_by_stage(db: Session, stage_name: str) -> None:
+        """Helper function to block knockout predictions by stage name"""
+        db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.stage == stage_name
+        ).update({KnockoutStagePrediction.is_editable: False})
+    
+    @staticmethod
     def _update_prediction_editability(current_stage: Stage, db: Session) -> None:
         """Update is_editable field for all predictions based on current stage"""
         
@@ -119,9 +126,7 @@ class StageManager:
             
         elif current_stage == Stage.ROUND32:
             # Block round32 knockout predictions
-            db.query(KnockoutStagePrediction).filter(
-                KnockoutStagePrediction.stage == 'round32'
-            ).update({KnockoutStagePrediction.is_editable: False})
+            StageManager._block_knockout_predictions_by_stage(db, 'round32')
             
         elif current_stage == Stage.PRE_ROUND16:
             # No additional blocking - do nothing
@@ -129,9 +134,7 @@ class StageManager:
             
         elif current_stage == Stage.ROUND16:
             # Block round16 knockout predictions
-            db.query(KnockoutStagePrediction).filter(
-                KnockoutStagePrediction.stage == 'round16'
-            ).update({KnockoutStagePrediction.is_editable: False})
+            StageManager._block_knockout_predictions_by_stage(db, 'round16')
             
         elif current_stage == Stage.PRE_QUARTER:
             # No additional blocking - do nothing
@@ -139,21 +142,15 @@ class StageManager:
             
         elif current_stage == Stage.QUARTER:
             # Block quarter knockout predictions
-            db.query(KnockoutStagePrediction).filter(
-                KnockoutStagePrediction.stage == 'quarter'
-            ).update({KnockoutStagePrediction.is_editable: False})
+            StageManager._block_knockout_predictions_by_stage(db, 'quarter')
             
         elif current_stage == Stage.SEMI:
             # Block semi knockout predictions
-            db.query(KnockoutStagePrediction).filter(
-                KnockoutStagePrediction.stage == 'semi'
-            ).update({KnockoutStagePrediction.is_editable: False})
+            StageManager._block_knockout_predictions_by_stage(db, 'semi')
             
         elif current_stage == Stage.FINAL:
             # Block final knockout predictions
-            db.query(KnockoutStagePrediction).filter(
-                KnockoutStagePrediction.stage == 'final'
-            ).update({KnockoutStagePrediction.is_editable: False})
+            StageManager._block_knockout_predictions_by_stage(db, 'final')
         
         db.commit()
     

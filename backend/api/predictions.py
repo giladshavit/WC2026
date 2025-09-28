@@ -108,6 +108,18 @@ def get_user_group_predictions(user_id: int, db: Session = Depends(get_db)):
     """
     return PredictionService.get_group_predictions(db, user_id)
 
+@router.get("/predictions/stage/current", response_model=Dict[str, Any])
+async def get_current_stage_info(db: Session = Depends(get_db)):
+    """Get current tournament stage information for penalty calculations."""
+    current_stage = StageManager.get_current_stage(db)
+    
+    return {
+        "current_stage": current_stage.name,
+        "stage_value": current_stage.value,
+        "penalty_per_change": current_stage.get_penalty_for(),
+        "description": f"Current stage: {current_stage.name}"
+    }
+
 @router.post("/predictions/group-stage/batch", response_model=Dict[str, Any])
 def create_or_update_batch_group_predictions(
     batch_request: BatchGroupPredictionRequest,
