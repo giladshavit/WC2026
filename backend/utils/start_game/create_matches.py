@@ -6,13 +6,15 @@ Script to create group matches (matches) based on matches_template
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Point to backend root: utils/start_game -> utils -> backend
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from database import engine
 from models.matches import Match
 from models.matches_template import MatchTemplate
 from models.team import Team
 from sqlalchemy.orm import sessionmaker
+
 
 def create_group_matches():
     """Create group matches based on matches_template"""
@@ -108,6 +110,7 @@ def create_group_matches():
     finally:
         session.close()
 
+
 def create_knockout_matches():
     """Create knockout matches (ID 73-104)"""
     Session = sessionmaker(bind=engine)
@@ -159,6 +162,7 @@ def create_knockout_matches():
         session.close()
 
 
+
 def create_all_matches():
     """Create all matches - group and knockout"""
     print("🚀 Starting to create all matches...")
@@ -174,6 +178,7 @@ def create_all_matches():
     
     print("\n✅ Done! All matches created successfully!")
     print("💡 Note: To create knockout results, run create_knockout_results.py")
+
 
 if __name__ == "__main__":
     create_all_matches()

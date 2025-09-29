@@ -5,7 +5,8 @@
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Point to backend root: utils/start_game -> utils -> backend
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import requests
 import pandas as pd
@@ -13,6 +14,7 @@ from io import StringIO
 from database import engine
 from models.team import Team
 from sqlalchemy.orm import sessionmaker
+
 
 def create_teams():
     """יוצר את כל הקבוצות מהטבלה של גוגל שיטס"""
@@ -49,8 +51,8 @@ def create_teams():
             
             # לולאה על הבתים (עמודות) - A עד L
             for group_index, group_letter in enumerate(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']):
-                # מיקומים 1-4 - מהשורות 2-5 (מדלג על השורה הראשונה שהיא כותרת)
-                for position in range(1, len(df)):  # שורות 2-5
+                # מיקומים 1-4 - מהשורות 0-3 (כל 4 השורות)
+                for position in range(0, len(df)):  # שורות 0-3
                     if group_index < len(df.columns) and position < len(df):
                         team_name = df.iloc[position, group_index]
                         if pd.notna(team_name) and str(team_name).strip():
@@ -58,7 +60,7 @@ def create_teams():
                                 "id": team_id,
                                 "name": str(team_name).strip(),
                                 "group": group_letter,
-                                "position": position  # המיקום הוא 1-4
+                                "position": position + 1  # המיקום הוא 1-4
                             })
                             team_id += 1
             
@@ -90,15 +92,19 @@ def create_teams():
         
         # מציג כמה דוגמאות
         print("\nדוגמאות לקבוצות:")
-        sample_teams = session.query(Team).limit(8).all()
+        from sqlalchemy.orm import Session as _S
+        sample_sess = _S(bind=engine)
+        sample_teams = sample_sess.query(Team).limit(8).all()
         for team in sample_teams:
             print(f"ID {team.id}: {team.name} (בית {team.group_letter}, מיקום {team.group_position})")
+        sample_sess.close()
         
     except Exception as e:
         session.rollback()
         print(f"שגיאה ביצירת הקבוצות: {e}")
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     create_teams()

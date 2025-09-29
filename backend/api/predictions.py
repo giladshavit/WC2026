@@ -183,24 +183,40 @@ def create_or_update_third_place_prediction(
         import os
         
         # Execute the bracket build script
-        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "build_knockout_bracket_simple.py")
+        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "build_round32_by_prediction.py")
         python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
         user_id_arg = str(third_place_prediction.user_id)
         
-        subprocess.run(
+        print(f"🔧 Running bracket build script...")
+        print(f"Script path: {script_path}")
+        print(f"Python path: {python_path}")
+        print(f"User ID: {user_id_arg}")
+        
+        process_result = subprocess.run(
             [python_path, script_path, user_id_arg],
             capture_output=True,
             text=True,
             cwd=os.path.dirname(os.path.dirname(__file__))
         )
         
-        result["bracket_rebuilt"] = True
-        result["message"] = result.get("message", "") + " Bracket rebuilt automatically."
+        print(f"Script return code: {process_result.returncode}")
+        if process_result.stdout:
+            print(f"Script stdout: {process_result.stdout}")
+        if process_result.stderr:
+            print(f"Script stderr: {process_result.stderr}")
+        
+        if process_result.returncode == 0:
+            result["bracket_rebuilt"] = True
+            result["message"] = result.get("message", "") + " Bracket rebuilt automatically."
+        else:
+            result["bracket_rebuilt"] = False
+            result["bracket_error"] = f"Script failed with return code {process_result.returncode}: {process_result.stderr}"
         
     except Exception as e:
         # Do not fail if the script errors - just add a note
         result["bracket_rebuilt"] = False
         result["bracket_error"] = str(e)
+        print(f"❌ Exception running bracket script: {e}")
     
     return result
 

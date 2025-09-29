@@ -8,7 +8,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from database import SessionLocal
+from database import SessionLocal, engine
 from models.third_place_combinations import ThirdPlaceCombination
 import requests
 import csv
@@ -21,6 +21,10 @@ def load_combinations_from_google_sheet():
     sheet_url = "https://docs.google.com/spreadsheets/d/1D9zV9rivLeDUql_6bMvFEdZ3gOpMnG015WNL9iGfX4g/export?format=csv&gid=0"
     
     try:
+        # Create table if it doesn't exist
+        print("🔧 Creating table if needed...")
+        ThirdPlaceCombination.__table__.create(engine, checkfirst=True)
+        
         print("📥 Downloading the spreadsheet...")
         response = requests.get(sheet_url)
         response.raise_for_status()

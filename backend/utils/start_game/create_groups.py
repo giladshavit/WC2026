@@ -5,12 +5,14 @@ Script to create groups
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Point to backend root: utils/start_game -> utils -> backend
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from database import engine
 from models.groups import Group
 from models.team import Team
 from sqlalchemy.orm import sessionmaker
+
 
 def create_groups():
     """Create all groups"""
@@ -63,6 +65,7 @@ def create_groups():
         print(f"Error creating groups: {e}")
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     create_groups()
