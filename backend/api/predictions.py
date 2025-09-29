@@ -256,7 +256,7 @@ def create_or_update_match_prediction(
     """
     Create or update a single match prediction
     """
-    # Check if match predictions are editable (they can be edited until group stage starts)
+    # Check if match predictions are editable (they can be edited until group cycle 1 starts)
     current_stage = StageManager.get_current_stage(db)
     if current_stage.value > Stage.PRE_GROUP_STAGE.value:
         raise HTTPException(
@@ -315,14 +315,6 @@ def create_or_update_batch_predictions(
     """
     Create or update multiple predictions
     """
-    # Check if match predictions are editable (they can be edited until group stage starts)
-    current_stage = StageManager.get_current_stage(db)
-    if current_stage.value > Stage.PRE_GROUP_STAGE.value:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Match predictions are no longer editable. Current stage: {current_stage.name}"
-        )
-    
     result = PredictionService.create_or_update_batch_predictions(
         db, batch_request.user_id, batch_request.predictions
     )
