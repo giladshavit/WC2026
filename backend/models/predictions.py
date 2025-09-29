@@ -10,8 +10,8 @@ class MatchPrediction(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     match_id = Column(Integer, ForeignKey("matches.id"), nullable=False)  # Single matches table
-    home_score = Column(Integer, nullable=False)
-    away_score = Column(Integer, nullable=False)
+    home_score = Column(Integer, nullable=True)
+    away_score = Column(Integer, nullable=True)
     predicted_winner = Column(Integer, ForeignKey("teams.id"), nullable=True)  # NULL for draw
     points = Column(Integer, default=0, nullable=False)  # Points awarded for this prediction
     is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited

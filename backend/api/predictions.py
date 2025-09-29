@@ -14,8 +14,8 @@ router = APIRouter()
 
 # Pydantic models for request validation
 class MatchPredictionRequest(BaseModel):
-    home_score: int
-    away_score: int
+    home_score: int = None
+    away_score: int = None
     predicted_winner: int = None  # Optional, will be calculated automatically
 
 class BatchPredictionRequest(BaseModel):

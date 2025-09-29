@@ -62,12 +62,12 @@ def create_group_matches_predictions(user_id: int) -> None:
             )
 
             if existing is None:
-                # Create default 0-0 draw prediction, editable
+                # Create default null prediction, editable
                 prediction = MatchPrediction(
                     user_id=user_id,
                     match_id=match.id,
-                    home_score=0,
-                    away_score=0,
+                    home_score=None,
+                    away_score=None,
                     predicted_winner=None,
                     is_editable=True,
                 )

@@ -195,13 +195,15 @@ class PredictionService:
         if not match:
             return {"error": "Match not found"}
         
-        # Determine winner based on result
-        predicted_winner = 0  # Default to draw
-        if home_score > away_score:
-            predicted_winner = match.home_team_id
-        elif away_score > home_score:
-            predicted_winner = match.away_team_id
-        # If draw, predicted_winner remains 0
+        # Determine winner based on result; if scores are None, keep predicted_winner as None
+        predicted_winner = None
+        if home_score is not None and away_score is not None:
+            if home_score > away_score:
+                predicted_winner = match.home_team_id
+            elif away_score > home_score:
+                predicted_winner = match.away_team_id
+            else:
+                predicted_winner = 0  # draw
         
         # Check if prediction already exists for this match
         existing_prediction = db.query(MatchPrediction).filter(
