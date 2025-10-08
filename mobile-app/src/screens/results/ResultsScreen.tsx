@@ -17,7 +17,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
-    direction: 'rtl', // RTL for Hebrew
   },
   title: {
     fontSize: 28,

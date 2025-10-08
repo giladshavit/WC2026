@@ -24,7 +24,6 @@ export default function PredictionsTopTabs() {
           shadowOpacity: 0,
           borderBottomWidth: 1,
           borderBottomColor: '#e2e8f0',
-          flexDirection: 'row-reverse', // RTL for top tabs
         },
         tabBarIndicatorStyle: {
           backgroundColor: '#667eea',
