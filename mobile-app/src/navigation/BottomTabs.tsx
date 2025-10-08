@@ -26,6 +26,7 @@ export default function BottomTabs() {
           paddingTop: 5,
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom,
+          flexDirection: 'row-reverse', // RTL for tabs
         },
         headerStyle: {
           backgroundColor: '#667eea',
