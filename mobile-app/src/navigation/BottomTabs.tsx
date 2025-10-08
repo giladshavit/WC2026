@@ -1,11 +1,15 @@
 import React from 'react';
+import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PredictionsTopTabs from './PredictionsTopTabs';
 import ResultsScreen from '../screens/results/ResultsScreen';
 
 const Tab = createBottomTabNavigator();
 
 export default function BottomTabs() {
+  const insets = useSafeAreaInsets();
+  
   return (
     <Tab.Navigator
       screenOptions={{
@@ -20,7 +24,8 @@ export default function BottomTabs() {
           borderTopWidth: 1,
           borderTopColor: '#e2e8f0',
           paddingTop: 5,
-          height: 60,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom,
         },
         headerStyle: {
           backgroundColor: '#667eea',
