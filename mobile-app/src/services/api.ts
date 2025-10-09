@@ -3,6 +3,7 @@ const API_BASE_URL = 'http://127.0.0.1:8000';
 export interface Team {
   id: number;
   name: string;
+  flag_url?: string;
 }
 
 export interface UserPrediction {
@@ -37,7 +38,9 @@ class ApiService {
 
   async getMatches(userId: number = 1): Promise<Match[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/matches?user_id=${userId}`);
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${this.baseUrl}/api/predictions/matches?user_id=${userId}&_t=${timestamp}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -79,6 +82,42 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('Error updating match prediction:', error);
+      throw error;
+    }
+  }
+
+  async updateBatchMatchPredictions(
+    userId: number,
+    predictions: Array<{
+      match_id: number;
+      home_score: number | null;
+      away_score: number | null;
+    }>
+  ): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/predictions/matches/batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          predictions: predictions.map(p => ({
+            match_id: p.match_id,
+            home_score: p.home_score,
+            away_score: p.away_score,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error updating batch match predictions:', error);
       throw error;
     }
   }

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Match, apiService } from '../../services/api';
 import MatchCard from '../../components/MatchCard';
 
@@ -7,6 +7,14 @@ export default function MatchesScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<Map<number, {homeScore: number | null, awayScore: number | null}>>(new Map());
+  const [saving, setSaving] = useState(false);
+
+  // Determine if there are any incomplete (null) scores among pending changes
+  const hasIncompletePending = Array.from(pendingChanges.values()).some(
+    (s) => s.homeScore === null || s.awayScore === null
+  );
+  const canSave = pendingChanges.size > 0 && !hasIncompletePending && !saving;
 
   const fetchMatches = async () => {
     try {
@@ -14,7 +22,7 @@ export default function MatchesScreen() {
       setMatches(data);
     } catch (error) {
       console.error('Error fetching matches:', error);
-      Alert.alert('שגיאה', 'לא ניתן לטעון את המשחקים. בדוק שהשרת פועל.');
+      Alert.alert('Error', 'Could not load matches. Please check that the server is running.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -25,32 +33,84 @@ export default function MatchesScreen() {
     fetchMatches();
   }, []);
 
-  const handleScoreChange = async (matchId: number, homeScore: number | null, awayScore: number | null) => {
-    try {
-      await apiService.updateMatchPrediction(1, matchId, homeScore, awayScore);
-      Alert.alert('הצלחה', 'הניחוש נשמר בהצלחה!');
-      // Refresh matches to get updated data
-      fetchMatches();
-    } catch (error) {
-      console.error('Error updating prediction:', error);
-      Alert.alert('שגיאה', 'לא ניתן לשמור את הניחוש. נסה שוב.');
-    }
-  };
+  const handleScoreChange = useCallback((matchId: number, homeScore: number | null, awayScore: number | null) => {
+    setPendingChanges(prev => {
+      const newChanges = new Map(prev);
+      newChanges.set(matchId, { homeScore, awayScore });
+      return newChanges;
+    });
+  }, []);
 
   const handleRefresh = () => {
     setRefreshing(true);
     fetchMatches();
   };
 
-  const renderMatch = ({ item }: { item: Match }) => (
-    <MatchCard match={item} onScoreChange={handleScoreChange} />
-  );
+  const handleSaveAll = async () => {
+    if (pendingChanges.size === 0) {
+      Alert.alert('Message', 'No changes to save');
+      return;
+    }
+
+    if (hasIncompletePending) {
+      Alert.alert('Missing Value', 'Cannot save prediction when one of the scores is empty. Fill in both scores.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const predictions = Array.from(pendingChanges.entries()).map(([matchId, scores]) => ({
+        match_id: matchId,
+        home_score: scores.homeScore,
+        away_score: scores.awayScore,
+      }));
+
+      const result = await apiService.updateBatchMatchPredictions(1, predictions);
+      console.log('Save result:', result);
+      
+      Alert.alert('Success', 'All predictions saved successfully!');
+      
+      // Clear pending changes immediately
+      setPendingChanges(new Map());
+      
+      // Wait 2 seconds for the server to process the updates and force refresh
+      setTimeout(() => {
+        console.log('Refreshing matches after save...');
+        fetchMatches();
+      }, 2000);
+    } catch (error) {
+      console.error('Error saving predictions:', error);
+      Alert.alert('Error', 'Could not save predictions. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renderMatch = ({ item }: { item: Match }) => {
+    const pendingChange = pendingChanges.get(item.id);
+    const matchWithPendingChanges = pendingChange ? {
+      ...item,
+      user_prediction: {
+        ...item.user_prediction,
+        home_score: pendingChange.homeScore,
+        away_score: pendingChange.awayScore,
+      }
+    } : item;
+    
+    return (
+      <MatchCard 
+        match={matchWithPendingChanges} 
+        onScoreChange={handleScoreChange}
+        hasPendingChanges={!!pendingChange}
+      />
+    );
+  };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>טוען משחקים...</Text>
+        <Text style={styles.loadingText}>Loading matches...</Text>
       </View>
     );
   }
@@ -58,15 +118,32 @@ export default function MatchesScreen() {
   if (matches.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>אין משחקים זמינים כרגע</Text>
-        <Text style={styles.emptySubtext}>בדוק שהשרת פועל ושהמשחקים נוצרו</Text>
+        <Text style={styles.emptyText}>No matches available</Text>
+        <Text style={styles.emptySubtext}>Check that the server is running and matches are created</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>ניחושי משחקים</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Match Predictions</Text>
+        {pendingChanges.size > 0 && (
+          <TouchableOpacity 
+            style={[styles.saveButton, (!canSave) && styles.saveButtonDisabled]} 
+            onPress={handleSaveAll}
+            disabled={!canSave}
+          >
+            <Text style={styles.saveButtonText}>
+              {saving
+                ? 'Saving...'
+                : hasIncompletePending
+                  ? 'Fill scores before saving'
+                  : `Save Predictions (${pendingChanges.size})`}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
       <FlatList
         data={matches}
         renderItem={renderMatch}
@@ -85,12 +162,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f7fafc',
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#667eea',
-    textAlign: 'center',
-    marginVertical: 16,
+  },
+  saveButton: {
+    backgroundColor: '#48bb78',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#a0aec0',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   loadingContainer: {
     flex: 1,
