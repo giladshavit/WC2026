@@ -51,6 +51,7 @@ def main() -> None:
 
     scripts = [
         ("create_teams.py", "Creating teams from Google Sheet"),
+        ("update_team_flags.py", "Updating team flags"),
         ("create_groups.py", "Creating groups from teams"),
         ("create_matches.py", "Creating all matches from templates"),
         ("create_knockout_results.py", "Creating knockout results for bracket building"),
