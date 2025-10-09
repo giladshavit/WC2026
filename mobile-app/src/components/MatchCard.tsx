@@ -73,58 +73,69 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
         <Text style={styles.dateText}>{formatDate(match.date)}</Text>
       </View>
       
-      <View style={styles.teamsContainer}>
-        <View style={styles.teamContainer}>
-          <View style={styles.teamInfo}>
+        <View style={styles.matchLayout}>
+          {/* Home Flag - Fixed position at left edge */}
+          <View style={styles.homeFlagContainer}>
             {match.home_team.flag_url && (
-              <Image source={{ uri: match.home_team.flag_url }} style={styles.flag} />
+              <Image source={{ uri: match.home_team.flag_url }} style={styles.teamFlag} />
             )}
-            <Text style={styles.teamName}>{match.home_team.name}</Text>
           </View>
-          <TextInput
-            style={[
-              styles.scoreInput,
-              !match.can_edit && styles.scoreInputDisabled
-            ]}
-            value={homeScore}
-            onChangeText={(value) => handleScoreChange('home', value)}
-            placeholder="0"
-            keyboardType="numeric"
-            editable={match.can_edit}
-            maxLength={2}
-          />
-        </View>
-        
-        <Text style={styles.vsText}>vs</Text>
-        
-        <View style={styles.teamContainer}>
-          <View style={styles.teamInfo}>
+
+          {/* Home Team Name - Fixed distance from flag */}
+          <View style={styles.homeTeamContainer}>
+            <Text style={styles.homeTeamName}>{match.home_team.name}</Text>
+          </View>
+
+          {/* Score Section */}
+          <View style={styles.scoreSection}>
+            <TextInput
+              style={[
+                styles.scoreInput,
+                !match.can_edit && styles.scoreInputDisabled
+              ]}
+              value={homeScore}
+              onChangeText={(value) => handleScoreChange('home', value)}
+              placeholder="0"
+              keyboardType="numeric"
+              editable={match.can_edit}
+              maxLength={2}
+            />
+            <Text style={styles.scoreSeparator}>:</Text>
+            <TextInput
+              style={[
+                styles.scoreInput,
+                !match.can_edit && styles.scoreInputDisabled
+              ]}
+              value={awayScore}
+              onChangeText={(value) => handleScoreChange('away', value)}
+              placeholder="0"
+              keyboardType="numeric"
+              editable={match.can_edit}
+              maxLength={2}
+            />
+          </View>
+
+          {/* Away Flag - Fixed position at right edge */}
+          <View style={styles.awayFlagContainer}>
             {match.away_team.flag_url && (
-              <Image source={{ uri: match.away_team.flag_url }} style={styles.flag} />
+              <Image source={{ uri: match.away_team.flag_url }} style={styles.teamFlag} />
             )}
-            <Text style={styles.teamName}>{match.away_team.name}</Text>
           </View>
-          <TextInput
-            style={[
-              styles.scoreInput,
-              !match.can_edit && styles.scoreInputDisabled
-            ]}
-            value={awayScore}
-            onChangeText={(value) => handleScoreChange('away', value)}
-            placeholder="0"
-            keyboardType="numeric"
-            editable={match.can_edit}
-            maxLength={2}
-          />
+
+          {/* Away Team Name - Fixed distance from flag */}
+          <View style={styles.awayTeamContainer}>
+            <Text style={styles.awayTeamName}>{match.away_team.name}</Text>
+          </View>
         </View>
-      </View>
-      
-      
-      {match.user_prediction.points !== null && (
-        <Text style={styles.pointsText}>
-          Points: {match.user_prediction.points}
-        </Text>
-      )}
+
+        {/* Points - Below match layout */}
+        {match.user_prediction.points !== null && (
+          <View style={styles.pointsContainer}>
+            <Text style={styles.pointsText}>
+              Points: {match.user_prediction.points}
+            </Text>
+          </View>
+        )}
     </View>
   );
 }
@@ -163,52 +174,110 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#718096',
   },
-  teamsContainer: {
+  matchLayout: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 4,
+    paddingHorizontal: 0,
+    position: 'relative',
+    minHeight: 40, // Height for flags and score section
   },
-  teamContainer: {
-    flex: 1,
+  homeFlagContainer: {
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
     alignItems: 'center',
+    position: 'absolute',
+    left: 0, // Fixed at left edge
+    zIndex: 1,
   },
-  teamInfo: {
-    flexDirection: 'row',
+  awayFlagContainer: {
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    position: 'absolute',
+    right: 0, // Fixed at right edge
+    zIndex: 1,
   },
-  flag: {
-    width: 24,
-    height: 18,
-    marginRight: 8,
-    borderRadius: 2,
+  teamFlag: {
+    width: 28,
+    height: 20,
+    borderRadius: 3,
   },
-  teamName: {
-    fontSize: 16,
+  homeTeamContainer: {
+    position: 'absolute',
+    left: 36, // 30px flag width + 6px distance
+    right: '50%',
+    marginRight: 51, // Half of score section width (47px) + 4px spacing
+    justifyContent: 'center',
+  },
+  homeTeamName: {
+    fontSize: 13,
     fontWeight: '600',
-    textAlign: 'center',
+    color: '#2d3748',
+    textAlign: 'left',
+  },
+  awayTeamContainer: {
+    position: 'absolute',
+    right: 36, // 30px flag width + 6px distance from flag
+    left: '50%',
+    marginLeft: 51, // Half of score section width (47px) + 4px spacing
+    justifyContent: 'center',
+  },
+  awayTeamName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2d3748',
+    textAlign: 'right',
+  },
+  scoreSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fbbf24', // Gold/yellow color like in the image
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    position: 'absolute',
+    left: '50%',
+    transform: [{ translateX: -47 }], // Half of the score section width to center it
+    zIndex: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   scoreInput: {
-    width: 50,
-    height: 40,
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
+    width: 30,
+    height: 26,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 4,
     textAlign: 'center',
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 'bold',
+    color: '#1f2937',
   },
   scoreInputDisabled: {
-    backgroundColor: '#f7fafc',
-    borderColor: '#cbd5e0',
-    color: '#a0aec0',
+    backgroundColor: '#f9fafb',
+    borderColor: '#e5e7eb',
+    color: '#9ca3af',
   },
-  vsText: {
-    fontSize: 16,
+  scoreSeparator: {
+    fontSize: 17,
     fontWeight: 'bold',
-    color: '#4a5568',
-    marginHorizontal: 16,
+    color: '#1f2937',
+    marginHorizontal: 4,
+  },
+  pointsContainer: {
+    alignItems: 'center',
+    marginTop: 4, // 4px spacing from match layout above
+    marginBottom: 4, // 4px spacing from bottom
   },
   pointsText: {
     fontSize: 12,
