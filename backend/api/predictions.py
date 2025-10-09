@@ -7,10 +7,19 @@ from dataclasses import dataclass
 from services.prediction_service import PredictionService, PlacesPredictions
 from services.group_service import GroupService
 from services.stage_manager import StageManager, Stage
+from services.match_service import MatchService
 from models.predictions import KnockoutStagePrediction, ThirdPlacePrediction
 from database import get_db
 
 router = APIRouter()
+
+# GET /predictions/matches - Get all matches with user predictions
+@router.get("/predictions/matches", response_model=List[Dict[str, Any]])
+def get_matches_with_predictions(user_id: int, db: Session = Depends(get_db)):
+    """
+    Get all matches with the user's predictions
+    """
+    return MatchService.get_all_matches_with_predictions(db, user_id)
 
 # Pydantic models for request validation
 class MatchPredictionRequest(BaseModel):
@@ -307,14 +316,18 @@ def update_single_prediction(
     
     return result
 
-@router.post("/predictions/batch", response_model=Dict[str, Any])
-def create_or_update_batch_predictions(
+@router.post("/predictions/matches/batch", response_model=Dict[str, Any])
+def create_or_update_batch_match_predictions(
     batch_request: BatchPredictionRequest,
     db: Session = Depends(get_db)
 ):
     """
-    Create or update multiple predictions
+    Create or update multiple match predictions
     """
+    print(f"Received batch request: {batch_request}")
+    print(f"User ID: {batch_request.user_id}")
+    print(f"Predictions: {batch_request.predictions}")
+    
     result = PredictionService.create_or_update_batch_predictions(
         db, batch_request.user_id, batch_request.predictions
     )

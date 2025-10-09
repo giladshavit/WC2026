@@ -261,14 +261,23 @@ class PredictionService:
             home_score = prediction_data.get("home_score")
             away_score = prediction_data.get("away_score")
             
-            if not all([match_id, home_score is not None, away_score is not None]):
-                return {"error": f"Missing data for match {match_id}"}
+            if not match_id:
+                return {"error": f"Missing match_id"}
             
             # Use existing function for each prediction
             result = PredictionService.create_or_update_match_prediction(
                 db, user_id, match_id, home_score, away_score
             )
             results.append(result)
+            
+            # Force database flush after each update
+            db.flush()
+        
+        # Commit all changes to database
+        db.commit()
+        
+        # Force a database flush to ensure all changes are written
+        db.flush()
         
         return {
             "predictions": results,
