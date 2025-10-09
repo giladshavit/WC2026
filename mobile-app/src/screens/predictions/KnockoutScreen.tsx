@@ -4,8 +4,8 @@ import { View, Text, StyleSheet } from 'react-native';
 export default function KnockoutScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>נוקאאוט</Text>
-      <Text style={styles.subtitle}>בקרוב...</Text>
+      <Text style={styles.title}>Knockout Predictions</Text>
+      <Text style={styles.subtitle}>Coming Soon...</Text>
     </View>
   );
 }

@@ -34,22 +34,22 @@ export default function PredictionsTopTabs() {
       <Tab.Screen 
         name="Matches" 
         component={MatchesScreen}
-        options={{ title: 'משחקים' }}
+        options={{ title: 'Matches' }}
       />
       <Tab.Screen 
         name="Groups" 
         component={GroupsScreen}
-        options={{ title: 'מיקומים' }}
+        options={{ title: 'Groups' }}
       />
       <Tab.Screen 
         name="ThirdPlace" 
         component={ThirdPlaceScreen}
-        options={{ title: 'מקום 3' }}
+        options={{ title: '3rd Place' }}
       />
       <Tab.Screen 
         name="Knockout" 
         component={KnockoutScreen}
-        options={{ title: 'נוקאאוט' }}
+        options={{ title: 'Knockout' }}
       />
     </Tab.Navigator>
   );

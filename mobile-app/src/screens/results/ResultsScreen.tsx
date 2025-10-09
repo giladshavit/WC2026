@@ -4,8 +4,8 @@ import { View, Text, StyleSheet } from 'react-native';
 export default function ResultsScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>תוצאות</Text>
-      <Text style={styles.subtitle}>בקרוב...</Text>
+      <Text style={styles.title}>Results</Text>
+      <Text style={styles.subtitle}>Coming Soon...</Text>
     </View>
   );
 }

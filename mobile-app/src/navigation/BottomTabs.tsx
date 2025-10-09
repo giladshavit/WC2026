@@ -41,8 +41,8 @@ export default function BottomTabs() {
         name="PredictionsTab" 
         component={PredictionsTopTabs}
         options={{ 
-          title: 'ניחושים',
-          tabBarLabel: 'ניחושים',
+          title: 'Predictions',
+          tabBarLabel: 'Predictions',
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🎯</Text>,
         }}
       />
@@ -50,8 +50,8 @@ export default function BottomTabs() {
         name="ResultsTab" 
         component={ResultsScreen}
         options={{ 
-          title: 'תוצאות',
-          tabBarLabel: 'תוצאות',
+          title: 'Results',
+          tabBarLabel: 'Results',
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📊</Text>,
         }}
       />

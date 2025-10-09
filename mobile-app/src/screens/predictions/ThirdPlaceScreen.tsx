@@ -4,8 +4,8 @@ import { View, Text, StyleSheet } from 'react-native';
 export default function ThirdPlaceScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>מקום 3</Text>
-      <Text style={styles.subtitle}>בקרוב...</Text>
+      <Text style={styles.title}>3rd Place Predictions</Text>
+      <Text style={styles.subtitle}>Coming Soon...</Text>
     </View>
   );
 }

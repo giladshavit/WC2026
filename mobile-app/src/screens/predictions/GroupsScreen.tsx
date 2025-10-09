@@ -4,8 +4,8 @@ import { View, Text, StyleSheet } from 'react-native';
 export default function GroupsScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>מיקומים</Text>
-      <Text style={styles.subtitle}>בקרוב...</Text>
+      <Text style={styles.title}>Group Standings</Text>
+      <Text style={styles.subtitle}>Coming Soon...</Text>
     </View>
   );
 }
