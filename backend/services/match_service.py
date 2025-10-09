@@ -45,10 +45,12 @@ class MatchService:
             "home_team": {
                 "id": match.home_team.id if match.home_team else None,
                 "name": match.home_team.name if match.home_team else None,
+                "flag_url": match.home_team.flag_url if match.home_team else None,
             },
             "away_team": {
                 "id": match.away_team.id if match.away_team else None,
                 "name": match.away_team.name if match.away_team else None,
+                "flag_url": match.away_team.flag_url if match.away_team else None,
             },
             "date": match.date.isoformat(),
             "status": match.status,
