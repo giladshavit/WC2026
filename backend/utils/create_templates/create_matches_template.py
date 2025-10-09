@@ -5,12 +5,15 @@ Script to create the matches_template table with all matches
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add backend directory to path
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(backend_dir)
 
 from database import engine
 from models.matches_template import MatchTemplate
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
+import requests
 
 def create_matches_template():
     """Create the matches_template table with all matches"""
@@ -267,5 +270,121 @@ def create_matches_template():
     finally:
         session.close()
 
+def update_matches_dates_from_sheet():
+    """
+    Update match dates and times from Google Sheet
+    Sheet URL: https://docs.google.com/spreadsheets/d/1D9zV9rivLeDUql_6bMvFEdZ3gOpMnG015WNL9iGfX4g
+    Range: F11:H114 (id, day, time) - row 10 is header
+    """
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    
+    try:
+        # Access public Google Sheet via CSV export
+        sheet_id = "1D9zV9rivLeDUql_6bMvFEdZ3gOpMnG015WNL9iGfX4g"
+        gid = "255491779"  # First sheet
+        
+        # Export as CSV and parse
+        url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+        response = requests.get(url)
+        response.raise_for_status()
+        
+        # Parse CSV data
+        import csv
+        from io import StringIO
+        
+        csv_data = StringIO(response.text)
+        reader = csv.reader(csv_data)
+        
+        # Skip to row 11 (0-indexed row 10) where data starts
+        # Row 1-9 are header rows, row 10 has column headers
+        all_rows = list(reader)
+        
+        # Find the row with "id", "day", "time" headers in columns F, G, H (indices 5, 6, 7)
+        header_row_idx = None
+        for idx, row in enumerate(all_rows):
+            if len(row) > 7 and row[5] == 'id' and row[6] == 'day' and row[7] == 'time':
+                header_row_idx = idx
+                break
+        
+        if header_row_idx is None:
+            print("Error: Could not find header row with 'id', 'day', 'time'")
+            return
+        
+        # Get data rows (starting from row after header)
+        data = []
+        for row in all_rows[header_row_idx + 1:]:
+            if len(row) > 7 and row[5] and row[6] and row[7]:  # columns F, G, H
+                data.append([row[5], row[6], row[7]])  # id, day, time
+        
+        print(f"Found {len(data)} rows of match schedule data")
+        
+        updated_count = 0
+        skipped_count = 0
+        
+        for row in data:
+            if len(row) < 3:
+                continue
+            
+            try:
+                match_id = int(row[0])  # id column
+                day_str = str(row[1])   # day column (e.g., "11.6" for June 11)
+                time_str = str(row[2])  # time column (e.g., "19:00")
+                
+                # Parse the day (format: "DD.M" where M is month)
+                day_parts = day_str.split('.')
+                if len(day_parts) != 2:
+                    print(f"Skipping match {match_id}: Invalid day format '{day_str}'")
+                    skipped_count += 1
+                    continue
+                
+                day = int(day_parts[0])
+                month = int(day_parts[1])
+                
+                # Parse the time (format: "HH:MM")
+                time_parts = time_str.split(':')
+                if len(time_parts) != 2:
+                    print(f"Skipping match {match_id}: Invalid time format '{time_str}'")
+                    skipped_count += 1
+                    continue
+                
+                hour = int(time_parts[0])
+                minute = int(time_parts[1])
+                
+                # Create the datetime object (year 2026)
+                match_datetime = datetime(2026, month, day, hour, minute)
+                
+                # Find and update the match
+                match = session.query(MatchTemplate).filter(MatchTemplate.id == match_id).first()
+                if match:
+                    match.date = match_datetime
+                    updated_count += 1
+                    print(f"Updated match {match_id}: {match_datetime.strftime('%Y-%m-%d %H:%M')}")
+                else:
+                    print(f"Warning: Match {match_id} not found in database")
+                    skipped_count += 1
+                    
+            except ValueError as e:
+                print(f"Error parsing row {row}: {e}")
+                skipped_count += 1
+                continue
+        
+        session.commit()
+        print(f"\n✅ Successfully updated {updated_count} matches with dates and times")
+        if skipped_count > 0:
+            print(f"⚠️  Skipped {skipped_count} matches due to errors")
+        
+    except Exception as e:
+        session.rollback()
+        print(f"Error updating match dates: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        session.close()
+
 if __name__ == "__main__":
     create_matches_template()
+    print("\n" + "="*50)
+    print("Now updating match dates and times from Google Sheet...")
+    print("="*50 + "\n")
+    update_matches_dates_from_sheet()
