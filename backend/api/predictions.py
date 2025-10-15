@@ -219,6 +219,35 @@ def get_knockout_predictions(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching knockout predictions: {str(e)}")
 
+@router.post("/predictions/knockout/batch", response_model=Dict[str, Any])
+async def update_batch_knockout_predictions(
+    request: BatchKnockoutPredictionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Update multiple knockout predictions at once with penalty calculation
+    """
+    current_stage = StageManager.get_current_stage(db)
+    if current_stage.value > Stage.ROUND32.value:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Knockout predictions are no longer editable. Current stage: {current_stage.name}"
+        )
+    
+    result = PredictionService.update_batch_knockout_predictions(
+        db, request.user_id, request.predictions
+    )
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    # Return success even if some predictions failed, but log the errors
+    if not result.get("success", False):
+        # Log errors but don't fail the entire request
+        print(f"Some predictions failed: {result.get('errors', [])}")
+    
+    return result
+
 # ========================================
 # Group Endpoints (Legacy - for backward compatibility)
 # ========================================
@@ -420,31 +449,4 @@ def update_knockout_prediction_winner(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating prediction: {str(e)}")
 
-@router.post("/predictions/knockout/batch", response_model=Dict[str, Any])
-async def update_batch_knockout_predictions(
-    request: BatchKnockoutPredictionRequest,
-    db: Session = Depends(get_db)
-):
-    """
-    Update multiple knockout predictions at once with penalty calculation
-    """
-    current_stage = StageManager.get_current_stage(db)
-    if current_stage.value > Stage.ROUND32.value:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Knockout predictions are no longer editable. Current stage: {current_stage.name}"
-        )
-    
-    result = PredictionService.update_batch_knockout_predictions(
-        db, request.user_id, request.predictions
-    )
-    
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    # Return success even if some predictions failed, but log the errors
-    if not result.get("success", False):
-        # Log errors but don't fail the entire request
-        print(f"Some predictions failed: {result.get('errors', [])}")
-    
     return result

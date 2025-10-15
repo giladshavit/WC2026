@@ -1321,21 +1321,33 @@ class PredictionService:
 
     @staticmethod
     def update_knockout_prediction_teams(db: Session, prediction, old_team_id: int, new_team_id: int):
+        print(f"🔧 [DEBUG] update_knockout_prediction_teams called: prediction {prediction.id}, {old_team_id} -> {new_team_id}")
         if old_team_id == new_team_id:
+            print(f"✅ [DEBUG] No change needed, teams are the same")
             return
         # Perform the swap
         if prediction.team1_id == old_team_id:
             prediction.team1_id = new_team_id
         elif prediction.team2_id == old_team_id:
+            print(f"🔄 [DEBUG] Before update: team2_id = {prediction.team2_id}")
             prediction.team2_id = new_team_id
+            print(f"🔄 [DEBUG] After update: team2_id = {prediction.team2_id}")
         else:
+            print(f"❌ [DEBUG] No matching team found for old_team_id: {old_team_id}")
             return
+        print(f"🔄 [DEBUG] Updated prediction {prediction.id}: team1_id={prediction.team1_id}, team2_id={prediction.team2_id}")
+        
         if prediction.winner_team_id == old_team_id:
-            return PredictionService.update_knockout_prediction_with_winner(db, prediction, None)
+            print(f"🔄 [DEBUG] Winner team changed, clearing winner")
+            result = PredictionService.update_knockout_prediction_with_winner(db, prediction, None)
+            print(f"✅ [DEBUG] Winner cleared (will be committed by parent function)")
+            return result
         else:
             if prediction.winner_team_id:
+                print(f"🔄 [DEBUG] Setting status to MIGHT_CHANGE_PREDICT")
                 PredictionService.set_status(prediction, PredictionStatus.MIGHT_CHANGE_PREDICT)
-                db.commit()
+            
+            print(f"✅ [DEBUG] Team updated (will be committed by parent function)")
 
     @staticmethod
     def get_knockout_prediction_by_user_and_match_id(db: Session, user_id: int, match_id: int):
@@ -1379,12 +1391,19 @@ class PredictionService:
 
     @staticmethod
     def create_new_hash_key(db: Session, advancing_team_ids: List[int]) -> str:
+        print(f"🔧 [DEBUG] create_new_hash_key called with advancing_team_ids: {advancing_team_ids}")
         letters = []
         for team_id in advancing_team_ids:
             team = db.query(Team).filter(Team.id == team_id).first()
             if team and team.group_letter:
                 letters.append(team.group_letter)
-        return ''.join(sorted(letters))
+                print(f"🔧 [DEBUG] Team {team_id} ({team.name}) -> group_letter: {team.group_letter}")
+            else:
+                print(f"❌ [DEBUG] Team {team_id} not found or no group_letter")
+        
+        hash_key = ''.join(sorted(letters))
+        print(f"🔧 [DEBUG] Generated hash_key: {hash_key} from letters: {letters}")
+        return hash_key
 
     @staticmethod
     def find_third_places_combination_by_hash_key(db: Session, hash_key: str):
@@ -1394,11 +1413,19 @@ class PredictionService:
 
     @staticmethod
     def update_knockout_predictions_by_new_third_places_qualified(db: Session, user_id: int, advancing_team_ids: List[int]):
+        print(f"🔧 [DEBUG] update_knockout_predictions_by_new_third_places_qualified called for user_id={user_id}")
+        print(f"🔧 [DEBUG] advancing_team_ids: {advancing_team_ids}")
+        
         # Build hash key and find combination (like the script)
         hash_key = PredictionService.create_new_hash_key(db, advancing_team_ids)
+        print(f"🔧 [DEBUG] Generated hash_key: {hash_key}")
+        
         combination = PredictionService.find_third_places_combination_by_hash_key(db, hash_key)
         if not combination:
+            print(f"❌ [DEBUG] No combination found for hash_key: {hash_key}")
             return
+        
+        print(f"✅ [DEBUG] Found combination: {combination.id}")
 
         # Same mapping as the script (updated to match templates)
         third_team_mapping = {
@@ -1420,42 +1447,73 @@ class PredictionService:
 
         # Helper: new_team2 for third-place sources (using lines 142-159 from script)
         def resolve_third_place_team(team_source: str):
+            print(f"🔧 [DEBUG] resolve_third_place_team called with team_source: {team_source}")
             column_name = third_team_mapping[team_source]
+            print(f"🔧 [DEBUG] column_name: {column_name}")
+            
             third_place_source = getattr(combination, column_name)  # e.g., '3A'
+            print(f"🔧 [DEBUG] third_place_source: {third_place_source}")
+            
             group_letter = third_place_source[1]  # 'A'
+            print(f"🔧 [DEBUG] group_letter: {group_letter}")
 
             group = db.query(Group).filter(Group.name == group_letter).first()
             if not group:
+                print(f"❌ [DEBUG] No group found for letter: {group_letter}")
                 return None
+            print(f"✅ [DEBUG] Found group: {group.id} ({group.name})")
 
             group_pred = db.query(GroupStagePrediction).filter(
                 GroupStagePrediction.group_id == group.id
             ).first()
             if not group_pred:
+                print(f"❌ [DEBUG] No group prediction found for group_id: {group.id}")
                 return None
+            print(f"✅ [DEBUG] Found group prediction, third_place: {group_pred.third_place}")
 
-            return db.query(Team).filter(Team.id == group_pred.third_place).first()
+            team = db.query(Team).filter(Team.id == group_pred.third_place).first()
+            if team:
+                print(f"✅ [DEBUG] Found team: {team.id} ({team.name})")
+            else:
+                print(f"❌ [DEBUG] No team found for id: {group_pred.third_place}")
+            return team
 
+        print(f"🔧 [DEBUG] Found {len(relevant_templates)} relevant templates")
+        
         # Iterate relevant templates and update predictions
         for template in relevant_templates:
+            print(f"🔧 [DEBUG] Processing template {template.id}: {template.team_1} vs {template.team_2}")
+            
             # Find the user's prediction for this match
             prediction = db.query(KnockoutStagePrediction).filter(
                 KnockoutStagePrediction.user_id == user_id,
                 KnockoutStagePrediction.template_match_id == template.id
             ).first()
             if not prediction:
+                print(f"❌ [DEBUG] No prediction found for template {template.id}")
                 continue
 
             old_team2_id = prediction.team2_id
+            print(f"🔧 [DEBUG] Current team2_id: {old_team2_id}")
 
             # Compute the new team2 from the combination
             new_team = resolve_third_place_team(template.team_2)
             new_team2_id = new_team.id if new_team else None
             if not new_team2_id:
+                print(f"❌ [DEBUG] Could not resolve new team for {template.team_2}")
                 continue
+
+            print(f"🔧 [DEBUG] New team2_id: {new_team2_id}")
 
             if old_team2_id == new_team2_id:
+                print(f"✅ [DEBUG] No change needed for template {template.id}")
                 continue
 
+            print(f"🔄 [DEBUG] Updating prediction {prediction.id}: {old_team2_id} -> {new_team2_id}")
             # Apply the foundational updater (includes early no-op if equal)
             PredictionService.update_knockout_prediction_teams(db, prediction, old_team2_id, new_team2_id)
+        
+        # Commit all changes at the end
+        db.commit()
+        print(f"✅ [DEBUG] Committed all knockout prediction updates")
+        print(f"✅ [DEBUG] update_knockout_predictions_by_new_third_places_qualified completed")
