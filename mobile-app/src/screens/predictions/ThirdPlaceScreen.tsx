@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThirdPlaceTeam, apiService } from '../../services/api';
 
 interface ThirdPlaceScreenProps {}
@@ -12,6 +13,40 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const [saving, setSaving] = useState(false);
   const [selectedTeams, setSelectedTeams] = useState<Set<number>>(new Set());
   const [changedGroups, setChangedGroups] = useState<string[]>([]);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [titleHeight, setTitleHeight] = useState(0);
+  const [subtitleHeight, setSubtitleHeight] = useState(0);
+  const [counterHeight, setCounterHeight] = useState(0);
+  const [saveButtonHeight, setSaveButtonHeight] = useState(0);
+
+  const insets = useSafeAreaInsets();
+
+  // Calculate dynamic height based on actual measured heights
+  const getCardHeight = () => {
+    const screenHeight = Dimensions.get('window').height;
+    
+    // Calculate reserved space from actual measurements
+    const tabBarHeight = 60; // Approximate tab bar height
+    const reservedSpace = 
+      insets.top + // Safe area top
+      headerHeight + // Header with "Predictions" title
+      titleHeight + // "3rd Place Qualifiers" title
+      subtitleHeight + // "Select 8 teams..." subtitle
+      counterHeight + // "Selected: X/8" counter
+      saveButtonHeight + // Save button
+      tabBarHeight + // Bottom tab bar
+      40; // Additional padding
+    
+    const availableHeight = screenHeight - reservedSpace;
+    
+    // Account for margins between rows (3 gaps between 4 rows)
+    const marginsBetweenRows = 3 * 8; // 3 gaps * 8px each = 24px
+    
+    // Calculate height per card
+    const cardHeight = (availableHeight - marginsBetweenRows) / 4;
+    
+    return Math.max(cardHeight, 80); // Minimum height of 80px
+  };
 
   const fetchData = async () => {
     try {
@@ -132,12 +167,29 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     
     return (
       <TouchableOpacity
-        style={cardStyle}
+        style={[cardStyle, { height: getCardHeight() }]}
         onPress={() => handleTeamPress(item.id)}
         activeOpacity={0.7}
       >
-        <Text style={styles.teamName}>{item.name}</Text>
+        {/* Flag in center */}
+        {item.flag_url && (
+          <Image source={{ uri: item.flag_url }} style={styles.teamFlag} />
+        )}
+        
+        {/* Team name below flag */}
+        <Text 
+          style={styles.teamName}
+          numberOfLines={2}
+          adjustsFontSizeToFit={true}
+          minimumFontScale={0.7}
+        >
+          {item.name}
+        </Text>
+        
+        {/* Group name at bottom */}
         <Text style={styles.groupName}>Group {item.group_name}</Text>
+        
+        {/* Selection indicators */}
         {isSelected && (
           <View style={styles.selectedIndicator}>
             <Text style={styles.selectedText}>✓</Text>
@@ -163,14 +215,21 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
+      <View 
+        style={styles.header}
+        onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
+      >
+        <View 
+          style={styles.headerTop}
+          onLayout={(event) => setTitleHeight(event.nativeEvent.layout.height)}
+        >
           <Text style={styles.title}>3rd Place Qualifiers</Text>
           {selectedTeams.size > 0 && (
             <TouchableOpacity 
               style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
               onPress={handleSave}
               disabled={saving}
+              onLayout={(event) => setSaveButtonHeight(event.nativeEvent.layout.height)}
             >
               <Text style={styles.saveButtonText}>
                 {saving ? 'Saving...' : 'Save'}
@@ -178,8 +237,16 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
             </TouchableOpacity>
           )}
         </View>
-        <Text style={styles.subtitle}>Select 8 teams that will advance from 3rd place</Text>
-        <Text style={styles.counter}>
+        <Text 
+          style={styles.subtitle}
+          onLayout={(event) => setSubtitleHeight(event.nativeEvent.layout.height)}
+        >
+          Select 8 teams that will advance from 3rd place
+        </Text>
+        <Text 
+          style={styles.counter}
+          onLayout={(event) => setCounterHeight(event.nativeEvent.layout.height)}
+        >
           Selected: {selectedTeams.size}/8
         </Text>
       </View>
@@ -262,12 +329,12 @@ const styles = StyleSheet.create({
   teamCard: {
     flex: 1,
     margin: 4,
-    padding: 16,
+    padding: 8,
     backgroundColor: '#fff',
     borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 100,
+    justifyContent: 'space-between',
+    // height will be set dynamically in renderTeam
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -286,17 +353,27 @@ const styles = StyleSheet.create({
   teamCardChanged: {
     borderColor: '#f6ad55',
   },
+  teamFlag: {
+    width: 40,
+    height: 28,
+    borderRadius: 4,
+    marginTop: 12, // Fixed distance from top
+    marginBottom: 8, // Reduced distance between flag and team name
+  },
   teamName: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#2d3748',
     textAlign: 'center',
-    marginBottom: 4,
+    flex: 1,
+    textAlignVertical: 'center',
+    marginBottom: 8, // Increased distance between team name and group name
   },
   groupName: {
     fontSize: 12,
     color: '#718096',
     textAlign: 'center',
+    marginBottom: 6, // Further reduced distance from bottom
   },
   selectedIndicator: {
     position: 'absolute',
