@@ -201,6 +201,25 @@ def create_or_update_third_place_prediction(
     return result
 
 # ========================================
+# Knockout Predictions Endpoints
+# ========================================
+
+@router.get("/predictions/knockout")
+def get_knockout_predictions(
+    user_id: int = 1,  # TODO: should come from authentication
+    stage: str = None, 
+    db: Session = Depends(get_db)
+):
+    """
+    Get all user's knockout predictions. If stage is provided, filter by stage.
+    """
+    try:
+        result = PredictionService.get_knockout_predictions(db, user_id, stage)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching knockout predictions: {str(e)}")
+
+# ========================================
 # Group Endpoints (Legacy - for backward compatibility)
 # ========================================
 
@@ -368,21 +387,6 @@ def update_single_prediction(
         raise HTTPException(status_code=400, detail=result["error"])
     
     return result
-
-@router.get("/predictions/knockout")
-def get_knockout_predictions(
-    user_id: int = 1,  # TODO: should come from authentication
-    stage: str = None, 
-    db: Session = Depends(get_db)
-):
-    """
-    Get all user's knockout predictions. If stage is provided, filter by stage.
-    """
-    try:
-        result = PredictionService.get_knockout_predictions(db, user_id, stage)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching knockout predictions: {str(e)}")
 
 @router.put("/predictions/knockout/{prediction_id}")
 def update_knockout_prediction_winner(

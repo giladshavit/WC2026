@@ -66,6 +66,28 @@ export interface ThirdPlacePredictionData {
   };
 }
 
+export interface KnockoutPrediction {
+  id: number;
+  user_id: number;
+  knockout_result_id: number;
+  template_match_id: number;
+  stage: string;
+  team1_id: number;
+  team2_id: number;
+  winner_team_id: number | null;
+  status: string;
+  points: number;
+  is_editable: boolean;
+  created_at: string;
+  updated_at: string;
+  team1_name: string | null;
+  team2_name: string | null;
+  winner_team_name: string | null;
+  team1_flag: string | null;
+  team2_flag: string | null;
+  winner_team_flag: string | null;
+}
+
 class ApiService {
   private baseUrl: string;
 
@@ -251,6 +273,25 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('Error updating third place prediction:', error);
+      throw error;
+    }
+  }
+
+  // Knockout Predictions
+  async getKnockoutPredictions(userId: number = 1, stage?: string): Promise<KnockoutPrediction[]> {
+    try {
+      const timestamp = new Date().getTime();
+      const stageParam = stage ? `&stage=${stage}` : '';
+      const response = await fetch(`${this.baseUrl}/api/predictions/knockout?user_id=${userId}${stageParam}&_t=${timestamp}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching knockout predictions:', error);
       throw error;
     }
   }

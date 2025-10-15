@@ -1002,10 +1002,13 @@ class PredictionService:
                     "is_editable": prediction.is_editable,
                     "created_at": prediction.created_at,
                     "updated_at": prediction.updated_at,
-                    # Add team names if they exist
+                    # Add team names and flags if they exist
                     "team1_name": prediction.team1.name if prediction.team1 else None,
                     "team2_name": prediction.team2.name if prediction.team2 else None,
-                    "winner_team_name": prediction.winner_team.name if prediction.winner_team else None
+                    "winner_team_name": prediction.winner_team.name if prediction.winner_team else None,
+                    "team1_flag": prediction.team1.flag_url if prediction.team1 else None,
+                    "team2_flag": prediction.team2.flag_url if prediction.team2 else None,
+                    "winner_team_flag": prediction.winner_team.flag_url if prediction.winner_team else None
                 })
             
             return result
@@ -1449,6 +1452,9 @@ class PredictionService:
             new_team = resolve_third_place_team(template.team_2)
             new_team2_id = new_team.id if new_team else None
             if not new_team2_id:
+                continue
+
+            if old_team2_id == new_team2_id:
                 continue
 
             # Apply the foundational updater (includes early no-op if equal)

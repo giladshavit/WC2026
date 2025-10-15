@@ -5,10 +5,10 @@ Script to create GroupTemplate with group to round32 matches mapping
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
-from database import SessionLocal
-from models.group_template import GroupTemplate
+from backend.database import SessionLocal
+from backend.models.group_template import GroupTemplate
 
 def create_group_template():
     """
@@ -17,7 +17,13 @@ def create_group_template():
     db = SessionLocal()
     
     try:
-        # Delete existing data
+        # Check if data already exists
+        existing_count = db.query(GroupTemplate).count()
+        if existing_count > 0:
+            print(f"⚠️  GroupTemplate already has {existing_count} records. Skipping creation.")
+            return
+        
+        # Delete existing data (just in case)
         db.query(GroupTemplate).delete()
         
         # Mapping based on the provided table
