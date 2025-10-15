@@ -841,6 +841,83 @@ class PredictionService:
         return third_place_teams
     
     @staticmethod
+    def get_third_place_predictions_data(db: Session, user_id: int) -> Dict[str, Any]:
+        """
+        Get unified third-place data: eligible teams + predictions with is_selected field
+        """
+        # Step 1: Find the relevant prediction (first one, since user has only one)
+        prediction = db.query(ThirdPlacePrediction).filter(
+            ThirdPlacePrediction.user_id == user_id
+        ).first()
+        
+        # Step 2: Extract advancing_team_ids and prediction data
+        advancing_team_ids = []
+        prediction_info = {
+            "id": None,
+            "points": 0,
+            "is_editable": True,
+            "changed_groups": [],
+            "created_at": None,
+            "updated_at": None
+        }
+        
+        if prediction:
+            advancing_team_ids = [
+                prediction.first_team_qualifying,
+                prediction.second_team_qualifying,
+                prediction.third_team_qualifying,
+                prediction.fourth_team_qualifying,
+                prediction.fifth_team_qualifying,
+                prediction.sixth_team_qualifying,
+                prediction.seventh_team_qualifying,
+                prediction.eighth_team_qualifying
+            ]
+            
+            prediction_info.update({
+                "id": prediction.id,
+                "points": prediction.points,
+                "is_editable": prediction.is_editable,
+                "changed_groups": [group.strip() for group in prediction.changed_groups.split(',') if group.strip()] if prediction.changed_groups else [],
+                "created_at": prediction.created_at.isoformat() if prediction.created_at else None,
+                "updated_at": prediction.updated_at.isoformat() if prediction.updated_at else None
+            })
+        
+        # Step 3: Find the 12 teams in third place (like get_third_place_eligible_teams)
+        # Get all user's group predictions
+        group_predictions = db.query(GroupStagePrediction).filter(
+            GroupStagePrediction.user_id == user_id
+        ).all()
+        
+        if len(group_predictions) != 12:
+            return {"error": "User must predict all 12 groups first"}
+        
+        third_place_teams = []
+        
+        for pred in group_predictions:
+            third_place_team_id = pred.third_place  # 3rd place
+            
+            # Get team details with flag URL
+            team = db.query(Team).filter(Team.id == third_place_team_id).first()
+            if team:
+                # Get group name
+                group = db.query(Group).filter(Group.id == pred.group_id).first()
+                group_name = group.name if group else f"Group {pred.group_id}"
+                
+                third_place_teams.append({
+                    "id": team.id,
+                    "name": team.name,
+                    "group_id": pred.group_id,
+                    "group_name": group_name,
+                    "flag_url": team.flag_url,
+                    "is_selected": team.id in advancing_team_ids
+                })
+        
+        return {
+            "eligible_teams": third_place_teams,
+            "prediction": prediction_info
+        }
+    
+    @staticmethod
     def create_or_update_batch_group_predictions(db: Session, user_id: int, predictions_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Create or update multiple group predictions

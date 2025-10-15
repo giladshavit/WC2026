@@ -123,6 +123,84 @@ def create_or_update_batch_group_predictions(
     return result
 
 # ========================================
+# Third Place Predictions Endpoints
+# ========================================
+
+@router.get("/predictions/third-place", response_model=Dict[str, Any])
+def get_third_place_predictions_data(user_id: int, db: Session = Depends(get_db)):
+    """
+    Get unified third-place data: eligible teams + predictions with is_selected field
+    Returns complete data needed for third-place predictions UI
+    """
+    return PredictionService.get_third_place_predictions_data(db, user_id)
+
+@router.post("/predictions/third-place", response_model=Dict[str, Any])
+def create_or_update_third_place_prediction(
+    third_place_prediction: ThirdPlacePredictionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Create or update a third-place prediction
+    """
+    # Check if third place predictions are editable at current stage
+    current_stage = StageManager.get_current_stage(db)
+    if current_stage.value > Stage.GROUP_CYCLE_3.value:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Third place predictions are no longer editable. Current stage: {current_stage.name}"
+        )
+    
+    result = PredictionService.create_or_update_third_place_prediction(
+        db, third_place_prediction.user_id, third_place_prediction.team_ids
+    )
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    # Run script to build the bracket automatically
+    try:
+        import subprocess
+        import os
+        
+        # Execute the bracket build script
+        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "build_round32_by_prediction.py")
+        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
+        user_id_arg = str(third_place_prediction.user_id)
+        
+        print(f"🔧 Running bracket build script...")
+        print(f"Script path: {script_path}")
+        print(f"Python path: {python_path}")
+        print(f"User ID: {user_id_arg}")
+        
+        process_result = subprocess.run(
+            [python_path, script_path, user_id_arg],
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(os.path.dirname(__file__))
+        )
+        
+        print(f"Script return code: {process_result.returncode}")
+        if process_result.stdout:
+            print(f"Script stdout: {process_result.stdout}")
+        if process_result.stderr:
+            print(f"Script stderr: {process_result.stderr}")
+        
+        if process_result.returncode == 0:
+            result["bracket_rebuilt"] = True
+            result["message"] = result.get("message", "") + " Bracket rebuilt automatically."
+        else:
+            result["bracket_rebuilt"] = False
+            result["bracket_error"] = f"Script failed with return code {process_result.returncode}: {process_result.stderr}"
+        
+    except Exception as e:
+        # Do not fail if the script errors - just add a note
+        result["bracket_rebuilt"] = False
+        result["bracket_error"] = str(e)
+        print(f"❌ Exception running bracket script: {e}")
+    
+    return result
+
+# ========================================
 # Group Endpoints (Legacy - for backward compatibility)
 # ========================================
 
@@ -203,72 +281,6 @@ async def get_current_stage_info(db: Session = Depends(get_db)):
         "penalty_per_change": current_stage.get_penalty_for(),
         "description": f"Current stage: {current_stage.name}"
     }
-
-@router.post("/predictions/third-place", response_model=Dict[str, Any])
-def create_or_update_third_place_prediction(
-    third_place_prediction: ThirdPlacePredictionRequest,
-    db: Session = Depends(get_db)
-):
-    """
-    Create or update a third-place prediction
-    """
-    # Check if third place predictions are editable at current stage
-    current_stage = StageManager.get_current_stage(db)
-    if current_stage.value > Stage.GROUP_CYCLE_3.value:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Third place predictions are no longer editable. Current stage: {current_stage.name}"
-        )
-    
-    result = PredictionService.create_or_update_third_place_prediction(
-        db, third_place_prediction.user_id, third_place_prediction.team_ids
-    )
-    
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    # Run script to build the bracket automatically
-    try:
-        import subprocess
-        import os
-        
-        # Execute the bracket build script
-        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "build_round32_by_prediction.py")
-        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
-        user_id_arg = str(third_place_prediction.user_id)
-        
-        print(f"🔧 Running bracket build script...")
-        print(f"Script path: {script_path}")
-        print(f"Python path: {python_path}")
-        print(f"User ID: {user_id_arg}")
-        
-        process_result = subprocess.run(
-            [python_path, script_path, user_id_arg],
-            capture_output=True,
-            text=True,
-            cwd=os.path.dirname(os.path.dirname(__file__))
-        )
-        
-        print(f"Script return code: {process_result.returncode}")
-        if process_result.stdout:
-            print(f"Script stdout: {process_result.stdout}")
-        if process_result.stderr:
-            print(f"Script stderr: {process_result.stderr}")
-        
-        if process_result.returncode == 0:
-            result["bracket_rebuilt"] = True
-            result["message"] = result.get("message", "") + " Bracket rebuilt automatically."
-        else:
-            result["bracket_rebuilt"] = False
-            result["bracket_error"] = f"Script failed with return code {process_result.returncode}: {process_result.stderr}"
-        
-    except Exception as e:
-        # Do not fail if the script errors - just add a note
-        result["bracket_rebuilt"] = False
-        result["bracket_error"] = str(e)
-        print(f"❌ Exception running bracket script: {e}")
-    
-    return result
 
 @router.get("/users/{user_id}/third-place-predictions", response_model=List[Dict[str, Any]])
 def get_user_third_place_predictions(user_id: int, db: Session = Depends(get_db)):

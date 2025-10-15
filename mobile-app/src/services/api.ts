@@ -1,5 +1,5 @@
 // Use localhost for emulator, local network IP for physical device
-const API_BASE_URL = 'http://10.100.102.22:8000';
+const API_BASE_URL = 'http://192.168.1.236:8000';
 
 export interface Team {
   id: number;
@@ -43,6 +43,27 @@ export interface GroupPrediction {
   is_editable: boolean;
   created_at: string | null;
   updated_at: string | null;
+}
+
+export interface ThirdPlaceTeam {
+  id: number;
+  name: string;
+  group_id: number;
+  group_name: string;
+  flag_url?: string;
+  is_selected: boolean;
+}
+
+export interface ThirdPlacePredictionData {
+  eligible_teams: ThirdPlaceTeam[];
+  prediction: {
+    id: number | null;
+    points: number;
+    is_editable: boolean;
+    changed_groups: string[];
+    created_at: string | null;
+    updated_at: string | null;
+  };
 }
 
 class ApiService {
@@ -155,17 +176,17 @@ class ApiService {
     }
   }
 
-  async updateBatchGroupPredictions(
-    userId: number,
-    predictions: Array<{
-      group_id: number;
-      first_place: number;
-      second_place: number;
-      third_place: number;
-      fourth_place: number;
-    }>
-  ): Promise<any> {
-    try {
+    async updateBatchGroupPredictions(
+      userId: number,
+      predictions: Array<{
+        group_id: number;
+        first_place: number;
+        second_place: number;
+        third_place: number;
+        fourth_place: number;
+      }>
+    ): Promise<any> {
+      try {
         const response = await fetch(`${this.baseUrl}/api/predictions/groups/batch`, {
         method: 'POST',
         headers: {
@@ -185,6 +206,51 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('Error updating batch group predictions:', error);
+      throw error;
+    }
+  }
+
+  async getThirdPlacePredictionsData(userId: number = 1): Promise<ThirdPlacePredictionData> {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${this.baseUrl}/api/predictions/third-place?user_id=${userId}&_t=${timestamp}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching third place predictions data:', error);
+      throw error;
+    }
+  }
+
+  async updateThirdPlacePrediction(
+    userId: number,
+    advancingTeamIds: number[]
+  ): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/predictions/third-place`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          team_ids: advancingTeamIds,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error updating third place prediction:', error);
       throw error;
     }
   }
