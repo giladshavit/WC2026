@@ -515,24 +515,69 @@ class PredictionService:
     @staticmethod
     def get_group_predictions(db: Session, user_id: int) -> List[Dict[str, Any]]:
         """
-        Get all user's group predictions
+        Get all groups with their teams and user's predictions (if exist)
+        Always returns all 12 groups, with or without predictions
         """
-        predictions = db.query(GroupStagePrediction).filter(
-            GroupStagePrediction.user_id == user_id
-        ).all()
+        from models.groups import Group
         
-        return [{
-            "id": pred.id,
-            "group_id": pred.group_id,
-            "first_place": pred.first_place,
-            "second_place": pred.second_place,
-            "third_place": pred.third_place,
-            "fourth_place": pred.fourth_place,
-            "points": pred.points,
-            "is_editable": pred.is_editable,
-            "created_at": pred.created_at.isoformat(),
-            "updated_at": pred.updated_at.isoformat()
-        } for pred in predictions]
+        # Get all groups ordered by ID
+        groups = db.query(Group).order_by(Group.id).all()
+        
+        result = []
+        for group in groups:
+            # Fetch teams with flag URLs
+            teams = []
+            for team_obj in [group.team_1_obj, group.team_2_obj, group.team_3_obj, group.team_4_obj]:
+                if team_obj:
+                    teams.append({
+                        "id": team_obj.id,
+                        "name": team_obj.name,
+                        "flag_url": team_obj.flag_url
+                    })
+            
+            # Try to find prediction for this group
+            pred = db.query(GroupStagePrediction).filter(
+                GroupStagePrediction.user_id == user_id,
+                GroupStagePrediction.group_id == group.id
+            ).first()
+            
+            # Build response - always include group and teams
+            group_data = {
+                "group_id": group.id,
+                "group_name": group.name,
+                "teams": teams,
+            }
+            
+            # Add prediction data if exists
+            if pred:
+                group_data.update({
+                    "id": pred.id,
+                    "first_place": pred.first_place,
+                    "second_place": pred.second_place,
+                    "third_place": pred.third_place,
+                    "fourth_place": pred.fourth_place,
+                    "points": pred.points,
+                    "is_editable": pred.is_editable,
+                    "created_at": pred.created_at.isoformat(),
+                    "updated_at": pred.updated_at.isoformat()
+                })
+            else:
+                # No prediction yet - set defaults
+                group_data.update({
+                    "id": None,
+                    "first_place": None,
+                    "second_place": None,
+                    "third_place": None,
+                    "fourth_place": None,
+                    "points": 0,
+                    "is_editable": True,
+                    "created_at": None,
+                    "updated_at": None
+                })
+            
+            result.append(group_data)
+        
+        return result
     
     @staticmethod
     def create_or_update_third_place_prediction(db: Session, user_id: int, advancing_team_ids: List[int]) -> Dict[str, Any]:

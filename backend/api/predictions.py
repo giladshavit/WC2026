@@ -85,13 +85,51 @@ def create_or_update_batch_match_predictions(
     return result
 
 # ========================================
-# Group Endpoints
+# Group Stage Predictions Endpoints
+# ========================================
+
+@router.get("/predictions/groups", response_model=List[Dict[str, Any]])
+def get_group_stage_predictions(user_id: int, db: Session = Depends(get_db)):
+    """
+    Get all groups with teams and user's predictions for group stage
+    Returns complete data needed for group predictions UI
+    """
+    return PredictionService.get_group_predictions(db, user_id)
+
+@router.post("/predictions/groups/batch", response_model=Dict[str, Any])
+def create_or_update_batch_group_predictions(
+    batch_request: BatchGroupPredictionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Create or update multiple group predictions (batch)
+    Only accepts complete predictions (all 4 positions filled)
+    """
+    # Check if group predictions are editable at current stage
+    current_stage = StageManager.get_current_stage(db)
+    if current_stage.value > Stage.GROUP_CYCLE_2.value:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Group predictions are no longer editable. Current stage: {current_stage.name}"
+        )
+    
+    result = PredictionService.create_or_update_batch_group_predictions(
+        db, batch_request.user_id, batch_request.predictions
+    )
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+# ========================================
+# Group Endpoints (Legacy - for backward compatibility)
 # ========================================
 
 @router.get("/groups", response_model=List[Dict[str, Any]])
 def get_groups_with_teams(db: Session = Depends(get_db)):
     """
-    Get all groups with their teams
+    Get all groups with their teams (without predictions)
     """
     return GroupService.get_all_groups_with_teams(db)
 
@@ -165,31 +203,6 @@ async def get_current_stage_info(db: Session = Depends(get_db)):
         "penalty_per_change": current_stage.get_penalty_for(),
         "description": f"Current stage: {current_stage.name}"
     }
-
-@router.post("/predictions/group-stage/batch", response_model=Dict[str, Any])
-def create_or_update_batch_group_predictions(
-    batch_request: BatchGroupPredictionRequest,
-    db: Session = Depends(get_db)
-):
-    """
-    Create or update multiple group predictions
-    """
-    # Check if group predictions are editable at current stage
-    current_stage = StageManager.get_current_stage(db)
-    if current_stage.value > Stage.GROUP_CYCLE_2.value:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Group predictions are no longer editable. Current stage: {current_stage.name}"
-        )
-    
-    result = PredictionService.create_or_update_batch_group_predictions(
-        db, batch_request.user_id, batch_request.predictions
-    )
-    
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    return result
 
 @router.post("/predictions/third-place", response_model=Dict[str, Any])
 def create_or_update_third_place_prediction(

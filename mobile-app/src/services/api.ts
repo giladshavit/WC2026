@@ -1,5 +1,5 @@
 // Use localhost for emulator, local network IP for physical device
-const API_BASE_URL = 'http://192.168.1.236:8000';
+const API_BASE_URL = 'http://10.100.102.22:8000';
 
 export interface Team {
   id: number;
@@ -28,6 +28,21 @@ export interface Match {
   match_number?: number;
   home_team_source?: string;
   away_team_source?: string;
+}
+
+export interface GroupPrediction {
+  id: number | null;
+  group_id: number;
+  group_name: string;
+  teams: Team[];
+  first_place: number | null;
+  second_place: number | null;
+  third_place: number | null;
+  fourth_place: number | null;
+  points: number;
+  is_editable: boolean;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 class ApiService {
@@ -119,6 +134,57 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('Error updating batch match predictions:', error);
+      throw error;
+    }
+  }
+
+    async getGroupPredictions(userId: number = 1): Promise<GroupPrediction[]> {
+      try {
+        const timestamp = new Date().getTime();
+        const response = await fetch(`${this.baseUrl}/api/predictions/groups?user_id=${userId}&_t=${timestamp}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching group predictions:', error);
+      throw error;
+    }
+  }
+
+  async updateBatchGroupPredictions(
+    userId: number,
+    predictions: Array<{
+      group_id: number;
+      first_place: number;
+      second_place: number;
+      third_place: number;
+      fourth_place: number;
+    }>
+  ): Promise<any> {
+    try {
+        const response = await fetch(`${this.baseUrl}/api/predictions/groups/batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          predictions: predictions,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error updating batch group predictions:', error);
       throw error;
     }
   }
