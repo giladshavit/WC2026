@@ -6,9 +6,10 @@ interface KnockoutMatchCardProps {
   prediction: KnockoutPrediction;
   onTeamPress: (teamId: number) => void;
   pendingWinner?: number; // team1_id or team2_id from pending changes
+  originalWinner?: number; // team1_id or team2_id from original selection
 }
 
-const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner }: KnockoutMatchCardProps) => {
+const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, originalWinner }: KnockoutMatchCardProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'must_change_predict':
@@ -27,6 +28,12 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner }
   const team1IsTBD = isTBD(prediction.team1_name);
   const team2IsTBD = isTBD(prediction.team2_name);
   const currentWinner = pendingWinner || prediction.winner_team_id;
+  
+  // לוגיקה חדשה לזיהוי סוג הבחירה
+  const isJustSaved = originalWinner === -1; // Special flag for "just saved"
+  const isBackToOriginal = originalWinner && originalWinner !== -1 && currentWinner === originalWinner;
+  const isNewChange = pendingWinner && pendingWinner !== originalWinner;
+  
   // Suppress winner highlight if the winner refers to a TBD team
   const isTeam1Winner = !team1IsTBD && currentWinner === prediction.team1_id;
   const isTeam2Winner = !team2IsTBD && currentWinner === prediction.team2_id;
@@ -49,7 +56,9 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner }
           style={[
             styles.teamButton,
             isTeam1Winner && styles.winnerButton,
-            pendingWinner === prediction.team1_id && styles.pendingWinnerButton
+            pendingWinner === prediction.team1_id && styles.pendingWinnerButton,
+            (isBackToOriginal && currentWinner === prediction.team1_id) ? styles.originalWinnerButton : 
+            (isJustSaved && currentWinner === prediction.team1_id) ? styles.justSavedButton : null
           ]}
           onPress={() => handleTeamPress(prediction.team1_id)}
           activeOpacity={0.7}
@@ -77,7 +86,9 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner }
           style={[
             styles.teamButton,
             isTeam2Winner && styles.winnerButton,
-            pendingWinner === prediction.team2_id && styles.pendingWinnerButton
+            pendingWinner === prediction.team2_id && styles.pendingWinnerButton,
+            (isBackToOriginal && currentWinner === prediction.team2_id) ? styles.originalWinnerButton : 
+            (isJustSaved && currentWinner === prediction.team2_id) ? styles.justSavedButton : null
           ]}
           onPress={() => handleTeamPress(prediction.team2_id)}
           activeOpacity={0.7}
@@ -176,6 +187,14 @@ const styles = StyleSheet.create({
   pendingWinnerButton: {
     backgroundColor: '#f0fff4', // Light green background for pending winner (same as winner)
     borderColor: '#38a169', // Green border for pending winner (same as winner)
+  },
+  originalWinnerButton: {
+    backgroundColor: '#dbeafe', // Light blue background for original choice
+    borderColor: '#3b82f6', // Blue border for original choice
+  },
+  justSavedButton: {
+    backgroundColor: '#dbeafe', // Light blue background for just saved
+    borderColor: '#3b82f6', // Blue border for just saved
   },
 });
 

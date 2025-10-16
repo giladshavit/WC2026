@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-// import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { KnockoutPrediction, apiService } from '../../services/api';
 import KnockoutMatchCard from '../../components/KnockoutMatchCard';
 
@@ -23,16 +23,29 @@ const KnockoutContext = React.createContext<{
   onSendChanges: () => void;
   onRefreshData: () => void;
   refreshTrigger: number;
-}>({ pendingChanges: [], onTeamPress: () => {}, onSendChanges: () => {}, onRefreshData: () => {}, refreshTrigger: 0 });
+  originalWinners: {[predictionId: number]: number};
+  currentFocusedStage: string | null;
+  setCurrentFocusedStage: (stage: string | null) => void;
+  predictionStages: {[predictionId: number]: string};
+}>({ pendingChanges: [], onTeamPress: () => {}, onSendChanges: () => {}, onRefreshData: () => {}, refreshTrigger: 0, originalWinners: {}, currentFocusedStage: null, setCurrentFocusedStage: () => {}, predictionStages: {} });
 
 // Individual stage component
 const StageScreen = React.memo(({ route }: { route: any }) => {
   const { stage, stageName } = route.params || {};
-  const { pendingChanges, onTeamPress, onSendChanges, onRefreshData, refreshTrigger } = useContext(KnockoutContext);
+  const { pendingChanges, onTeamPress, onSendChanges, onRefreshData, refreshTrigger, originalWinners, currentFocusedStage, setCurrentFocusedStage, predictionStages } = useContext(KnockoutContext);
+  // Build O(1) lookup map for this stage screen
+  const pendingChangesById = React.useMemo(() => {
+    const map: { [id: number]: PendingChange } = {};
+    for (const change of pendingChanges) {
+      map[change.prediction_id] = change;
+    }
+    return map;
+  }, [pendingChanges]);
   const [predictions, setPredictions] = useState<KnockoutPrediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
 
   const fetchPredictions = async (isRefresh = false) => {
     try {
@@ -52,17 +65,34 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
     }
   };
 
+  // Track when this stage is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log(`🎯 [FOCUS] Stage ${stage} is now focused`);
+      setCurrentFocusedStage(stage);
+      
+      return () => {
+        console.log(`🎯 [UNFOCUS] Stage ${stage} is no longer focused`);
+        setCurrentFocusedStage(null);
+      };
+    }, [stage, setCurrentFocusedStage])
+  );
+
   // Fetch data when component mounts
   useEffect(() => {
     fetchPredictions();
   }, [stage]);
 
-  // Listen for refresh requests from parent
+  // Listen for refresh requests from parent (only for focused stage)
   useEffect(() => {
-    if (refreshTrigger > 0) {
+    if (refreshTrigger > 0 && currentFocusedStage === stage) {
+      console.log(`🔄 [REFRESH TRIGGER] Stage: ${stage} is focused, refreshing`);
       fetchPredictions();
+    } else if (refreshTrigger > 0) {
+      console.log(`⏭️ [REFRESH TRIGGER] Stage: ${stage} is not focused (focused: ${currentFocusedStage}), skipping refresh`);
     }
-  }, [refreshTrigger]);
+  }, [refreshTrigger, currentFocusedStage, stage]);
+
 
   // Remove useFocusEffect to prevent screen refresh on team press
   // useFocusEffect(
@@ -91,26 +121,24 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
     }
   };
 
-  const renderMatch = ({ item }: { item: KnockoutPrediction }) => {
+  const renderMatch = React.useCallback(({ item }: { item: KnockoutPrediction }) => {
     const isTBD = (name?: string | null) => !name || name === 'TBD' || name.trim() === '';
-    // Skip rendering if both teams are TBD
     if (isTBD(item.team1_name) && isTBD(item.team2_name)) {
       return null;
     }
-    // Find pending change for this prediction
-    const pendingChange = pendingChanges.find(change => change.prediction_id === item.id);
-    const pendingWinner = pendingChange ? 
-      (pendingChange.winner_team_number === 1 ? item.team1_id : item.team2_id) : 
-      undefined;
+    const pendingChange = pendingChangesById[item.id];
+    const pendingWinner = pendingChange ? (pendingChange.winner_team_number === 1 ? item.team1_id : item.team2_id) : undefined;
+    const originalWinner = originalWinners[item.id];
 
     return (
       <KnockoutMatchCard 
         prediction={item} 
         onTeamPress={handleTeamPress}
         pendingWinner={pendingWinner}
+        originalWinner={originalWinner}
       />
     );
-  };
+  }, [handleTeamPress, pendingChangesById, originalWinners]);
 
   if (loading) {
     return (
@@ -124,6 +152,7 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
   return (
     <View style={styles.stageContainer}>
       <FlatList
+        ref={flatListRef}
         data={predictions}
         renderItem={renderMatch}
         keyExtractor={(item) => `prediction-${item.id}`}
@@ -134,6 +163,8 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
         removeClippedSubviews={false}
         maxToRenderPerBatch={10}
         windowSize={10}
+        extraData={pendingChangesById}
+        scrollEventThrottle={16}
       />
       {pendingChanges.length > 0 && (
         <View style={styles.pendingChangesContainer}>
@@ -156,28 +187,127 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
 });
 
 export default function KnockoutScreen({}: KnockoutScreenProps) {
+  const navigation = useNavigation();
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [sending, setSending] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [originalWinners, setOriginalWinners] = useState<{[predictionId: number]: number}>({});
+  const [currentFocusedStage, setCurrentFocusedStage] = useState<string | null>(null);
+  const [predictionStages, setPredictionStages] = useState<{[predictionId: number]: string}>({});
   const userId = 1; // Hardcoded for now
 
+  // Helper function to convert stage name to tab name
+  const getTabNameFromStage = (stage: string): string | null => {
+    switch (stage) {
+      case 'round32':
+        return 'Round32';
+      case 'round16':
+        return 'Round16';
+      case 'quarter':
+        return 'Quarter';
+      case 'semi':
+        return 'Semi';
+      case 'final':
+        return 'Final';
+      default:
+        return null;
+    }
+  };
+
+  // O(1) lookup map for pending changes
+  const pendingChangesById = React.useMemo(() => {
+    const map: { [id: number]: PendingChange } = {};
+    for (const change of pendingChanges) {
+      map[change.prediction_id] = change;
+    }
+    return map;
+  }, [pendingChanges]);
+
   const handleTeamPress = React.useCallback((predictionId: number, teamId: number, teamName: string, teamNumber: number) => {
+    const currentWinner = pendingChanges.find(change => change.prediction_id === predictionId);
+    const originalWinner = originalWinners[predictionId];
+    
+    // אם לחצתי על הקבוצה שכבר מסומנת - אין שינוי
+    if (currentWinner && currentWinner.winner_team_number === teamNumber) {
+      console.log(`No change needed for prediction ${predictionId} - same team selected`);
+      return;
+    }
+    
+    // אם חזרתי לבחירה המקורית - הסר מהשינויים
+    if (originalWinner && originalWinner === teamId) {
+      console.log(`Reverting to original choice for prediction ${predictionId}`);
+      setPendingChanges(prev => prev.filter(change => change.prediction_id !== predictionId));
+      return;
+    }
+    
+    // בדוק אם יש שינויים משלב אחר
+    if (pendingChanges.length > 0) {
+      const currentStage = currentFocusedStage;
+      const newPredictionStage = predictionStages[predictionId];
+      
+      // בדוק אם יש שינויים משלב אחר
+      const hasChangesFromOtherStage = pendingChanges.some(change => {
+        const changeStage = predictionStages[change.prediction_id];
+        return changeStage !== newPredictionStage;
+      });
+      
+      if (hasChangesFromOtherStage) {
+        Alert.alert(
+          'שינויים משלב אחר',
+          'יש לך שינויים לא שמורים משלב אחר. האם תרצה למחוק אותם ולשמור את השינוי החדש?',
+          [
+            {
+              text: 'חזור לשינויים הקודמים',
+              style: 'cancel',
+              onPress: () => {
+                // לא עושים כלום - נשארים עם השינויים הקיימים
+                // נחזור לשלב עם השינויים הקיימים
+                const existingChangeStage = predictionStages[pendingChanges[0].prediction_id];
+                if (existingChangeStage) {
+                  // ממיר את שם השלב לשם הטאב
+                  const tabName = getTabNameFromStage(existingChangeStage);
+                  if (tabName) {
+                    // נווט אל טאב ה-Knockout ואל המסך הפנימי המתאים
+                    (navigation as any).navigate('Knockout', { screen: tabName });
+                  }
+                }
+              }
+            },
+            {
+              text: 'מחק שינויים קודמים',
+              style: 'destructive',
+              onPress: () => {
+                // מוחקים את כל השינויים הקיימים ומוסיפים את החדש
+                setPendingChanges([{
+                  prediction_id: predictionId,
+                  winner_team_number: teamNumber,
+                  winner_team_name: teamName
+                }]);
+              }
+            }
+          ]
+        );
+        return;
+      }
+    }
+    
+    // אין שינויים קיימים - פשוט מוסיפים את השינוי החדש
     setPendingChanges(prev => {
-      // Remove existing change for this prediction if any
       const filtered = prev.filter(change => change.prediction_id !== predictionId);
-      // Add new change
       return [...filtered, {
         prediction_id: predictionId,
         winner_team_number: teamNumber,
         winner_team_name: teamName
       }];
     });
-  }, []);
+  }, [originalWinners, pendingChanges, currentFocusedStage]);
+
 
   const handleSendChanges = React.useCallback(async () => {
     if (pendingChanges.length === 0) return;
 
     setSending(true);
+    
     try {
       const result = await apiService.updateBatchKnockoutPredictions(userId, pendingChanges);
       
@@ -185,9 +315,40 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         'הצלחה!', 
         `נשמרו ${pendingChanges.length} שינויים בהצלחה`,
         [{ text: 'אישור', onPress: () => {
+          // Only update UI after user clicks "אישור"
+          // Immediately update original winners to show blue (saved) state
+          const newOriginalWinners = { ...originalWinners };
+          pendingChanges.forEach(change => {
+            // Mark as saved by setting a special flag
+            newOriginalWinners[change.prediction_id] = -1; // Special flag for "just saved"
+          });
+          setOriginalWinners(newOriginalWinners);
+          
+          // Clear pending changes immediately
           setPendingChanges([]);
+          
           // Trigger refresh of all stage screens
+          console.log(`🔄 [SEND CHANGES] Triggering refresh for all stages`);
           setRefreshTrigger(prev => prev + 1);
+          
+          // Reload original winners after successful save to get the real team IDs
+          setTimeout(async () => {
+            try {
+              const response = await apiService.getKnockoutPredictions(userId);
+              const originalMap: {[predictionId: number]: number} = {};
+              
+              response.forEach(prediction => {
+                if (prediction.winner_team_id) {
+                  originalMap[prediction.id] = prediction.winner_team_id;
+                }
+              });
+              
+              setOriginalWinners(originalMap);
+              console.log('Reloaded original winners after save:', originalMap);
+            } catch (error) {
+              console.error('Error reloading original winners:', error);
+            }
+          }, 1000); // Wait 1 second for server to update
         }}]
       );
     } catch (error) {
@@ -206,8 +367,41 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
+
+  // Load original winners and prediction stages from server on component mount
+  useEffect(() => {
+    const loadOriginalWinners = async () => {
+      try {
+        // For now, we'll use the existing API to get knockout predictions
+        // and extract the original winners and stages
+        const response = await apiService.getKnockoutPredictions(userId);
+        const originalMap: {[predictionId: number]: number} = {};
+        const stagesMap: {[predictionId: number]: string} = {};
+        
+        response.forEach(prediction => {
+          if (prediction.winner_team_id) {
+            originalMap[prediction.id] = prediction.winner_team_id;
+          }
+          // נשתמש ב-stage מהתגובה
+          if (prediction.stage) {
+            stagesMap[prediction.id] = prediction.stage;
+          }
+        });
+        
+        setOriginalWinners(originalMap);
+        setPredictionStages(stagesMap);
+        console.log('Loaded original winners:', originalMap);
+        console.log('Loaded prediction stages:', stagesMap);
+      } catch (error) {
+        console.error('Error loading original winners:', error);
+      }
+    };
+    
+    loadOriginalWinners();
+  }, [userId]);
+
   return (
-    <KnockoutContext.Provider value={{ pendingChanges, onTeamPress: handleTeamPress, onSendChanges: handleSendChanges, onRefreshData: handleRefreshData, refreshTrigger }}>
+    <KnockoutContext.Provider value={{ pendingChanges, onTeamPress: handleTeamPress, onSendChanges: handleSendChanges, onRefreshData: handleRefreshData, refreshTrigger, originalWinners, currentFocusedStage, setCurrentFocusedStage, predictionStages }}>
       <Tab.Navigator
         screenOptions={{
           tabBarStyle: styles.tabBar,

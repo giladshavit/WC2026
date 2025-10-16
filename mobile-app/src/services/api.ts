@@ -1,5 +1,5 @@
 // Use localhost for emulator, local network IP for physical device
-const API_BASE_URL = 'http://192.168.1.236:8000';
+const API_BASE_URL = 'http://10.20.0.16:8000';
 
 export interface Team {
   id: number;
