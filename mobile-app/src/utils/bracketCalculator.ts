@@ -342,16 +342,33 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
     // Final is positioned at the center of the two Semi matches
     if (organized.final.length > 0 && organized.semi.length === 2) {
       // Calculate the center of each semi match (position + half height of card)
-      const cardHeight = 80; // Height of the match card
-      const center1 = organized.semi[0].verticalPosition! + (cardHeight / 2);
-      const center2 = organized.semi[1].verticalPosition! + (cardHeight / 2);
-      const avgCenter = (center1 + center2) / 2;
+      const semiCardHeight = 60; // Height of semi match card
+      const finalCardHeight = 140; // Height of final match card
+      
+      const center1 = organized.semi[0].verticalPosition!;
+      const center2 = organized.semi[1].verticalPosition! + (semiCardHeight / 2);
+      const avgCenter = center1;
+      
       // Position the final match so its center is at the average center
-      const newPosition = avgCenter - (cardHeight / 2);
+      let newPosition = avgCenter - 0.9;
+      
+      // Ensure the position is not negative
+      if (newPosition < 0) {
+        newPosition = 0;
+      }
+      
       organized.final = organized.final.map(match => ({
         ...match,
         verticalPosition: newPosition
       }));
+      
+      console.log(`=== FINAL POSITIONING DEBUG ===`);
+      console.log(`Semi 1 position: ${organized.semi[0].verticalPosition}, center: ${center1}`);
+      console.log(`Semi 2 position: ${organized.semi[1].verticalPosition}, center: ${center2}`);
+      console.log(`Average center: ${avgCenter}`);
+      console.log(`Final position: ${newPosition}`);
+      console.log(`Final card height: ${finalCardHeight}`);
+      console.log(`---`);
     }
   };
 

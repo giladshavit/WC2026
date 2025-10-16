@@ -11,6 +11,7 @@ interface BracketMatchCardProps {
 export default function BracketMatchCard({ match, onPress, onLayout }: BracketMatchCardProps) {
   const isTeam1Winner = match.winner_team_id === match.team1_id;
   const isTeam2Winner = match.winner_team_id === match.team2_id;
+  const isFinal = match.stage === 'final';
 
   const renderTeam = (teamName: string | undefined, teamFlag: string | undefined, isWinner: boolean, teamId?: number) => {
     const displayName = teamName && teamName !== 'TBD' ? teamName.substring(0, 8) : 'TBD';
@@ -31,9 +32,45 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
     );
   };
 
+  const renderFinalMatch = () => {
+    const team1Name = match.team1_name && match.team1_name !== 'TBD' ? match.team1_name : 'TBD';
+    const team2Name = match.team2_name && match.team2_name !== 'TBD' ? match.team2_name : 'TBD';
+    
+    return (
+      <View style={styles.finalContainer}>
+        {/* Team 1 */}
+        <Text style={[styles.finalTeamName, isTeam1Winner && styles.finalWinnerText]}>
+          {team1Name}
+        </Text>
+        {match.team1_flag && (
+          <Image 
+            source={{ uri: match.team1_flag }} 
+            style={styles.finalFlag}
+            resizeMode="contain"
+          />
+        )}
+        
+        {/* VS */}
+        <Text style={styles.finalVsText}>VS</Text>
+        
+        {/* Team 2 */}
+        {match.team2_flag && (
+          <Image 
+            source={{ uri: match.team2_flag }} 
+            style={styles.finalFlag}
+            resizeMode="contain"
+          />
+        )}
+        <Text style={[styles.finalTeamName, isTeam2Winner && styles.finalWinnerText]}>
+          {team2Name}
+        </Text>
+      </View>
+    );
+  };
+
   return (
     <TouchableOpacity 
-      style={styles.container}
+      style={[styles.container, isFinal && styles.finalCardContainer]}
       onPress={() => onPress?.(match)}
       onLayout={(event) => {
         const { x, y, width, height } = event.nativeEvent.layout;
@@ -41,25 +78,29 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
       }}
       activeOpacity={0.7}
     >
-      <View style={styles.matchContainer}>
-        {renderTeam(
-          match.team1_name, 
-          match.team1_flag, 
-          isTeam1Winner,
-          match.team1_id
-        )}
-        
-        <View style={styles.vsContainer}>
-          <Text style={styles.vsText}>VS</Text>
+      {isFinal ? (
+        renderFinalMatch()
+      ) : (
+        <View style={styles.matchContainer}>
+          {renderTeam(
+            match.team1_name, 
+            match.team1_flag, 
+            isTeam1Winner,
+            match.team1_id
+          )}
+          
+          <View style={styles.vsContainer}>
+            <Text style={styles.vsText}>VS</Text>
+          </View>
+          
+          {renderTeam(
+            match.team2_name, 
+            match.team2_flag, 
+            isTeam2Winner,
+            match.team2_id
+          )}
         </View>
-        
-        {renderTeam(
-          match.team2_name, 
-          match.team2_flag, 
-          isTeam2Winner,
-          match.team2_id
-        )}
-      </View>
+      )}
       
       {/* Removed match ID to save space */}
     </TouchableOpacity>
@@ -125,5 +166,48 @@ const styles = StyleSheet.create({
     fontSize: 6,
     fontWeight: 'bold',
     color: '#6b7280',
+  },
+  // Final match styles
+  finalCardContainer: {
+    width: 120, // Wider for final
+    height: 200, // Taller for final
+    padding: 8,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  finalContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  finalTeamName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    textAlign: 'center',
+    marginVertical: 1, // קטן יותר מהגבולות
+  },
+  finalWinnerText: {
+    color: '#059669', // Green for winner
+    fontWeight: '900',
+  },
+  finalFlag: {
+    width: 36,
+    height: 24,
+    marginVertical: 12, // גדול יותר מהסמלים
+    borderWidth: 0.5,
+    borderColor: '#d1d5db',
+    borderRadius: 2,
+  },
+  finalVsText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#6b7280',
+    marginVertical: 3, // קצת יותר גדול בין הסמלים
   },
 });

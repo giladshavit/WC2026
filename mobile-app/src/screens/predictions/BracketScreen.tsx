@@ -323,6 +323,57 @@ export default function BracketScreen({}: BracketScreenProps) {
     return lines;
   };
 
+  // Create horizontal lines from semi-finals to final
+  const createSemiToFinalLines = (semiMatch: BracketMatch, finalMatch: BracketMatch) => {
+    const absoluteLayout1 = matchLayouts[semiMatch.id];
+    const absoluteLayout2 = matchLayouts[finalMatch.id];
+    
+    if (!absoluteLayout1 || !absoluteLayout2) {
+      console.log(`Missing layout data for semi-final ${semiMatch.id} or final ${finalMatch.id}`);
+      return [];
+    }
+    
+    const xOffset = 0;
+    const yOffset = 20;
+    
+    // Check if this is left semi (101) or right semi (102)
+    const isLeftSemi = semiMatch.id === 101;
+    
+    let x1, y1, x2, y2;
+    
+    if (isLeftSemi) {
+      // Left semi: from right edge to final left edge
+      x1 = absoluteLayout1.x + absoluteLayout1.width + xOffset; // Right edge of left semi
+      y1 = absoluteLayout1.y + (absoluteLayout1.height / 2) + yOffset; // Vertical center
+      x2 = absoluteLayout2.x - xOffset; // Left edge of final
+      y2 = y1; // Use same Y as semi-final for horizontal line
+    } else {
+      // Right semi: from left edge to final right edge
+      x1 = absoluteLayout1.x - xOffset; // Left edge of right semi
+      y1 = absoluteLayout1.y + (absoluteLayout1.height / 2) + yOffset; // Vertical center
+      x2 = absoluteLayout2.x + absoluteLayout2.width + xOffset; // Right edge of final
+      y2 = y1; // Use same Y as semi-final for horizontal line
+    }
+    
+    console.log(`=== SEMI TO FINAL LINE: ${semiMatch.id} -> ${finalMatch.id} ===`);
+    console.log(`Semi match: x=${absoluteLayout1.x}, y=${absoluteLayout1.y}, w=${absoluteLayout1.width}, h=${absoluteLayout1.height}`);
+    console.log(`Final match: x=${absoluteLayout2.x}, y=${absoluteLayout2.y}, w=${absoluteLayout2.width}, h=${absoluteLayout2.height}`);
+    console.log(`Line points: (${x1},${y1}) -> (${x2},${y2})`);
+    console.log(`Side: ${isLeftSemi ? 'LEFT' : 'RIGHT'}`);
+    
+    return [
+      <Line 
+        key={`semi-to-final-${semiMatch.id}`} 
+        x1={x1} 
+        y1={y1} 
+        x2={x2} 
+        y2={y2} 
+        stroke="#667eea" 
+        strokeWidth="2" 
+      />
+    ];
+  };
+
   const fetchPredictions = async (isRefresh = false) => {
     try {
       if (isRefresh) {
@@ -729,7 +780,26 @@ export default function BracketScreen({}: BracketScreenProps) {
             })()
           }
           
-          {/* Lines from Semi Finals to Final - Removed for now, will be added later */}
+          {/* Lines from Semi Finals to Final */}
+          {organizedBracket && organizedBracket.semi.length === 2 && organizedBracket.final.length === 1 && 
+            (() => {
+              const semi101 = organizedBracket.semi.find(s => s.id === 101);
+              const semi102 = organizedBracket.semi.find(s => s.id === 102);
+              const final = organizedBracket.final[0];
+              
+              if (semi101 && semi102 && final) {
+                console.log(`🎯 CALLING createSemiToFinalLines for Semi 101 -> Final`);
+                console.log(`🎯 CALLING createSemiToFinalLines for Semi 102 -> Final`);
+                
+                return [
+                  ...createSemiToFinalLines(semi101, final),
+                  ...createSemiToFinalLines(semi102, final)
+                ];
+              }
+              
+              return [];
+            })()
+          }
         </Svg>
         {/* Column 1: Round 32 Left */}
         {renderColumn('32 אחרונות (שמאל)', organizedBracket.round32_left, false, 0)}
@@ -800,16 +870,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   finalColumn: {
-    backgroundColor: '#fef3c7',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 3,
-    borderColor: '#f59e0b',
-    shadowColor: '#f59e0b',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    // No special styling - just like regular column
   },
   // Removed column titles to save space
   matchesContainer: {
