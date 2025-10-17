@@ -13,6 +13,22 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
   const isTeam2Winner = match.winner_team_id === match.team2_id;
   const isFinal = match.stage === 'final';
 
+  // Get status-based border color
+  const getStatusColor = (status?: string) => {
+    switch (status) {
+      case 'must_change_predict':
+        return '#e53e3e'; // red
+      case 'might_change_predict':
+        return '#f6ad55'; // yellow/orange
+      case 'predicted':
+        return '#38a169'; // green
+      default:
+        return '#e2e8f0'; // default gray
+    }
+  };
+
+  const borderColor = getStatusColor(match.status);
+
   const renderTeam = (teamName: string | undefined, teamFlag: string | undefined, isWinner: boolean, teamId?: number, shortName?: string) => {
     const displayName = shortName || (teamName && teamName !== 'TBD' ? teamName.substring(0, 8) : 'TBD');
     
@@ -70,7 +86,11 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
 
   return (
     <TouchableOpacity 
-      style={[styles.container, isFinal && styles.finalCardContainer]}
+      style={[
+        styles.container, 
+        isFinal && styles.finalCardContainer,
+        { borderColor } // Apply dynamic border color based on status
+      ]}
       onPress={() => {
         console.log(`🔥 BracketMatchCard onPress called for match ${match.id}`);
         onPress?.(match);
@@ -120,7 +140,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 1,
     elevation: 1,
-    borderWidth: 1,
+    borderWidth: 2, // Increased from 1 to 2 for better visibility
     borderColor: '#e2e8f0',
     width: 90, // Smaller width
     height: 60, // Smaller height
@@ -175,6 +195,7 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: '#fff',
     borderRadius: 8,
+    borderWidth: 2, // Add border width for final match
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

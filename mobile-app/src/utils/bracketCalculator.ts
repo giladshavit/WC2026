@@ -44,6 +44,7 @@ export interface BracketMatch {
   team1_flag?: string;
   team2_flag?: string;
   winner_team_id?: number;
+  status?: string; // Status of the prediction: 'predicted', 'might_change_predict', 'must_change_predict'
   side: 'left' | 'right';
   verticalPosition?: number;
   // Card coordinates - top-left and bottom-right corners
@@ -152,6 +153,7 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       team1_flag: prediction.team1_flag,
       team2_flag: prediction.team2_flag,
       winner_team_id: prediction.winner_team_id,
+      status: prediction.status, // Add status from prediction
       side
     };
 
