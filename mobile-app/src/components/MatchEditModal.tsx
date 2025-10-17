@@ -81,8 +81,10 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
     }
   };
 
-  const isTeam1Selected = selectedWinner === match.team1_id;
-  const isTeam2Selected = selectedWinner === match.team2_id;
+  const isTeam1TBD = !match.team1_name || match.team1_name === 'TBD';
+  const isTeam2TBD = !match.team2_name || match.team2_name === 'TBD';
+  const isTeam1Selected = selectedWinner === match.team1_id && !isTeam1TBD;
+  const isTeam2Selected = selectedWinner === match.team2_id && !isTeam2TBD;
 
   return (
     <Modal

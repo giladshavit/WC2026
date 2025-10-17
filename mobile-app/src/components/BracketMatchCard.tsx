@@ -31,6 +31,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
 
   const renderTeam = (teamName: string | undefined, teamFlag: string | undefined, isWinner: boolean, teamId?: number, shortName?: string) => {
     const displayName = shortName || (teamName && teamName !== 'TBD' ? teamName.substring(0, 8) : 'TBD');
+    const isTBD = displayName === 'TBD' || (teamName && teamName === 'TBD');
     
     return (
       <View style={styles.teamContainer}>
@@ -41,7 +42,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             resizeMode="contain"
           />
         )}
-        <Text style={[styles.teamName, isWinner && styles.winnerText]}>
+        <Text style={[styles.teamName, isWinner && !isTBD && styles.winnerText]}>
           {displayName}
         </Text>
       </View>
@@ -77,7 +78,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             resizeMode="contain"
           />
         )}
-        <Text style={[styles.finalTeamName, isTeam2Winner && styles.finalWinnerText]}>
+        <Text style={[styles.finalTeamName, isTeam2Winner && !(team2Name === 'TBD') && styles.finalWinnerText]}>
           {team2Name}
         </Text>
       </View>
