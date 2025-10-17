@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -21,15 +21,68 @@ interface MatchEditModalProps {
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function MatchEditModal({ visible, match, onClose, onSave }: MatchEditModalProps) {
-  if (!match) return null;
+  const [selectedWinner, setSelectedWinner] = useState<number | null>(null);
+  const [hasChanged, setHasChanged] = useState(false);
 
-  const handleWinnerSelection = (winnerId: number) => {
-    onSave(match.id, winnerId);
-    onClose();
+  // Smart team name display logic
+  const getTeamNameDisplayProps = (teamName: string) => {
+    const nameLength = teamName.length;
+    const hasMultipleWords = teamName.includes(' ');
+    
+    // Short names (≤12 characters): Always stay on one line with normal font
+    if (nameLength <= 12) {
+      return {
+        numberOfLines: 1,
+        adjustsFontSizeToFit: true,
+        minimumFontScale: 0.9, // Allow slight shrinking
+        fontSize: 16
+      };
+    }
+    
+    // Medium names (13-20 characters): Allow 2 lines with good font size
+    if (nameLength <= 20) {
+      return {
+        numberOfLines: 2,
+        adjustsFontSizeToFit: false,
+        fontSize: 15
+      };
+    }
+    
+    // Long names (>20 characters) or names with many words: Allow 2 lines with smaller font
+    return {
+      numberOfLines: 2,
+      adjustsFontSizeToFit: false,
+      fontSize: 13
+    };
   };
 
-  const isTeam1Winner = match.winner_team_id === match.team1_id;
-  const isTeam2Winner = match.winner_team_id === match.team2_id;
+  useEffect(() => {
+    if (match) {
+      setSelectedWinner(match.winner_team_id || null);
+      setHasChanged(false);
+    }
+  }, [match]);
+
+  if (!match) return null;
+
+  // Get display props for both teams
+  const team1DisplayProps = getTeamNameDisplayProps(match.team1_name || 'TBD');
+  const team2DisplayProps = getTeamNameDisplayProps(match.team2_name || 'TBD');
+
+  const handleTeamSelection = (teamId: number) => {
+    setSelectedWinner(teamId);
+    setHasChanged(teamId !== match.winner_team_id);
+  };
+
+  const handleUpdate = () => {
+    if (selectedWinner && hasChanged) {
+      onSave(match.id, selectedWinner);
+      onClose();
+    }
+  };
+
+  const isTeam1Selected = selectedWinner === match.team1_id;
+  const isTeam2Selected = selectedWinner === match.team2_id;
 
   return (
     <Modal
@@ -61,10 +114,10 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
               <TouchableOpacity
                 style={[
                   styles.teamCard,
-                  isTeam1Winner && styles.winnerCard,
+                  isTeam1Selected && styles.selectedCard,
                   !match.team1_id && styles.disabledCard
                 ]}
-                onPress={() => match.team1_id && handleWinnerSelection(match.team1_id)}
+                onPress={() => match.team1_id && handleTeamSelection(match.team1_id)}
                 disabled={!match.team1_id}
               >
                 <View style={styles.teamContent}>
@@ -75,15 +128,21 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
                       resizeMode="contain"
                     />
                   )}
-                  <Text style={[
-                    styles.teamName,
-                    isTeam1Winner && styles.winnerText,
-                    !match.team1_id && styles.disabledText
-                  ]}>
+                  <Text 
+                    style={[
+                      styles.teamName,
+                      isTeam1Selected && styles.selectedText,
+                      !match.team1_id && styles.disabledText,
+                      { fontSize: team1DisplayProps.fontSize }
+                    ]}
+                    numberOfLines={team1DisplayProps.numberOfLines}
+                    adjustsFontSizeToFit={team1DisplayProps.adjustsFontSizeToFit}
+                    minimumFontScale={team1DisplayProps.minimumFontScale || 0.8}
+                  >
                     {match.team1_name || 'TBD'}
                   </Text>
-                  {isTeam1Winner && (
-                    <Text style={styles.winnerBadge}>🏆</Text>
+                  {isTeam1Selected && (
+                    <Text style={styles.winnerBadge}>✓</Text>
                   )}
                 </View>
               </TouchableOpacity>
@@ -97,10 +156,10 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
               <TouchableOpacity
                 style={[
                   styles.teamCard,
-                  isTeam2Winner && styles.winnerCard,
+                  isTeam2Selected && styles.selectedCard,
                   !match.team2_id && styles.disabledCard
                 ]}
-                onPress={() => match.team2_id && handleWinnerSelection(match.team2_id)}
+                onPress={() => match.team2_id && handleTeamSelection(match.team2_id)}
                 disabled={!match.team2_id}
               >
                 <View style={styles.teamContent}>
@@ -111,25 +170,43 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
                       resizeMode="contain"
                     />
                   )}
-                  <Text style={[
-                    styles.teamName,
-                    isTeam2Winner && styles.winnerText,
-                    !match.team2_id && styles.disabledText
-                  ]}>
+                  <Text 
+                    style={[
+                      styles.teamName,
+                      isTeam2Selected && styles.selectedText,
+                      !match.team2_id && styles.disabledText,
+                      { fontSize: team2DisplayProps.fontSize }
+                    ]}
+                    numberOfLines={team2DisplayProps.numberOfLines}
+                    adjustsFontSizeToFit={team2DisplayProps.adjustsFontSizeToFit}
+                    minimumFontScale={team2DisplayProps.minimumFontScale || 0.8}
+                  >
                     {match.team2_name || 'TBD'}
                   </Text>
-                  {isTeam2Winner && (
-                    <Text style={styles.winnerBadge}>🏆</Text>
+                  {isTeam2Selected && (
+                    <Text style={styles.winnerBadge}>✓</Text>
                   )}
                 </View>
               </TouchableOpacity>
             </View>
 
-            {/* Instructions */}
-            <View style={styles.instructionsContainer}>
-              <Text style={styles.instructionsText}>
-                Tap on a team to select them as the winner
-              </Text>
+            {/* Update Button - Always visible for consistent height */}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.updateButton,
+                  !hasChanged && styles.disabledButton
+                ]}
+                onPress={handleUpdate}
+                disabled={!hasChanged}
+              >
+                <Text style={[
+                  styles.updateButtonText,
+                  !hasChanged && styles.disabledButtonText
+                ]}>
+                  עדכן
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </SafeAreaView>
@@ -211,17 +288,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f9fafb',
     borderRadius: 12,
-    padding: 16,
+    padding: 8,
     marginHorizontal: 8,
     borderWidth: 2,
     borderColor: '#e5e7eb',
     alignItems: 'center',
-    minHeight: 120,
+    height: 140,
     justifyContent: 'center',
   },
   winnerCard: {
     backgroundColor: '#ecfdf5',
     borderColor: '#10b981',
+  },
+  selectedCard: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#16a34a',
+    borderWidth: 3,
   },
   disabledCard: {
     backgroundColor: '#f3f4f6',
@@ -230,6 +312,9 @@ const styles = StyleSheet.create({
   },
   teamContent: {
     alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 8, // Fixed distance from top edge
+    height: '100%',
   },
   flag: {
     width: 48,
@@ -240,14 +325,18 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   teamName: {
-    fontSize: 16,
     fontWeight: '600',
     color: '#374151',
     textAlign: 'center',
     marginBottom: 4,
+    lineHeight: 20, // Better line spacing for multi-line text
   },
   winnerText: {
     color: '#059669',
+    fontWeight: 'bold',
+  },
+  selectedText: {
+    color: '#15803d',
     fontWeight: 'bold',
   },
   disabledText: {
@@ -273,5 +362,28 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  buttonContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  updateButton: {
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 120,
+  },
+  disabledButton: {
+    backgroundColor: '#d1d5db',
+  },
+  updateButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  disabledButtonText: {
+    color: '#9ca3af',
   },
 });

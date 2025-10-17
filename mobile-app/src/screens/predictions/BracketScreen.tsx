@@ -8,6 +8,7 @@ import {
   Alert,
   Dimensions
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Line } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
 import { apiService, KnockoutPrediction } from '../../services/api';
@@ -391,18 +392,19 @@ export default function BracketScreen({}: BracketScreenProps) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { pointerEvents: 'box-none' }]}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={true}
         contentContainerStyle={styles.scrollContent}
-        style={styles.scrollView}
+        style={[styles.scrollView, { pointerEvents: 'box-none' }]}
       >
         {/* SVG overlay for bracket lines - AFTER the cards */}
         <Svg 
           style={[styles.bracketLines, { height: AVAILABLE_HEIGHT }]}
           width={screenWidth * 3} // Wide enough for all columns (including right side at x=1155)
           height={AVAILABLE_HEIGHT}
+          pointerEvents="none"
         >
           {/* Quarter diagonal lines removed - no longer needed */}
           
@@ -621,24 +623,52 @@ export default function BracketScreen({}: BracketScreenProps) {
         
         {/* Column 9: Round 32 Right */}
         {renderColumn('32 אחרונות (ימין)', organizedBracket.round32_right, false, 8)}
-        
-        {/* SVG overlay for bracket lines - AFTER the cards */}
-        <Svg 
-          style={[styles.bracketLines, { height: AVAILABLE_HEIGHT }]}
-          width={screenWidth * 3} // Wide enough for all columns (including right side at x=1155)
-          height={AVAILABLE_HEIGHT}
-        >
-        </Svg>
       </ScrollView>
       
-      {/* Match Edit Modal */}
+      {/* Match Edit Modal - OUTSIDE ScrollView */}
       <MatchEditModal
         visible={isModalVisible}
         match={selectedMatch}
         onClose={() => setIsModalVisible(false)}
-        onSave={(matchId, winnerId) => {
+        onSave={async (matchId, winnerId) => {
           console.log(`💾 Saving match ${matchId} with winner ${winnerId}`);
-          setIsModalVisible(false);
+          try {
+            // Find the prediction for this match
+            const prediction = predictions.find(p => p.template_match_id === matchId);
+            if (!prediction) {
+              console.error('Prediction not found for match', matchId);
+              return;
+            }
+
+            // Determine winner_team_number (1 or 2)
+            const winnerTeamNumber = winnerId === prediction.team1_id ? 1 : 2;
+            const winnerTeamName = winnerId === prediction.team1_id ? (prediction.team1_name || '') : (prediction.team2_name || '');
+
+            // Update the prediction using the API
+            await apiService.updateBatchKnockoutPredictions(1, [{
+              prediction_id: prediction.id,
+              winner_team_number: winnerTeamNumber,
+              winner_team_name: winnerTeamName,
+            }]);
+
+            // Refresh the data
+            await fetchPredictions();
+            
+            // Store the updated match ID in AsyncStorage to signal knockout screen
+            const updatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';
+            const updatedMatches = JSON.parse(updatedMatchesStr);
+            updatedMatches.push({
+              matchId: matchId,
+              timestamp: Date.now()
+            });
+            await AsyncStorage.setItem('bracketUpdatedMatches', JSON.stringify(updatedMatches));
+            
+            setIsModalVisible(false);
+            console.log('✅ Match updated successfully');
+          } catch (error) {
+            console.error('❌ Error updating match:', error);
+            Alert.alert('שגיאה', 'לא ניתן לעדכן את המשחק. נסה שוב.');
+          }
         }}
       />
     </View>
@@ -681,6 +711,7 @@ const styles = StyleSheet.create({
   column: {
     marginRight: 20,
     alignItems: 'center',
+    pointerEvents: 'box-none',
   },
   finalColumn: {
     // No special styling - just like regular column
@@ -692,6 +723,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: AVAILABLE_HEIGHT, // Use calculated available height
     paddingBottom: 20, // Extra padding to prevent cutoff
+    pointerEvents: 'box-none',
   },
   matchWrapper: {
     alignItems: 'center',
@@ -710,7 +742,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    zIndex: 1,
+    zIndex: -1,
     pointerEvents: 'none',
   },
 });

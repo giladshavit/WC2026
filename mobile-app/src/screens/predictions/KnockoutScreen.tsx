@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KnockoutPrediction, apiService } from '../../services/api';
 import KnockoutMatchCard from '../../components/KnockoutMatchCard';
 
@@ -22,17 +23,20 @@ const KnockoutContext = React.createContext<{
   onTeamPress: (predictionId: number, teamId: number, teamName: string, teamNumber: number) => void;
   onSendChanges: () => void;
   onRefreshData: () => void;
+  onClearSpecificPendingChanges: (predictionIds: number[]) => void;
+  onUpdateOriginalWinners: (predictions: KnockoutPrediction[]) => void;
+  onTriggerRefresh: () => void;
   refreshTrigger: number;
   originalWinners: {[predictionId: number]: number};
   currentFocusedStage: string | null;
   setCurrentFocusedStage: (stage: string | null) => void;
   predictionStages: {[predictionId: number]: string};
-}>({ pendingChanges: [], onTeamPress: () => {}, onSendChanges: () => {}, onRefreshData: () => {}, refreshTrigger: 0, originalWinners: {}, currentFocusedStage: null, setCurrentFocusedStage: () => {}, predictionStages: {} });
+}>({ pendingChanges: [], onTeamPress: () => {}, onSendChanges: () => {}, onRefreshData: () => {}, onClearSpecificPendingChanges: () => {}, onUpdateOriginalWinners: () => {}, onTriggerRefresh: () => {}, refreshTrigger: 0, originalWinners: {}, currentFocusedStage: null, setCurrentFocusedStage: () => {}, predictionStages: {} });
 
 // Individual stage component
 const StageScreen = React.memo(({ route }: { route: any }) => {
   const { stage, stageName } = route.params || {};
-  const { pendingChanges, onTeamPress, onSendChanges, onRefreshData, refreshTrigger, originalWinners, currentFocusedStage, setCurrentFocusedStage, predictionStages } = useContext(KnockoutContext);
+  const { pendingChanges, onTeamPress, onSendChanges, onRefreshData, onClearSpecificPendingChanges, onUpdateOriginalWinners, onTriggerRefresh, refreshTrigger, originalWinners, currentFocusedStage, setCurrentFocusedStage, predictionStages } = useContext(KnockoutContext);
   // Build O(1) lookup map for this stage screen
   const pendingChangesById = React.useMemo(() => {
     const map: { [id: number]: PendingChange } = {};
@@ -57,6 +61,47 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
       
       const data = await apiService.getKnockoutPredictions(1, stage);
       setPredictions(data);
+      
+      // Check if there are any matches updated from bracket
+      const bracketUpdatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';
+      const bracketUpdatedMatches = JSON.parse(bracketUpdatedMatchesStr);
+      const stageMatchIds = data.map(p => p.template_match_id);
+      const relevantBracketUpdates = bracketUpdatedMatches.filter((update: any) => 
+        stageMatchIds.includes(update.matchId)
+      );
+      
+      if (relevantBracketUpdates.length > 0) {
+        console.log(`🔄 [FETCH] Found ${relevantBracketUpdates.length} bracket updates for stage ${stage}`);
+        // Clear pending changes only for the specific matches that were updated from bracket
+        const updatedMatchIds = relevantBracketUpdates.map((update: any) => update.matchId);
+        // Find prediction IDs that correspond to these template match IDs
+        const predictionIdsToClear = data
+          .filter(prediction => updatedMatchIds.includes(prediction.template_match_id))
+          .map(prediction => prediction.id);
+        
+        console.log(`🔄 [BRACKET UPDATE] Clearing pending changes for predictions: ${predictionIdsToClear.join(', ')}`);
+        onClearSpecificPendingChanges(predictionIdsToClear);
+        
+        // Update original winners with the latest data from server for this stage
+        console.log(`🔄 [BRACKET UPDATE] Updating original winners with latest data for stage ${stage}`);
+        onUpdateOriginalWinners(data);
+        
+        // Also refresh all other stages to get the latest data (but don't clear pending changes)
+        console.log(`🔄 [BRACKET UPDATE] Triggering refresh for all stages`);
+        onTriggerRefresh();
+        
+        // Remove these updates from AsyncStorage
+        const remainingUpdates = bracketUpdatedMatches.filter((update: any) => 
+          !stageMatchIds.includes(update.matchId)
+        );
+        await AsyncStorage.setItem('bracketUpdatedMatches', JSON.stringify(remainingUpdates));
+      }
+      
+      // Don't clear pending changes when user manually refreshes
+      // Only clear when we have bracket updates from other screens
+      if (isRefresh) {
+        console.log(`🔄 [FETCH] Manual refresh for stage ${stage} - keeping pending changes`);
+      }
     } catch (error) {
       console.error(`Error fetching ${stage} predictions:`, error);
     } finally {
@@ -94,15 +139,15 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
   }, [refreshTrigger, currentFocusedStage, stage]);
 
 
-  // Remove useFocusEffect to prevent screen refresh on team press
-  // useFocusEffect(
-  //   React.useCallback(() => {
-  //     // Only refresh if there are no pending changes to avoid losing user selections
-  //     if (pendingChanges.length === 0) {
-  //       fetchPredictions();
-  //     }
-  //   }, [stage, pendingChanges.length])
-  // );
+  // Refresh data when screen comes into focus (but don't clear pending changes)
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log(`🔄 [FOCUS REFRESH] Stage ${stage} focused, pendingChanges: ${pendingChanges.length}`);
+      // Always refresh to get the latest data from server, but preserve pending changes
+      console.log(`🔄 [FOCUS REFRESH] Refreshing data for stage ${stage} (preserving pending changes)`);
+      fetchPredictions();
+    }, [stage])
+  );
 
   const handleRefresh = () => {
     fetchPredictions(true);
@@ -364,6 +409,34 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   }, [pendingChanges, userId]);
 
   const handleRefreshData = React.useCallback(() => {
+    console.log(`🔄 [REFRESH DATA] Clearing pending changes and triggering refresh`);
+    setPendingChanges([]);
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
+
+  const handleClearSpecificPendingChanges = React.useCallback((predictionIds: number[]) => {
+    console.log(`🔄 [CLEAR SPECIFIC] Clearing pending changes for predictions: ${predictionIds.join(', ')}`);
+    setPendingChanges(prev => prev.filter(change => !predictionIds.includes(change.prediction_id)));
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
+
+  const handleUpdateOriginalWinners = React.useCallback((predictions: KnockoutPrediction[]) => {
+    console.log(`🔄 [UPDATE ORIGINAL WINNERS] Updating original winners with ${predictions.length} predictions`);
+    const newOriginalWinners: {[predictionId: number]: number} = {};
+    
+    predictions.forEach(prediction => {
+      if (prediction.winner_team_id) {
+        newOriginalWinners[prediction.id] = prediction.winner_team_id;
+      }
+    });
+    
+    // Update only the specific predictions that were updated, not all of them
+    setOriginalWinners(prev => ({ ...prev, ...newOriginalWinners }));
+    console.log('Updated original winners:', newOriginalWinners);
+  }, []);
+
+  const handleTriggerRefresh = React.useCallback(() => {
+    console.log(`🔄 [TRIGGER REFRESH] Triggering refresh for all stages`);
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
@@ -401,7 +474,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   }, [userId]);
 
   return (
-    <KnockoutContext.Provider value={{ pendingChanges, onTeamPress: handleTeamPress, onSendChanges: handleSendChanges, onRefreshData: handleRefreshData, refreshTrigger, originalWinners, currentFocusedStage, setCurrentFocusedStage, predictionStages }}>
+    <KnockoutContext.Provider value={{ pendingChanges, onTeamPress: handleTeamPress, onSendChanges: handleSendChanges, onRefreshData: handleRefreshData, onClearSpecificPendingChanges: handleClearSpecificPendingChanges, onUpdateOriginalWinners: handleUpdateOriginalWinners, onTriggerRefresh: handleTriggerRefresh, refreshTrigger, originalWinners, currentFocusedStage, setCurrentFocusedStage, predictionStages }}>
       <Tab.Navigator
         screenOptions={{
           tabBarStyle: styles.tabBar,
