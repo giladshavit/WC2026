@@ -8,6 +8,7 @@ class Team(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False, unique=True)
+    short_name = Column(String(3), nullable=True)  # 3-letter abbreviation (e.g., "FRA", "GER")
     flag_url = Column(String, nullable=True)  # URL to team flag image
     
     # Group stage information

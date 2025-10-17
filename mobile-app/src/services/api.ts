@@ -83,6 +83,9 @@ export interface KnockoutPrediction {
   team1_name: string | null;
   team2_name: string | null;
   winner_team_name: string | null;
+  team1_short_name: string | null;
+  team2_short_name: string | null;
+  winner_team_short_name: string | null;
   team1_flag: string | null;
   team2_flag: string | null;
   winner_team_flag: string | null;

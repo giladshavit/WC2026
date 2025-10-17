@@ -1002,10 +1002,13 @@ class PredictionService:
                     "is_editable": prediction.is_editable,
                     "created_at": prediction.created_at,
                     "updated_at": prediction.updated_at,
-                    # Add team names and flags if they exist
+                    # Add team names, short names and flags if they exist
                     "team1_name": prediction.team1.name if prediction.team1 else None,
                     "team2_name": prediction.team2.name if prediction.team2 else None,
                     "winner_team_name": prediction.winner_team.name if prediction.winner_team else None,
+                    "team1_short_name": prediction.team1.short_name if prediction.team1 else None,
+                    "team2_short_name": prediction.team2.short_name if prediction.team2 else None,
+                    "winner_team_short_name": prediction.winner_team.short_name if prediction.winner_team else None,
                     "team1_flag": prediction.team1.flag_url if prediction.team1 else None,
                     "team2_flag": prediction.team2.flag_url if prediction.team2 else None,
                     "winner_team_flag": prediction.winner_team.flag_url if prediction.winner_team else None

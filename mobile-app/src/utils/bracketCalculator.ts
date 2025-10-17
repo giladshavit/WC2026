@@ -39,6 +39,8 @@ export interface BracketMatch {
   team2_id?: number;
   team1_name?: string;
   team2_name?: string;
+  team1_short_name?: string;
+  team2_short_name?: string;
   team1_flag?: string;
   team2_flag?: string;
   winner_team_id?: number;
@@ -145,6 +147,8 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       team2_id: prediction.team2_id,
       team1_name: prediction.team1_name,
       team2_name: prediction.team2_name,
+      team1_short_name: prediction.team1_short_name,
+      team2_short_name: prediction.team2_short_name,
       team1_flag: prediction.team1_flag,
       team2_flag: prediction.team2_flag,
       winner_team_id: prediction.winner_team_id,

@@ -13,11 +13,11 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
   const isTeam2Winner = match.winner_team_id === match.team2_id;
   const isFinal = match.stage === 'final';
 
-  const renderTeam = (teamName: string | undefined, teamFlag: string | undefined, isWinner: boolean, teamId?: number) => {
-    const displayName = teamName && teamName !== 'TBD' ? teamName.substring(0, 8) : 'TBD';
+  const renderTeam = (teamName: string | undefined, teamFlag: string | undefined, isWinner: boolean, teamId?: number, shortName?: string) => {
+    const displayName = shortName || (teamName && teamName !== 'TBD' ? teamName.substring(0, 8) : 'TBD');
     
     return (
-      <View style={[styles.teamContainer, isWinner && styles.winnerTeam]}>
+      <View style={styles.teamContainer}>
         {teamFlag && (
           <Image 
             source={{ uri: teamFlag }} 
@@ -72,6 +72,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
     <TouchableOpacity 
       style={[styles.container, isFinal && styles.finalCardContainer]}
       onPress={() => {
+        console.log(`🔥 BracketMatchCard onPress called for match ${match.id}`);
         onPress?.(match);
       }}
       onLayout={(event) => {
@@ -88,18 +89,16 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             match.team1_name, 
             match.team1_flag, 
             isTeam1Winner,
-            match.team1_id
+            match.team1_id,
+            match.team1_short_name
           )}
-          
-          <View style={styles.vsContainer}>
-            <Text style={styles.vsText}>VS</Text>
-          </View>
           
           {renderTeam(
             match.team2_name, 
             match.team2_flag, 
             isTeam2Winner,
-            match.team2_id
+            match.team2_id,
+            match.team2_short_name
           )}
         </View>
       )}
@@ -114,7 +113,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 4,
     padding: 4,
-    marginVertical: 2,
+    marginVertical: 1,
     marginHorizontal: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -130,36 +129,36 @@ const styles = StyleSheet.create({
   },
   matchContainer: {
     alignItems: 'center',
+    justifyContent: 'space-between',
+    height: '100%',
+    paddingVertical: 2, // Small padding from edges
   },
   teamContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 1,
-    paddingHorizontal: 2,
+    paddingLeft: 4, // Fixed distance from left edge
+    paddingRight: 2,
     borderRadius: 3,
     marginVertical: 0.5,
     minWidth: 70,
-    justifyContent: 'center',
-  },
-  winnerTeam: {
-    backgroundColor: '#10b981',
-    borderWidth: 1,
-    borderColor: '#059669',
+    justifyContent: 'flex-start', // Align to left instead of center
   },
   flag: {
-    width: 12,
-    height: 8,
+    width: 18, // 12 * 1.5
+    height: 12, // 8 * 1.5
     marginRight: 2,
   },
   teamName: {
-    fontSize: 8,
+    fontSize: 12, // 8 * 1.5
     fontWeight: '500',
     color: '#374151',
     textAlign: 'center',
   },
   winnerText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: '#374151',
+    fontWeight: '700', // Bold instead of green background
+    fontSize: 13, // 12 + 1 (slightly larger for winner)
   },
   vsContainer: {
     paddingVertical: 0.5,
