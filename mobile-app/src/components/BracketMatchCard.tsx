@@ -71,7 +71,9 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
   return (
     <TouchableOpacity 
       style={[styles.container, isFinal && styles.finalCardContainer]}
-      onPress={() => onPress?.(match)}
+      onPress={() => {
+        onPress?.(match);
+      }}
       onLayout={(event) => {
         const { x, y, width, height } = event.nativeEvent.layout;
         onLayout?.(match.id, { x, y, width, height });

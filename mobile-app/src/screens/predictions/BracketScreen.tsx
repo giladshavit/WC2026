@@ -12,6 +12,7 @@ import Svg, { Line } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
 import { apiService, KnockoutPrediction } from '../../services/api';
 import BracketMatchCard from '../../components/BracketMatchCard';
+import MatchEditModal from '../../components/MatchEditModal';
 import { organizeBracketMatches, BracketMatch, OrganizedBracket } from '../../utils/bracketCalculator';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -33,18 +34,15 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [matchLayouts, setMatchLayouts] = useState<{[key: number]: { x: number; y: number; width: number; height: number }}>({});
+  const [selectedMatch, setSelectedMatch] = useState<BracketMatch | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
   const userId = 1; // Hardcoded for now
 
-  // Log available height for debugging
-  console.log(`Screen height: ${screenHeight}, Available height: ${AVAILABLE_HEIGHT}, Spacing: ${(AVAILABLE_HEIGHT - 40) / 8}`);
 
   // Function to handle match layout updates
   const handleMatchLayout = (matchId: number, layout: { x: number; y: number; width: number; height: number }) => {
     // The layout from onLayout is relative to the column container
     // We need to calculate the absolute position based on which column the match is in
-    console.log(`=== ONLAYOUT RECEIVED FOR MATCH ${matchId} ===`);
-    console.log(`Raw onLayout: x=${layout.x}, y=${layout.y}, width=${layout.width}, height=${layout.height}`);
-    console.log(`This is relative to the column container, NOT the screen!`);
     
     let absoluteLayout = layout;
     
@@ -90,7 +88,6 @@ export default function BracketScreen({}: BracketScreenProps) {
       if (match) {
         const spacing = (AVAILABLE_HEIGHT - 40) / 8;
         marginTop = (match.verticalPosition || 0) * spacing;
-        console.log(`Match ${matchId} marginTop calculation: verticalPosition=${match.verticalPosition}, spacing=${spacing}, marginTop=${marginTop}`);
       }
       
       absoluteLayout = {
@@ -100,14 +97,6 @@ export default function BracketScreen({}: BracketScreenProps) {
         height: layout.height
       };
       
-      // Debug: Print absolute layout for ALL matches
-      console.log(`=== MATCH ${matchId} LAYOUT CALCULATION ===`);
-      console.log(`Relative layout: x=${layout.x}, y=${layout.y}, width=${layout.width}, height=${layout.height}`);
-      console.log(`Column offset: ${columnOffset} (column calculation)`);
-      console.log(`MarginTop: ${marginTop} (vertical positioning)`);
-      console.log(`Absolute layout: x=${absoluteLayout.x}, y=${absoluteLayout.y}, width=${absoluteLayout.width}, height=${absoluteLayout.height}`);
-      console.log(`FINAL: X=${absoluteLayout.x}, Y=${absoluteLayout.y} (this should match visual position!)`);
-      console.log(`---`);
     }
     
     setMatchLayouts(prev => ({
@@ -118,17 +107,9 @@ export default function BracketScreen({}: BracketScreenProps) {
 
   // Function to draw diagonal lines within each quarter match card (top-left to bottom-right)
   const createQuarterDiagonalLine = (quarterMatch: BracketMatch, color: string = "#667eea") => {
-    console.log(`=== CREATE QUARTER DIAGONAL LINE CALLED ===`);
-    console.log(`Match: ${quarterMatch.id}`);
-    console.log(`Total layouts available: ${Object.keys(matchLayouts).length}`);
-    console.log(`Available match IDs: ${Object.keys(matchLayouts).join(', ')}`);
-    
     const absoluteLayout = matchLayouts[quarterMatch.id];
     
-    console.log(`Absolute layout (${quarterMatch.id}): ${absoluteLayout ? 'EXISTS' : 'MISSING'}`);
-    
     if (!absoluteLayout) {
-      console.log(`Missing absolute layout for quarter diagonal line: ${quarterMatch.id}`);
       return null;
     }
     
@@ -137,11 +118,6 @@ export default function BracketScreen({}: BracketScreenProps) {
     const y1 = absoluteLayout.y;  // Top-left (absolute position)
     const x2 = absoluteLayout.x + absoluteLayout.width;   // Bottom-right (absolute position)
     const y2 = absoluteLayout.y + absoluteLayout.height;  // Bottom-right (absolute position)
-    
-    console.log(`=== QUARTER DIAGONAL LINE (USING ABSOLUTE COORDINATES) ===`);
-    console.log(`Match ${quarterMatch.id}: USING absoluteLayout x=${absoluteLayout.x}, y=${absoluteLayout.y}, w=${absoluteLayout.width}, h=${absoluteLayout.height}`);
-    console.log(`Diagonal line: top-left (${x1},${y1}) -> bottom-right (${x2},${y2})`);
-    console.log(`This should be different for each quarter match!`);
     
     return (
       <Line
@@ -167,7 +143,6 @@ export default function BracketScreen({}: BracketScreenProps) {
     
     // Only draw lines if we have all the ABSOLUTE layout data
     if (!absoluteLayout1 || !absoluteLayout2 || !absoluteLayout3) {
-      console.log(`Missing ABSOLUTE layout data: ${quarterMatch1.id}=${!!absoluteLayout1}, ${quarterMatch2.id}=${!!absoluteLayout2}, ${semiMatch.id}=${!!absoluteLayout3}`);
       return [];
     }
     
@@ -181,17 +156,7 @@ export default function BracketScreen({}: BracketScreenProps) {
     // If target is to the left of source, it's right side (going left)
     const isLeftSide = absoluteLayout3.x > absoluteLayout1.x; // If target is to the right of source
     
-    console.log(`=== SIDE DETERMINATION FOR LINE: ${quarterMatch1.id}, ${quarterMatch2.id} -> ${semiMatch.id} ===`);
-    console.log(`Match 1 (${quarterMatch1.id}) x position: ${absoluteLayout1.x}`);
-    console.log(`Match 2 (${quarterMatch2.id}) x position: ${absoluteLayout2.x}`);
-    console.log(`Match 3 (${semiMatch.id}) x position: ${absoluteLayout3.x}`);
-    console.log(`Target (${semiMatch.id}) is to the ${absoluteLayout3.x > absoluteLayout1.x ? 'RIGHT' : 'LEFT'} of source (${quarterMatch1.id})`);
-    console.log(`Is left side: ${isLeftSide} (target x=${absoluteLayout3.x} > source x=${absoluteLayout1.x})`);
     
-    // Additional debug: Show which side each match is on
-    console.log(`Match ${quarterMatch1.id} side: ${quarterMatch1.side}`);
-    console.log(`Match ${quarterMatch2.id} side: ${quarterMatch2.side}`);
-    console.log(`Match ${semiMatch.id} side: ${semiMatch.side}`);
     
     if (isLeftSide) {
       // Left side: going right (quarter -> semi, round32 -> round16)
@@ -215,14 +180,6 @@ export default function BracketScreen({}: BracketScreenProps) {
       y3 = absoluteLayout3.y + (absoluteLayout3.height / 2) + yOffset;  // Vertical center + offset
     }
     
-    console.log(`=== USING ABSOLUTE COORDINATES FROM matchLayouts ===`);
-    console.log(`Quarter match 1 (${quarterMatch1.id}): USING absoluteLayout x=${absoluteLayout1.x}, y=${absoluteLayout1.y}, w=${absoluteLayout1.width}, h=${absoluteLayout1.height}`);
-    console.log(`Quarter match 2 (${quarterMatch2.id}): USING absoluteLayout x=${absoluteLayout2.x}, y=${absoluteLayout2.y}, w=${absoluteLayout2.width}, h=${absoluteLayout2.height}`);
-    console.log(`Semi match (${semiMatch.id}): USING absoluteLayout x=${absoluteLayout3.x}, y=${absoluteLayout3.y}, w=${absoluteLayout3.width}, h=${absoluteLayout3.height}`);
-    console.log(`Calculated line points (USING EDGES + OFFSET):`);
-    console.log(`x1=${x1}, y1=${y1} (quarter 1 right edge + ${xOffset}x + ${yOffset}y offset)`);
-    console.log(`x2=${x2}, y2=${y2} (quarter 2 right edge + ${xOffset}x + ${yOffset}y offset)`);
-    console.log(`x3=${x3}, y3=${y3} (semi left edge - ${xOffset}x + ${yOffset}y offset)`);
     
     // Calculate intermediate points - simple and clean
     const x4 = (x1 + x3) / 2;  // Middle point between quarter 1 and semi
@@ -232,23 +189,6 @@ export default function BracketScreen({}: BracketScreenProps) {
     const x6 = x4;  // Same X as x4 for final connection
     const y6 = (y4 + y5) / 2;  // Vertical middle between the two horizontal lines
     
-    // Debug: Show all calculated points
-    console.log(`All calculated points:`);
-    console.log(`x1=${x1}, y1=${y1} (quarter 1 right edge)`);
-    console.log(`x2=${x2}, y2=${y2} (quarter 2 right edge)`);
-    console.log(`x3=${x3}, y3=${y3} (semi left edge)`);
-    console.log(`x4=${x4}, y4=${y4} (middle upper)`);
-    console.log(`x5=${x5}, y5=${y5} (middle lower)`);
-    console.log(`x6=${x6}, y6=${y6} (middle of middle)`);
-    
-    // Debug: Show the actual layout data used
-    console.log(`=== ABSOLUTE LAYOUT DATA USED ===`);
-    console.log(`Quarter 1 absolute layout: x=${absoluteLayout1.x}, y=${absoluteLayout1.y}, width=${absoluteLayout1.width}, height=${absoluteLayout1.height}`);
-    console.log(`Quarter 2 absolute layout: x=${absoluteLayout2.x}, y=${absoluteLayout2.y}, width=${absoluteLayout2.width}, height=${absoluteLayout2.height}`);
-    console.log(`Semi absolute layout: x=${absoluteLayout3.x}, y=${absoluteLayout3.y}, width=${absoluteLayout3.width}, height=${absoluteLayout3.height}`);
-    console.log(`Quarter 1 edge+offset calculation: ${absoluteLayout1.x} + ${absoluteLayout1.width} + ${xOffset} = ${x1}`);
-    console.log(`Quarter 2 edge+offset calculation: ${absoluteLayout2.x} + ${absoluteLayout2.width} + ${xOffset} = ${x2}`);
-    console.log(`Semi edge+offset calculation: ${absoluteLayout3.x} - ${xOffset} = ${x3}`);
     
     const lines = [];
 
@@ -304,21 +244,6 @@ export default function BracketScreen({}: BracketScreenProps) {
       />
     );
 
-        console.log(`=== LINES CREATED FOR: ${quarterMatch1.id}, ${quarterMatch2.id} -> ${semiMatch.id} ===`);
-        console.log(`SIDE: ${isLeftSide ? 'LEFT (going right)' : 'RIGHT (going left)'}`);
-        console.log(`Line 1: (${x1},${y1}) -> (${x4},${y4}) - horizontal from quarter 1`);
-        console.log(`Line 2: (${x2},${y2}) -> (${x5},${y5}) - horizontal from quarter 2`);
-        console.log(`Line 3: (${x4},${y4}) -> (${x5},${y5}) - vertical connecting`);
-        console.log(`Line 4: (${x6},${y6}) -> (${x3},${y3}) - final to semi`);
-        console.log(`---`);
-    
-    // Debug distances
-    const distanceX1toX3 = Math.abs(x3 - x1);
-    const distanceX2toX3 = Math.abs(x3 - x2);
-    console.log(`=== DISTANCES ===`);
-    console.log(`Distance from quarter 1 to semi: ${distanceX1toX3}px`);
-    console.log(`Distance from quarter 2 to semi: ${distanceX2toX3}px`);
-    console.log(`This explains why the lines are so short!`);
 
     return lines;
   };
@@ -329,7 +254,6 @@ export default function BracketScreen({}: BracketScreenProps) {
     const absoluteLayout2 = matchLayouts[finalMatch.id];
     
     if (!absoluteLayout1 || !absoluteLayout2) {
-      console.log(`Missing layout data for semi-final ${semiMatch.id} or final ${finalMatch.id}`);
       return [];
     }
     
@@ -355,11 +279,6 @@ export default function BracketScreen({}: BracketScreenProps) {
       y2 = y1; // Use same Y as semi-final for horizontal line
     }
     
-    console.log(`=== SEMI TO FINAL LINE: ${semiMatch.id} -> ${finalMatch.id} ===`);
-    console.log(`Semi match: x=${absoluteLayout1.x}, y=${absoluteLayout1.y}, w=${absoluteLayout1.width}, h=${absoluteLayout1.height}`);
-    console.log(`Final match: x=${absoluteLayout2.x}, y=${absoluteLayout2.y}, w=${absoluteLayout2.width}, h=${absoluteLayout2.height}`);
-    console.log(`Line points: (${x1},${y1}) -> (${x2},${y2})`);
-    console.log(`Side: ${isLeftSemi ? 'LEFT' : 'RIGHT'}`);
     
     return [
       <Line 
@@ -384,11 +303,6 @@ export default function BracketScreen({}: BracketScreenProps) {
       
       // Fetch all knockout predictions
       const allPredictions = await apiService.getKnockoutPredictions(userId);
-      console.log('All predictions:', allPredictions.map(p => ({ 
-        id: p.template_match_id, 
-        stage: p.stage, 
-        name: `${p.team1_name} vs ${p.team2_name}` 
-      })));
       setPredictions(allPredictions);
       
       // Organize into bracket structure
@@ -398,28 +312,6 @@ export default function BracketScreen({}: BracketScreenProps) {
       const spacing = (AVAILABLE_HEIGHT - 40) / 8;
       calculateCardCoordinates(spacing);
       
-      console.log('Organized bracket structure:', {
-        round32_left: organized.round32_left.length,
-        round16_left: organized.round16_left.length,
-        quarter_left: organized.quarter_left.length,
-        semi: organized.semi.length,
-        final: organized.final.length
-      });
-      console.log('Quarter left matches with coordinates:', organized.quarter_left.map((m: any) => ({ 
-        id: m.id, 
-        stage: m.stage, 
-        name: `${m.team1_name} vs ${m.team2_name}`,
-        coords: { topLeftX: m.topLeftX, topLeftY: m.topLeftY, bottomRightX: m.bottomRightX, bottomRightY: m.bottomRightY }
-      })));
-      
-      // Debug: Check which columns have content
-      console.log('Column content check:', {
-        round32_left: organized.round32_left.length,
-        round16_left: organized.round16_left.length,
-        quarter_left: organized.quarter_left.length,
-        semi: organized.semi.length,
-        final: organized.final.length
-      });
       setOrganizedBracket(organized);
       
     } catch (error) {
@@ -439,9 +331,9 @@ export default function BracketScreen({}: BracketScreenProps) {
   );
 
   const handleMatchPress = (match: BracketMatch) => {
-    // Future: Navigate to match editing
-    console.log('Match pressed:', match);
-    Alert.alert('משחק נבחר', `משחק ${match.id} - ${match.team1_name} vs ${match.team2_name}`);
+    console.log(`🎯 CLICKED: Match ${match.id} - ${match.team1_name} vs ${match.team2_name}`);
+    setSelectedMatch(match);
+    setIsModalVisible(true);
   };
 
 
@@ -458,14 +350,6 @@ export default function BracketScreen({}: BracketScreenProps) {
         <View style={styles.matchesContainer}>
           {matches.map((match, index) => {
             const calculatedMarginTop = (match.verticalPosition || index) * spacing;
-            console.log(`=== VISUAL POSITIONING FOR MATCH ${match.id} ===`);
-            console.log(`Column index: ${columnIndex}`);
-            console.log(`Match verticalPosition: ${match.verticalPosition}`);
-            console.log(`Match index: ${index}`);
-            console.log(`Spacing: ${spacing}`);
-            console.log(`Calculated marginTop: ${calculatedMarginTop}`);
-            console.log(`This determines the ACTUAL visual position on screen!`);
-            console.log(`---`);
             
             return (
             <View 
@@ -514,20 +398,12 @@ export default function BracketScreen({}: BracketScreenProps) {
         contentContainerStyle={styles.scrollContent}
         style={styles.scrollView}
       >
-        {/* SVG overlay for bracket lines */}
+        {/* SVG overlay for bracket lines - AFTER the cards */}
         <Svg 
           style={[styles.bracketLines, { height: AVAILABLE_HEIGHT }]}
           width={screenWidth * 3} // Wide enough for all columns (including right side at x=1155)
           height={AVAILABLE_HEIGHT}
         >
-          {/* Quarter diagonal lines - one for each quarter match */}
-          {organizedBracket && (() => {
-            console.log(`=== QUARTER MATCHES DEBUG ===`);
-            console.log(`Quarter left: ${organizedBracket.quarter_left.map(m => `${m.id}(${m.team1_name}vs${m.team2_name})`).join(', ')}`);
-            console.log(`Quarter right: ${organizedBracket.quarter_right.map(m => `${m.id}(${m.team1_name}vs${m.team2_name})`).join(', ')}`);
-            return null;
-          })()}
-          
           {/* Quarter diagonal lines removed - no longer needed */}
           
           {/* Lines from Round 32 Left to Round 16 Left (Left side) */}
@@ -550,11 +426,6 @@ export default function BracketScreen({}: BracketScreenProps) {
               const round32Match82 = organizedBracket.round32_left.find(m => m.id === 82);
               const round16Match94 = organizedBracket.round16_left.find(m => m.id === 94);
               
-              console.log(`Drawing lines for Round 32 to Round 16 (Left side):`);
-              console.log(`Connection 1: ${round32Match74?.id}, ${round32Match77?.id} -> ${round16Match89?.id}`);
-              console.log(`Connection 2: ${round32Match73?.id}, ${round32Match75?.id} -> ${round16Match90?.id}`);
-              console.log(`Connection 3: ${round32Match83?.id}, ${round32Match84?.id} -> ${round16Match93?.id}`);
-              console.log(`Connection 4: ${round32Match81?.id}, ${round32Match82?.id} -> ${round16Match94?.id}`);
               
               const lines = [];
               
@@ -588,9 +459,6 @@ export default function BracketScreen({}: BracketScreenProps) {
               const round16Match94 = organizedBracket.round16_left.find(m => m.id === 94);
               const quarterMatch98 = organizedBracket.quarter_left.find(m => m.id === 98);
               
-              console.log(`Drawing lines for Round 16 to Quarter (Left side):`);
-              console.log(`Connection 1: ${round16Match89?.id}, ${round16Match90?.id} -> ${quarterMatch97?.id}`);
-              console.log(`Connection 2: ${round16Match93?.id}, ${round16Match94?.id} -> ${quarterMatch98?.id}`);
               
               const lines = [];
               
@@ -609,13 +477,7 @@ export default function BracketScreen({}: BracketScreenProps) {
           {/* Lines from Quarter Left to Semi Final 101 (Left side) */}
           {organizedBracket && organizedBracket.quarter_left.length === 2 && organizedBracket.semi.find(s => s.id === 101) && 
             (() => {
-      console.log(`Drawing lines for Quarter to Semi: ${organizedBracket.quarter_left[0].id}, ${organizedBracket.quarter_left[1].id}, ${organizedBracket.semi.find(s => s.id === 101)!.id}`);
-      console.log(`Available layouts: ${Object.keys(matchLayouts).length} total`);
       
-      // Debug: Show layouts for the specific matches we need
-      console.log(`Layout for match 97:`, matchLayouts[97]);
-      console.log(`Layout for match 98:`, matchLayouts[98]);
-      console.log(`Layout for match 101:`, matchLayouts[101]);
       
       // Debug: Check if matches are overlapping
       if (matchLayouts[97] && matchLayouts[98] && matchLayouts[101]) {
@@ -623,29 +485,8 @@ export default function BracketScreen({}: BracketScreenProps) {
                            matchLayouts[97].x === matchLayouts[101].x &&
                            matchLayouts[97].y === matchLayouts[98].y && 
                            matchLayouts[97].y === matchLayouts[101].y;
-        console.log(`All three matches are at the same position: ${samePosition}`);
-        if (samePosition) {
-          console.log(`This means the cards are overlapping on screen!`);
-        }
         
-      // Debug: Show distance between matches
-      console.log(`Distance between 97 and 98 (should be different Y): ${Math.abs(matchLayouts[97].y - matchLayouts[98].y)}`);
-      console.log(`Distance between 97 and 101 (should be different X): ${Math.abs(matchLayouts[97].x - matchLayouts[101].x)}`);
-      console.log(`Distance between 98 and 101 (should be different X): ${Math.abs(matchLayouts[98].x - matchLayouts[101].x)}`);
       
-      // Debug: Check expected column positions
-      console.log(`=== COLUMN POSITION DEBUG ===`);
-      console.log(`Match 97 should be in quarter_left column (logical 2), actual X: ${matchLayouts[97].x}`);
-      console.log(`Match 98 should be in quarter_left column (logical 2), actual X: ${matchLayouts[98].x}`);
-      console.log(`Match 101 should be in semi column (logical 3), actual X: ${matchLayouts[101].x}`);
-      console.log(`Expected column 2 X position: ${2 * (COLUMN_WIDTH + 20)} (${COLUMN_WIDTH + 20} * 2)`);
-      console.log(`Expected column 3 X position: ${3 * (COLUMN_WIDTH + 20)} (${COLUMN_WIDTH + 20} * 3)`);
-      
-      // Debug: Calculate actual column spacing
-      const actualColumnSpacing = matchLayouts[101].x - matchLayouts[97].x;
-      console.log(`Actual column spacing: ${actualColumnSpacing}px (between quarter and semi)`);
-      console.log(`Theoretical column spacing: ${COLUMN_WIDTH + 20}px`);
-      console.log(`Difference: ${actualColumnSpacing - (COLUMN_WIDTH + 20)}px`);
     }
               return createPreciseBracketLines(
                 organizedBracket.quarter_left[0], 
@@ -656,17 +497,6 @@ export default function BracketScreen({}: BracketScreenProps) {
           }
           
           {/* Lines from Round 32 Right to Round 16 Right (Right side) */}
-          {(() => {
-            console.log(`🔍 CHECKING RIGHT SIDE CONDITIONS:`);
-            console.log(`organizedBracket exists: ${!!organizedBracket}`);
-            if (organizedBracket) {
-              console.log(`round32_right.length: ${organizedBracket.round32_right.length} (need >= 8)`);
-              console.log(`round16_right.length: ${organizedBracket.round16_right.length} (need >= 4)`);
-              console.log(`round32_right matches: ${organizedBracket.round32_right.map(m => m.id).join(', ')}`);
-              console.log(`round16_right matches: ${organizedBracket.round16_right.map(m => m.id).join(', ')}`);
-            }
-            return null;
-          })()}
           {organizedBracket && organizedBracket.round32_right.length >= 8 && organizedBracket.round16_right.length >= 4 && 
             (() => {
               // Find matches by ID for right side
@@ -686,29 +516,20 @@ export default function BracketScreen({}: BracketScreenProps) {
               const round32Match87 = organizedBracket.round32_right.find(m => m.id === 87);
               const round16Match96 = organizedBracket.round16_right.find(m => m.id === 96);
               
-              console.log(`Drawing lines for Round 32 to Round 16 (Right side):`);
-              console.log(`Connection 1: ${round32Match76?.id}, ${round32Match78?.id} -> ${round16Match91?.id}`);
-              console.log(`Connection 2: ${round32Match79?.id}, ${round32Match80?.id} -> ${round16Match92?.id}`);
-              console.log(`Connection 3: ${round32Match86?.id}, ${round32Match88?.id} -> ${round16Match95?.id}`);
-              console.log(`Connection 4: ${round32Match85?.id}, ${round32Match87?.id} -> ${round16Match96?.id}`);
               
               const lines = [];
               
               // Only draw lines if all matches exist
               if (round32Match76 && round32Match78 && round16Match91) {
-                console.log(`🎯 CALLING createPreciseBracketLines for RIGHT SIDE: 76, 78 -> 91`);
                 lines.push(...createPreciseBracketLines(round32Match76, round32Match78, round16Match91));
               }
               if (round32Match79 && round32Match80 && round16Match92) {
-                console.log(`🎯 CALLING createPreciseBracketLines for RIGHT SIDE: 79, 80 -> 92`);
                 lines.push(...createPreciseBracketLines(round32Match79, round32Match80, round16Match92));
               }
               if (round32Match86 && round32Match88 && round16Match95) {
-                console.log(`🎯 CALLING createPreciseBracketLines for RIGHT SIDE: 86, 88 -> 95`);
                 lines.push(...createPreciseBracketLines(round32Match86, round32Match88, round16Match95));
               }
               if (round32Match85 && round32Match87 && round16Match96) {
-                console.log(`🎯 CALLING createPreciseBracketLines for RIGHT SIDE: 85, 87 -> 96`);
                 lines.push(...createPreciseBracketLines(round32Match85, round32Match87, round16Match96));
               }
               
@@ -717,14 +538,6 @@ export default function BracketScreen({}: BracketScreenProps) {
           }
           
           {/* Lines from Round 16 Right to Quarter Right (Right side) */}
-          {(() => {
-            console.log(`🔍 CHECKING RIGHT SIDE Round16->Quarter CONDITIONS:`);
-            if (organizedBracket) {
-              console.log(`round16_right.length: ${organizedBracket.round16_right.length} (need >= 4)`);
-              console.log(`quarter_right.length: ${organizedBracket.quarter_right.length} (need >= 2)`);
-            }
-            return null;
-          })()}
           {organizedBracket && organizedBracket.round16_right.length >= 4 && organizedBracket.quarter_right.length >= 2 && 
             (() => {
               // Find matches by ID for right side
@@ -736,19 +549,14 @@ export default function BracketScreen({}: BracketScreenProps) {
               const round16Match96 = organizedBracket.round16_right.find(m => m.id === 96);
               const quarterMatch100 = organizedBracket.quarter_right.find(m => m.id === 100);
               
-              console.log(`Drawing lines for Round 16 to Quarter (Right side):`);
-              console.log(`Connection 1: ${round16Match91?.id}, ${round16Match92?.id} -> ${quarterMatch99?.id}`);
-              console.log(`Connection 2: ${round16Match95?.id}, ${round16Match96?.id} -> ${quarterMatch100?.id}`);
               
               const lines = [];
               
               // Only draw lines if all matches exist
               if (round16Match91 && round16Match92 && quarterMatch99) {
-                console.log(`🎯 CALLING createPreciseBracketLines for RIGHT SIDE: 91, 92 -> 99`);
                 lines.push(...createPreciseBracketLines(round16Match91, round16Match92, quarterMatch99));
               }
               if (round16Match95 && round16Match96 && quarterMatch100) {
-                console.log(`🎯 CALLING createPreciseBracketLines for RIGHT SIDE: 95, 96 -> 100`);
                 lines.push(...createPreciseBracketLines(round16Match95, round16Match96, quarterMatch100));
               }
               
@@ -757,20 +565,8 @@ export default function BracketScreen({}: BracketScreenProps) {
           }
           
           {/* Lines from Quarter Right to Semi Final 102 (Right side) */}
-          {(() => {
-            console.log(`🔍 CHECKING RIGHT SIDE Quarter->Semi CONDITIONS:`);
-            if (organizedBracket) {
-              console.log(`quarter_right.length: ${organizedBracket.quarter_right.length} (need === 2)`);
-              console.log(`semi.find(102): ${!!organizedBracket.semi.find(s => s.id === 102)}`);
-              console.log(`quarter_right matches: ${organizedBracket.quarter_right.map(m => m.id).join(', ')}`);
-              console.log(`semi matches: ${organizedBracket.semi.map(m => m.id).join(', ')}`);
-            }
-            return null;
-          })()}
           {organizedBracket && organizedBracket.quarter_right.length === 2 && organizedBracket.semi.find(s => s.id === 102) && 
             (() => {
-              console.log(`🎯 CALLING createPreciseBracketLines for RIGHT SIDE: 99, 100 -> 102`);
-              console.log(`Drawing lines for Quarter to Semi (Right side): ${organizedBracket.quarter_right[0].id}, ${organizedBracket.quarter_right[1].id}, ${organizedBracket.semi.find(s => s.id === 102)!.id}`);
               
               return createPreciseBracketLines(
                 organizedBracket.quarter_right[0], 
@@ -788,8 +584,6 @@ export default function BracketScreen({}: BracketScreenProps) {
               const final = organizedBracket.final[0];
               
               if (semi101 && semi102 && final) {
-                console.log(`🎯 CALLING createSemiToFinalLines for Semi 101 -> Final`);
-                console.log(`🎯 CALLING createSemiToFinalLines for Semi 102 -> Final`);
                 
                 return [
                   ...createSemiToFinalLines(semi101, final),
@@ -827,7 +621,26 @@ export default function BracketScreen({}: BracketScreenProps) {
         
         {/* Column 9: Round 32 Right */}
         {renderColumn('32 אחרונות (ימין)', organizedBracket.round32_right, false, 8)}
+        
+        {/* SVG overlay for bracket lines - AFTER the cards */}
+        <Svg 
+          style={[styles.bracketLines, { height: AVAILABLE_HEIGHT }]}
+          width={screenWidth * 3} // Wide enough for all columns (including right side at x=1155)
+          height={AVAILABLE_HEIGHT}
+        >
+        </Svg>
       </ScrollView>
+      
+      {/* Match Edit Modal */}
+      <MatchEditModal
+        visible={isModalVisible}
+        match={selectedMatch}
+        onClose={() => setIsModalVisible(false)}
+        onSave={(matchId, winnerId) => {
+          console.log(`💾 Saving match ${matchId} with winner ${winnerId}`);
+          setIsModalVisible(false);
+        }}
+      />
     </View>
   );
 }

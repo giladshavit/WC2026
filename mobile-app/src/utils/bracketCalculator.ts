@@ -249,10 +249,6 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
         // Position the new match so its center is at the average center
         const newPosition = avgCenter - (cardHeight / 2);
         
-        console.log(`Round16 LEFT match ${match.id}:`);
-        console.log(`  Source match ${sourceMatches[0].id} position: ${sourceMatches[0].verticalPosition}, center: ${center1}`);
-        console.log(`  Source match ${sourceMatches[1].id} position: ${sourceMatches[1].verticalPosition}, center: ${center2}`);
-        console.log(`  Average center: ${avgCenter}, new position: ${newPosition}, new center: ${newPosition + 40}`);
         
         return { ...match, verticalPosition: newPosition };
       }
@@ -270,10 +266,6 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
         // Position the new match so its center is at the average center
         const newPosition = avgCenter - (cardHeight / 2);
         
-        console.log(`Round16 RIGHT match ${match.id}:`);
-        console.log(`  Source match ${sourceMatches[0].id} position: ${sourceMatches[0].verticalPosition}, center: ${center1}`);
-        console.log(`  Source match ${sourceMatches[1].id} position: ${sourceMatches[1].verticalPosition}, center: ${center2}`);
-        console.log(`  Average center: ${avgCenter}, new position: ${newPosition}, new center: ${newPosition + 40}`);
         
         return { ...match, verticalPosition: newPosition };
       }
@@ -292,10 +284,6 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
         // Position the new match so its center is at the average center
         const newPosition = avgCenter - (cardHeight / 2);
         
-        console.log(`Quarter LEFT match ${match.id}:`);
-        console.log(`  Source match ${sourceMatches[0].id} position: ${sourceMatches[0].verticalPosition}, center: ${center1}`);
-        console.log(`  Source match ${sourceMatches[1].id} position: ${sourceMatches[1].verticalPosition}, center: ${center2}`);
-        console.log(`  Average center: ${avgCenter}, new position: ${newPosition}, new center: ${newPosition + 40}`);
         
         return { ...match, verticalPosition: newPosition };
       }
@@ -362,13 +350,6 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
         verticalPosition: newPosition
       }));
       
-      console.log(`=== FINAL POSITIONING DEBUG ===`);
-      console.log(`Semi 1 position: ${organized.semi[0].verticalPosition}, center: ${center1}`);
-      console.log(`Semi 2 position: ${organized.semi[1].verticalPosition}, center: ${center2}`);
-      console.log(`Average center: ${avgCenter}`);
-      console.log(`Final position: ${newPosition}`);
-      console.log(`Final card height: ${finalCardHeight}`);
-      console.log(`---`);
     }
   };
 
@@ -432,7 +413,6 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
     organized.quarter_left = organized.quarter_left.map(match => {
       const visualCol = getVisualColumnIndex(2);
       const coords = getCardCoordinates(visualCol, match.verticalPosition || 0, spacing);
-      console.log(`Quarter match ${match.id}: visual column ${visualCol}, coords:`, coords);
       return {
         ...match,
         ...coords
@@ -450,7 +430,6 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       const logicalColumnIndex = match.id === 101 ? 3 : 5; // Semi 101 is left, Semi 102 is right
       const visualCol = getVisualColumnIndex(logicalColumnIndex);
       const coords = getCardCoordinates(visualCol, match.verticalPosition || 0, spacing);
-      console.log(`Semi match ${match.id}: logical column ${logicalColumnIndex}, visual column ${visualCol}, coords:`, coords);
       return {
         ...match,
         ...coords
