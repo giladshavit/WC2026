@@ -651,8 +651,24 @@ export default function BracketScreen({}: BracketScreenProps) {
               winner_team_name: winnerTeamName,
             }]);
 
-            // Refresh the data
-            await fetchPredictions();
+            // Get fresh data from server to ensure all stages are updated correctly
+            // Wait a bit for server to process the update
+            setTimeout(async () => {
+              try {
+                const freshPredictions = await apiService.getKnockoutPredictions(userId);
+                setPredictions(freshPredictions);
+                
+                // Organize into bracket structure with fresh data
+                const { organized, calculateCardCoordinates } = organizeBracketMatches(freshPredictions);
+                const spacing = (AVAILABLE_HEIGHT - 40) / 8;
+                calculateCardCoordinates(spacing);
+                setOrganizedBracket(organized);
+                
+                console.log('✅ Updated bracket with fresh data from server');
+              } catch (error) {
+                console.error('❌ Error updating bracket with fresh data:', error);
+              }
+            }, 500); // Wait 500ms for server to process
             
             // Store the updated match ID in AsyncStorage to signal knockout screen
             const updatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';

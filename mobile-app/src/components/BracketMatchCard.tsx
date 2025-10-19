@@ -132,7 +132,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
-    borderRadius: 4,
+    borderRadius: 16,
     padding: 4,
     marginVertical: 1,
     marginHorizontal: 1,
