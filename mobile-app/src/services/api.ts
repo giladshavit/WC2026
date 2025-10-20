@@ -15,6 +15,11 @@ export interface UserPrediction {
   is_editable: boolean | null;
 }
 
+export interface MatchesResponse {
+  matches: Match[];
+  matches_score: number | null;
+}
+
 export interface Match {
   id: number;
   stage: string;
@@ -98,7 +103,7 @@ class ApiService {
     this.baseUrl = baseUrl;
   }
 
-  async getMatches(userId: number = 1): Promise<Match[]> {
+  async getMatches(userId: number = 1): Promise<MatchesResponse> {
     try {
       // Add timestamp to prevent caching
       const timestamp = new Date().getTime();
@@ -330,6 +335,7 @@ class ApiService {
       throw error;
     }
   }
+
 }
 
 export const apiService = new ApiService();

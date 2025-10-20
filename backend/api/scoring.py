@@ -37,7 +37,7 @@ async def get_user_scoring_breakdown(
     db: Session = Depends(get_db)
 ):
     """
-    Get detailed scoring breakdown for a specific user.
+    Get detailed scoring breakdown for a specific user from the new user_scores table.
     Shows points from each prediction type.
     
     Args:
@@ -49,67 +49,40 @@ async def get_user_scoring_breakdown(
     """
     try:
         from models.user import User
-        from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
+        from models.user_scores import UserScores
         
         # Check if user exists
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
+        # Get user scores from new table
+        user_scores = db.query(UserScores).filter(UserScores.user_id == user_id).first()
+        
+        if not user_scores:
+            # Create default scores if they don't exist
+            user_scores = UserScores(
+                user_id=user_id,
+                matches_score=0,
+                groups_score=0,
+                third_place_score=0,
+                knockout_score=0,
+                total_points=0
+            )
+            db.add(user_scores)
+            db.commit()
+            db.refresh(user_scores)
+        
         breakdown = {
             "user_id": user_id,
             "user_name": user.name,
-            "total_points": user.total_points,
+            "total_points": user_scores.total_points,
             "breakdown": {
-                "match_predictions": {
-                    "total_predictions": 0,
-                    "total_points": 0,
-                    "average_points": 0
-                },
-                "group_predictions": {
-                    "total_predictions": 0,
-                    "total_points": 0
-                },
-                "third_place_predictions": {
-                    "total_predictions": 0,
-                    "total_points": 0
-                },
-                "knockout_predictions": {
-                    "total_predictions": 0,
-                    "total_points": 0
-                }
+                "matches_score": user_scores.matches_score,
+                "groups_score": user_scores.groups_score,
+                "third_place_score": user_scores.third_place_score,
+                "knockout_score": user_scores.knockout_score
             }
-        }
-        
-        # Calculate match prediction breakdown
-        match_predictions = db.query(MatchPrediction).filter(
-            MatchPrediction.user_id == user_id
-        ).all()
-        
-        match_points = 0
-        for prediction in match_predictions:
-            if prediction.points:
-                match_points += prediction.points
-        
-        breakdown["breakdown"]["match_predictions"] = {
-            "total_predictions": len(match_predictions),
-            "total_points": match_points,
-            "average_points": match_points / len(match_predictions) if match_predictions else 0
-        }
-        
-        # Calculate knockout prediction breakdown
-        knockout_predictions = db.query(KnockoutStagePrediction).filter(
-            KnockoutStagePrediction.user_id == user_id
-        ).all()
-        
-        knockout_points = 0
-        for prediction in knockout_predictions:
-            if prediction.points:
-                knockout_points += prediction.points
-        
-        breakdown["breakdown"]["knockout_predictions"] = {
-            "total_predictions": len(knockout_predictions),
-            "total_points": knockout_points
         }
         
         return breakdown

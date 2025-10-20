@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { Match, apiService } from '../../services/api';
+import { Match, apiService, MatchesResponse } from '../../services/api';
 import MatchCard from '../../components/MatchCard';
 
 export default function MatchesScreen() {
@@ -9,6 +9,7 @@ export default function MatchesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Map<number, {homeScore: number | null, awayScore: number | null}>>(new Map());
   const [saving, setSaving] = useState(false);
+  const [matchesScore, setMatchesScore] = useState<number | null>(null);
 
   // Determine if there are any incomplete (null) scores among pending changes
   const hasIncompletePending = Array.from(pendingChanges.values()).some(
@@ -18,8 +19,9 @@ export default function MatchesScreen() {
 
   const fetchMatches = async () => {
     try {
-      const data = await apiService.getMatches(1); // Using user_id = 1 for now
-      setMatches(data);
+      const data: MatchesResponse = await apiService.getMatches(1); // Using user_id = 1 for now
+      setMatches(data.matches);
+      setMatchesScore(data.matches_score);
     } catch (error) {
       console.error('Error fetching matches:', error);
       Alert.alert('Error', 'Could not load matches. Please check that the server is running.');
@@ -128,6 +130,11 @@ export default function MatchesScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Match Predictions</Text>
+        {matchesScore !== null && (
+          <View style={styles.pointsContainer}>
+            <Text style={styles.totalPoints}>{matchesScore} pts</Text>
+          </View>
+        )}
         {pendingChanges.size > 0 && (
           <TouchableOpacity 
             style={[styles.saveButton, (!canSave) && styles.saveButtonDisabled]} 
@@ -176,6 +183,19 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#667eea',
+    flex: 1,
+  },
+  pointsContainer: {
+    backgroundColor: '#48bb78',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  totalPoints: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
   },
   saveButton: {
     backgroundColor: '#48bb78',

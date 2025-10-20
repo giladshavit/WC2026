@@ -56,10 +56,10 @@ class BatchKnockoutPredictionRequest(BaseModel):
 # Match Predictions Endpoints
 # ========================================
 
-@router.get("/predictions/matches", response_model=List[Dict[str, Any]])
+@router.get("/predictions/matches", response_model=Dict[str, Any])
 def get_matches_with_predictions(user_id: int, db: Session = Depends(get_db)):
     """
-    Get all matches with the user's predictions
+    Get all matches with the user's predictions and user scores
     """
     return MatchService.get_all_matches_with_predictions(db, user_id)
 

@@ -3,13 +3,14 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from models.matches import Match
 from models.predictions import MatchPrediction
+from models.user_scores import UserScores
 
 class MatchService:
     
     @staticmethod
-    def get_all_matches_with_predictions(db: Session, user_id: int) -> List[Dict[str, Any]]:
+    def get_all_matches_with_predictions(db: Session, user_id: int) -> Dict[str, Any]:
         """
-        Get all matches with the user's predictions
+        Get all matches with the user's predictions and user scores
         """
         # Fetch all matches
         matches = db.query(Match).all()
@@ -32,7 +33,13 @@ class MatchService:
         # Sort by date
         all_matches.sort(key=lambda x: x["date"])
         
-        return all_matches
+        # Get user scores
+        user_scores = db.query(UserScores).filter(UserScores.user_id == user_id).first()
+        
+        return {
+            "matches": all_matches,
+            "matches_score": user_scores.matches_score if user_scores else None
+        }
 
     @staticmethod
     def create_match_data(match: Match, prediction=None) -> Dict[str, Any]:

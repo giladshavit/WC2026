@@ -10,6 +10,7 @@ from .predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePredic
 from .tournament_config import TournamentConfig
 from .team import Team
 from .user import User
+from .user_scores import UserScores
 
 __all__ = [
     'ThirdPlaceCombination',
@@ -26,5 +27,6 @@ __all__ = [
     'KnockoutStagePrediction',
     'TournamentConfig',
     'Team',
-    'User'
+    'User',
+    'UserScores'
 ]
