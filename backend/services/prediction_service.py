@@ -513,12 +513,13 @@ class PredictionService:
         }
 
     @staticmethod
-    def get_group_predictions(db: Session, user_id: int) -> List[Dict[str, Any]]:
+    def get_group_predictions(db: Session, user_id: int) -> Dict[str, Any]:
         """
         Get all groups with their teams and user's predictions (if exist)
         Always returns all 12 groups, with or without predictions
         """
         from models.groups import Group
+        from models.user_scores import UserScores
         
         # Get all groups ordered by ID
         groups = db.query(Group).order_by(Group.id).all()
@@ -577,7 +578,14 @@ class PredictionService:
             
             result.append(group_data)
         
-        return result
+        
+        # Get user scores
+        user_scores = db.query(UserScores).filter(UserScores.user_id == user_id).first()
+        
+        return {
+            "groups": result,
+            "groups_score": user_scores.groups_score if user_scores else None
+        }
     
     @staticmethod
     def create_or_update_third_place_prediction(db: Session, user_id: int, advancing_team_ids: List[int]) -> Dict[str, Any]:

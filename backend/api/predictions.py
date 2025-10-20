@@ -88,11 +88,11 @@ def create_or_update_batch_match_predictions(
 # Group Stage Predictions Endpoints
 # ========================================
 
-@router.get("/predictions/groups", response_model=List[Dict[str, Any]])
+@router.get("/predictions/groups", response_model=Dict[str, Any])
 def get_group_stage_predictions(user_id: int, db: Session = Depends(get_db)):
     """
     Get all groups with teams and user's predictions for group stage
-    Returns complete data needed for group predictions UI
+    Returns complete data needed for group predictions UI including groups score
     """
     return PredictionService.get_group_predictions(db, user_id)
 
