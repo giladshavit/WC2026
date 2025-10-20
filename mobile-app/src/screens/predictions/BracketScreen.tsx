@@ -304,10 +304,10 @@ export default function BracketScreen({}: BracketScreenProps) {
       
       // Fetch all knockout predictions
       const allPredictions = await apiService.getKnockoutPredictions(userId);
-      setPredictions(allPredictions);
+      setPredictions(allPredictions.predictions);
       
       // Organize into bracket structure
-      const { organized, calculateCardCoordinates } = organizeBracketMatches(allPredictions);
+      const { organized, calculateCardCoordinates } = organizeBracketMatches(allPredictions.predictions);
       
       // Calculate card coordinates with current spacing
       const spacing = (AVAILABLE_HEIGHT - 40) / 8;
@@ -656,10 +656,10 @@ export default function BracketScreen({}: BracketScreenProps) {
             setTimeout(async () => {
               try {
                 const freshPredictions = await apiService.getKnockoutPredictions(userId);
-                setPredictions(freshPredictions);
+                setPredictions(freshPredictions.predictions);
                 
                 // Organize into bracket structure with fresh data
-                const { organized, calculateCardCoordinates } = organizeBracketMatches(freshPredictions);
+                const { organized, calculateCardCoordinates } = organizeBracketMatches(freshPredictions.predictions);
                 const spacing = (AVAILABLE_HEIGHT - 40) / 8;
                 calculateCardCoordinates(spacing);
                 setOrganizedBracket(organized);

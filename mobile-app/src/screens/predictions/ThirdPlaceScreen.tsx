@@ -13,6 +13,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const [saving, setSaving] = useState(false);
   const [selectedTeams, setSelectedTeams] = useState<Set<number>>(new Set());
   const [changedGroups, setChangedGroups] = useState<string[]>([]);
+  const [thirdPlaceScore, setThirdPlaceScore] = useState<number | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [titleHeight, setTitleHeight] = useState(0);
   const [subtitleHeight, setSubtitleHeight] = useState(0);
@@ -52,6 +53,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     try {
       const data = await apiService.getThirdPlacePredictionsData(1); // Using user_id = 1 for now
       setTeams(data.eligible_teams);
+      setThirdPlaceScore(data.third_place_score);
       
       // Initialize selected teams from existing prediction
       const selectedSet = new Set<number>();
@@ -223,7 +225,14 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
           style={styles.headerTop}
           onLayout={(event) => setTitleHeight(event.nativeEvent.layout.height)}
         >
-          <Text style={styles.title}>3rd Place Qualifiers</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>3rd Place Qualifiers</Text>
+            {thirdPlaceScore !== null && (
+              <View style={styles.pointsContainer}>
+                <Text style={styles.totalPoints}>{thirdPlaceScore} pts</Text>
+              </View>
+            )}
+          </View>
           {selectedTeams.size > 0 && (
             <TouchableOpacity 
               style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
@@ -283,10 +292,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#667eea',
+  },
+  pointsContainer: {
+    backgroundColor: '#667eea',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 12,
+  },
+  totalPoints: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   saveButton: {
     backgroundColor: '#48bb78',

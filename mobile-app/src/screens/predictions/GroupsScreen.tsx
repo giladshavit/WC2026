@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
-import { GroupPrediction, apiService } from '../../services/api';
+import { GroupPrediction, apiService, GroupsResponse } from '../../services/api';
 import GroupCard from '../../components/GroupCard';
 
 export default function GroupsScreen() {
@@ -9,6 +9,7 @@ export default function GroupsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [incompleteGroups, setIncompleteGroups] = useState<number[]>([]);
+  const [groupsScore, setGroupsScore] = useState<number | null>(null);
   const [pendingChanges, setPendingChanges] = useState<Map<number, {
     first_place: number | null;
     second_place: number | null;
@@ -16,10 +17,12 @@ export default function GroupsScreen() {
     fourth_place: number | null;
   }>>(new Map());
 
+
   const fetchGroups = async () => {
     try {
-      const data = await apiService.getGroupPredictions(1); // Using user_id = 1 for now
-      setGroups(data);
+      const data: GroupsResponse = await apiService.getGroupPredictions(1); // Using user_id = 1 for now
+      setGroups(data.groups);
+      setGroupsScore(data.groups_score);
     } catch (error) {
       console.error('Error fetching groups:', error);
       Alert.alert('Error', 'Could not load groups. Please check that the server is running.');
@@ -319,6 +322,11 @@ export default function GroupsScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Group Stage Predictions</Text>
+        {groupsScore !== null && (
+          <View style={styles.pointsContainer}>
+            <Text style={styles.totalPoints}>{groupsScore} pts</Text>
+          </View>
+        )}
         {hasChanges && (
           <TouchableOpacity 
             style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
@@ -382,6 +390,19 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#667eea',
+    flex: 1,
+  },
+  pointsContainer: {
+    backgroundColor: '#48bb78',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  totalPoints: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
   },
   saveButton: {
     backgroundColor: '#48bb78',

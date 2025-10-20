@@ -48,6 +48,7 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
   const [predictions, setPredictions] = useState<KnockoutPrediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [knockoutScore, setKnockoutScore] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
@@ -60,12 +61,13 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
       }
       
       const data = await apiService.getKnockoutPredictions(1, stage);
-      setPredictions(data);
+      setPredictions(data.predictions);
+      setKnockoutScore(data.knockout_score);
       
       // Check if there are any matches updated from bracket
       const bracketUpdatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';
       const bracketUpdatedMatches = JSON.parse(bracketUpdatedMatchesStr);
-      const stageMatchIds = data.map(p => p.template_match_id);
+      const stageMatchIds = data.predictions.map(p => p.template_match_id);
       const relevantBracketUpdates = bracketUpdatedMatches.filter((update: any) => 
         stageMatchIds.includes(update.matchId)
       );
@@ -75,7 +77,7 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
         // Clear pending changes only for the specific matches that were updated from bracket
         const updatedMatchIds = relevantBracketUpdates.map((update: any) => update.matchId);
         // Find prediction IDs that correspond to these template match IDs
-        const predictionIdsToClear = data
+        const predictionIdsToClear = data.predictions
           .filter(prediction => updatedMatchIds.includes(prediction.template_match_id))
           .map(prediction => prediction.id);
         
@@ -84,7 +86,7 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
         
         // Update original winners with the latest data from server for this stage
         console.log(`🔄 [BRACKET UPDATE] Updating original winners with latest data for stage ${stage}`);
-        onUpdateOriginalWinners(data);
+        onUpdateOriginalWinners(data.predictions);
         
         // Also refresh all other stages to get the latest data (but don't clear pending changes)
         console.log(`🔄 [BRACKET UPDATE] Triggering refresh for all stages`);
@@ -239,6 +241,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const [originalWinners, setOriginalWinners] = useState<{[predictionId: number]: number}>({});
   const [currentFocusedStage, setCurrentFocusedStage] = useState<string | null>(null);
   const [predictionStages, setPredictionStages] = useState<{[predictionId: number]: string}>({});
+  const [knockoutScore, setKnockoutScore] = useState<number | null>(null);
   const userId = 1; // Hardcoded for now
 
   // Helper function to convert stage name to tab name
@@ -382,7 +385,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
               const response = await apiService.getKnockoutPredictions(userId);
               const originalMap: {[predictionId: number]: number} = {};
               
-              response.forEach(prediction => {
+              response.predictions.forEach((prediction: KnockoutPrediction) => {
                 if (prediction.winner_team_id) {
                   originalMap[prediction.id] = prediction.winner_team_id;
                 }
@@ -451,7 +454,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         const originalMap: {[predictionId: number]: number} = {};
         const stagesMap: {[predictionId: number]: string} = {};
         
-        response.forEach(prediction => {
+        response.predictions.forEach((prediction: KnockoutPrediction) => {
           if (prediction.winner_team_id) {
             originalMap[prediction.id] = prediction.winner_team_id;
           }
@@ -463,6 +466,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         
         setOriginalWinners(originalMap);
         setPredictionStages(stagesMap);
+        setKnockoutScore(response.knockout_score);
         console.log('Loaded original winners:', originalMap);
         console.log('Loaded prediction stages:', stagesMap);
       } catch (error) {
@@ -475,6 +479,16 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
 
   return (
     <KnockoutContext.Provider value={{ pendingChanges, onTeamPress: handleTeamPress, onSendChanges: handleSendChanges, onRefreshData: handleRefreshData, onClearSpecificPendingChanges: handleClearSpecificPendingChanges, onUpdateOriginalWinners: handleUpdateOriginalWinners, onTriggerRefresh: handleTriggerRefresh, refreshTrigger, originalWinners, currentFocusedStage, setCurrentFocusedStage, predictionStages }}>
+      <View style={styles.header}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Knockout Predictions</Text>
+          {knockoutScore !== null && (
+            <View style={styles.pointsContainer}>
+              <Text style={styles.totalPoints}>{knockoutScore} pts</Text>
+            </View>
+          )}
+        </View>
+      </View>
       <Tab.Navigator
         screenOptions={{
           tabBarStyle: styles.tabBar,
@@ -520,6 +534,34 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#667eea',
+  },
+  pointsContainer: {
+    backgroundColor: '#667eea',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 12,
+  },
+  totalPoints: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
   tabBar: {
     backgroundColor: '#fff',
     elevation: 4,

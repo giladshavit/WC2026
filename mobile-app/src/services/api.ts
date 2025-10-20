@@ -20,6 +20,16 @@ export interface MatchesResponse {
   matches_score: number | null;
 }
 
+export interface GroupsResponse {
+  groups: GroupPrediction[];
+  groups_score: number | null;
+}
+
+export interface KnockoutResponse {
+  predictions: KnockoutPrediction[];
+  knockout_score: number | null;
+}
+
 export interface Match {
   id: number;
   stage: string;
@@ -69,6 +79,7 @@ export interface ThirdPlacePredictionData {
     created_at: string | null;
     updated_at: string | null;
   };
+  third_place_score: number | null;
 }
 
 export interface KnockoutPrediction {
@@ -189,10 +200,10 @@ class ApiService {
     }
   }
 
-    async getGroupPredictions(userId: number = 1): Promise<GroupPrediction[]> {
-      try {
-        const timestamp = new Date().getTime();
-        const response = await fetch(`${this.baseUrl}/api/predictions/groups?user_id=${userId}&_t=${timestamp}`);
+  async getGroupPredictions(userId: number = 1): Promise<GroupsResponse> {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${this.baseUrl}/api/predictions/groups?user_id=${userId}&_t=${timestamp}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -286,7 +297,7 @@ class ApiService {
   }
 
   // Knockout Predictions
-  async getKnockoutPredictions(userId: number = 1, stage?: string): Promise<KnockoutPrediction[]> {
+  async getKnockoutPredictions(userId: number = 1, stage?: string): Promise<KnockoutResponse> {
     try {
       const timestamp = new Date().getTime();
       const stageParam = stage ? `&stage=${stage}` : '';
