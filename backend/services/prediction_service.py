@@ -981,7 +981,7 @@ class PredictionService:
             return {"error": f"Batch save failed: {str(e)}"}
 
     @staticmethod
-    def get_knockout_predictions(db: Session, user_id: int, stage: str = None) -> List[Dict[str, Any]]:
+    def get_knockout_predictions(db: Session, user_id: int, stage: str = None) -> Dict[str, Any]:
         """
         Get all user's knockout predictions. If stage is provided, filter by that stage.
         """
@@ -1027,7 +1027,13 @@ class PredictionService:
                     "winner_team_flag": prediction.winner_team.flag_url if prediction.winner_team else None
                 })
             
-            return result
+            # Get user scores
+            user_scores = db.query(UserScores).filter(UserScores.user_id == user_id).first()
+            
+            return {
+                "predictions": result,
+                "knockout_score": user_scores.knockout_score if user_scores else None
+            }
             
         except Exception as e:
             raise Exception(f"Error fetching knockout predictions: {str(e)}")

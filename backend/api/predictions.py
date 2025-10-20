@@ -204,7 +204,7 @@ def create_or_update_third_place_prediction(
 # Knockout Predictions Endpoints
 # ========================================
 
-@router.get("/predictions/knockout")
+@router.get("/predictions/knockout", response_model=Dict[str, Any])
 def get_knockout_predictions(
     user_id: int = 1,  # TODO: should come from authentication
     stage: str = None, 
