@@ -9,6 +9,7 @@ from models.group_template import GroupTemplate
 from models.team import Team
 from models.matches_template import MatchTemplate
 from models.results import KnockoutStageResult
+from models.user_scores import UserScores
 from fastapi import HTTPException
 from datetime import datetime
 import json
@@ -920,9 +921,13 @@ class PredictionService:
                     "is_selected": team.id in advancing_team_ids
                 })
         
+        # Get user scores
+        user_scores = db.query(UserScores).filter(UserScores.user_id == user_id).first()
+        
         return {
             "eligible_teams": third_place_teams,
-            "prediction": prediction_info
+            "prediction": prediction_info,
+            "third_place_score": user_scores.third_place_score if user_scores else None
         }
     
     @staticmethod
