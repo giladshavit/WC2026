@@ -1,5 +1,4 @@
-from datetime import datetime
-from sqlalchemy import Column, Integer, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -16,12 +15,11 @@ class UserScores(Base):
     third_place_score = Column(Integer, default=0)
     knockout_score = Column(Integer, default=0)
     
-    # Total points (sum of all scores above)
-    total_points = Column(Integer, default=0)
+    # Penalty points
+    penalty = Column(Integer, default=0)
     
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Total points (sum of all scores above minus penalty)
+    total_points = Column(Integer, default=0)
     
     # Relationship to User
     user = relationship("User", backref="scores")

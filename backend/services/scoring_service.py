@@ -175,16 +175,14 @@ class ScoringService:
                     groups_score=0,
                     third_place_score=0,
                     knockout_score=0,
+                    penalty=0,
                     total_points=0
                 )
                 db.add(user_scores)
             
             # Update matches score and total points
             user_scores.matches_score = user_scores.matches_score - old_points + new_points
-            user_scores.total_points = (user_scores.matches_score + 
-                                      user_scores.groups_score + 
-                                      user_scores.third_place_score + 
-                                      user_scores.knockout_score)
+            ScoringService.update_total_points(user_scores)
             updated_users.add(prediction.user_id)
         
         db.commit()
@@ -250,7 +248,7 @@ class ScoringService:
             new_points = ScoringService.calculate_group_prediction_points(prediction, result)
             
             # Update prediction points
-            old_points = prediction.points
+            old_points = prediction.poinמעולהts
             prediction.points = new_points
             
             # Update user scores in user_scores table
@@ -263,16 +261,14 @@ class ScoringService:
                     groups_score=0,
                     third_place_score=0,
                     knockout_score=0,
+                    penalty=0,
                     total_points=0
                 )
                 db.add(user_scores)
             
             # Update groups score and total points
             user_scores.groups_score = user_scores.groups_score - old_points + new_points
-            user_scores.total_points = (user_scores.matches_score + 
-                                      user_scores.groups_score + 
-                                      user_scores.third_place_score + 
-                                      user_scores.knockout_score)
+            ScoringService.update_total_points(user_scores)
             updated_users.add(prediction.user_id)
         
         db.commit()
@@ -407,16 +403,14 @@ class ScoringService:
                     groups_score=0,
                     third_place_score=0,
                     knockout_score=0,
+                    penalty=0,
                     total_points=0
                 )
                 db.add(user_scores)
             
             # Update third place score and total points
             user_scores.third_place_score = user_scores.third_place_score - old_points + new_points
-            user_scores.total_points = (user_scores.matches_score + 
-                                      user_scores.groups_score + 
-                                      user_scores.third_place_score + 
-                                      user_scores.knockout_score)
+            ScoringService.update_total_points(user_scores)
             updated_users.add(prediction.user_id)
         
         db.commit()
@@ -478,16 +472,14 @@ class ScoringService:
                     groups_score=0,
                     third_place_score=0,
                     knockout_score=0,
+                    penalty=0,
                     total_points=0
                 )
                 db.add(user_scores)
             
             # Update knockout score and total points
             user_scores.knockout_score = user_scores.knockout_score - old_points + new_points
-            user_scores.total_points = (user_scores.matches_score + 
-                                      user_scores.groups_score + 
-                                      user_scores.third_place_score + 
-                                      user_scores.knockout_score)
+            ScoringService.update_total_points(user_scores)
             updated_users.add(prediction.user_id)
         
         db.commit()
@@ -499,6 +491,27 @@ class ScoringService:
             "stage_points": ScoringService.KNOCKOUT_SCORING_RULES.get(match.stage, 0)
         }
     
+    # === HELPER FUNCTIONS ===
+    
+    @staticmethod
+    def get_total_scores(user_scores: UserScores) -> int:
+        """Calculate total scores from all prediction types (without penalty)."""
+        return (user_scores.matches_score + 
+                user_scores.groups_score + 
+                user_scores.third_place_score + 
+                user_scores.knockout_score)
+    
+    @staticmethod
+    def get_total_penalties(user_scores: UserScores) -> int:
+        """Get total penalty points for user."""
+        return user_scores.penalty
+    
+    @staticmethod
+    def update_total_points(user_scores: UserScores) -> None:
+        """Update total_points field based on scores and penalties."""
+        user_scores.total_points = (ScoringService.get_total_scores(user_scores) - 
+                                  ScoringService.get_total_penalties(user_scores))
+    
     # === PENALTY SYSTEM ===
     
     @staticmethod
@@ -509,23 +522,41 @@ class ScoringService:
     
     @staticmethod
     def apply_penalty_to_user(db: Session, user_id: int, penalty_points: int) -> Dict[str, Any]:
-        """Apply penalty points to user's total score."""
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            return {"error": "User not found"}
+        """Apply penalty points to user's score in user_scores table."""
+        # Get or create user_scores record
+        user_scores = db.query(UserScores).filter(UserScores.user_id == user_id).first()
+        if not user_scores:
+            # Create new UserScores record if it doesn't exist
+            user_scores = UserScores(
+                user_id=user_id,
+                matches_score=0,
+                groups_score=0,
+                third_place_score=0,
+                knockout_score=0,
+                penalty=0,
+                total_points=0
+            )
+            db.add(user_scores)
+            db.flush()
         
-        old_points = user.total_points
-        new_points = max(0, old_points - penalty_points)
+        old_penalty = user_scores.penalty
+        old_total = user_scores.total_points
         
-        user.total_points = new_points
+        # Add penalty points to accumulated penalty
+        user_scores.penalty = user_scores.penalty + penalty_points
+        
+        # Recalculate total points using helper function
+        ScoringService.update_total_points(user_scores)
+        
         db.commit()
         
         return {
             "user_id": user_id,
-            "old_points": old_points,
-            "new_points": new_points,
-            "penalty_applied": penalty_points,
-            "actual_deduction": old_points - new_points
+            "old_penalty": old_penalty,
+            "new_penalty": user_scores.penalty,
+            "penalty_added": penalty_points,
+            "old_total_points": old_total,
+            "new_total_points": user_scores.total_points
         }
     
     @staticmethod

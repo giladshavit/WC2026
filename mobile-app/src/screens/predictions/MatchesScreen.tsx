@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Match, apiService, MatchesResponse } from '../../services/api';
 import MatchCard from '../../components/MatchCard';
+import { useTournament } from '../../contexts/TournamentContext';
+import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
 
 export default function MatchesScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -10,6 +12,12 @@ export default function MatchesScreen() {
   const [pendingChanges, setPendingChanges] = useState<Map<number, {homeScore: number | null, awayScore: number | null}>>(new Map());
   const [saving, setSaving] = useState(false);
   const [matchesScore, setMatchesScore] = useState<number | null>(null);
+  
+  // Get tournament context data
+  const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
+  
+  // Get penalty confirmation hook
+  const { showPenaltyConfirmation } = usePenaltyConfirmation();
 
   // Determine if there are any incomplete (null) scores among pending changes
   const hasIncompletePending = Array.from(pendingChanges.values()).some(
@@ -48,17 +56,8 @@ export default function MatchesScreen() {
     fetchMatches();
   };
 
-  const handleSaveAll = async () => {
-    if (pendingChanges.size === 0) {
-      Alert.alert('Message', 'No changes to save');
-      return;
-    }
 
-    if (hasIncompletePending) {
-      Alert.alert('Missing Value', 'Cannot save prediction when one of the scores is empty. Fill in both scores.');
-      return;
-    }
-
+  const performSave = async () => {
     setSaving(true);
     try {
       const predictions = Array.from(pendingChanges.entries()).map(([matchId, scores]) => ({
@@ -80,12 +79,28 @@ export default function MatchesScreen() {
         console.log('Refreshing matches after save...');
         fetchMatches();
       }, 2000);
+      
     } catch (error) {
       console.error('Error saving predictions:', error);
       Alert.alert('Error', 'Could not save predictions. Please try again.');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveAll = async () => {
+    if (pendingChanges.size === 0) {
+      Alert.alert('Message', 'No changes to save');
+      return;
+    }
+
+    if (hasIncompletePending) {
+      Alert.alert('Missing Value', 'Cannot save prediction when one of the scores is empty. Fill in both scores.');
+      return;
+    }
+
+    // Use the generic penalty confirmation hook
+    showPenaltyConfirmation(performSave, pendingChanges.size);
   };
 
   const renderMatch = ({ item }: { item: Match }) => {

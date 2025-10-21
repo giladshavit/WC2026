@@ -5,6 +5,8 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KnockoutPrediction, apiService } from '../../services/api';
 import KnockoutMatchCard from '../../components/KnockoutMatchCard';
+import { useTournament } from '../../contexts/TournamentContext';
+import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
 
 const Tab = createMaterialTopTabNavigator();
 
@@ -244,6 +246,12 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const [knockoutScore, setKnockoutScore] = useState<number | null>(null);
   const userId = 1; // Hardcoded for now
 
+  // Get tournament context data
+  const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
+  
+  // Get penalty confirmation hook
+  const { showPenaltyConfirmation } = usePenaltyConfirmation();
+
   // Helper function to convert stage name to tab name
   const getTabNameFromStage = (stage: string): string | null => {
     switch (stage) {
@@ -351,7 +359,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   }, [originalWinners, pendingChanges, currentFocusedStage]);
 
 
-  const handleSendChanges = React.useCallback(async () => {
+  const performSendChanges = React.useCallback(async () => {
     if (pendingChanges.length === 0) return;
 
     setSending(true);
@@ -410,6 +418,18 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
       setSending(false);
     }
   }, [pendingChanges, userId]);
+
+  const handleSendChanges = React.useCallback(async () => {
+    const numberOfChanges = pendingChanges.length;
+    
+    if (numberOfChanges === 0) {
+      Alert.alert('No Changes', 'No changes to save');
+      return;
+    }
+
+    // Use the generic penalty confirmation hook
+    showPenaltyConfirmation(performSendChanges, numberOfChanges);
+  }, [pendingChanges.length, showPenaltyConfirmation, performSendChanges]);
 
   const handleRefreshData = React.useCallback(() => {
     console.log(`🔄 [REFRESH DATA] Clearing pending changes and triggering refresh`);

@@ -30,6 +30,11 @@ export interface KnockoutResponse {
   knockout_score: number | null;
 }
 
+export interface AppConfig {
+  current_stage: string;
+  penalty_per_change: number;
+}
+
 export interface Match {
   id: number;
   stage: string;
@@ -343,6 +348,56 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('Error updating batch knockout predictions:', error);
+      throw error;
+    }
+  }
+
+  // App Configuration
+  async getAppConfig(): Promise<AppConfig> {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${this.baseUrl}/api/app/config?_t=${timestamp}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching app config:', error);
+      throw error;
+    }
+  }
+
+  async getAppVersion(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/app/version`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching app version:', error);
+      throw error;
+    }
+  }
+
+  async getAppStatus(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/app/status`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching app status:', error);
       throw error;
     }
   }

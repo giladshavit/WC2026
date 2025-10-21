@@ -15,6 +15,8 @@ import { apiService, KnockoutPrediction } from '../../services/api';
 import BracketMatchCard from '../../components/BracketMatchCard';
 import MatchEditModal from '../../components/MatchEditModal';
 import { organizeBracketMatches, BracketMatch, OrganizedBracket } from '../../utils/bracketCalculator';
+import { useTournament } from '../../contexts/TournamentContext';
+import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const COLUMN_WIDTH = 120;
@@ -39,6 +41,11 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const userId = 1; // Hardcoded for now
 
+  // Get tournament context data
+  const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
+  
+  // Get penalty confirmation hook
+  const { showPenaltyConfirmation } = usePenaltyConfirmation();
 
   // Function to handle match layout updates
   const handleMatchLayout = (matchId: number, layout: { x: number; y: number; width: number; height: number }) => {
@@ -632,59 +639,70 @@ export default function BracketScreen({}: BracketScreenProps) {
         onClose={() => setIsModalVisible(false)}
         onSave={async (matchId, winnerId) => {
           console.log(`💾 Saving match ${matchId} with winner ${winnerId}`);
-          try {
-            // Find the prediction for this match
-            const prediction = predictions.find(p => p.template_match_id === matchId);
-            if (!prediction) {
-              console.error('Prediction not found for match', matchId);
-              return;
-            }
-
-            // Determine winner_team_number (1 or 2)
-            const winnerTeamNumber = winnerId === prediction.team1_id ? 1 : 2;
-            const winnerTeamName = winnerId === prediction.team1_id ? (prediction.team1_name || '') : (prediction.team2_name || '');
-
-            // Update the prediction using the API
-            await apiService.updateBatchKnockoutPredictions(1, [{
-              prediction_id: prediction.id,
-              winner_team_number: winnerTeamNumber,
-              winner_team_name: winnerTeamName,
-            }]);
-
-            // Get fresh data from server to ensure all stages are updated correctly
-            // Wait a bit for server to process the update
-            setTimeout(async () => {
-              try {
-                const freshPredictions = await apiService.getKnockoutPredictions(userId);
-                setPredictions(freshPredictions.predictions);
-                
-                // Organize into bracket structure with fresh data
-                const { organized, calculateCardCoordinates } = organizeBracketMatches(freshPredictions.predictions);
-                const spacing = (AVAILABLE_HEIGHT - 40) / 8;
-                calculateCardCoordinates(spacing);
-                setOrganizedBracket(organized);
-                
-                console.log('✅ Updated bracket with fresh data from server');
-              } catch (error) {
-                console.error('❌ Error updating bracket with fresh data:', error);
+          
+          // Use the generic penalty confirmation hook
+          // Each change is 1 change (as requested)
+          showPenaltyConfirmation(async () => {
+            try {
+              // Find the prediction for this match
+              const prediction = predictions.find(p => p.template_match_id === matchId);
+              if (!prediction) {
+                console.error('Prediction not found for match', matchId);
+                return;
               }
-            }, 500); // Wait 500ms for server to process
-            
-            // Store the updated match ID in AsyncStorage to signal knockout screen
-            const updatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';
-            const updatedMatches = JSON.parse(updatedMatchesStr);
-            updatedMatches.push({
-              matchId: matchId,
-              timestamp: Date.now()
-            });
-            await AsyncStorage.setItem('bracketUpdatedMatches', JSON.stringify(updatedMatches));
-            
-            setIsModalVisible(false);
-            console.log('✅ Match updated successfully');
-          } catch (error) {
-            console.error('❌ Error updating match:', error);
-            Alert.alert('שגיאה', 'לא ניתן לעדכן את המשחק. נסה שוב.');
-          }
+
+              // Determine winner_team_number (1 or 2)
+              const winnerTeamNumber = winnerId === prediction.team1_id ? 1 : 2;
+              const winnerTeamName = winnerId === prediction.team1_id ? (prediction.team1_name || '') : (prediction.team2_name || '');
+
+              // Update the prediction using the API
+              await apiService.updateBatchKnockoutPredictions(1, [{
+                prediction_id: prediction.id,
+                winner_team_number: winnerTeamNumber,
+                winner_team_name: winnerTeamName,
+              }]);
+
+              // Get fresh data from server to ensure all stages are updated correctly
+              // Wait a bit for server to process the update
+              setTimeout(async () => {
+                try {
+                  const freshPredictions = await apiService.getKnockoutPredictions(userId);
+                  setPredictions(freshPredictions.predictions);
+                  
+                  // Organize into bracket structure with fresh data
+                  const { organized, calculateCardCoordinates } = organizeBracketMatches(freshPredictions.predictions);
+                  const spacing = (AVAILABLE_HEIGHT - 40) / 8;
+                  calculateCardCoordinates(spacing);
+                  setOrganizedBracket(organized);
+                  
+                  console.log('✅ Updated bracket with fresh data from server');
+                } catch (error) {
+                  console.error('❌ Error updating bracket with fresh data:', error);
+                }
+              }, 500); // Wait 500ms for server to process
+              
+              // Store the updated match ID in AsyncStorage to signal knockout screen
+              const updatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';
+              const updatedMatches = JSON.parse(updatedMatchesStr);
+              updatedMatches.push({
+                matchId: matchId,
+                timestamp: Date.now()
+              });
+              await AsyncStorage.setItem('bracketUpdatedMatches', JSON.stringify(updatedMatches));
+              
+              console.log('✅ Match updated successfully');
+            } catch (error) {
+              console.error('❌ Error updating match:', error);
+              Alert.alert('שגיאה', 'לא ניתן לעדכן את המשחק. נסה שוב.');
+            } finally {
+              // Close the modal only after the save operation completes (success or error)
+              setIsModalVisible(false);
+            }
+          }, 1, () => {
+            // This function will be called if user cancels the penalty confirmation
+            // We can add any logic here if needed, but for now we just keep the modal open
+            console.log('User cancelled penalty confirmation, keeping modal open');
+          }); // Each change is 1 change
         }}
       />
     </View>

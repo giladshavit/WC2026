@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOp
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThirdPlaceTeam, apiService } from '../../services/api';
+import { useTournament } from '../../contexts/TournamentContext';
+import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
 
 interface ThirdPlaceScreenProps {}
 
@@ -21,6 +23,31 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const [saveButtonHeight, setSaveButtonHeight] = useState(0);
 
   const insets = useSafeAreaInsets();
+
+  // Get tournament context data
+  const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
+  
+  // Get penalty confirmation hook
+  const { showPenaltyConfirmation } = usePenaltyConfirmation();
+
+  // Calculate number of changes in third place prediction
+  const calculateThirdPlaceChanges = () => {
+    // Get currently selected teams
+    const currentlySelected = Array.from(selectedTeams);
+    
+    // Get originally selected teams (from the teams data)
+    const originallySelected = teams
+      .filter(team => team.is_selected)
+      .map(team => team.id);
+    
+    // Count only teams that are newly selected (not in original selection)
+    // This is unidirectional - only count new additions, not removals
+    const newSelections = currentlySelected.filter(teamId => 
+      !originallySelected.includes(teamId)
+    );
+    
+    return newSelections.length;
+  };
 
   // Calculate dynamic height based on actual measured heights
   const getCardHeight = () => {
@@ -126,7 +153,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     }
   };
 
-  const handleSave = async () => {
+  const performSave = async () => {
     if (selectedTeams.size === 0) {
       Alert.alert('No Selection', 'Please select at least one team to advance.');
       return;
@@ -148,6 +175,18 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSave = async () => {
+    const numberOfChanges = calculateThirdPlaceChanges();
+    
+    if (numberOfChanges === 0) {
+      Alert.alert('No Changes', 'No changes to save');
+      return;
+    }
+
+    // Use the generic penalty confirmation hook
+    showPenaltyConfirmation(performSave, numberOfChanges);
   };
 
   const renderTeam = ({ item }: { item: ThirdPlaceTeam }) => {

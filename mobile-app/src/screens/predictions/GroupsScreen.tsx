@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { GroupPrediction, apiService, GroupsResponse } from '../../services/api';
 import GroupCard from '../../components/GroupCard';
+import { useTournament } from '../../contexts/TournamentContext';
+import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
 
 export default function GroupsScreen() {
   const [groups, setGroups] = useState<GroupPrediction[]>([]);
@@ -17,6 +19,41 @@ export default function GroupsScreen() {
     fourth_place: number | null;
   }>>(new Map());
 
+  // Get tournament context data
+  const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
+  
+  // Get penalty confirmation hook
+  const { showPenaltyConfirmation } = usePenaltyConfirmation();
+
+  // Calculate number of changes in groups (positions 1-3 only)
+  const calculateGroupChanges = () => {
+    let totalChanges = 0;
+    
+    pendingChanges.forEach((positions, groupId) => {
+      const group = groups.find(g => g.group_id === groupId);
+      if (!group) return;
+      
+      // Get original positions (1-3 only)
+      const originalPositions = {
+        first_place: group.first_place,
+        second_place: group.second_place,
+        third_place: group.third_place,
+      };
+      
+      // Count changes in positions 1-3
+      if (positions.first_place !== null && positions.first_place !== originalPositions.first_place) {
+        totalChanges++;
+      }
+      if (positions.second_place !== null && positions.second_place !== originalPositions.second_place) {
+        totalChanges++;
+      }
+      if (positions.third_place !== null && positions.third_place !== originalPositions.third_place) {
+        totalChanges++;
+      }
+    });
+    
+    return totalChanges;
+  };
 
   const fetchGroups = async () => {
     try {
@@ -44,7 +81,7 @@ export default function GroupsScreen() {
     fetchGroups();
   };
 
-  const handleSave = async () => {
+  const performSave = async () => {
     // Only process groups with pending changes
     const completeGroups: Array<{
       group_id: number;
@@ -174,6 +211,18 @@ export default function GroupsScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSave = async () => {
+    const numberOfChanges = calculateGroupChanges();
+    
+    if (numberOfChanges === 0) {
+      Alert.alert('No Changes', 'No predictions to save');
+      return;
+    }
+
+    // Use the generic penalty confirmation hook
+    showPenaltyConfirmation(performSave, numberOfChanges);
   };
 
   const handleTeamPress = (groupId: number, teamId: number) => {

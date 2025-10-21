@@ -77,7 +77,7 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
   const handleUpdate = () => {
     if (selectedWinner && hasChanged) {
       onSave(match.id, selectedWinner);
-      onClose();
+      // Don't call onClose() here - let the parent component handle it
     }
   };
 
