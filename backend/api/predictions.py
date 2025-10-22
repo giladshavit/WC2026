@@ -248,6 +248,39 @@ async def update_batch_knockout_predictions(
     
     return result
 
+
+@router.put("/predictions/knockout/{prediction_id}")
+def update_knockout_prediction_winner(
+    prediction_id: int,
+    request: UpdateKnockoutPredictionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Update a knockout prediction - choose winner and update next stages
+    """
+    try:
+        # Check if knockout prediction is editable
+        prediction = db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.id == prediction_id
+        ).first()
+        
+        if not prediction:
+            raise HTTPException(status_code=404, detail="Knockout prediction not found")
+        
+        if not prediction.is_editable:
+            raise HTTPException(
+                status_code=403,
+                detail=f"This knockout prediction is no longer editable. Stage: {prediction.stage}"
+            )
+        
+        result = PredictionService.update_knockout_prediction_winner(db, prediction_id, request)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating prediction: {str(e)}")
+
 # ========================================
 # Group Endpoints (Legacy - for backward compatibility)
 # ========================================
@@ -415,38 +448,4 @@ def update_single_prediction(
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     
-    return result
-
-@router.put("/predictions/knockout/{prediction_id}")
-def update_knockout_prediction_winner(
-    prediction_id: int,
-    request: UpdateKnockoutPredictionRequest,
-    db: Session = Depends(get_db)
-):
-    """
-    Update a knockout prediction - choose winner and update next stages
-    """
-    try:
-        # Check if knockout prediction is editable
-        prediction = db.query(KnockoutStagePrediction).filter(
-            KnockoutStagePrediction.id == prediction_id
-        ).first()
-        
-        if not prediction:
-            raise HTTPException(status_code=404, detail="Knockout prediction not found")
-        
-        if not prediction.is_editable:
-            raise HTTPException(
-                status_code=403,
-                detail=f"This knockout prediction is no longer editable. Stage: {prediction.stage}"
-            )
-        
-        result = PredictionService.update_knockout_prediction_winner(db, prediction_id, request)
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error updating prediction: {str(e)}")
-
     return result

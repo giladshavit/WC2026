@@ -320,6 +320,35 @@ class ApiService {
     }
   }
 
+  async updateKnockoutPrediction(
+    predictionId: number,
+    winnerTeamNumber: number,
+    winnerTeamName: string
+  ): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/predictions/knockout/${predictionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          winner_team_number: winnerTeamNumber,
+          winner_team_name: winnerTeamName,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error updating knockout prediction:', error);
+      throw error;
+    }
+  }
+
   async updateBatchKnockoutPredictions(
     userId: number,
     predictions: Array<{

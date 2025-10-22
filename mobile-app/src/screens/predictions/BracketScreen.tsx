@@ -655,12 +655,12 @@ export default function BracketScreen({}: BracketScreenProps) {
               const winnerTeamNumber = winnerId === prediction.team1_id ? 1 : 2;
               const winnerTeamName = winnerId === prediction.team1_id ? (prediction.team1_name || '') : (prediction.team2_name || '');
 
-              // Update the prediction using the API
-              await apiService.updateBatchKnockoutPredictions(1, [{
-                prediction_id: prediction.id,
-                winner_team_number: winnerTeamNumber,
-                winner_team_name: winnerTeamName,
-              }]);
+              // Update the prediction using the single prediction API
+              await apiService.updateKnockoutPrediction(
+                prediction.id,
+                winnerTeamNumber,
+                winnerTeamName
+              );
 
               // Get fresh data from server to ensure all stages are updated correctly
               // Wait a bit for server to process the update
