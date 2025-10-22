@@ -50,7 +50,6 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
   const [predictions, setPredictions] = useState<KnockoutPrediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [knockoutScore, setKnockoutScore] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
@@ -64,7 +63,6 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
       
       const data = await apiService.getKnockoutPredictions(1, stage);
       setPredictions(data.predictions);
-      setKnockoutScore(data.knockout_score);
       
       // Check if there are any matches updated from bracket
       const bracketUpdatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';
@@ -243,7 +241,6 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const [originalWinners, setOriginalWinners] = useState<{[predictionId: number]: number}>({});
   const [currentFocusedStage, setCurrentFocusedStage] = useState<string | null>(null);
   const [predictionStages, setPredictionStages] = useState<{[predictionId: number]: string}>({});
-  const [knockoutScore, setKnockoutScore] = useState<number | null>(null);
   const userId = 1; // Hardcoded for now
 
   // Get tournament context data
@@ -486,7 +483,6 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         
         setOriginalWinners(originalMap);
         setPredictionStages(stagesMap);
-        setKnockoutScore(response.knockout_score);
         console.log('Loaded original winners:', originalMap);
         console.log('Loaded prediction stages:', stagesMap);
       } catch (error) {
@@ -501,12 +497,6 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     <KnockoutContext.Provider value={{ pendingChanges, onTeamPress: handleTeamPress, onSendChanges: handleSendChanges, onRefreshData: handleRefreshData, onClearSpecificPendingChanges: handleClearSpecificPendingChanges, onUpdateOriginalWinners: handleUpdateOriginalWinners, onTriggerRefresh: handleTriggerRefresh, refreshTrigger, originalWinners, currentFocusedStage, setCurrentFocusedStage, predictionStages }}>
       <View style={styles.header}>
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>Knockout Predictions</Text>
-          {knockoutScore !== null && (
-            <View style={styles.pointsContainer}>
-              <Text style={styles.totalPoints}>{knockoutScore} pts</Text>
-            </View>
-          )}
         </View>
       </View>
       <Tab.Navigator
@@ -556,7 +546,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
 const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingVertical: 0,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
@@ -564,23 +554,6 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#667eea',
-  },
-  pointsContainer: {
-    backgroundColor: '#667eea',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginLeft: 12,
-  },
-  totalPoints: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   tabBar: {
     backgroundColor: '#fff',

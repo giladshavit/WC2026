@@ -15,12 +15,9 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const [saving, setSaving] = useState(false);
   const [selectedTeams, setSelectedTeams] = useState<Set<number>>(new Set());
   const [changedGroups, setChangedGroups] = useState<string[]>([]);
-  const [thirdPlaceScore, setThirdPlaceScore] = useState<number | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
-  const [titleHeight, setTitleHeight] = useState(0);
   const [subtitleHeight, setSubtitleHeight] = useState(0);
   const [counterHeight, setCounterHeight] = useState(0);
-  const [saveButtonHeight, setSaveButtonHeight] = useState(0);
 
   const insets = useSafeAreaInsets();
 
@@ -58,12 +55,10 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     const reservedSpace = 
       insets.top + // Safe area top
       headerHeight + // Header with "Predictions" title
-      titleHeight + // "3rd Place Qualifiers" title
       subtitleHeight + // "Select 8 teams..." subtitle
       counterHeight + // "Selected: X/8" counter
-      saveButtonHeight + // Save button
       tabBarHeight + // Bottom tab bar
-      40; // Additional padding
+      150; // Additional padding
     
     const availableHeight = screenHeight - reservedSpace;
     
@@ -80,7 +75,6 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     try {
       const data = await apiService.getThirdPlacePredictionsData(1); // Using user_id = 1 for now
       setTeams(data.eligible_teams);
-      setThirdPlaceScore(data.third_place_score);
       
       // Initialize selected teams from existing prediction
       const selectedSet = new Set<number>();
@@ -260,30 +254,9 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         style={styles.header}
         onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
       >
-        <View 
-          style={styles.headerTop}
-          onLayout={(event) => setTitleHeight(event.nativeEvent.layout.height)}
-        >
+        <View style={styles.headerTop}>
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>3rd Place Qualifiers</Text>
-            {thirdPlaceScore !== null && (
-              <View style={styles.pointsContainer}>
-                <Text style={styles.totalPoints}>{thirdPlaceScore} pts</Text>
-              </View>
-            )}
           </View>
-          {selectedTeams.size > 0 && (
-            <TouchableOpacity 
-              style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
-              onPress={handleSave}
-              disabled={saving}
-              onLayout={(event) => setSaveButtonHeight(event.nativeEvent.layout.height)}
-            >
-              <Text style={styles.saveButtonText}>
-                {saving ? 'Saving...' : 'Save'}
-              </Text>
-            </TouchableOpacity>
-          )}
         </View>
         <Text 
           style={styles.subtitle}
@@ -291,12 +264,25 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         >
           Select 8 teams that will advance from 3rd place
         </Text>
-        <Text 
-          style={styles.counter}
-          onLayout={(event) => setCounterHeight(event.nativeEvent.layout.height)}
-        >
-          Selected: {selectedTeams.size}/8
-        </Text>
+        <View style={styles.counterRow}>
+          <Text 
+            style={styles.counter}
+            onLayout={(event) => setCounterHeight(event.nativeEvent.layout.height)}
+          >
+            Selected: {selectedTeams.size}/8
+          </Text>
+          {selectedTeams.size > 0 && (
+            <TouchableOpacity 
+              style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
+              onPress={handleSave}
+              disabled={saving}
+            >
+              <Text style={styles.saveButtonText}>
+                {saving ? 'Saving...' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       
       <FlatList
@@ -320,7 +306,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingVertical: 4,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
@@ -334,23 +320,6 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#667eea',
-  },
-  pointsContainer: {
-    backgroundColor: '#667eea',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginLeft: 12,
-  },
-  totalPoints: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   saveButton: {
     backgroundColor: '#48bb78',
@@ -369,6 +338,12 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#4a5568',
+    marginBottom: 8,
+  },
+  counterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
   counter: {

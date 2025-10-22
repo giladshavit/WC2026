@@ -1,6 +1,5 @@
 import React from 'react';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import MatchesScreen from '../screens/predictions/MatchesScreen';
 import GroupsScreen from '../screens/predictions/GroupsScreen';
 import ThirdPlaceScreen from '../screens/predictions/ThirdPlaceScreen';
 import KnockoutScreen from '../screens/predictions/KnockoutScreen';
@@ -32,11 +31,6 @@ export default function PredictionsTopTabs() {
         },
       }}
     >
-      <Tab.Screen 
-        name="Matches" 
-        component={MatchesScreen}
-        options={{ title: 'Matches' }}
-      />
       <Tab.Screen 
         name="Groups" 
         component={GroupsScreen}

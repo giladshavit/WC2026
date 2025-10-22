@@ -3,7 +3,7 @@ import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PredictionsTopTabs from './PredictionsTopTabs';
-import ResultsScreen from '../screens/results/ResultsScreen';
+import MatchesScreen from '../screens/predictions/MatchesScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -47,12 +47,12 @@ export default function BottomTabs() {
         }}
       />
       <Tab.Screen 
-        name="ResultsTab" 
-        component={ResultsScreen}
+        name="MatchesTab" 
+        component={MatchesScreen}
         options={{ 
-          title: 'Results',
-          tabBarLabel: 'Results',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📊</Text>,
+          title: 'Matches',
+          tabBarLabel: 'Matches',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>⚽</Text>,
         }}
       />
     </Tab.Navigator>

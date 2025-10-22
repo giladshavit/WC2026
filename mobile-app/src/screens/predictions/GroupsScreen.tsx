@@ -11,7 +11,6 @@ export default function GroupsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [incompleteGroups, setIncompleteGroups] = useState<number[]>([]);
-  const [groupsScore, setGroupsScore] = useState<number | null>(null);
   const [pendingChanges, setPendingChanges] = useState<Map<number, {
     first_place: number | null;
     second_place: number | null;
@@ -59,7 +58,6 @@ export default function GroupsScreen() {
     try {
       const data: GroupsResponse = await apiService.getGroupPredictions(1); // Using user_id = 1 for now
       setGroups(data.groups);
-      setGroupsScore(data.groups_score);
     } catch (error) {
       console.error('Error fetching groups:', error);
       Alert.alert('Error', 'Could not load groups. Please check that the server is running.');
@@ -370,12 +368,6 @@ export default function GroupsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Group Stage Predictions</Text>
-        {groupsScore !== null && (
-          <View style={styles.pointsContainer}>
-            <Text style={styles.totalPoints}>{groupsScore} pts</Text>
-          </View>
-        )}
         {hasChanges && (
           <TouchableOpacity 
             style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
@@ -430,28 +422,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 0,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#667eea',
-    flex: 1,
-  },
-  pointsContainer: {
-    backgroundColor: '#48bb78',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginRight: 8,
-  },
-  totalPoints: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#fff',
   },
   saveButton: {
     backgroundColor: '#48bb78',
