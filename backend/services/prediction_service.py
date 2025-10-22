@@ -196,6 +196,10 @@ class PredictionService:
         if not match:
             return {"error": "Match not found"}
         
+        # Check if match is editable (real-time validation)
+        if not match.is_editable:
+            return {"error": "Match is no longer editable"}
+        
         # Determine winner based on result; if scores are None, keep predicted_winner as None
         predicted_winner = None
         if home_score is not None and away_score is not None:

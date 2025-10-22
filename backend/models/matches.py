@@ -1,7 +1,16 @@
 from sqlalchemy import Column, String, Integer, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
+from datetime import datetime
+from enum import Enum
 from .team import Team
 from .base import Base
+
+class MatchStatus(Enum):
+    """Match status enumeration"""
+    SCHEDULED = "scheduled"           # נקבע - עד תחילת המשחק
+    LIVE_EDITABLE = "live_editable"   # live שניתן לערוך (עד שעה מתחילת המשחק)
+    LIVE_LOCKED = "live_locked"       # live שלא ניתן לערוך (משעה מתחילת המשחק)
+    FINISHED = "finished"             # סיום
 
 class Match(Base):
     __tablename__ = "matches"
@@ -10,7 +19,7 @@ class Match(Base):
     stage = Column(String, nullable=False)  # "group", "round32", "round16", "quarter", "semi", "final"
     home_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # nullable for knockout matches
     away_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # nullable for knockout matches
-    status = Column(String, default="scheduled")  # scheduled, live, finished
+    status = Column(String, default=MatchStatus.SCHEDULED.value)  # scheduled, live_editable, live_locked, finished
     date = Column(DateTime, nullable=False)
     
     # Fields for group stage matches
@@ -60,3 +69,19 @@ class Match(Base):
     def is_final(self):
         """Check if this is a final match"""
         return self.stage == "final"
+    
+    @property
+    def is_editable(self) -> bool:
+        """Check if match is editable - includes real-time validation"""
+        # First check: status-based
+        if self.status not in [MatchStatus.SCHEDULED.value, MatchStatus.LIVE_EDITABLE.value]:
+            return False
+            
+        # Second check: real-time validation (covers the edge case)
+        current_time = datetime.utcnow()
+        time_since_match_start = (current_time - self.date).total_seconds() / 3600
+        
+        if time_since_match_start > 1.0:  # More than 1 hour since match start
+            return False
+            
+        return True

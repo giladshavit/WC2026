@@ -1,7 +1,7 @@
 from typing import Dict, List, Any
 from sqlalchemy.orm import Session
 from datetime import datetime
-from models.matches import Match
+from models.matches import Match, MatchStatus
 from models.predictions import MatchPrediction
 from models.user_scores import UserScores
 
@@ -22,13 +22,17 @@ class MatchService:
             if not MatchService.are_both_teams_set(match):
                 continue
             
+            # Update match status if needed
+            MatchService.update_match_status_if_needed(match, db)
+            
             # Fetch the user's prediction for this match
             prediction = db.query(MatchPrediction).filter(
                 MatchPrediction.user_id == user_id,
                 MatchPrediction.match_id == match.id
             ).first()
             
-            all_matches.append(MatchService.create_match_data(match, prediction))
+            match_data = MatchService.create_match_data(match, prediction)
+            all_matches.append(match_data)
         
         # Sort by date
         all_matches.sort(key=lambda x: x["date"])
@@ -69,7 +73,7 @@ class MatchService:
                 "points": prediction.points if prediction else None,
                 "is_editable": prediction.is_editable if prediction else None
             },
-            "can_edit": match.status == "scheduled",
+            "can_edit": match.is_editable,
         }
         # Add specific details according to match type
         if match.is_group_stage:
@@ -79,6 +83,24 @@ class MatchService:
             match_data["home_team_source"] = match.home_team_source
             match_data["away_team_source"] = match.away_team_source
         return match_data
+
+    @staticmethod
+    def update_match_status_if_needed(match: Match, db: Session):
+        """Update match status based on current time since match start"""
+        current_time = datetime.utcnow()
+        time_since_match_start = (current_time - match.date).total_seconds() / 3600
+        
+        if match.status == MatchStatus.SCHEDULED.value:
+            if time_since_match_start >= 0 and time_since_match_start <= 1.0:
+                match.status = MatchStatus.LIVE_EDITABLE.value
+            elif time_since_match_start > 1.0:
+                match.status = MatchStatus.LIVE_LOCKED.value
+                
+        elif match.status == MatchStatus.LIVE_EDITABLE.value:
+            if time_since_match_start > 1.0:
+                match.status = MatchStatus.LIVE_LOCKED.value
+        
+        db.commit()
 
     @staticmethod
     def are_both_teams_set(match: Match) -> bool:

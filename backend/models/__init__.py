@@ -5,7 +5,7 @@ from .column_mapping import ColumnMapping
 from .results import GroupStageResult, ThirdPlaceResult, KnockoutStageResult
 from .groups import Group
 from .group_template import GroupTemplate
-from .matches import Match
+from .matches import Match, MatchStatus
 from .predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
 from .tournament_config import TournamentConfig
 from .team import Team
@@ -21,6 +21,7 @@ __all__ = [
     'Group',
     'GroupTemplate',
     'Match',
+    'MatchStatus',
     'MatchPrediction',
     'GroupStagePrediction', 
     'ThirdPlacePrediction', 
