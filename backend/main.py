@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from api import predictions, admin
-from api import groups, teams, knockout, scoring, config
+from api import scoring, config
 from database import engine
 from models import base, user, team, matches as match_models, predictions as prediction_models
 from models import groups as group_models
@@ -26,9 +26,6 @@ app.add_middleware(
 # Include routers
 app.include_router(predictions.router, prefix="/api", tags=["predictions"])
 app.include_router(admin.router, prefix="/api", tags=["admin"])
-app.include_router(groups.router, prefix="/api", tags=["groups"])
-app.include_router(teams.router, prefix="/api", tags=["teams"])
-app.include_router(knockout.router, prefix="/api", tags=["knockout"])
 app.include_router(scoring.router, prefix="/api/scoring", tags=["scoring"])
 app.include_router(config.router, prefix="/api/app", tags=["app"])
 
