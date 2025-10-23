@@ -576,4 +576,14 @@ class ScoringService:
         
         ScoringService.apply_penalty_to_user(db, user_id, penalty_points)
         return penalty_points
+
+    @staticmethod
+    def apply_match_prediction_penalty(db: Session, user_id: int) -> int:
+        """
+        Apply penalty for match prediction changes.
+        Returns the penalty points applied.
+        """
+        penalty_points = 1
+        ScoringService.apply_penalty_to_user(db, user_id, penalty_points)
+        return penalty_points
     

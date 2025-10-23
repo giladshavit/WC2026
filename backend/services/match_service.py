@@ -108,3 +108,26 @@ class MatchService:
         Return True if both teams are set (not None) for a given match.
         """
         return bool(match.home_team and match.away_team)
+
+    @staticmethod
+    def update_match_status(db: Session, match_id: int, status: str) -> Dict[str, Any]:
+        """
+        Update match status (admin only)
+        """
+        try:
+            match = db.query(Match).filter(Match.id == match_id).first()
+            if not match:
+                return {"error": "Match not found"}
+            
+            # Update status
+            match.status = status
+            db.commit()
+            
+            return {
+                "id": match.id,
+                "status": match.status,
+                "updated": True
+            }
+        except Exception as e:
+            db.rollback()
+            return {"error": f"Failed to update match status: {str(e)}"}

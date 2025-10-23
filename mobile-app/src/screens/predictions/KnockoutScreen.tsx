@@ -212,6 +212,8 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
         windowSize={10}
         extraData={pendingChangesById}
         scrollEventThrottle={16}
+        numColumns={2}
+        columnWrapperStyle={styles.row}
       />
       {pendingChanges.length > 0 && (
         <View style={styles.pendingChangesContainer}>
@@ -589,6 +591,10 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 0,
+  },
+  row: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 8, // Smaller padding between columns
   },
   listWithButton: {
     paddingBottom: 80, // Space for the fixed button

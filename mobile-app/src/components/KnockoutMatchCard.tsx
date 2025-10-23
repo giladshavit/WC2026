@@ -117,11 +117,11 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, 
 const styles = StyleSheet.create({
   matchCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    marginHorizontal: 16,
-    marginTop: 8, // Small margin from top for first card
+    borderRadius: 9, // 12 * 0.75
+    padding: 12, // 16 * 0.75
+    marginBottom: 9, // 12 * 0.75
+    marginHorizontal: 4, // Even smaller margin
+    marginTop: 6, // 8 * 0.75
     borderWidth: 2,
     borderColor: 'transparent',
     shadowColor: '#000',
@@ -129,7 +129,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    height: 120, // Increased height to accommodate larger buttons
+    height: 90, // 120 * 0.75
+    width: '48%', // For 2 columns layout
   },
   teamContainer: {
     flexDirection: 'row',
@@ -138,25 +139,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   teamButton: {
-    width: 120, // Back to original width
-    height: 80, // Increased height
+    width: 60, // 120 * 0.5
+    height: 60, // 80 * 0.75
     alignItems: 'center',
     justifyContent: 'center', // Center everything vertically
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    paddingHorizontal: 4, // 8 * 0.5
+    borderRadius: 6, // 8 * 0.75
     borderWidth: 1,
     borderColor: '#e2e8f0',
     backgroundColor: '#f8fafc',
-    marginHorizontal: 4,
+    marginHorizontal: 2, // 4 * 0.5
   },
   teamFlag: {
-    width: 32,
-    height: 24,
-    borderRadius: 4,
-    marginBottom: 8, // Space between flag and team name
+    width: 24, // 32 * 0.75
+    height: 18, // 24 * 0.75
+    borderRadius: 3, // 4 * 0.75
+    marginBottom: 4, // 8 * 0.5
   },
   teamName: {
-    fontSize: 14,
+    fontSize: 7, // Even smaller text
     fontWeight: '600',
     color: '#2d3748',
     textAlign: 'center',
@@ -166,14 +167,14 @@ const styles = StyleSheet.create({
   tbdText: {
     color: '#111827', // near-black
     fontWeight: '900', // very bold
-    fontSize: 36, // 24 * 1.5 = 36
+    fontSize: 27, // 36 * 0.75
     textAlign: 'center',
     textAlignVertical: 'center',
   },
   vs: {
-    fontSize: 16,
+    fontSize: 10, // Even smaller
     color: '#718096',
-    marginHorizontal: 16,
+    marginHorizontal: 4, // Smaller padding between columns
     fontWeight: 'bold',
   },
   winnerButton: {

@@ -10,6 +10,7 @@ from services.group_service import GroupService
 from services.results_service import ResultsService
 from services.stage_manager import StageManager, Stage
 from models.groups import Group
+from models.matches import MatchStatus
 from database import get_db
 
 router = APIRouter()
@@ -158,6 +159,10 @@ class MatchResultRequest(BaseModel):
     away_team_penalties: Optional[int] = None
     outcome_type: str = "regular"
 
+class MatchStatusRequest(BaseModel):
+    status: str  # scheduled, live_editable, live_locked, finished
+    outcome_type: str = "regular"
+
 class GroupStageResultRequest(BaseModel):
     first_place_team_id: int
     second_place_team_id: int
@@ -231,6 +236,39 @@ def update_match_result(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.put("/admin/matches/{match_id}/status", response_model=Dict[str, Any])
+def update_match_status(
+    match_id: int, 
+    status_request: MatchStatusRequest, 
+    db: Session = Depends(get_db)
+):
+    """
+    Update match status (admin only)
+    """
+    try:
+        # Validate status
+        valid_statuses = [status.value for status in MatchStatus]
+        if status_request.status not in valid_statuses:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid status. Must be one of: {valid_statuses}"
+            )
+        
+        result = MatchService.update_match_status(
+            db=db,
+            match_id=match_id,
+            status=status_request.status
+        )
+        
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Knockout results endpoints
 @router.get("/admin/knockout/results", response_model=List[Dict[str, Any]])

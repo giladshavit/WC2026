@@ -45,6 +45,7 @@ class ResultsService:
                     "name": match.away_team.name
                 },
                 "stage": match.stage,
+                "status": match.status,
                 "date": match.date.isoformat() if match.date else None,
                 "result": {
                     "home_team_score": result.home_team_score if result else None,
@@ -128,6 +129,9 @@ class ResultsService:
         db.commit()
         db.refresh(result)
         
+        # Update match status to finished
+        match.status = "finished"
+        db.commit()
         
         # Update KnockoutStageResult if this is a knockout match
         if match.is_knockout:

@@ -99,8 +99,25 @@ export default function MatchesScreen() {
       return;
     }
 
-    // Use the generic penalty confirmation hook
-    showPenaltyConfirmation(performSave, pendingChanges.size);
+    // Check if any of the pending changes are for matches with LIVE_EDITABLE status
+    const hasLiveEditableMatches = Array.from(pendingChanges.keys()).some(matchId => {
+      const match = matches.find(m => m.id === matchId);
+      return match && match.status === 'live_editable';
+    });
+
+    if (hasLiveEditableMatches) {
+      Alert.alert(
+        'Penalty Warning',
+        'Some matches are currently live. Editing these predictions will result in a 1-point penalty per match. Do you want to continue?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Continue', onPress: performSave }
+        ]
+      );
+    } else {
+      // No live matches, save directly
+      performSave();
+    }
   };
 
   const renderMatch = ({ item }: { item: Match }) => {

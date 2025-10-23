@@ -2,7 +2,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from sqlalchemy.orm import Session
 from models.user import User
-from models.matches import Match
+from models.matches import Match, MatchStatus
 from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
 from models.groups import Group
 from models.group_template import GroupTemplate
@@ -224,13 +224,19 @@ class PredictionService:
             # updated_at is updated automatically
             db.commit()
             
+            # Apply penalty only if match is live_editable
+            penalty_applied = 0
+            if match.status == MatchStatus.LIVE_EDITABLE.value:
+                penalty_applied = ScoringService.apply_match_prediction_penalty(db, user_id)
+            
             return {
                 "id": existing_prediction.id,
                 "match_id": match_id,
                 "home_score": home_score,
                 "away_score": away_score,
                 "predicted_winner": predicted_winner,
-                "updated": True
+                "updated": True,
+                "penalty_applied": penalty_applied
             }
         else:
             # Create new prediction
@@ -245,13 +251,19 @@ class PredictionService:
             db.commit()
             db.refresh(new_prediction)
             
+            # Apply penalty only if match is live_editable
+            penalty_applied = 0
+            if match.status == MatchStatus.LIVE_EDITABLE.value:
+                penalty_applied = ScoringService.apply_match_prediction_penalty(db, user_id)
+            
             return {
                 "id": new_prediction.id,
                 "match_id": match_id,
                 "home_score": home_score,
                 "away_score": away_score,
                 "predicted_winner": predicted_winner,
-                "updated": False
+                "updated": False,
+                "penalty_applied": penalty_applied
             }
 
     @staticmethod
