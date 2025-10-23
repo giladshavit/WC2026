@@ -11,6 +11,7 @@ from .tournament_config import TournamentConfig
 from .team import Team
 from .user import User
 from .user_scores import UserScores
+from .league import League, LeagueMembership
 
 __all__ = [
     'ThirdPlaceCombination',
@@ -29,5 +30,7 @@ __all__ = [
     'TournamentConfig',
     'Team',
     'User',
-    'UserScores'
+    'UserScores',
+    'League',
+    'LeagueMembership'
 ]

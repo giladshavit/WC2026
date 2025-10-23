@@ -141,6 +141,53 @@ export interface KnockoutPrediction {
   winner_team_flag: string | null;
 }
 
+// League interfaces
+export interface League {
+  id: number;
+  name: string;
+  description: string | null;
+  invite_code: string;
+  created_by: number;
+  created_at: string;
+  member_count: number;
+  joined_at?: string;
+}
+
+export interface LeagueStanding {
+  rank: number;
+  user_id: number;
+  username: string;
+  name: string;
+  total_points: number;
+  matches_points: number;
+  groups_points: number;
+  third_place_points: number;
+  knockout_points: number;
+  joined_at?: string;
+}
+
+export interface LeagueStandingsResponse {
+  league_info: {
+    id: number;
+    name: string;
+    description: string | null;
+    invite_code: string;
+    created_by: number;
+    created_at: string;
+    member_count: number;
+  } | null;
+  standings: LeagueStanding[];
+}
+
+export interface CreateLeagueRequest {
+  name: string;
+  description?: string;
+}
+
+export interface JoinLeagueRequest {
+  invite_code: string;
+}
+
 class ApiService {
   private baseUrl: string;
   private accessToken: string | null = null;
@@ -563,6 +610,146 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('Error fetching app status:', error);
+      throw error;
+    }
+  }
+
+  // League methods
+  async getUserLeagues(): Promise<League[]> {
+    try {
+      const headers: HeadersInit = {};
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}/api/leagues`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching user leagues:', error);
+      throw error;
+    }
+  }
+
+  async createLeague(leagueData: CreateLeagueRequest): Promise<League> {
+    try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}/api/leagues`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(leagueData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error creating league:', error);
+      throw error;
+    }
+  }
+
+  async joinLeague(inviteCode: string): Promise<any> {
+    try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}/api/leagues/join`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ invite_code: inviteCode }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error joining league:', error);
+      throw error;
+    }
+  }
+
+  async getGlobalStandings(): Promise<LeagueStandingsResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/leagues/global`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching global standings:', error);
+      throw error;
+    }
+  }
+
+  async getLeagueStandings(leagueId: number): Promise<LeagueStandingsResponse> {
+    try {
+      const headers: HeadersInit = {};
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}/api/leagues/${leagueId}/standings`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching league standings:', error);
+      throw error;
+    }
+  }
+
+  async getLeagueInfo(leagueId: number): Promise<League> {
+    try {
+      const headers: HeadersInit = {};
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}/api/leagues/${leagueId}`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching league info:', error);
       throw error;
     }
   }

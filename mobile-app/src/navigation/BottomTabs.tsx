@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PredictionsTopTabs from './PredictionsTopTabs';
 import MatchesScreen from '../screens/predictions/MatchesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import LeagueStack from './LeagueStack';
 
 const Tab = createBottomTabNavigator();
 
@@ -54,6 +55,16 @@ export default function BottomTabs() {
           title: 'Matches',
           tabBarLabel: 'Matches',
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>⚽</Text>,
+        }}
+      />
+      <Tab.Screen 
+        name="LeaguesTab" 
+        component={LeagueStack}
+        options={{ 
+          title: 'Leagues',
+          tabBarLabel: 'Leagues',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🏆</Text>,
+          headerShown: false, // LeagueStack handles its own headers
         }}
       />
       <Tab.Screen 

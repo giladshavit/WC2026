@@ -5,6 +5,7 @@ import jwt
 import bcrypt
 from fastapi import HTTPException, status
 from models.user import User
+from models.user_scores import UserScores
 
 class AuthService:
     """Service for handling user authentication and authorization."""
@@ -81,6 +82,20 @@ class AuthService:
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
+        
+        # Create user scores entry automatically
+        user_scores = UserScores(
+            user_id=new_user.id,
+            matches_score=0,
+            groups_score=0,
+            third_place_score=0,
+            knockout_score=0,
+            penalty=0,
+            total_points=0
+        )
+        
+        db.add(user_scores)
+        db.commit()
         
         # Create access token
         access_token = AuthService.create_access_token(new_user.id, new_user.username)
