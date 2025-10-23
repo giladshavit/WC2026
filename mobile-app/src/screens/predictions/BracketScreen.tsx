@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -6,7 +6,9 @@ import {
   ScrollView, 
   ActivityIndicator,
   Alert,
-  Dimensions
+  Dimensions,
+  TouchableOpacity,
+  Platform
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,6 +20,8 @@ import MatchEditModal from '../../components/MatchEditModal';
 import { organizeBracketMatches, BracketMatch, OrganizedBracket } from '../../utils/bracketCalculator';
 import { useTournament } from '../../contexts/TournamentContext';
 import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
+import { captureRef } from 'react-native-view-shot';
+import * as MediaLibrary from 'expo-media-library';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const COLUMN_WIDTH = 120;
@@ -37,12 +41,16 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [organizedBracket, setOrganizedBracket] = useState<OrganizedBracket | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
   
   // Get current user ID
   const { getCurrentUserId } = useAuth();
   const [matchLayouts, setMatchLayouts] = useState<{[key: number]: { x: number; y: number; width: number; height: number }}>({});
   const [selectedMatch, setSelectedMatch] = useState<BracketMatch | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  
+  // Ref for capturing the bracket view
+  const bracketRef = useRef<View>(null);
 
   // Get tournament context data
   const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
@@ -354,6 +362,42 @@ export default function BracketScreen({}: BracketScreenProps) {
     setIsModalVisible(true);
   };
 
+  const captureBracket = async () => {
+    if (!bracketRef.current) {
+      Alert.alert('שגיאה', 'לא ניתן לצלם את הבראקט');
+      return;
+    }
+
+    try {
+      setIsCapturing(true);
+
+      // Request permission to save to photos
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('שגיאה', 'נדרש אישור לשמירת תמונות');
+        return;
+      }
+
+      // Capture the entire bracket view (including off-screen parts)
+      const uri = await captureRef(bracketRef.current, {
+        format: 'png',
+        quality: 1.0,
+        result: 'tmpfile'
+      });
+
+      // Save to device photos
+      const asset = await MediaLibrary.createAssetAsync(uri);
+      await MediaLibrary.createAlbumAsync('Bracket Screenshots', asset, false);
+
+      Alert.alert('הצלחה', 'הבראקט נשמר בתמונות בהצלחה!');
+    } catch (error) {
+      console.error('Error capturing bracket:', error);
+      Alert.alert('שגיאה', 'שגיאה בשמירת הבראקט');
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
 
   const renderColumn = (title: string, matches: BracketMatch[], isFinal = false, columnIndex = 0) => {
     if (matches.length === 0) return null;
@@ -390,6 +434,206 @@ export default function BracketScreen({}: BracketScreenProps) {
     );
   };
 
+  // Function to render all bracket lines
+  const renderBracketLines = () => {
+    if (!organizedBracket) return null;
+
+    return (
+      <>
+        {/* Lines from Round 32 Left to Round 16 Left (Left side) */}
+        {organizedBracket.round32_left.length >= 8 && organizedBracket.round16_left.length >= 4 && 
+          (() => {
+            // Find matches by ID, not by array index!
+            const round32Match74 = organizedBracket.round32_left.find(m => m.id === 74);
+            const round32Match77 = organizedBracket.round32_left.find(m => m.id === 77);
+            const round16Match89 = organizedBracket.round16_left.find(m => m.id === 89);
+            
+            const round32Match73 = organizedBracket.round32_left.find(m => m.id === 73);
+            const round32Match75 = organizedBracket.round32_left.find(m => m.id === 75);
+            const round16Match90 = organizedBracket.round16_left.find(m => m.id === 90);
+            
+            const round32Match83 = organizedBracket.round32_left.find(m => m.id === 83);
+            const round32Match84 = organizedBracket.round32_left.find(m => m.id === 84);
+            const round16Match93 = organizedBracket.round16_left.find(m => m.id === 93);
+            
+            const round32Match81 = organizedBracket.round32_left.find(m => m.id === 81);
+            const round32Match82 = organizedBracket.round32_left.find(m => m.id === 82);
+            const round16Match94 = organizedBracket.round16_left.find(m => m.id === 94);
+            
+            const lines = [];
+            
+            // Only draw lines if all matches exist
+            if (round32Match74 && round32Match77 && round16Match89) {
+              lines.push(...createPreciseBracketLines(round32Match74, round32Match77, round16Match89));
+            }
+            if (round32Match73 && round32Match75 && round16Match90) {
+              lines.push(...createPreciseBracketLines(round32Match73, round32Match75, round16Match90));
+            }
+            if (round32Match83 && round32Match84 && round16Match93) {
+              lines.push(...createPreciseBracketLines(round32Match83, round32Match84, round16Match93));
+            }
+            if (round32Match81 && round32Match82 && round16Match94) {
+              lines.push(...createPreciseBracketLines(round32Match81, round32Match82, round16Match94));
+            }
+            
+            return lines;
+          })()
+        }
+        
+        {/* Lines from Round 16 Left to Quarter Left (Left side) */}
+        {organizedBracket.round16_left.length >= 4 && organizedBracket.quarter_left.length >= 2 && 
+          (() => {
+            // Find matches by ID, not by array index!
+            const round16Match89 = organizedBracket.round16_left.find(m => m.id === 89);
+            const round16Match90 = organizedBracket.round16_left.find(m => m.id === 90);
+            const quarterMatch97 = organizedBracket.quarter_left.find(m => m.id === 97);
+            
+            const round16Match93 = organizedBracket.round16_left.find(m => m.id === 93);
+            const round16Match94 = organizedBracket.round16_left.find(m => m.id === 94);
+            const quarterMatch98 = organizedBracket.quarter_left.find(m => m.id === 98);
+            
+            const lines = [];
+            
+            // Only draw lines if all matches exist
+            if (round16Match89 && round16Match90 && quarterMatch97) {
+              lines.push(...createPreciseBracketLines(round16Match89, round16Match90, quarterMatch97));
+            }
+            if (round16Match93 && round16Match94 && quarterMatch98) {
+              lines.push(...createPreciseBracketLines(round16Match93, round16Match94, quarterMatch98));
+            }
+            
+            return lines;
+          })()
+        }
+        
+        {/* Lines from Quarter Left to Semi Final 101 (Left side) */}
+        {organizedBracket.quarter_left.length === 2 && organizedBracket.semi.find(s => s.id === 101) && 
+          (() => {
+            return createPreciseBracketLines(
+              organizedBracket.quarter_left[0], 
+              organizedBracket.quarter_left[1], 
+              organizedBracket.semi.find(s => s.id === 101)!
+            );
+          })()
+        }
+        
+        {/* Lines from Round 32 Right to Round 16 Right (Right side) */}
+        {organizedBracket.round32_right.length >= 8 && organizedBracket.round16_right.length >= 4 && 
+          (() => {
+            // Find matches by ID for right side
+            const round32Match76 = organizedBracket.round32_right.find(m => m.id === 76);
+            const round32Match78 = organizedBracket.round32_right.find(m => m.id === 78);
+            const round16Match91 = organizedBracket.round16_right.find(m => m.id === 91);
+            
+            const round32Match79 = organizedBracket.round32_right.find(m => m.id === 79);
+            const round32Match80 = organizedBracket.round32_right.find(m => m.id === 80);
+            const round16Match92 = organizedBracket.round16_right.find(m => m.id === 92);
+            
+            const round32Match86 = organizedBracket.round32_right.find(m => m.id === 86);
+            const round32Match88 = organizedBracket.round32_right.find(m => m.id === 88);
+            const round16Match95 = organizedBracket.round16_right.find(m => m.id === 95);
+            
+            const round32Match85 = organizedBracket.round32_right.find(m => m.id === 85);
+            const round32Match87 = organizedBracket.round32_right.find(m => m.id === 87);
+            const round16Match96 = organizedBracket.round16_right.find(m => m.id === 96);
+            
+            const lines = [];
+            
+            // Only draw lines if all matches exist
+            if (round32Match76 && round32Match78 && round16Match91) {
+              lines.push(...createPreciseBracketLines(round32Match76, round32Match78, round16Match91));
+            }
+            if (round32Match79 && round32Match80 && round16Match92) {
+              lines.push(...createPreciseBracketLines(round32Match79, round32Match80, round16Match92));
+            }
+            if (round32Match86 && round32Match88 && round16Match95) {
+              lines.push(...createPreciseBracketLines(round32Match86, round32Match88, round16Match95));
+            }
+            if (round32Match85 && round32Match87 && round16Match96) {
+              lines.push(...createPreciseBracketLines(round32Match85, round32Match87, round16Match96));
+            }
+            
+            return lines;
+          })()
+        }
+        
+        {/* Lines from Round 16 Right to Quarter Right (Right side) */}
+        {organizedBracket.round16_right.length >= 4 && organizedBracket.quarter_right.length >= 2 && 
+          (() => {
+            // Find matches by ID for right side
+            const round16Match91 = organizedBracket.round16_right.find(m => m.id === 91);
+            const round16Match92 = organizedBracket.round16_right.find(m => m.id === 92);
+            const quarterMatch99 = organizedBracket.quarter_right.find(m => m.id === 99);
+            
+            const round16Match95 = organizedBracket.round16_right.find(m => m.id === 95);
+            const round16Match96 = organizedBracket.round16_right.find(m => m.id === 96);
+            const quarterMatch100 = organizedBracket.quarter_right.find(m => m.id === 100);
+            
+            const lines = [];
+            
+            // Only draw lines if all matches exist
+            if (round16Match91 && round16Match92 && quarterMatch99) {
+              lines.push(...createPreciseBracketLines(round16Match91, round16Match92, quarterMatch99));
+            }
+            if (round16Match95 && round16Match96 && quarterMatch100) {
+              lines.push(...createPreciseBracketLines(round16Match95, round16Match96, quarterMatch100));
+            }
+            
+            return lines;
+          })()
+        }
+        
+        {/* Lines from Quarter Right to Semi Final 102 (Right side) */}
+        {organizedBracket.quarter_right.length === 2 && organizedBracket.semi.find(s => s.id === 102) && 
+          (() => {
+            return createPreciseBracketLines(
+              organizedBracket.quarter_right[0], 
+              organizedBracket.quarter_right[1], 
+              organizedBracket.semi.find(s => s.id === 102)!
+            );
+          })()
+        }
+        
+        {/* Lines from Semi Finals to Final */}
+        {organizedBracket.semi.length === 2 && organizedBracket.final.length === 1 && 
+          (() => {
+            const semi101 = organizedBracket.semi.find(s => s.id === 101);
+            const semi102 = organizedBracket.semi.find(s => s.id === 102);
+            const final = organizedBracket.final[0];
+            
+            if (semi101 && semi102 && final) {
+              return [
+                ...createSemiToFinalLines(semi101, final),
+                ...createSemiToFinalLines(semi102, final)
+              ];
+            }
+            
+            return [];
+          })()
+        }
+      </>
+    );
+  };
+
+  // Function to render all bracket columns
+  const renderBracketColumns = () => {
+    if (!organizedBracket) return null;
+
+    return (
+      <>
+        {renderColumn('32 אחרונות (שמאל)', organizedBracket.round32_left, false, 0)}
+        {renderColumn('16 אחרונות (שמאל)', organizedBracket.round16_left, false, 1)}
+        {renderColumn('רבע (שמאל)', organizedBracket.quarter_left, false, 2)}
+        {renderColumn('חצי גמר 101', organizedBracket.semi.filter(match => match.id === 101), false, 3)}
+        {renderColumn('גמר', organizedBracket.final, true, 4)}
+        {renderColumn('חצי גמר 102', organizedBracket.semi.filter(match => match.id === 102), false, 5)}
+        {renderColumn('רבע (ימין)', organizedBracket.quarter_right, false, 6)}
+        {renderColumn('16 אחרונות (ימין)', organizedBracket.round16_right, false, 7)}
+        {renderColumn('32 אחרונות (ימין)', organizedBracket.round32_right, false, 8)}
+      </>
+    );
+  };
+
 
   if (loading) {
     return (
@@ -410,6 +654,17 @@ export default function BracketScreen({}: BracketScreenProps) {
 
   return (
     <View style={[styles.container, { pointerEvents: 'box-none' }]}>
+      {/* Screenshot Button */}
+      <TouchableOpacity 
+        style={styles.screenshotButton}
+        onPress={captureBracket}
+        disabled={isCapturing}
+      >
+        <Text style={styles.screenshotButtonText}>
+          {isCapturing ? 'צולם...' : '📸 שמור בראקט'}
+        </Text>
+      </TouchableOpacity>
+
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={true}
@@ -423,224 +678,35 @@ export default function BracketScreen({}: BracketScreenProps) {
           height={AVAILABLE_HEIGHT}
           pointerEvents="none"
         >
-          {/* Quarter diagonal lines removed - no longer needed */}
-          
-          {/* Lines from Round 32 Left to Round 16 Left (Left side) */}
-          {organizedBracket && organizedBracket.round32_left.length >= 8 && organizedBracket.round16_left.length >= 4 && 
-            (() => {
-              // Find matches by ID, not by array index!
-              const round32Match74 = organizedBracket.round32_left.find(m => m.id === 74);
-              const round32Match77 = organizedBracket.round32_left.find(m => m.id === 77);
-              const round16Match89 = organizedBracket.round16_left.find(m => m.id === 89);
-              
-              const round32Match73 = organizedBracket.round32_left.find(m => m.id === 73);
-              const round32Match75 = organizedBracket.round32_left.find(m => m.id === 75);
-              const round16Match90 = organizedBracket.round16_left.find(m => m.id === 90);
-              
-              const round32Match83 = organizedBracket.round32_left.find(m => m.id === 83);
-              const round32Match84 = organizedBracket.round32_left.find(m => m.id === 84);
-              const round16Match93 = organizedBracket.round16_left.find(m => m.id === 93);
-              
-              const round32Match81 = organizedBracket.round32_left.find(m => m.id === 81);
-              const round32Match82 = organizedBracket.round32_left.find(m => m.id === 82);
-              const round16Match94 = organizedBracket.round16_left.find(m => m.id === 94);
-              
-              
-              const lines = [];
-              
-              // Only draw lines if all matches exist
-              if (round32Match74 && round32Match77 && round16Match89) {
-                lines.push(...createPreciseBracketLines(round32Match74, round32Match77, round16Match89));
-              }
-              if (round32Match73 && round32Match75 && round16Match90) {
-                lines.push(...createPreciseBracketLines(round32Match73, round32Match75, round16Match90));
-              }
-              if (round32Match83 && round32Match84 && round16Match93) {
-                lines.push(...createPreciseBracketLines(round32Match83, round32Match84, round16Match93));
-              }
-              if (round32Match81 && round32Match82 && round16Match94) {
-                lines.push(...createPreciseBracketLines(round32Match81, round32Match82, round16Match94));
-              }
-              
-              return lines;
-            })()
-          }
-          
-          {/* Lines from Round 16 Left to Quarter Left (Left side) */}
-          {organizedBracket && organizedBracket.round16_left.length >= 4 && organizedBracket.quarter_left.length >= 2 && 
-            (() => {
-              // Find matches by ID, not by array index!
-              const round16Match89 = organizedBracket.round16_left.find(m => m.id === 89);
-              const round16Match90 = organizedBracket.round16_left.find(m => m.id === 90);
-              const quarterMatch97 = organizedBracket.quarter_left.find(m => m.id === 97);
-              
-              const round16Match93 = organizedBracket.round16_left.find(m => m.id === 93);
-              const round16Match94 = organizedBracket.round16_left.find(m => m.id === 94);
-              const quarterMatch98 = organizedBracket.quarter_left.find(m => m.id === 98);
-              
-              
-              const lines = [];
-              
-              // Only draw lines if all matches exist
-              if (round16Match89 && round16Match90 && quarterMatch97) {
-                lines.push(...createPreciseBracketLines(round16Match89, round16Match90, quarterMatch97));
-              }
-              if (round16Match93 && round16Match94 && quarterMatch98) {
-                lines.push(...createPreciseBracketLines(round16Match93, round16Match94, quarterMatch98));
-              }
-              
-              return lines;
-            })()
-          }
-          
-          {/* Lines from Quarter Left to Semi Final 101 (Left side) */}
-          {organizedBracket && organizedBracket.quarter_left.length === 2 && organizedBracket.semi.find(s => s.id === 101) && 
-            (() => {
-      
-      
-      // Debug: Check if matches are overlapping
-      if (matchLayouts[97] && matchLayouts[98] && matchLayouts[101]) {
-        const samePosition = matchLayouts[97].x === matchLayouts[98].x && 
-                           matchLayouts[97].x === matchLayouts[101].x &&
-                           matchLayouts[97].y === matchLayouts[98].y && 
-                           matchLayouts[97].y === matchLayouts[101].y;
-        
-      
-    }
-              return createPreciseBracketLines(
-                organizedBracket.quarter_left[0], 
-                organizedBracket.quarter_left[1], 
-                organizedBracket.semi.find(s => s.id === 101)!
-              );
-            })()
-          }
-          
-          {/* Lines from Round 32 Right to Round 16 Right (Right side) */}
-          {organizedBracket && organizedBracket.round32_right.length >= 8 && organizedBracket.round16_right.length >= 4 && 
-            (() => {
-              // Find matches by ID for right side
-              const round32Match76 = organizedBracket.round32_right.find(m => m.id === 76);
-              const round32Match78 = organizedBracket.round32_right.find(m => m.id === 78);
-              const round16Match91 = organizedBracket.round16_right.find(m => m.id === 91);
-              
-              const round32Match79 = organizedBracket.round32_right.find(m => m.id === 79);
-              const round32Match80 = organizedBracket.round32_right.find(m => m.id === 80);
-              const round16Match92 = organizedBracket.round16_right.find(m => m.id === 92);
-              
-              const round32Match86 = organizedBracket.round32_right.find(m => m.id === 86);
-              const round32Match88 = organizedBracket.round32_right.find(m => m.id === 88);
-              const round16Match95 = organizedBracket.round16_right.find(m => m.id === 95);
-              
-              const round32Match85 = organizedBracket.round32_right.find(m => m.id === 85);
-              const round32Match87 = organizedBracket.round32_right.find(m => m.id === 87);
-              const round16Match96 = organizedBracket.round16_right.find(m => m.id === 96);
-              
-              
-              const lines = [];
-              
-              // Only draw lines if all matches exist
-              if (round32Match76 && round32Match78 && round16Match91) {
-                lines.push(...createPreciseBracketLines(round32Match76, round32Match78, round16Match91));
-              }
-              if (round32Match79 && round32Match80 && round16Match92) {
-                lines.push(...createPreciseBracketLines(round32Match79, round32Match80, round16Match92));
-              }
-              if (round32Match86 && round32Match88 && round16Match95) {
-                lines.push(...createPreciseBracketLines(round32Match86, round32Match88, round16Match95));
-              }
-              if (round32Match85 && round32Match87 && round16Match96) {
-                lines.push(...createPreciseBracketLines(round32Match85, round32Match87, round16Match96));
-              }
-              
-              return lines;
-            })()
-          }
-          
-          {/* Lines from Round 16 Right to Quarter Right (Right side) */}
-          {organizedBracket && organizedBracket.round16_right.length >= 4 && organizedBracket.quarter_right.length >= 2 && 
-            (() => {
-              // Find matches by ID for right side
-              const round16Match91 = organizedBracket.round16_right.find(m => m.id === 91);
-              const round16Match92 = organizedBracket.round16_right.find(m => m.id === 92);
-              const quarterMatch99 = organizedBracket.quarter_right.find(m => m.id === 99);
-              
-              const round16Match95 = organizedBracket.round16_right.find(m => m.id === 95);
-              const round16Match96 = organizedBracket.round16_right.find(m => m.id === 96);
-              const quarterMatch100 = organizedBracket.quarter_right.find(m => m.id === 100);
-              
-              
-              const lines = [];
-              
-              // Only draw lines if all matches exist
-              if (round16Match91 && round16Match92 && quarterMatch99) {
-                lines.push(...createPreciseBracketLines(round16Match91, round16Match92, quarterMatch99));
-              }
-              if (round16Match95 && round16Match96 && quarterMatch100) {
-                lines.push(...createPreciseBracketLines(round16Match95, round16Match96, quarterMatch100));
-              }
-              
-              return lines;
-            })()
-          }
-          
-          {/* Lines from Quarter Right to Semi Final 102 (Right side) */}
-          {organizedBracket && organizedBracket.quarter_right.length === 2 && organizedBracket.semi.find(s => s.id === 102) && 
-            (() => {
-              
-              return createPreciseBracketLines(
-                organizedBracket.quarter_right[0], 
-                organizedBracket.quarter_right[1], 
-                organizedBracket.semi.find(s => s.id === 102)!
-              );
-            })()
-          }
-          
-          {/* Lines from Semi Finals to Final */}
-          {organizedBracket && organizedBracket.semi.length === 2 && organizedBracket.final.length === 1 && 
-            (() => {
-              const semi101 = organizedBracket.semi.find(s => s.id === 101);
-              const semi102 = organizedBracket.semi.find(s => s.id === 102);
-              const final = organizedBracket.final[0];
-              
-              if (semi101 && semi102 && final) {
-                
-                return [
-                  ...createSemiToFinalLines(semi101, final),
-                  ...createSemiToFinalLines(semi102, final)
-                ];
-              }
-              
-              return [];
-            })()
-          }
+          {renderBracketLines()}
         </Svg>
-        {/* Column 1: Round 32 Left */}
-        {renderColumn('32 אחרונות (שמאל)', organizedBracket.round32_left, false, 0)}
         
-        {/* Column 2: Round 16 Left */}
-        {renderColumn('16 אחרונות (שמאל)', organizedBracket.round16_left, false, 1)}
-        
-        {/* Column 3: Quarter Left (97, 98) */}
-        {renderColumn('רבע (שמאל)', organizedBracket.quarter_left, false, 2)}
-        
-        {/* Column 4: Semi Final 101 (Left side) */}
-        {renderColumn('חצי גמר 101', organizedBracket.semi.filter(match => match.id === 101), false, 3)}
-        
-        {/* Column 5: Final (104) - Center */}
-        {renderColumn('גמר', organizedBracket.final, true, 4)}
-        
-        {/* Column 6: Semi Final 102 (Right side) */}
-        {renderColumn('חצי גמר 102', organizedBracket.semi.filter(match => match.id === 102), false, 5)}
-        
-        {/* Column 7: Quarter Right (99, 100) */}
-        {renderColumn('רבע (ימין)', organizedBracket.quarter_right, false, 6)}
-        
-        {/* Column 8: Round 16 Right */}
-        {renderColumn('16 אחרונות (ימין)', organizedBracket.round16_right, false, 7)}
-        
-        {/* Column 9: Round 32 Right */}
-        {renderColumn('32 אחרונות (ימין)', organizedBracket.round32_right, false, 8)}
+        {/* All bracket columns */}
+        {renderBracketColumns()}
       </ScrollView>
+
+      {/* Bracket Container for Screenshot */}
+      <View ref={bracketRef} style={styles.bracketContainer} collapsable={false}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          style={styles.hiddenScrollView}
+        >
+          {/* SVG overlay for bracket lines */}
+          <Svg 
+            style={[styles.bracketLines, { height: AVAILABLE_HEIGHT }]}
+            width={screenWidth * 3.25}
+            height={AVAILABLE_HEIGHT}
+            pointerEvents="none"
+          >
+            {renderBracketLines()}
+          </Svg>
+          
+          {/* All columns for screenshot */}
+          {renderBracketColumns()}
+        </ScrollView>
+      </View>
       
       {/* Match Edit Modal - OUTSIDE ScrollView */}
       <MatchEditModal
@@ -791,5 +857,40 @@ const styles = StyleSheet.create({
     left: 0,
     zIndex: -1,
     pointerEvents: 'none',
+  },
+  screenshotButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#667eea',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 20,
+    zIndex: 1000,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  screenshotButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  bracketContainer: {
+    position: 'absolute',
+    top: -10000, // Hide off-screen
+    left: -10000,
+    width: screenWidth * 3.25, // Optimal width for full bracket capture
+    height: AVAILABLE_HEIGHT,
+    backgroundColor: '#f8fafc',
+  },
+  hiddenScrollView: {
+    flex: 1,
+    opacity: 1,
   },
 });
