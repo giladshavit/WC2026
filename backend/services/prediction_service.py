@@ -1502,7 +1502,8 @@ class PredictionService:
             print(f"✅ [DEBUG] Found group: {group.id} ({group.name})")
 
             group_pred = db.query(GroupStagePrediction).filter(
-                GroupStagePrediction.group_id == group.id
+                GroupStagePrediction.group_id == group.id,
+                GroupStagePrediction.user_id == user_id
             ).first()
             if not group_pred:
                 print(f"❌ [DEBUG] No group prediction found for group_id: {group.id}")
