@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from api import predictions, admin
+from api import predictions, admin, auth
 from api import scoring, config
 from database import engine
 from models import base, user, team, matches as match_models, predictions as prediction_models
@@ -24,6 +24,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(predictions.router, prefix="/api", tags=["predictions"])
 app.include_router(admin.router, prefix="/api", tags=["admin"])
 app.include_router(scoring.router, prefix="/api/scoring", tags=["scoring"])

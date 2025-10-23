@@ -35,6 +35,34 @@ export interface AppConfig {
   penalty_per_change: number;
 }
 
+export interface User {
+  user_id: number;
+  username: string;
+  name: string;
+  total_points: number;
+  created_at: string;
+  last_login: string | null;
+}
+
+export interface AuthResponse {
+  user_id: number;
+  username: string;
+  name: string;
+  access_token: string;
+  token_type: string;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  username: string;
+  password: string;
+  name: string;
+}
+
 export interface Match {
   id: number;
   stage: string;
@@ -85,6 +113,7 @@ export interface ThirdPlacePredictionData {
     updated_at: string | null;
   };
   third_place_score: number | null;
+  error?: string; // Optional error field for API errors
 }
 
 export interface KnockoutPrediction {
@@ -114,9 +143,116 @@ export interface KnockoutPrediction {
 
 class ApiService {
   private baseUrl: string;
+  private accessToken: string | null = null;
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
+  }
+
+  // Authentication methods
+  async register(userData: RegisterRequest): Promise<AuthResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Registration failed');
+      }
+
+      const data = await response.json();
+      this.accessToken = data.access_token;
+      return data;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
+  }
+
+  async login(credentials: LoginRequest): Promise<AuthResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(credentials),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Login failed');
+      }
+
+      const data = await response.json();
+      this.accessToken = data.access_token;
+      return data;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  }
+
+  async getCurrentUser(): Promise<User> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get current user');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Get current user error:', error);
+      throw error;
+    }
+  }
+
+  async refreshToken(): Promise<AuthResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Token refresh failed');
+      }
+
+      const data = await response.json();
+      this.accessToken = data.access_token;
+      return data;
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      throw error;
+    }
+  }
+
+  logout(): void {
+    this.accessToken = null;
+  }
+
+  setAccessToken(token: string): void {
+    this.accessToken = token;
+  }
+
+  getAccessToken(): string | null {
+    return this.accessToken;
+  }
+
+  isAuthenticated(): boolean {
+    return !!this.accessToken;
   }
 
   async getMatches(userId: number = 1): Promise<MatchesResponse> {

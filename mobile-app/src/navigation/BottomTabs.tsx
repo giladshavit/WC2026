@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PredictionsTopTabs from './PredictionsTopTabs';
 import MatchesScreen from '../screens/predictions/MatchesScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -53,6 +54,15 @@ export default function BottomTabs() {
           title: 'Matches',
           tabBarLabel: 'Matches',
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>⚽</Text>,
+        }}
+      />
+      <Tab.Screen 
+        name="ProfileTab" 
+        component={ProfileScreen}
+        options={{ 
+          title: 'Profile',
+          tabBarLabel: 'Profile',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>👤</Text>,
         }}
       />
     </Tab.Navigator>

@@ -7,6 +7,7 @@ import { KnockoutPrediction, apiService } from '../../services/api';
 import KnockoutMatchCard from '../../components/KnockoutMatchCard';
 import { useTournament } from '../../contexts/TournamentContext';
 import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Tab = createMaterialTopTabNavigator();
 
@@ -39,6 +40,7 @@ const KnockoutContext = React.createContext<{
 const StageScreen = React.memo(({ route }: { route: any }) => {
   const { stage, stageName } = route.params || {};
   const { pendingChanges, onTeamPress, onSendChanges, onRefreshData, onClearSpecificPendingChanges, onUpdateOriginalWinners, onTriggerRefresh, refreshTrigger, originalWinners, currentFocusedStage, setCurrentFocusedStage, predictionStages } = useContext(KnockoutContext);
+  const { getCurrentUserId } = useAuth();
   // Build O(1) lookup map for this stage screen
   const pendingChangesById = React.useMemo(() => {
     const map: { [id: number]: PendingChange } = {};
@@ -61,7 +63,13 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
         setLoading(true);
       }
       
-      const data = await apiService.getKnockoutPredictions(1, stage);
+      const userId = getCurrentUserId();
+      if (!userId) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+      
+      const data = await apiService.getKnockoutPredictions(userId, stage);
       setPredictions(data.predictions);
       
       // Check if there are any matches updated from bracket
@@ -243,13 +251,15 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const [originalWinners, setOriginalWinners] = useState<{[predictionId: number]: number}>({});
   const [currentFocusedStage, setCurrentFocusedStage] = useState<string | null>(null);
   const [predictionStages, setPredictionStages] = useState<{[predictionId: number]: string}>({});
-  const userId = 1; // Hardcoded for now
 
   // Get tournament context data
   const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
   
   // Get penalty confirmation hook
   const { showPenaltyConfirmation } = usePenaltyConfirmation();
+  
+  // Get current user ID
+  const { getCurrentUserId } = useAuth();
 
   // Helper function to convert stage name to tab name
   const getTabNameFromStage = (stage: string): string | null => {
@@ -364,6 +374,12 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     setSending(true);
     
     try {
+      const userId = getCurrentUserId();
+      if (!userId) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+      
       const result = await apiService.updateBatchKnockoutPredictions(userId, pendingChanges);
       
       Alert.alert(
@@ -389,6 +405,9 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
           // Reload original winners after successful save to get the real team IDs
           setTimeout(async () => {
             try {
+              const userId = getCurrentUserId();
+              if (!userId) return;
+              
               const response = await apiService.getKnockoutPredictions(userId);
               const originalMap: {[predictionId: number]: number} = {};
               
@@ -416,7 +435,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     } finally {
       setSending(false);
     }
-  }, [pendingChanges, userId]);
+  }, [pendingChanges, getCurrentUserId]);
 
   const handleSendChanges = React.useCallback(async () => {
     const numberOfChanges = pendingChanges.length;
@@ -467,6 +486,9 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   useEffect(() => {
     const loadOriginalWinners = async () => {
       try {
+        const userId = getCurrentUserId();
+        if (!userId) return;
+        
         // For now, we'll use the existing API to get knockout predictions
         // and extract the original winners and stages
         const response = await apiService.getKnockoutPredictions(userId);
@@ -493,7 +515,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     };
     
     loadOriginalWinners();
-  }, [userId]);
+  }, [getCurrentUserId]);
 
   return (
     <KnockoutContext.Provider value={{ pendingChanges, onTeamPress: handleTeamPress, onSendChanges: handleSendChanges, onRefreshData: handleRefreshData, onClearSpecificPendingChanges: handleClearSpecificPendingChanges, onUpdateOriginalWinners: handleUpdateOriginalWinners, onTriggerRefresh: handleTriggerRefresh, refreshTrigger, originalWinners, currentFocusedStage, setCurrentFocusedStage, predictionStages }}>

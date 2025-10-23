@@ -4,6 +4,7 @@ import { Match, apiService, MatchesResponse } from '../../services/api';
 import MatchCard from '../../components/MatchCard';
 import { useTournament } from '../../contexts/TournamentContext';
 import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function MatchesScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -18,6 +19,9 @@ export default function MatchesScreen() {
   
   // Get penalty confirmation hook
   const { showPenaltyConfirmation } = usePenaltyConfirmation();
+  
+  // Get current user ID
+  const { getCurrentUserId } = useAuth();
 
   // Determine if there are any incomplete (null) scores among pending changes
   const hasIncompletePending = Array.from(pendingChanges.values()).some(
@@ -27,7 +31,13 @@ export default function MatchesScreen() {
 
   const fetchMatches = async () => {
     try {
-      const data: MatchesResponse = await apiService.getMatches(1); // Using user_id = 1 for now
+      const userId = getCurrentUserId();
+      if (!userId) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+      
+      const data: MatchesResponse = await apiService.getMatches(userId);
       setMatches(data.matches);
       setMatchesScore(data.matches_score);
     } catch (error) {
@@ -66,7 +76,13 @@ export default function MatchesScreen() {
         away_score: scores.awayScore,
       }));
 
-      const result = await apiService.updateBatchMatchPredictions(1, predictions);
+      const userId = getCurrentUserId();
+      if (!userId) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+      
+      const result = await apiService.updateBatchMatchPredictions(userId, predictions);
       console.log('Save result:', result);
       
       Alert.alert('Success', 'All predictions saved successfully!');

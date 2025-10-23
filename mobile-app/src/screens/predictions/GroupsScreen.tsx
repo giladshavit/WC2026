@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOp
 import { GroupPrediction, apiService, GroupsResponse } from '../../services/api';
 import GroupCard from '../../components/GroupCard';
 import { useTournament } from '../../contexts/TournamentContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
 
 export default function GroupsScreen() {
@@ -23,6 +24,9 @@ export default function GroupsScreen() {
   
   // Get penalty confirmation hook
   const { showPenaltyConfirmation } = usePenaltyConfirmation();
+  
+  // Get current user ID
+  const { getCurrentUserId } = useAuth();
 
   // Calculate number of changes in groups (positions 1-3 only)
   const calculateGroupChanges = () => {
@@ -56,7 +60,13 @@ export default function GroupsScreen() {
 
   const fetchGroups = async () => {
     try {
-      const data: GroupsResponse = await apiService.getGroupPredictions(1); // Using user_id = 1 for now
+      const userId = getCurrentUserId();
+      if (!userId) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+      
+      const data: GroupsResponse = await apiService.getGroupPredictions(userId);
       setGroups(data.groups);
     } catch (error) {
       console.error('Error fetching groups:', error);
@@ -149,7 +159,13 @@ export default function GroupsScreen() {
     // Save complete groups
     setSaving(true);
     try {
-      const result = await apiService.updateBatchGroupPredictions(1, completeGroups);
+      const userId = getCurrentUserId();
+      if (!userId) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+      
+      const result = await apiService.updateBatchGroupPredictions(userId, completeGroups);
       console.log('Save result:', result);
       
       // Clear pending changes ONLY for saved groups (not incomplete ones!)

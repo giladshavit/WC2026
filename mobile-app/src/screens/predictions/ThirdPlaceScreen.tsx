@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThirdPlaceTeam, apiService } from '../../services/api';
 import { useTournament } from '../../contexts/TournamentContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
 
 interface ThirdPlaceScreenProps {}
@@ -26,6 +27,9 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   
   // Get penalty confirmation hook
   const { showPenaltyConfirmation } = usePenaltyConfirmation();
+  
+  // Get current user ID
+  const { getCurrentUserId } = useAuth();
 
   // Calculate number of changes in third place prediction
   const calculateThirdPlaceChanges = () => {
@@ -73,12 +77,31 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
 
   const fetchData = async () => {
     try {
-      const data = await apiService.getThirdPlacePredictionsData(1); // Using user_id = 1 for now
-      setTeams(data.eligible_teams);
+      const userId = getCurrentUserId();
+      if (!userId) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+      
+      const data = await apiService.getThirdPlacePredictionsData(userId);
+      
+      // Check if API returned an error
+      if (data.error) {
+        console.log('Third place API error:', data.error);
+        // If user hasn't completed group predictions, show empty state
+        setTeams([]);
+        setSelectedTeams(new Set());
+        setChangedGroups([]);
+        return;
+      }
+      
+      // Handle case where eligible_teams might be undefined or empty
+      const eligibleTeams = data.eligible_teams || [];
+      setTeams(eligibleTeams);
       
       // Initialize selected teams from existing prediction
       const selectedSet = new Set<number>();
-      data.eligible_teams.forEach(team => {
+      eligibleTeams.forEach(team => {
         if (team.is_selected) {
           selectedSet.add(team.id);
         }
@@ -86,7 +109,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       setSelectedTeams(selectedSet);
       
       // Initialize changed groups from prediction data
-      setChangedGroups(data.prediction.changed_groups || []);
+      setChangedGroups(data.prediction?.changed_groups || []);
     } catch (error) {
       console.error('Error fetching third place data:', error);
       Alert.alert('Error', 'Could not load third place teams. Please check that the server is running.');
@@ -155,8 +178,14 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
 
     setSaving(true);
     try {
+      const userId = getCurrentUserId();
+      if (!userId) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+      
       const advancingTeamIds = Array.from(selectedTeams);
-      const result = await apiService.updateThirdPlacePrediction(1, advancingTeamIds);
+      const result = await apiService.updateThirdPlacePrediction(userId, advancingTeamIds);
       console.log('Save result:', result);
       
       Alert.alert('Success', 'Third place prediction saved successfully!');
@@ -244,6 +273,16 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
         <Text style={styles.loadingText}>Loading third place teams...</Text>
+      </View>
+    );
+  }
+
+  // Show message if no teams available (user hasn't completed group predictions)
+  if (teams.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Please complete your group predictions first</Text>
+        <Text style={styles.subtitle}>You need to predict all 12 groups before you can select 3rd place teams</Text>
       </View>
     );
   }

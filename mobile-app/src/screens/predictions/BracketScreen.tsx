@@ -8,6 +8,7 @@ import {
   Alert,
   Dimensions
 } from 'react-native';
+import { useAuth } from '../../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Line } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
@@ -36,10 +37,12 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [organizedBracket, setOrganizedBracket] = useState<OrganizedBracket | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Get current user ID
+  const { getCurrentUserId } = useAuth();
   const [matchLayouts, setMatchLayouts] = useState<{[key: number]: { x: number; y: number; width: number; height: number }}>({});
   const [selectedMatch, setSelectedMatch] = useState<BracketMatch | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const userId = 1; // Hardcoded for now
 
   // Get tournament context data
   const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
@@ -307,6 +310,13 @@ export default function BracketScreen({}: BracketScreenProps) {
         setRefreshing(true);
       } else {
         setLoading(true);
+      }
+      
+      // Get current user ID
+      const userId = getCurrentUserId();
+      if (!userId) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
       }
       
       // Fetch all knockout predictions
@@ -666,6 +676,9 @@ export default function BracketScreen({}: BracketScreenProps) {
               // Wait a bit for server to process the update
               setTimeout(async () => {
                 try {
+                  const userId = getCurrentUserId();
+                  if (!userId) return;
+                  
                   const freshPredictions = await apiService.getKnockoutPredictions(userId);
                   setPredictions(freshPredictions.predictions);
                   
