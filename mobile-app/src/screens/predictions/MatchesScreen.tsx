@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Match, apiService, MatchesResponse } from '../../services/api';
 import MatchCard from '../../components/MatchCard';
@@ -13,6 +13,7 @@ export default function MatchesScreen() {
   const [pendingChanges, setPendingChanges] = useState<Map<number, {homeScore: number | null, awayScore: number | null}>>(new Map());
   const [saving, setSaving] = useState(false);
   const [matchesScore, setMatchesScore] = useState<number | null>(null);
+  const flatListRef = useRef<FlatList>(null);
   
   // Get tournament context data
   const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
@@ -52,6 +53,27 @@ export default function MatchesScreen() {
   useEffect(() => {
     fetchMatches();
   }, []);
+
+  // Scroll to first match without result when matches are loaded
+  useEffect(() => {
+    if (!loading && matches.length > 0 && flatListRef.current) {
+      // Find first match without result
+      const firstMatchWithoutResult = matches.findIndex(
+        match => !match.actual_result
+      );
+      
+      if (firstMatchWithoutResult !== -1) {
+        // Wait a bit for the layout to complete
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({
+            index: firstMatchWithoutResult,
+            animated: true,
+            viewPosition: 0, // Scroll to top of the viewport
+          });
+        }, 100);
+      }
+    }
+  }, [loading, matches]);
 
   const handleScoreChange = useCallback((matchId: number, homeScore: number | null, awayScore: number | null) => {
     setPendingChanges(prev => {
@@ -200,6 +222,7 @@ export default function MatchesScreen() {
         )}
       </View>
       <FlatList
+        ref={flatListRef}
         data={matches}
         renderItem={renderMatch}
         keyExtractor={(item) => item.id.toString()}
@@ -207,6 +230,13 @@ export default function MatchesScreen() {
         refreshing={refreshing}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
+        onScrollToIndexFailed={(info) => {
+          // Fallback if scroll fails
+          const wait = new Promise(resolve => setTimeout(resolve, 500));
+          wait.then(() => {
+            flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
+          });
+        }}
       />
     </View>
   );
