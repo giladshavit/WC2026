@@ -31,7 +31,13 @@ class MatchService:
                 MatchPrediction.match_id == match.id
             ).first()
             
-            match_data = MatchService.create_match_data(match, prediction)
+            # Get actual result for this match
+            from models.results import MatchResult
+            actual_result = db.query(MatchResult).filter(
+                MatchResult.match_id == match.id
+            ).first()
+            
+            match_data = MatchService.create_match_data(match, prediction, actual_result)
             all_matches.append(match_data)
         
         # Sort by date
@@ -46,9 +52,10 @@ class MatchService:
         }
 
     @staticmethod
-    def create_match_data(match: Match, prediction=None) -> Dict[str, Any]:
+    def create_match_data(match: Match, prediction=None, actual_result=None) -> Dict[str, Any]:
         """
         Build a serializable match payload used by API consumers.
+        Now includes actual match results if available.
         """
         match_data: Dict[str, Any] = {
             "id": match.id,
@@ -75,6 +82,17 @@ class MatchService:
             },
             "can_edit": match.is_editable,
         }
+        
+        # Add actual match result if available
+        if actual_result:
+            match_data["actual_result"] = {
+                "home_score": actual_result.home_team_score,
+                "away_score": actual_result.away_team_score,
+                "winner_team_id": actual_result.winner_team_id
+            }
+        else:
+            match_data["actual_result"] = None
+        
         # Add specific details according to match type
         if match.is_group_stage:
             match_data["group"] = match.group

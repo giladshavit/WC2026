@@ -8,6 +8,76 @@ interface MatchCardProps {
   hasPendingChanges?: boolean;
 }
 
+// Component for status indicator
+const MatchStatusIndicator = ({ status, actualResult }: { status: string; actualResult?: any }) => {
+  if (status === 'finished' || actualResult) {
+    return (
+      <View style={styles.statusContainer}>
+        <Text style={styles.finishedText}>✓ משחק הסתיים</Text>
+      </View>
+    );
+  }
+  
+  if (status === 'live_editable') {
+    return (
+      <View style={styles.statusContainer}>
+        <View style={styles.liveIndicator}>
+          <Text style={styles.liveText}>● לייב</Text>
+        </View>
+      </View>
+    );
+  }
+  
+  if (status === 'live_locked') {
+    return (
+      <View style={styles.statusContainer}>
+        <View style={styles.liveIndicator}>
+          <Text style={styles.liveText}>● לייב</Text>
+        </View>
+        <Text style={styles.lockedText}>נעול</Text>
+      </View>
+    );
+  }
+  
+  return null;
+};
+
+// Component for actual result and points display
+const MatchResultDisplay = ({ actualResult, userPrediction, homeTeam, awayTeam }: { 
+  actualResult: any; 
+  userPrediction: any;
+  homeTeam: any;
+  awayTeam: any;
+}) => {
+  if (!actualResult) return null;
+  
+  const getWinnerName = () => {
+    if (actualResult.winner_team_id === homeTeam.id) return homeTeam.name;
+    if (actualResult.winner_team_id === awayTeam.id) return awayTeam.name;
+    return null;
+  };
+  
+  return (
+    <View style={styles.resultContainer}>
+      <Text style={styles.resultLabel}>תוצאה אמיתית:</Text>
+      <Text style={styles.resultScore}>
+        {actualResult.home_score} - {actualResult.away_score}
+      </Text>
+      {getWinnerName() && (
+        <Text style={styles.winnerText}>מנצח: {getWinnerName()}</Text>
+      )}
+      
+      {userPrediction?.points !== undefined && userPrediction?.points !== null && (
+        <View style={styles.pointsBadge}>
+          <Text style={styles.pointsBadgeText}>
+            {userPrediction.points} נקודות
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
 export default function MatchCard({ match, onScoreChange, hasPendingChanges = false }: MatchCardProps) {
   const [homeScore, setHomeScore] = React.useState<string>(
     match.user_prediction.home_score?.toString() || ''
@@ -73,6 +143,9 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
         <Text style={styles.dateText}>{formatDate(match.date)}</Text>
       </View>
       
+      {/* Status indicator */}
+      <MatchStatusIndicator status={match.status} actualResult={match.actual_result} />
+      
         <View style={styles.matchLayout}>
           {/* Home Flag - Fixed position at left edge */}
           <View style={styles.homeFlagContainer}>
@@ -128,13 +201,14 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
           </View>
         </View>
 
-        {/* Points - Below match layout */}
-        {match.user_prediction.points !== null && (
-          <View style={styles.pointsContainer}>
-            <Text style={styles.pointsText}>
-              Points: {match.user_prediction.points}
-            </Text>
-          </View>
+        {/* Actual result and points - Show only if result exists */}
+        {match.actual_result && (
+          <MatchResultDisplay 
+            actualResult={match.actual_result}
+            userPrediction={match.user_prediction}
+            homeTeam={match.home_team}
+            awayTeam={match.away_team}
+          />
         )}
     </View>
   );
@@ -284,5 +358,73 @@ const styles = StyleSheet.create({
     color: '#38a169',
     textAlign: 'center',
     fontWeight: '600',
+  },
+  // Status indicator styles
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    marginTop: -4,
+  },
+  liveIndicator: {
+    backgroundColor: '#FF0000',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  liveText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  lockedText: {
+    color: '#888',
+    fontSize: 12,
+    marginLeft: 8,
+  },
+  finishedText: {
+    color: '#4CAF50',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  // Result display styles
+  resultContainer: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: '#E3F2FD',
+    padding: 10,
+    borderRadius: 8,
+    minWidth: 120,
+    borderWidth: 1,
+    borderColor: '#BBDEFB',
+  },
+  resultLabel: {
+    fontSize: 10,
+    color: '#666',
+    marginBottom: 4,
+  },
+  resultScore: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1976D2',
+    marginBottom: 4,
+  },
+  winnerText: {
+    fontSize: 11,
+    color: '#555',
+    marginBottom: 6,
+  },
+  pointsBadge: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  pointsBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

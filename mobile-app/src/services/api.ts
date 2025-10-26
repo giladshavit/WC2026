@@ -72,6 +72,11 @@ export interface Match {
   status: string;
   user_prediction: UserPrediction;
   can_edit: boolean;
+  actual_result?: {
+    home_score: number;
+    away_score: number;
+    winner_team_id: number | null;
+  } | null;
   group?: string;
   match_number?: number;
   home_team_source?: string;
