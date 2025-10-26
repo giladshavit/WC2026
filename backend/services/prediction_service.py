@@ -559,12 +559,30 @@ class PredictionService:
                 GroupStagePrediction.group_id == group.id
             ).first()
             
+            # Get group result if exists
+            from models.results import GroupStageResult
+            group_result = db.query(GroupStageResult).filter(
+                GroupStageResult.group_id == group.id
+            ).first()
+            
             # Build response - always include group and teams
             group_data = {
                 "group_id": group.id,
                 "group_name": group.name,
                 "teams": teams,
             }
+            
+            # Add result data if exists
+            if group_result:
+                group_data["result"] = {
+                    "id": group_result.id,
+                    "first_place": group_result.first_place,
+                    "second_place": group_result.second_place,
+                    "third_place": group_result.third_place,
+                    "fourth_place": group_result.fourth_place,
+                }
+            else:
+                group_data["result"] = None
             
             # Add prediction data if exists
             if pred:

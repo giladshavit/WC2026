@@ -18,43 +18,86 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false }: 
     return null;
   };
 
-  // Helper function to get position text
-  const getPositionText = (position: number | null): string => {
-    if (position === null) return '-';
-    return `${position}`;
+  // Helper function to get actual position from result
+  const getActualPosition = (teamId: number): number | null => {
+    if (!group.result) return null;
+    if (group.result.first_place === teamId) return 1;
+    if (group.result.second_place === teamId) return 2;
+    if (group.result.third_place === teamId) return 3;
+    if (group.result.fourth_place === teamId) return 4;
+    return null;
   };
+
+  // Helper function to check if prediction is correct
+  const isPredictionCorrect = (teamId: number): boolean | null => {
+    const predictedPosition = getTeamPosition(teamId);
+    const actualPosition = getActualPosition(teamId);
+    
+    if (predictedPosition === null || actualPosition === null) return null;
+    return predictedPosition === actualPosition;
+  };
+
+  // Check if group has result - if yes, it's not editable
+  const hasResult = group.result !== null && group.result !== undefined;
+  const isEditable = group.is_editable && !hasResult;
 
   return (
     <View style={[styles.container, isIncomplete && styles.containerIncomplete]}>
       {/* Group Header */}
       <View style={styles.header}>
         <Text style={styles.groupName}>Group {group.group_name}</Text>
-        {group.points > 0 && (
-          <Text style={styles.points}>{group.points} pts</Text>
+        {hasResult && (
+          <View style={[styles.pointsContainer, group.points === 0 && styles.pointsContainerZero]}>
+            <Text style={styles.pointsText}>
+              {group.points} נק׳
+            </Text>
+          </View>
         )}
       </View>
 
       {/* Teams List */}
       <View style={styles.teamsContainer}>
+        {/* Display teams in the exact order received from server (already sorted if needed) */}
         {group.teams.map((team) => {
           const position = getTeamPosition(team.id);
+          const isCorrect = isPredictionCorrect(team.id);
+          const hasResult = group.result !== null && group.result !== undefined;
+          
+          // Determine badge color based on result
+          let badgeStyle = styles.positionBadge;
+          let badgeTextStyle = styles.positionText;
+          
+          if (hasResult && isCorrect !== null) {
+            if (isCorrect) {
+              // Correct prediction - green
+              badgeStyle = styles.positionBadgeCorrect;
+            } else {
+              // Wrong prediction - red
+              badgeStyle = styles.positionBadgeWrong;
+            }
+          }
+          
+          if (position === null) {
+            if (hasResult && isCorrect !== null) {
+              // Already set to correct/wrong above
+            } else {
+              badgeStyle = {...styles.positionBadge, ...styles.positionBadgePlaceholder};
+              badgeTextStyle = {...styles.positionText, ...styles.positionTextPlaceholder};
+            }
+          }
+          
           return (
             <TouchableOpacity
               key={team.id}
               style={styles.teamRow}
-              onPress={() => onTeamPress(group.group_id, team.id)}
-              activeOpacity={0.7}
+              onPress={() => isEditable && onTeamPress(group.group_id, team.id)}
+              activeOpacity={isEditable ? 0.7 : 1}
+              disabled={!isEditable}
             >
               {/* Position Badge - always show (with placeholder or number) */}
-              <View style={[
-                styles.positionBadge,
-                position === null && styles.positionBadgePlaceholder
-              ]}>
-                <Text style={[
-                  styles.positionText,
-                  position === null && styles.positionTextPlaceholder
-                ]}>
-                  {position !== null ? position : '○'}
+              <View style={badgeStyle}>
+                <Text style={badgeTextStyle}>
+                  {position !== null ? position : ''}
                 </Text>
               </View>
 
@@ -109,10 +152,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#667eea',
   },
-  points: {
+  pointsContainer: {
+    backgroundColor: '#48bb78',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  pointsContainerZero: {
+    backgroundColor: '#FF9800',
+  },
+  pointsText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#38a169',
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
   teamsContainer: {
     padding: 8,
@@ -130,6 +182,24 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     backgroundColor: '#667eea',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  positionBadgeCorrect: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#48bb78', // Green for correct
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  positionBadgeWrong: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#f56565', // Red for wrong
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,

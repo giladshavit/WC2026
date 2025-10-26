@@ -96,6 +96,13 @@ export interface GroupPrediction {
   is_editable: boolean;
   created_at: string | null;
   updated_at: string | null;
+  result?: {
+    id: number;
+    first_place: number;
+    second_place: number;
+    third_place: number;
+    fourth_place: number;
+  } | null;
 }
 
 export interface ThirdPlaceTeam {

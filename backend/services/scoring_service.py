@@ -248,7 +248,7 @@ class ScoringService:
             new_points = ScoringService.calculate_group_prediction_points(prediction, result)
             
             # Update prediction points
-            old_points = prediction.poinמעולהts
+            old_points = prediction.points
             prediction.points = new_points
             
             # Update user scores in user_scores table

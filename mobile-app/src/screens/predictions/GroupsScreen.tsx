@@ -12,6 +12,7 @@ export default function GroupsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [incompleteGroups, setIncompleteGroups] = useState<number[]>([]);
+  const [groupsScore, setGroupsScore] = useState<number | null>(null);
   const [pendingChanges, setPendingChanges] = useState<Map<number, {
     first_place: number | null;
     second_place: number | null;
@@ -67,7 +68,44 @@ export default function GroupsScreen() {
       }
       
       const data: GroupsResponse = await apiService.getGroupPredictions(userId);
-      setGroups(data.groups);
+      
+      // Sort teams for groups with all 4 positions filled
+      const sortedGroups = data.groups.map(group => {
+        const allPositionsFilled = 
+          group.first_place !== null && 
+          group.second_place !== null && 
+          group.third_place !== null && 
+          group.fourth_place !== null;
+        
+        // Sort teams ONLY if all 4 positions are filled
+        if (allPositionsFilled) {
+          const sortedTeams = [...group.teams].sort((a, b) => {
+            // Find position for each team
+            let posA = 5; // default (not predicted)
+            let posB = 5;
+            
+            if (a.id === group.first_place) posA = 1;
+            else if (a.id === group.second_place) posA = 2;
+            else if (a.id === group.third_place) posA = 3;
+            else if (a.id === group.fourth_place) posA = 4;
+            
+            if (b.id === group.first_place) posB = 1;
+            else if (b.id === group.second_place) posB = 2;
+            else if (b.id === group.third_place) posB = 3;
+            else if (b.id === group.fourth_place) posB = 4;
+            
+            return posA - posB;
+          });
+          
+          return { ...group, teams: sortedTeams };
+        }
+        
+        // Keep original order if not all filled
+        return group;
+      });
+      
+      setGroups(sortedGroups);
+      setGroupsScore(data.groups_score);
     } catch (error) {
       console.error('Error fetching groups:', error);
       Alert.alert('Error', 'Could not load groups. Please check that the server is running.');
@@ -180,13 +218,20 @@ export default function GroupsScreen() {
         prev.filter(id => !completeGroups.some(g => g.group_id === id))
       );
       
-      // Update groups state with saved predictions and sort teams
+      // Update groups state with saved predictions and sort teams ONLY if all 4 positions are filled
       setGroups(prevGroups => {
         return prevGroups.map(group => {
           const savedGroup = completeGroups.find(g => g.group_id === group.group_id);
           if (savedGroup) {
-            // Sort teams according to predictions
-            const sortedTeams = [...group.teams].sort((a, b) => {
+            // Check if all 4 positions are filled
+            const allPositionsFilled = 
+              savedGroup.first_place !== null && 
+              savedGroup.second_place !== null && 
+              savedGroup.third_place !== null && 
+              savedGroup.fourth_place !== null;
+            
+            // Sort teams ONLY if all 4 positions are filled
+            const sortedTeams = allPositionsFilled ? [...group.teams].sort((a, b) => {
               // Find position for each team
               let posA = 5; // default (not predicted)
               let posB = 5;
@@ -202,12 +247,12 @@ export default function GroupsScreen() {
               else if (b.id === savedGroup.fourth_place) posB = 4;
               
               return posA - posB;
-            });
+            }) : group.teams; // Keep original order if not all filled
             
             return {
               ...group,
               id: group.id || Date.now(), // Assign temp ID if null
-              teams: sortedTeams, // Sorted teams
+              teams: sortedTeams, // Sorted teams (only if all filled)
               first_place: savedGroup.first_place,
               second_place: savedGroup.second_place,
               third_place: savedGroup.third_place,
@@ -384,6 +429,12 @@ export default function GroupsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Group Predictions</Text>
+          {groupsScore !== null && (
+            <Text style={styles.totalScore}>{groupsScore} pts</Text>
+          )}
+        </View>
         {hasChanges && (
           <TouchableOpacity 
             style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
@@ -407,6 +458,7 @@ export default function GroupsScreen() {
             second_place: pendingChange.second_place,
             third_place: pendingChange.third_place,
             fourth_place: pendingChange.fourth_place,
+            // Keep original points, result, and is_editable from server
           } : item;
 
           return (
@@ -438,10 +490,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 0,
+    paddingVertical: 10,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+  },
+  titleContainer: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#667eea',
+    marginBottom: 4,
+  },
+  totalScore: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#48bb78',
   },
   saveButton: {
     backgroundColor: '#48bb78',
