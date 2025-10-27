@@ -16,8 +16,10 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const [saving, setSaving] = useState(false);
   const [selectedTeams, setSelectedTeams] = useState<Set<number>>(new Set());
   const [changedGroups, setChangedGroups] = useState<string[]>([]);
+  const [thirdPlaceResult, setThirdPlaceResult] = useState<any>(null);
+  const [thirdPlaceScore, setThirdPlaceScore] = useState<number | null>(null);
+  const [isEditable, setIsEditable] = useState(true);
   const [headerHeight, setHeaderHeight] = useState(0);
-  const [subtitleHeight, setSubtitleHeight] = useState(0);
   const [counterHeight, setCounterHeight] = useState(0);
 
   const insets = useSafeAreaInsets();
@@ -59,7 +61,6 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     const reservedSpace = 
       insets.top + // Safe area top
       headerHeight + // Header with "Predictions" title
-      subtitleHeight + // "Select 8 teams..." subtitle
       counterHeight + // "Selected: X/8" counter
       tabBarHeight + // Bottom tab bar
       150; // Additional padding
@@ -110,6 +111,15 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       
       // Initialize changed groups from prediction data
       setChangedGroups(data.prediction?.changed_groups || []);
+      
+      // Store result data if exists
+      setThirdPlaceResult(data.result || null);
+      
+      // Store is_editable status
+      setIsEditable(data.prediction?.is_editable ?? true);
+      
+      // Store third place score
+      setThirdPlaceScore(data.third_place_score);
     } catch (error) {
       console.error('Error fetching third place data:', error);
       Alert.alert('Error', 'Could not load third place teams. Please check that the server is running.');
@@ -136,6 +146,9 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   };
 
   const handleTeamPress = (teamId: number) => {
+    // Don't allow changes if not editable
+    if (!isEditable) return;
+    
     // Find the team to get its group name
     const team = teams.find(t => t.id === teamId);
     if (!team) return;
@@ -216,13 +229,25 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     const isSelected = selectedTeams.has(item.id);
     const isChanged = changedGroups.includes(item.group_name);
     
+    // Check if there's a result and if this team's group is correct
+    const hasResult = thirdPlaceResult !== null;
+    const isEditable = hasResult ? false : true; // If result exists, not editable
+    
+    // Get the result groups from the result
+    let isCorrect = null;
+    if (hasResult && thirdPlaceResult.result_groups && isSelected) {
+      // Check if this team's group appears in the result groups
+      isCorrect = thirdPlaceResult.result_groups.includes(item.group_name);
+    }
+    
     // Logic: Changed (yellow border) + Selected (green background) can coexist
+    // But if there's a result, don't show changed indicator
     let cardStyle: any = styles.teamCard;
-    if (isChanged && isSelected) {
-      // Both changed and selected: yellow border + green background
+    if (isChanged && isSelected && !hasResult) {
+      // Both changed and selected (and no result): yellow border + green background
       cardStyle = [styles.teamCard, styles.teamCardSelected, styles.teamCardChanged];
-    } else if (isChanged) {
-      // Only changed: yellow border only
+    } else if (isChanged && !hasResult) {
+      // Only changed (and no result): yellow border only
       cardStyle = [styles.teamCard, styles.teamCardChanged];
     } else if (isSelected) {
       // Only selected: green border + green background
@@ -233,7 +258,8 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       <TouchableOpacity
         style={[cardStyle, { height: getCardHeight() }]}
         onPress={() => handleTeamPress(item.id)}
-        activeOpacity={0.7}
+        activeOpacity={isEditable ? 0.7 : 1}
+        disabled={!isEditable}
       >
         {/* Flag in center */}
         {item.flag_url && (
@@ -253,15 +279,21 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         {/* Group name at bottom */}
         <Text style={styles.groupName}>Group {item.group_name}</Text>
         
-        {/* Selection indicators */}
-        {isSelected && (
+        {/* Selection indicators - only show if no result */}
+        {isSelected && !hasResult && (
           <View style={styles.selectedIndicator}>
             <Text style={styles.selectedText}>✓</Text>
           </View>
         )}
-        {isChanged && (
+        {isChanged && !hasResult && (
           <View style={styles.changedIndicator}>
             <Text style={styles.changedText}>!</Text>
+          </View>
+        )}
+        {/* Show correctness indicator if there's a result and team is selected */}
+        {hasResult && isSelected && isCorrect !== null && (
+          <View style={[styles.correctnessIndicator, isCorrect ? styles.correctIndicator : styles.incorrectIndicator]}>
+            <Text style={styles.correctnessText}>{isCorrect ? '✓' : '✗'}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -294,33 +326,31 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
       >
         <View style={styles.headerTop}>
-          <View style={styles.titleContainer}>
-          </View>
-        </View>
-        <Text 
-          style={styles.subtitle}
-          onLayout={(event) => setSubtitleHeight(event.nativeEvent.layout.height)}
-        >
-          Select 8 teams that will advance from 3rd place
-        </Text>
-        <View style={styles.counterRow}>
+          <View style={{ flex: 1 }}></View>
           <Text 
             style={styles.counter}
             onLayout={(event) => setCounterHeight(event.nativeEvent.layout.height)}
           >
             Selected: {selectedTeams.size}/8
           </Text>
-          {selectedTeams.size > 0 && (
-            <TouchableOpacity 
-              style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
-              onPress={handleSave}
-              disabled={saving}
-            >
-              <Text style={styles.saveButtonText}>
-                {saving ? 'Saving...' : 'Save'}
-              </Text>
-            </TouchableOpacity>
-          )}
+          <View style={styles.rightSection}>
+            {thirdPlaceScore !== null && (
+              <View style={styles.totalScoreContainer}>
+                <Text style={styles.totalScore}>{thirdPlaceScore} pts</Text>
+              </View>
+            )}
+            {isEditable && selectedTeams.size > 0 && (
+              <TouchableOpacity 
+                style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
+                onPress={handleSave}
+                disabled={saving}
+              >
+                <Text style={styles.saveButtonText}>
+                  {saving ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
       
@@ -346,19 +376,40 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
     paddingVertical: 4,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#f7fafc',
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    position: 'relative',
   },
-  titleContainer: {
+  counter: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#38a169',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+  },
+  rightSection: {
+    flex: 1,
     flexDirection: 'row',
+    justifyContent: 'flex-end',
     alignItems: 'center',
+    gap: 8,
+  },
+  totalScoreContainer: {
+    backgroundColor: '#48bb78',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  totalScore: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
   saveButton: {
     backgroundColor: '#48bb78',
@@ -378,17 +429,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#4a5568',
     marginBottom: 8,
-  },
-  counterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  counter: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#38a169',
   },
   loadingContainer: {
     flex: 1,
@@ -483,6 +523,27 @@ const styles = StyleSheet.create({
   changedText: {
     color: '#fff',
     fontSize: 12,
+    fontWeight: 'bold',
+  },
+  correctnessIndicator: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  correctIndicator: {
+    backgroundColor: '#48bb78',
+  },
+  incorrectIndicator: {
+    backgroundColor: '#f56565',
+  },
+  correctnessText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

@@ -1,5 +1,11 @@
-// Use localhost for emulator, local network IP for physical device
-const API_BASE_URL = 'http://192.168.1.236:8000';
+// Use localhost for emulator/web, network IP for physical device
+import { Platform } from 'react-native';
+
+// Change this to your Mac's IP address when testing on physical device
+const DEVICE_IP = '172.20.10.14';
+
+// For iOS Simulator, use localhost. For physical device, use network IP
+const API_BASE_URL = Platform.OS === 'web' ? 'http://localhost:8000' : `http://${DEVICE_IP}:8000`;
 
 export interface Team {
   id: number;
@@ -125,6 +131,17 @@ export interface ThirdPlacePredictionData {
     updated_at: string | null;
   };
   third_place_score: number | null;
+  result?: {
+    first_team_qualifying: number;
+    second_team_qualifying: number;
+    third_team_qualifying: number;
+    fourth_team_qualifying: number;
+    fifth_team_qualifying: number;
+    sixth_team_qualifying: number;
+    seventh_team_qualifying: number;
+    eighth_team_qualifying: number;
+    result_groups: (string | null)[];
+  } | null;
   error?: string; // Optional error field for API errors
 }
 

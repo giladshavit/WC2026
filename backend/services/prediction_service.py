@@ -958,10 +958,54 @@ class PredictionService:
         # Get user scores
         user_scores = db.query(UserScores).filter(UserScores.user_id == user_id).first()
         
+        # Get third place result if exists
+        from models.results import ThirdPlaceResult
+        third_place_result = db.query(ThirdPlaceResult).first()
+        
+        # If result exists, make prediction not editable
+        if third_place_result and prediction:
+            prediction_info['is_editable'] = False
+        
+        result_data = None
+        if third_place_result:
+            # Get the actual qualifying teams from the result
+            result_teams = [
+                third_place_result.first_team_qualifying,
+                third_place_result.second_team_qualifying,
+                third_place_result.third_team_qualifying,
+                third_place_result.fourth_team_qualifying,
+                third_place_result.fifth_team_qualifying,
+                third_place_result.sixth_team_qualifying,
+                third_place_result.seventh_team_qualifying,
+                third_place_result.eighth_team_qualifying
+            ]
+            
+            # Get group names for result teams
+            result_groups = []
+            for team_id in result_teams:
+                if team_id:
+                    group_name = ScoringService.get_team_group_name(team_id, db)
+                    result_groups.append(group_name if group_name else None)
+                else:
+                    result_groups.append(None)
+            
+            result_data = {
+                "first_team_qualifying": third_place_result.first_team_qualifying,
+                "second_team_qualifying": third_place_result.second_team_qualifying,
+                "third_team_qualifying": third_place_result.third_team_qualifying,
+                "fourth_team_qualifying": third_place_result.fourth_team_qualifying,
+                "fifth_team_qualifying": third_place_result.fifth_team_qualifying,
+                "sixth_team_qualifying": third_place_result.sixth_team_qualifying,
+                "seventh_team_qualifying": third_place_result.seventh_team_qualifying,
+                "eighth_team_qualifying": third_place_result.eighth_team_qualifying,
+                "result_groups": result_groups  # List of group names for each qualifying team
+            }
+        
         return {
             "eligible_teams": third_place_teams,
             "prediction": prediction_info,
-            "third_place_score": user_scores.third_place_score if user_scores else None
+            "third_place_score": user_scores.third_place_score if user_scores else None,
+            "result": result_data
         }
     
     @staticmethod
