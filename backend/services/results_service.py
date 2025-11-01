@@ -8,7 +8,7 @@ from models.matches_template import MatchTemplate
 from models.predictions import KnockoutStagePrediction
 from models.groups import Group
 from .scoring_service import ScoringService
-from .prediction_service import PredictionService, PredictionStatus
+from .predictions import PredictionService, PredictionStatus
 
 
 class ResultsService:
@@ -822,3 +822,45 @@ class ResultsService:
                     PredictionService.set_status(prediction, new_status)
             
             db.commit()
+    
+    @staticmethod
+    def reset_all_user_scores(db: Session) -> Dict[str, Any]:
+        """
+        Reset all user scores to zero and all prediction points to zero (admin only)
+        """
+        from models.user_scores import UserScores
+        from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
+        
+        try:
+            # Get all user scores
+            all_scores = db.query(UserScores).all()
+            count = 0
+            
+            for user_scores in all_scores:
+                user_scores.matches_score = 0
+                user_scores.groups_score = 0
+                user_scores.third_place_score = 0
+                user_scores.knockout_score = 0
+                user_scores.penalty = 0
+                user_scores.total_points = 0
+                count += 1
+            
+            # Reset all prediction points
+            match_pred_count = db.query(MatchPrediction).update({MatchPrediction.points: 0})
+            group_pred_count = db.query(GroupStagePrediction).update({GroupStagePrediction.points: 0})
+            third_place_pred_count = db.query(ThirdPlacePrediction).update({ThirdPlacePrediction.points: 0})
+            knockout_pred_count = db.query(KnockoutStagePrediction).update({KnockoutStagePrediction.points: 0})
+            
+            db.commit()
+            
+            return {
+                "message": f"Successfully reset scores for {count} users and {match_pred_count + group_pred_count + third_place_pred_count + knockout_pred_count} predictions",
+                "users_reset": count,
+                "match_predictions_reset": match_pred_count,
+                "group_predictions_reset": group_pred_count,
+                "third_place_predictions_reset": third_place_pred_count,
+                "knockout_predictions_reset": knockout_pred_count
+            }
+        except Exception as e:
+            db.rollback()
+            raise Exception(f"Error resetting user scores: {str(e)}")

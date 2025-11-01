@@ -10,7 +10,7 @@ from services.group_service import GroupService
 from services.results_service import ResultsService
 from services.stage_manager import StageManager, Stage
 from models.groups import Group
-from models.matches import MatchStatus
+from models.matches import Match, MatchStatus
 from database import get_db
 
 router = APIRouter()
@@ -450,4 +450,73 @@ def rebuild_round32_bracket(db: Session = Depends(get_db)):
         
     except Exception as e:
         print(f"❌ Error in rebuild_round32_bracket: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/admin/reset-all-results", response_model=Dict[str, Any])
+def reset_all_results_and_scores(db: Session = Depends(get_db)):
+    """
+    Reset all results and user scores (admin only)
+    This will:
+    1. Delete all match results
+    2. Delete all group stage results
+    3. Delete all third place results
+    4. Delete all knockout stage results
+    5. Reset all user scores to zero
+    6. Reset all match statuses to scheduled
+    """
+    try:
+        import subprocess
+        import os
+        
+        # Step 1: Delete all results using the existing script
+        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "deletion", "delete_all_results.py")
+        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
+        
+        print(f"🔧 Running delete_all_results script...")
+        print(f"Script path: {script_path}")
+        print(f"Python path: {python_path}")
+        
+        process_result = subprocess.run(
+            [python_path, script_path],
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(os.path.dirname(__file__))
+        )
+        
+        print(f"Script return code: {process_result.returncode}")
+        if process_result.stdout:
+            print(f"Script stdout: {process_result.stdout}")
+        if process_result.stderr:
+            print(f"Script stderr: {process_result.stderr}")
+        
+        if process_result.returncode != 0:
+            raise Exception(f"Script failed with return code {process_result.returncode}: {process_result.stderr}")
+        
+        # Step 2: Reset all user scores and prediction points
+        scores_result = ResultsService.reset_all_user_scores(db)
+        
+        # Step 3: Reset match statuses to scheduled
+        matches = db.query(Match).all()
+        match_count = 0
+        for match in matches:
+            if match.status != "scheduled":
+                match.status = "scheduled"
+                match_count += 1
+        
+        db.commit()
+        
+        return {
+            "message": "All results and scores reset successfully",
+            "results_deleted": True,
+            "users_reset": scores_result["users_reset"],
+            "match_predictions_reset": scores_result["match_predictions_reset"],
+            "group_predictions_reset": scores_result["group_predictions_reset"],
+            "third_place_predictions_reset": scores_result["third_place_predictions_reset"],
+            "knockout_predictions_reset": scores_result["knockout_predictions_reset"],
+            "matches_reset": match_count
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in reset_all_results_and_scores: {e}")
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

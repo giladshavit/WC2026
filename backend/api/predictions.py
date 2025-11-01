@@ -4,7 +4,7 @@ from typing import Dict, Any, List
 from pydantic import BaseModel
 from dataclasses import dataclass
 
-from services.prediction_service import PredictionService, PlacesPredictions
+from services.predictions import PredictionService, PlacesPredictions
 from services.group_service import GroupService
 from services.stage_manager import StageManager, Stage
 from services.match_service import MatchService
@@ -105,22 +105,38 @@ def create_or_update_batch_group_predictions(
     Create or update multiple group predictions (batch)
     Only accepts complete predictions (all 4 positions filled)
     """
-    # Check if group predictions are editable at current stage
-    current_stage = StageManager.get_current_stage(db)
-    if current_stage.value > Stage.GROUP_CYCLE_2.value:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Group predictions are no longer editable. Current stage: {current_stage.name}"
+    try:
+        print(f"📥 Received batch group prediction request for user_id: {batch_request.user_id}")
+        print(f"📥 Number of predictions: {len(batch_request.predictions)}")
+        print(f"📥 Predictions data: {batch_request.predictions}")
+        
+        # Check if group predictions are editable at current stage
+        current_stage = StageManager.get_current_stage(db)
+        if current_stage.value > Stage.GROUP_CYCLE_2.value:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Group predictions are no longer editable. Current stage: {current_stage.name}"
+            )
+        
+        result = PredictionService.create_or_update_batch_group_predictions(
+            db, batch_request.user_id, batch_request.predictions
         )
-    
-    result = PredictionService.create_or_update_batch_group_predictions(
-        db, batch_request.user_id, batch_request.predictions
-    )
-    
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    return result
+        
+        print(f"✅ Batch group prediction result: {result}")
+        
+        if "error" in result:
+            print(f"❌ Error in batch group prediction: {result['error']}")
+            raise HTTPException(status_code=400, detail=result["error"])
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Exception in batch group prediction endpoint: {str(e)}")
+        print(f"❌ Exception type: {type(e).__name__}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 # ========================================
 # Third Place Predictions Endpoints
@@ -260,9 +276,8 @@ def update_knockout_prediction_winner(
     """
     try:
         # Check if knockout prediction is editable
-        prediction = db.query(KnockoutStagePrediction).filter(
-            KnockoutStagePrediction.id == prediction_id
-        ).first()
+        from services.predictions import PredictionRepository
+        prediction = PredictionRepository.get_knockout_prediction_by_id(db, prediction_id)
         
         if not prediction:
             raise HTTPException(status_code=404, detail="Knockout prediction not found")
@@ -280,172 +295,3 @@ def update_knockout_prediction_winner(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating prediction: {str(e)}")
-
-# ========================================
-# Group Endpoints (Legacy - for backward compatibility)
-# ========================================
-
-@router.get("/groups", response_model=List[Dict[str, Any]])
-def get_groups_with_teams(db: Session = Depends(get_db)):
-    """
-    Get all groups with their teams (without predictions)
-    """
-    return GroupService.get_all_groups_with_teams(db)
-
-@router.get("/groups/{group_name}", response_model=Dict[str, Any])
-def get_group_with_teams(group_name: str, db: Session = Depends(get_db)):
-    """
-    Get a specific group with its teams
-    """
-    result = GroupService.get_group_with_teams(db, group_name)
-    
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-    
-    return result
-
-@router.post("/predictions/group-stage", response_model=Dict[str, Any])
-def create_or_update_group_prediction(
-    group_prediction: GroupPredictionRequest,
-    db: Session = Depends(get_db)
-):
-    """
-    Create or update a group prediction
-    """
-    try:
-        # Check if group predictions are editable at current stage
-        current_stage = StageManager.get_current_stage(db)
-        if current_stage.value > Stage.GROUP_CYCLE_2.value:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Group predictions are no longer editable. Current stage: {current_stage.name}"
-            )
-        
-        # Create PlacesPredictions object
-        places = PlacesPredictions(
-            first_place=group_prediction.first_place,
-            second_place=group_prediction.second_place,
-            third_place=group_prediction.third_place,
-            fourth_place=group_prediction.fourth_place
-        )
-        
-        result = PredictionService.create_or_update_group_prediction(
-            db, 
-            group_prediction.user_id, 
-            group_prediction.group_id, 
-            places
-        )
-        
-        return result
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error updating group prediction: {str(e)}"
-        )
-
-@router.get("/users/{user_id}/group-predictions", response_model=List[Dict[str, Any]])
-def get_user_group_predictions(user_id: int, db: Session = Depends(get_db)):
-    """
-    Get all user's group predictions
-    """
-    return PredictionService.get_group_predictions(db, user_id)
-
-@router.get("/predictions/stage/current", response_model=Dict[str, Any])
-async def get_current_stage_info(db: Session = Depends(get_db)):
-    """Get current tournament stage information for penalty calculations."""
-    current_stage = StageManager.get_current_stage(db)
-    
-    return {
-        "current_stage": current_stage.name,
-        "stage_value": current_stage.value,
-        "penalty_per_change": current_stage.get_penalty_for(),
-        "description": f"Current stage: {current_stage.name}"
-    }
-
-@router.get("/users/{user_id}/third-place-predictions", response_model=List[Dict[str, Any]])
-def get_user_third_place_predictions(user_id: int, db: Session = Depends(get_db)):
-    """
-    Get user's third-place predictions
-    """
-    return PredictionService.get_third_place_predictions(db, user_id)
-
-@router.get("/users/{user_id}/third-place-eligible-teams", response_model=List[Dict[str, Any]])
-def get_third_place_eligible_teams(user_id: int, db: Session = Depends(get_db)):
-    """
-    Get the 12 teams that are third-place candidates based on the user's group predictions
-    """
-    return PredictionService.get_third_place_eligible_teams(db, user_id)
-
-@router.get("/users/{user_id}/predictions", response_model=Dict[str, Any])
-def get_user_predictions(user_id: int, db: Session = Depends(get_db)):
-    """
-    Get all user's predictions
-    """
-    result = PredictionService.get_user_predictions(db, user_id)
-    
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-    
-    return result
-
-@router.put("/matches/{match_id}/predictions", response_model=Dict[str, Any])
-def create_or_update_match_prediction(
-    match_id: int, 
-    prediction: MatchPredictionRequest, 
-    user_id: int,  # TODO: should come from authentication
-    db: Session = Depends(get_db)
-):
-    """
-    Create or update a single match prediction
-    """
-    # Check if match predictions are editable (they can be edited until group cycle 1 starts)
-    current_stage = StageManager.get_current_stage(db)
-    if current_stage.value > Stage.PRE_GROUP_STAGE.value:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Match predictions are no longer editable. Current stage: {current_stage.name}"
-        )
-    
-    result = PredictionService.create_or_update_match_prediction(
-        db, user_id, match_id, prediction.home_score, prediction.away_score
-    )
-    
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    return result
-
-@router.put("/predictions/{match_id}", response_model=Dict[str, Any])
-def update_single_prediction(
-    match_id: int,
-    prediction_data: Dict[str, Any],
-    db: Session = Depends(get_db)
-):
-    """
-    Update a single prediction (home_score or away_score)
-    """
-    user_id = 1  # TODO: should come from authentication
-    
-    # Fetch current prediction
-    current_prediction = PredictionService.get_match_prediction(db, user_id, match_id)
-    
-    if not current_prediction:
-        # Create a new prediction
-        home_score = prediction_data.get('home_score', 0)
-        away_score = prediction_data.get('away_score', 0)
-        result = PredictionService.create_or_update_match_prediction(
-            db, user_id, match_id, home_score, away_score
-        )
-    else:
-        # Update existing prediction
-        home_score = prediction_data.get('home_score', current_prediction.get('home_score', 0))
-        away_score = prediction_data.get('away_score', current_prediction.get('away_score', 0))
-        result = PredictionService.create_or_update_match_prediction(
-            db, user_id, match_id, home_score, away_score
-        )
-    
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    return result

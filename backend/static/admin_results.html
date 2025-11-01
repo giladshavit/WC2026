@@ -286,7 +286,7 @@
                         </div>
 
                         <!-- Stage Information -->
-                        <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="bg-gray-50 rounded-lg p-4 mb-6">
                             <h3 class="text-lg font-semibold text-gray-800 mb-2">Stage Information</h3>
                             <div class="text-sm text-gray-600 space-y-1">
                                 <p><strong>Pre Group Stage:</strong> All predictions editable (penalty: 0)</p>
@@ -298,6 +298,22 @@
                                 <p><strong>Semi:</strong> Blocks semi knockout predictions (penalty: 10)</p>
                                 <p><strong>Final:</strong> Blocks final knockout predictions (penalty: 11)</p>
                             </div>
+                        </div>
+
+                        <!-- Reset All Results and Scores -->
+                        <div class="mb-6 p-4 bg-red-50 rounded-lg border border-red-200">
+                            <h3 class="text-lg font-semibold text-red-800 mb-2">⚠️ Reset All Results and Scores</h3>
+                            <p class="text-sm text-red-600 mb-4">
+                                This will delete ALL results and reset ALL user scores and prediction points to zero.
+                                This action cannot be undone!
+                            </p>
+                            <button 
+                                id="reset-all-button"
+                                onclick="resetAllResultsAndScores(this)" 
+                                class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                            >
+                                🗑️ Reset All Results and Scores
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1325,6 +1341,83 @@
                 } catch (error) {
                     console.error('Error resetting stage:', error);
                     alert('Error resetting stage');
+                }
+            }
+        }
+
+        async function resetAllResultsAndScores(buttonElement) {
+            const confirmation = confirm(
+                '⚠️ WARNING: This will permanently delete ALL results and reset ALL scores!\n\n' +
+                'This will:\n' +
+                '1. Delete all match results\n' +
+                '2. Delete all group stage results\n' +
+                '3. Delete all third place results\n' +
+                '4. Delete all knockout stage results\n' +
+                '5. Reset all user scores to zero\n' +
+                '6. Reset all prediction points to zero\n' +
+                '7. Reset all match statuses to scheduled\n\n' +
+                'This action CANNOT be undone!\n\n' +
+                'Are you absolutely sure?'
+            );
+            
+            if (!confirmation) {
+                return;
+            }
+            
+            const button = buttonElement || document.getElementById('reset-all-button');
+            
+            try {
+                if (button) {
+                    button.disabled = true;
+                    button.textContent = '⏳ Resetting...';
+                    button.classList.add('opacity-50');
+                }
+                
+                const response = await fetch('/api/admin/reset-all-results', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    alert(
+                        '✅ All results and scores reset successfully!\n\n' +
+                        `Users reset: ${data.users_reset}\n` +
+                        `Match predictions reset: ${data.match_predictions_reset}\n` +
+                        `Group predictions reset: ${data.group_predictions_reset}\n` +
+                        `Third place predictions reset: ${data.third_place_predictions_reset}\n` +
+                        `Knockout predictions reset: ${data.knockout_predictions_reset}\n` +
+                        `Matches reset: ${data.matches_reset}`
+                    );
+                    
+                    // Reload all data
+                    matches = [];
+                    groups = [];
+                    thirdPlaceResult = null;
+                    knockoutMatches = [];
+                    if (document.getElementById('matches-tab').classList.contains('active')) {
+                        fetchMatches();
+                    } else if (document.getElementById('groups-tab').classList.contains('active')) {
+                        fetchGroups();
+                    } else if (document.getElementById('third-place-tab').classList.contains('active')) {
+                        fetchThirdPlaceResults();
+                    } else if (document.getElementById('knockout-tab').classList.contains('active')) {
+                        fetchKnockoutMatches();
+                    }
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.detail || 'Failed to reset results and scores'}`);
+                }
+            } catch (error) {
+                console.error('Error resetting results and scores:', error);
+                alert('Error resetting results and scores');
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = '🗑️ Reset All Results and Scores';
+                    button.classList.remove('opacity-50');
                 }
             }
         }
