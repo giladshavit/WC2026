@@ -2,7 +2,7 @@
 import { Platform } from 'react-native';
 
 // Change this to your Mac's IP address when testing on physical device
-const DEVICE_IP = '172.20.10.14';
+const DEVICE_IP = '192.168.1.236';
 
 // For iOS Simulator, use localhost. For physical device, use network IP
 const API_BASE_URL = Platform.OS === 'web' ? 'http://localhost:8000' : `http://${DEVICE_IP}:8000`;

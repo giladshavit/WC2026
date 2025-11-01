@@ -1,12 +1,14 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from models.matches import Match
-from models.results import MatchResult, GroupStageResult, ThirdPlaceResult
+from models.results import MatchResult, GroupStageResult, ThirdPlaceResult, KnockoutStageResult
 from models.team import Team
-from .scoring_service import ScoringService
 from models.matches_template import MatchTemplate
-from models.results import KnockoutStageResult
+from models.predictions import KnockoutStagePrediction
+from models.groups import Group
+from .scoring_service import ScoringService
+from .prediction_service import PredictionService, PredictionStatus
 
 
 class ResultsService:
@@ -208,8 +210,6 @@ class ResultsService:
         """
         Get all groups with their current results (admin only).
         """
-        from models.groups import Group
-        
         groups = db.query(Group).all()
         groups_with_results = []
         
@@ -348,8 +348,6 @@ class ResultsService:
         Get all teams that finished in 3rd place from group stage results.
         This is used to populate the dropdown for third place qualifying selection.
         """
-        from models.groups import Group
-        
         groups = db.query(Group).all()
         third_place_teams = []
         
@@ -376,10 +374,6 @@ class ResultsService:
         Get all knockout matches with their current results.
         Only returns matches where both teams are defined.
         """
-        from models.matches import Match
-        from models.team import Team
-        from models.results import KnockoutStageResult
-        
         # Get all knockout matches
         knockout_matches = db.query(Match).filter(
             Match.stage.in_(['round32', 'round16', 'quarter', 'semi', 'final'])
@@ -501,8 +495,6 @@ class ResultsService:
         Update KnockoutStageResult with the winner of the match.
         This is called when a knockout match result is entered.
         """
-        from models.results import KnockoutStageResult
-        
         # Find the knockout stage result for this match
         knockout_result = db.query(KnockoutStageResult).filter(
             KnockoutStageResult.match_id == match_id
@@ -524,7 +516,6 @@ class ResultsService:
         else:
             print(f"No KnockoutStageResult found for match {match_id}")
 
-    @staticmethod
     @staticmethod
     def _create_or_update_next_knockout_stage(db: Session, match_id: int, winner_team_id: int):
         """
@@ -570,3 +561,264 @@ class ResultsService:
         db.commit()
         db.refresh(next_knockout_result)
         db.refresh(next_match)
+    
+    @staticmethod
+    def get_predicted_loser(prediction):
+        """חישוב המפסידה מהניחוש"""
+        predicted_winner = prediction.winner_team_id
+        
+        if predicted_winner == prediction.team1_id:
+            return prediction.team2_id
+        elif predicted_winner == prediction.team2_id:
+            return prediction.team1_id
+        
+        return None
+    
+    @staticmethod
+    def is_team_in_result(team_id, result):
+        """בודק אם קבוצה נמצאת בתוצאה"""
+        if not team_id or not result:
+            return False
+        return team_id in {result.team_1, result.team_2}
+    
+    @staticmethod
+    def update_round32_statuses(db: Session):
+        """
+        מעדכן את הסטטוסים של כל ההימורים של 32 האחרונות בהתאם לתוצאות
+        """
+        # שלוף את כל ההימורים של 32 האחרונות
+        predictions = db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.stage == 'round32'
+        ).all()
+        
+        for prediction in predictions:
+            # שלוף את התוצאה האמיתית של המשחק הזה
+            result = db.query(KnockoutStageResult).filter(
+                KnockoutStageResult.match_id == prediction.template_match_id
+            ).first()
+            
+            if not result:
+                continue
+            
+            # בדיקה של המנצחת
+            if not ResultsService.is_team_in_result(prediction.winner_team_id, result):
+                PredictionService.set_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT)
+                continue
+            
+            # המנצחת במשחק האמיתי - בודקים את המפסידה
+            predicted_loser = ResultsService.get_predicted_loser(prediction)
+            status = PredictionStatus.PREDICTED if (predicted_loser and ResultsService.is_team_in_result(predicted_loser, result)) else PredictionStatus.MIGHT_CHANGE_PREDICT
+            PredictionService.set_status(prediction, status)
+        
+        db.commit()
+    
+    @staticmethod
+    def extract_match_id_from_winner_string(team_source: str) -> Optional[int]:
+        """
+        Extracts match ID from string like 'Winner_M73' -> 73
+        Returns None if not a winner string
+        """
+        if team_source.startswith('Winner_M'):
+            try:
+                return int(team_source.split('_')[1][1:])  # 'Winner_M73' -> 'M73' -> '73' -> 73
+            except (IndexError, ValueError):
+                return None
+        return None
+    
+    @staticmethod
+    def get_source_match_ids(match_template: MatchTemplate) -> Tuple[Optional[int], Optional[int]]:
+        """
+        Returns the two source match IDs for a given match template.
+        For example, for match 90 with team_1='Winner_M73' and team_2='Winner_M75', returns (73, 75)
+        Returns (None, None) if no source matches found
+        """
+        source_match_1_id = ResultsService.extract_match_id_from_winner_string(match_template.team_1)
+        source_match_2_id = ResultsService.extract_match_id_from_winner_string(match_template.team_2)
+        return source_match_1_id, source_match_2_id
+    
+    @staticmethod
+    def is_winner_reachable_recursive(db: Session, match_id: int, winner_team_id: int, visited: set = None) -> bool:
+        """
+        Recursively checks if a winner team can reach a specific match.
+        
+        Args:
+            db: Database session
+            match_id: The target match ID to check if winner can reach
+            winner_team_id: The team ID to check reachability for
+            visited: Set of visited match IDs to prevent infinite loops
+        
+        Returns:
+            True if the winner team can reach this match, False otherwise
+        """
+        if visited is None:
+            visited = set()
+        
+        # Prevent infinite loops
+        if match_id in visited:
+            return False
+        visited.add(match_id)
+        
+        # Get the template for this match
+        template = db.query(MatchTemplate).filter(MatchTemplate.id == match_id).first()
+        if not template:
+            return False
+        
+        # Check if this match has actual results with teams
+        knockout_result = db.query(KnockoutStageResult).filter(
+            KnockoutStageResult.match_id == match_id
+        ).first()
+        
+        if knockout_result and knockout_result.team_1 and knockout_result.team_2:
+            # Match has actual teams assigned - check if winner is one of them
+            if winner_team_id in {knockout_result.team_1, knockout_result.team_2}:
+                return True
+        
+        # Check if this is the first knockout stage (Round of 32) - base case
+        if template.stage == 'round32':
+            return False
+        
+        # Get the two source matches
+        source_match_1_id, source_match_2_id = ResultsService.get_source_match_ids(template)
+        
+        # Recursively check if winner can reach from either source match
+        # Using OR with early return - if first is True, won't check second
+        return (source_match_1_id and ResultsService.is_winner_reachable_recursive(db, source_match_1_id, winner_team_id, visited.copy())) or \
+               (source_match_2_id and ResultsService.is_winner_reachable_recursive(db, source_match_2_id, winner_team_id, visited.copy()))
+    
+    @staticmethod
+    def is_winner_reachable(db: Session, prediction) -> bool:
+        """
+        Checks if the predicted winner can reach the current match based on actual results.
+        This is the main entry point for checking reachability.
+        
+        Args:
+            db: Database session
+            prediction: The knockout prediction to check
+        
+        Returns:
+            True if the predicted winner can reach this match, False otherwise
+        """
+        if not prediction.winner_team_id:
+            return False
+        
+        return ResultsService.is_winner_reachable_recursive(db, prediction.template_match_id, prediction.winner_team_id)
+    
+    @staticmethod
+    def is_prediction_must_change(prediction) -> bool:
+        """
+        Helper function to check if a prediction has MUST_CHANGE_PREDICT status.
+        
+        Args:
+            prediction: The prediction to check
+        
+        Returns:
+            True if status is MUST_CHANGE_PREDICT, False otherwise
+        """
+        try:
+            PS = PredictionStatus
+            return prediction.status and PS(prediction.status) == PS.MUST_CHANGE_PREDICT
+        except (ValueError, AttributeError):
+            return False
+    
+    @staticmethod
+    def determine_status_by_previous_matches(prediction, source_pred_1, source_pred_2, db: Session):
+        """
+        Determines the status based on the status of previous matches.
+        Returns the appropriate PredictionStatus or None if no change needed.
+        """
+        PS = PredictionStatus
+        
+        if not prediction.winner_team_id:
+            return None
+        
+        # Get statuses from source predictions
+        try:
+            status_1 = PS(source_pred_1.status) if source_pred_1.status else None
+            status_2 = PS(source_pred_2.status) if source_pred_2.status else None
+        except ValueError:
+            return None
+        
+        if not status_1 or not status_2:
+            return None
+        
+        # Simplified Logic:
+        # Cases 1+2+4+5: If neither prediction is MUST_CHANGE -> PREDICTED (green)
+        if not ResultsService.is_prediction_must_change(source_pred_1) and \
+           not ResultsService.is_prediction_must_change(source_pred_2):
+            return PS.PREDICTED
+        
+        # Determine which prediction is the winner and which is the loser
+        winner_prediction = source_pred_1 if (source_pred_1.winner_team_id == prediction.winner_team_id) else source_pred_2
+        loser_prediction = source_pred_2 if (source_pred_1.winner_team_id == prediction.winner_team_id) else source_pred_1
+        
+        # If winner prediction is not MUST_CHANGE -> MIGHT_CHANGE (yellow)
+        if not ResultsService.is_prediction_must_change(winner_prediction):
+            return PS.MIGHT_CHANGE_PREDICT
+        
+        # Winner prediction is MUST_CHANGE -> Check if reachable from loser match
+        return PS.MIGHT_CHANGE_PREDICT if ResultsService.is_winner_reachable(db, prediction) else PS.MUST_CHANGE_PREDICT
+    
+    @staticmethod
+    def update_knockout_statuses_after_round32(db: Session, stage: str = None):
+        """
+        Updates knockout prediction statuses for stages after Round of 32.
+        
+        Args:
+            db: Database session
+            stage: Optional stage to update (e.g., 'round16', 'quarter', 'semi', 'final')
+                  If None, updates all stages after round32
+        
+        This implements the complex logic for combining predecessor match statuses.
+        """
+        PS = PredictionStatus
+        
+        # Determine which stages to update
+        if stage:
+            stages_to_update = [stage]
+        else:
+            stages_to_update = ['round16', 'quarter', 'semi', 'final']
+        
+        for stage_name in stages_to_update:
+            # Get all predictions for this stage
+            predictions = db.query(KnockoutStagePrediction).filter(
+                KnockoutStagePrediction.stage == stage_name
+            ).all()
+            
+            for prediction in predictions:
+                # Get the match template
+                template = db.query(MatchTemplate).filter(
+                    MatchTemplate.id == prediction.template_match_id
+                ).first()
+                
+                if not template:
+                    continue
+                
+                # Get the two source matches
+                source_match_1_id, source_match_2_id = ResultsService.get_source_match_ids(template)
+                
+                if not source_match_1_id or not source_match_2_id:
+                    continue  # Skip if we can't find source matches
+                
+                # Get the statuses of the two source predictions (for the same user)
+                source_pred_1 = db.query(KnockoutStagePrediction).filter(
+                    KnockoutStagePrediction.template_match_id == source_match_1_id,
+                    KnockoutStagePrediction.user_id == prediction.user_id
+                ).first()
+                
+                source_pred_2 = db.query(KnockoutStagePrediction).filter(
+                    KnockoutStagePrediction.template_match_id == source_match_2_id,
+                    KnockoutStagePrediction.user_id == prediction.user_id
+                ).first()
+                
+                if not source_pred_1 or not source_pred_2:
+                    continue  # Skip if source predictions don't exist
+                
+                # Implement the 9-case logic
+                new_status = ResultsService.determine_status_by_previous_matches(
+                    prediction, source_pred_1, source_pred_2, db
+                )
+                
+                if new_status:
+                    PredictionService.set_status(prediction, new_status)
+            
+            db.commit()

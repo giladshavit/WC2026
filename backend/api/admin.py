@@ -401,3 +401,53 @@ def reset_tournament_stage(db: Session = Depends(get_db)):
         "stage_value": new_stage.value,
         "penalty": new_stage.get_penalty_for()
     }
+
+@router.post("/admin/bracket/rebuild-round32", response_model=Dict[str, Any])
+def rebuild_round32_bracket(db: Session = Depends(get_db)):
+    """
+    Rebuild Round of 32 bracket from results and update prediction statuses (admin only)
+    """
+    try:
+        import subprocess
+        import os
+        
+        # Step 1: Run the build_round32_from_results script
+        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "build_round32_from_results.py")
+        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
+        
+        print(f"🔧 Running bracket rebuild script...")
+        print(f"Script path: {script_path}")
+        print(f"Python path: {python_path}")
+        
+        process_result = subprocess.run(
+            [python_path, script_path],
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(os.path.dirname(__file__))
+        )
+        
+        print(f"Script return code: {process_result.returncode}")
+        if process_result.stdout:
+            print(f"Script stdout: {process_result.stdout}")
+        if process_result.stderr:
+            print(f"Script stderr: {process_result.stderr}")
+        
+        if process_result.returncode != 0:
+            raise Exception(f"Script failed with return code {process_result.returncode}: {process_result.stderr}")
+        
+        # Step 2: Update Round of 32 prediction statuses
+        ResultsService.update_round32_statuses(db)
+        
+        # Step 3: Update prediction statuses for all subsequent knockout stages
+        ResultsService.update_knockout_statuses_after_round32(db)
+        
+        return {
+            "message": "Round of 32 bracket rebuilt and all knockout statuses updated successfully",
+            "bracket_rebuilt": True,
+            "round32_statuses_updated": True,
+            "subsequent_statuses_updated": True
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in rebuild_round32_bracket: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

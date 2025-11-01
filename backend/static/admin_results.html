@@ -185,6 +185,14 @@
                     </div>
                     
                     <div id="knockout-container" class="hidden">
+                        <div class="mb-4 flex justify-end">
+                            <button 
+                                onclick="rebuildRound32()" 
+                                class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                            >
+                                🔄 עדכן את 32 האחרונות בבראקט
+                            </button>
+                        </div>
                         <div class="overflow-x-auto">
                             <table class="min-w-full bg-white border border-gray-200">
                                 <thead class="bg-gray-50">
@@ -1345,6 +1353,32 @@
                 } catch (error) {
                     console.error('Error updating stage:', error);
                     alert('Error updating stage');
+                }
+            }
+        }
+
+        async function rebuildRound32() {
+            if (confirm('Are you sure you want to rebuild Round of 32 bracket from results and update prediction statuses?')) {
+                try {
+                    const response = await fetch('/api/admin/bracket/rebuild-round32', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        alert('Round of 32 bracket rebuilt and statuses updated successfully!');
+                        // Reload knockout matches to show updated data
+                        loadKnockoutMatches();
+                    } else {
+                        const error = await response.json();
+                        alert(`Error: ${error.detail || 'Failed to rebuild Round 32 bracket'}`);
+                    }
+                } catch (error) {
+                    console.error('Error rebuilding Round 32:', error);
+                    alert('Error rebuilding Round 32 bracket');
                 }
             }
         }
