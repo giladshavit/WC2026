@@ -12,6 +12,11 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
   const isTeam1Winner = match.winner_team_id === match.team1_id;
   const isTeam2Winner = match.winner_team_id === match.team2_id;
   const isFinal = match.stage === 'final';
+  
+  // Check if winner is not in team1 or team2 - need to show winner flag separately
+  const hasWinnerNotInTeams = match.winner_team_id && 
+                               match.winner_team_id !== match.team1_id && 
+                               match.winner_team_id !== match.team2_id;
 
   // Get status-based border color
   const getStatusColor = (status?: string) => {
@@ -35,13 +40,13 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
     
     return (
       <View style={styles.teamContainer}>
-        {teamFlag && (
+        {teamFlag ? (
           <Image 
             source={{ uri: teamFlag }} 
             style={styles.flag}
             resizeMode="contain"
           />
-        )}
+        ) : null}
         <Text style={[styles.teamName, isWinner && !isTBD && styles.winnerText]}>
           {displayName}
         </Text>
@@ -59,25 +64,25 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
         <Text style={[styles.finalTeamName, isTeam1Winner && styles.finalWinnerText]}>
           {team1Name}
         </Text>
-        {match.team1_flag && (
+        {match.team1_flag ? (
           <Image 
             source={{ uri: match.team1_flag }} 
             style={styles.finalFlag}
             resizeMode="contain"
           />
-        )}
+        ) : null}
         
         {/* VS */}
         <Text style={styles.finalVsText}>VS</Text>
         
         {/* Team 2 */}
-        {match.team2_flag && (
+        {match.team2_flag ? (
           <Image 
             source={{ uri: match.team2_flag }} 
             style={styles.finalFlag}
             resizeMode="contain"
           />
-        )}
+        ) : null}
         <Text style={[styles.finalTeamName, isTeam2Winner && !(team2Name === 'TBD') && styles.finalWinnerText]}>
           {team2Name}
         </Text>
@@ -121,6 +126,17 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             match.team2_id,
             match.team2_short_name
           )}
+          
+          {/* Show winner flag if winner is not in team1 or team2 */}
+          {hasWinnerNotInTeams && match.winner_team_flag ? (
+            <View style={styles.winnerFlagContainer}>
+              <Image 
+                source={{ uri: match.winner_team_flag }} 
+                style={styles.winnerFlag}
+                resizeMode="contain"
+              />
+            </View>
+          ) : null}
         </View>
       )}
       
@@ -232,5 +248,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#6b7280',
     marginVertical: 3, // קצת יותר גדול בין הסמלים
+  },
+  winnerFlagContainer: {
+    position: 'absolute',
+    right: 2,
+    top: '50%',
+    marginTop: -6,
+    zIndex: 10,
+  },
+  winnerFlag: {
+    width: 12,
+    height: 8,
+    borderWidth: 0.5,
+    borderColor: '#d1d5db',
+    borderRadius: 1,
   },
 });

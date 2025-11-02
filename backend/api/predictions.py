@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 from pydantic import BaseModel
 from dataclasses import dataclass
 
 from services.predictions import PredictionService, PlacesPredictions
+from services.predictions.knockout_prediction_service import KnockoutPredictionService
 from services.group_service import GroupService
 from services.stage_manager import StageManager, Stage
 from services.match_service import MatchService
@@ -223,14 +224,16 @@ def create_or_update_third_place_prediction(
 @router.get("/predictions/knockout", response_model=Dict[str, Any])
 def get_knockout_predictions(
     user_id: int = 1,  # TODO: should come from authentication
-    stage: str = None, 
+    stage: str = None,
+    is_draft: bool = Query(False, description="If True, returns draft predictions instead of regular ones"),
     db: Session = Depends(get_db)
 ):
     """
     Get all user's knockout predictions. If stage is provided, filter by stage.
+    If is_draft is True, returns draft predictions instead of regular ones.
     """
     try:
-        result = PredictionService.get_knockout_predictions(db, user_id, stage)
+        result = PredictionService.get_knockout_predictions(db, user_id, stage, is_draft=is_draft)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching knockout predictions: {str(e)}")
@@ -238,10 +241,12 @@ def get_knockout_predictions(
 @router.post("/predictions/knockout/batch", response_model=Dict[str, Any])
 async def update_batch_knockout_predictions(
     request: BatchKnockoutPredictionRequest,
+    is_draft: bool = False,
     db: Session = Depends(get_db)
 ):
     """
     Update multiple knockout predictions at once with penalty calculation
+    If is_draft is True, updates draft predictions instead of regular ones.
     """
     current_stage = StageManager.get_current_stage(db)
     if current_stage.value > Stage.ROUND32.value:
@@ -251,7 +256,7 @@ async def update_batch_knockout_predictions(
         )
     
     result = PredictionService.update_batch_knockout_predictions(
-        db, request.user_id, request.predictions
+        db, request.user_id, request.predictions, is_draft=is_draft
     )
     
     if "error" in result:
@@ -269,29 +274,90 @@ async def update_batch_knockout_predictions(
 def update_knockout_prediction_winner(
     prediction_id: int,
     request: UpdateKnockoutPredictionRequest,
+    is_draft: bool = False,
     db: Session = Depends(get_db)
 ):
     """
     Update a knockout prediction - choose winner and update next stages
+    If is_draft is True, updates draft prediction instead of regular one.
     """
     try:
-        # Check if knockout prediction is editable
+        # Check if knockout prediction is editable (only check is_editable for non-draft)
         from services.predictions import PredictionRepository
-        prediction = PredictionRepository.get_knockout_prediction_by_id(db, prediction_id)
+        prediction = PredictionRepository.get_knockout_prediction_by_id(db, prediction_id, is_draft=is_draft)
         
         if not prediction:
             raise HTTPException(status_code=404, detail="Knockout prediction not found")
         
-        if not prediction.is_editable:
+        # Draft predictions are always editable, so only check for regular predictions
+        if not is_draft and not prediction.is_editable:
             raise HTTPException(
                 status_code=403,
                 detail=f"This knockout prediction is no longer editable. Stage: {prediction.stage}"
             )
         
-        result = PredictionService.update_knockout_prediction_winner(db, prediction_id, request)
+        result = PredictionService.update_knockout_prediction_winner(db, prediction_id, request, is_draft=is_draft)
         return result
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating prediction: {str(e)}")
+
+
+@router.post("/predictions/knockout/{prediction_id}/create-draft")
+def create_draft_from_prediction(
+    prediction_id: int,
+    user_id: int = 1,  # TODO: should come from authentication
+    db: Session = Depends(get_db)
+):
+    """
+    Create a draft prediction by copying from existing prediction.
+    Priority: result data first, then prediction data.
+    """
+    try:
+        result = PredictionService.create_draft_from_prediction(db, user_id, prediction_id)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating draft: {str(e)}")
+
+
+@router.post("/predictions/knockout/create-all-drafts")
+def create_all_drafts_from_predictions(
+    user_id: int = 1,  # TODO: should come from authentication
+    db: Session = Depends(get_db)
+):
+    """
+    Create draft predictions for all user's knockout predictions.
+    Priority: result data first, then prediction data.
+    """
+    try:
+        result = PredictionService.create_all_drafts_from_predictions(db, user_id)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating drafts: {str(e)}")
+
+
+@router.delete("/predictions/knockout/delete-all-drafts")
+def delete_all_drafts_for_user(
+    user_id: int = 1,  # TODO: should come from authentication
+    db: Session = Depends(get_db)
+):
+    """
+    Delete all draft predictions for a specific user.
+    Called when exiting edit mode.
+    """
+    try:
+        result = KnockoutPredictionService.delete_all_drafts_for_user(db, user_id)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting drafts: {str(e)}")

@@ -44,6 +44,8 @@ export interface BracketMatch {
   team1_flag?: string;
   team2_flag?: string;
   winner_team_id?: number;
+  winner_team_flag?: string;
+  winner_team_name?: string;
   status?: string; // Status of the prediction: 'predicted', 'might_change_predict', 'must_change_predict'
   side: 'left' | 'right';
   verticalPosition?: number;
@@ -153,6 +155,8 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       team1_flag: prediction.team1_flag,
       team2_flag: prediction.team2_flag,
       winner_team_id: prediction.winner_team_id,
+      winner_team_flag: prediction.winner_team_flag,
+      winner_team_name: prediction.winner_team_name,
       status: prediction.status, // Add status from prediction
       side
     };

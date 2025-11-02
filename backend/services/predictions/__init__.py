@@ -41,6 +41,8 @@ class PredictionService:
     get_knockout_predictions = staticmethod(KnockoutPredictionService.get_knockout_predictions)
     update_knockout_prediction_winner = staticmethod(KnockoutPredictionService.update_knockout_prediction_winner)
     update_batch_knockout_predictions = staticmethod(KnockoutPredictionService.update_batch_knockout_predictions)
+    create_draft_from_prediction = staticmethod(KnockoutPredictionService.create_draft_from_prediction)
+    create_all_drafts_from_predictions = staticmethod(KnockoutPredictionService.create_all_drafts_from_predictions)
     
     # Status management
     set_status = staticmethod(PredictionRepository.set_prediction_status)

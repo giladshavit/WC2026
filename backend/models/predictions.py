@@ -102,3 +102,25 @@ class KnockoutStagePrediction(Base):
     team1 = relationship("Team", foreign_keys=[team1_id])
     team2 = relationship("Team", foreign_keys=[team2_id])
     winner_team = relationship("Team", foreign_keys=[winner_team_id])
+
+class KnockoutStagePredictionDraft(Base):
+    __tablename__ = "knockout_stage_predictions_draft"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    knockout_result_id = Column(Integer, ForeignKey("knockout_stage_results.id"), nullable=False)  # Link to result
+    template_match_id = Column(Integer, ForeignKey("matches_template.id"), nullable=False)  # Link to template (path)
+    stage = Column(String(20), nullable=False)  # round32, round16, quarter, semi, final, third_place
+    team1_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # First team
+    team2_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # Second team
+    winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    status = Column(String(20), nullable=True, default="gray")  # green/yellow/red/gray
+    knockout_pred_id = Column(Integer, ForeignKey("knockout_stage_predictions.id"), nullable=True)  # Link to original prediction
+    
+    # Relationships
+    user = relationship("User")
+    knockout_result = relationship("KnockoutStageResult")
+    knockout_pred = relationship("KnockoutStagePrediction", foreign_keys=[knockout_pred_id])
+    team1 = relationship("Team", foreign_keys=[team1_id])
+    team2 = relationship("Team", foreign_keys=[team2_id])
+    winner_team = relationship("Team", foreign_keys=[winner_team_id])

@@ -514,11 +514,12 @@ class ApiService {
   }
 
   // Knockout Predictions
-  async getKnockoutPredictions(userId: number = 1, stage?: string): Promise<KnockoutResponse> {
+  async getKnockoutPredictions(userId: number = 1, stage?: string, isDraft: boolean = false): Promise<KnockoutResponse> {
     try {
       const timestamp = new Date().getTime();
       const stageParam = stage ? `&stage=${stage}` : '';
-      const response = await fetch(`${this.baseUrl}/api/predictions/knockout?user_id=${userId}${stageParam}&_t=${timestamp}`);
+      const draftParam = isDraft ? `&is_draft=true` : '';
+      const response = await fetch(`${this.baseUrl}/api/predictions/knockout?user_id=${userId}${stageParam}${draftParam}&_t=${timestamp}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -532,13 +533,57 @@ class ApiService {
     }
   }
 
+  async createAllDrafts(userId: number = 1): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/predictions/knockout/create-all-drafts?user_id=${userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error creating drafts:', error);
+      throw error;
+    }
+  }
+
+  async deleteAllDrafts(userId: number = 1): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/predictions/knockout/delete-all-drafts?user_id=${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error deleting drafts:', error);
+      throw error;
+    }
+  }
+
   async updateKnockoutPrediction(
     predictionId: number,
     winnerTeamNumber: number,
-    winnerTeamName: string
+    winnerTeamName: string,
+    isDraft: boolean = false
   ): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/predictions/knockout/${predictionId}`, {
+      const draftParam = isDraft ? '?is_draft=true' : '';
+      const response = await fetch(`${this.baseUrl}/api/predictions/knockout/${predictionId}${draftParam}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
