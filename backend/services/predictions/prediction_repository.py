@@ -240,7 +240,11 @@ class PredictionRepository:
     def update_knockout_prediction(db: Session, prediction: KnockoutStagePrediction, team1_id: Optional[int] = None,
                                   team2_id: Optional[int] = None, winner_team_id: Optional[int] = None,
                                   status: Optional[str] = None) -> KnockoutStagePrediction:
-        """Update an existing knockout prediction"""
+        """
+        Update an existing knockout prediction
+        Note: Pass 0 to explicitly set a value to 0 (used as sentinel for clearing values)
+        """
+        # Update if parameter was provided (even if 0)
         if team1_id is not None:
             prediction.team1_id = team1_id
         if team2_id is not None:

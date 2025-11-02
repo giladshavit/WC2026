@@ -289,7 +289,7 @@ class KnockoutPredictionService:
             return
         
         # Remove winner
-        PredictionRepository.update_knockout_prediction(db, prediction, winner_team_id=None)
+        PredictionRepository.update_knockout_prediction(db, prediction, winner_team_id=0)
         print(f"Removed winner {previous_winner_id} from prediction {prediction.id}")
         
         # Update status to MUST_CHANGE_PREDICT
@@ -300,10 +300,12 @@ class KnockoutPredictionService:
         
         if next_prediction and next_position:
             # Call update_next_stage_prediction
+            print(f"🔄 [DEBUG] next_pred_user_id: {next_prediction.user_id}")
             KnockoutPredictionService._update_next_stage_prediction(db, prediction, next_prediction, next_position)
         
         # Call recursively with the next prediction
         if next_prediction:
+            print(f"🔄 [DEBUG] Removing previous winner from next stages: {next_prediction.id}")
             KnockoutPredictionService._remove_prev_winner_from_next_stages(db, next_prediction, previous_winner_id)
     
     @staticmethod
