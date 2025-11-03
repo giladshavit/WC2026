@@ -18,6 +18,14 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
                                match.winner_team_id !== match.team1_id && 
                                match.winner_team_id !== match.team2_id;
 
+  // Check if match is finished (has is_correct field)
+  const matchFinished = match.is_correct !== undefined && match.is_correct !== null;
+  
+  // Get validity flags (only if match not finished)
+  // Only mark as invalid if explicitly false (not undefined/null)
+  const team1Invalid = matchFinished ? false : (match.team1_is_valid === false);
+  const team2Invalid = matchFinished ? false : (match.team2_is_valid === false);
+
   // Get status-based border color
   const getStatusColor = (status?: string) => {
     switch (status) {
@@ -34,7 +42,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
 
   const borderColor = getStatusColor(match.status);
 
-  const renderTeam = (teamName: string | undefined, teamFlag: string | undefined, isWinner: boolean, teamId?: number, shortName?: string) => {
+  const renderTeam = (teamName: string | undefined, teamFlag: string | undefined, isWinner: boolean, teamId?: number, shortName?: string, isInvalid: boolean = false) => {
     const displayName = shortName || (teamName && teamName !== 'TBD' ? teamName.substring(0, 8) : 'TBD');
     const isTBD = displayName === 'TBD' || (teamName && teamName === 'TBD');
     
@@ -47,7 +55,11 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             resizeMode="contain"
           />
         ) : null}
-        <Text style={[styles.teamName, isWinner && !isTBD && styles.winnerText]}>
+        <Text style={[
+          styles.teamName, 
+          isWinner && !isTBD && styles.winnerText,
+          isInvalid && styles.invalidText
+        ]}>
           {displayName}
         </Text>
       </View>
@@ -61,7 +73,11 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
     return (
       <View style={styles.finalContainer}>
         {/* Team 1 */}
-        <Text style={[styles.finalTeamName, isTeam1Winner && styles.finalWinnerText]}>
+        <Text style={[
+          styles.finalTeamName, 
+          isTeam1Winner && styles.finalWinnerText,
+          team1Invalid && styles.invalidText
+        ]}>
           {team1Name}
         </Text>
         {match.team1_flag ? (
@@ -83,9 +99,25 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             resizeMode="contain"
           />
         ) : null}
-        <Text style={[styles.finalTeamName, isTeam2Winner && !(team2Name === 'TBD') && styles.finalWinnerText]}>
+        <Text style={[
+          styles.finalTeamName, 
+          isTeam2Winner && !(team2Name === 'TBD') && styles.finalWinnerText,
+          team2Invalid && styles.invalidText
+        ]}>
           {team2Name}
         </Text>
+        
+        {/* Show correctness indicator if match finished */}
+        {matchFinished && (
+          <View style={styles.finalCorrectnessIndicator}>
+            <Text style={[
+              styles.correctnessSymbol, 
+              match.is_correct ? styles.correctSymbol : styles.incorrectSymbol
+            ]}>
+              {match.is_correct ? '✓' : '✗'}
+            </Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -116,7 +148,8 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             match.team1_flag, 
             isTeam1Winner,
             match.team1_id,
-            match.team1_short_name
+            match.team1_short_name,
+            team1Invalid
           )}
           
           {renderTeam(
@@ -124,7 +157,8 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             match.team2_flag, 
             isTeam2Winner,
             match.team2_id,
-            match.team2_short_name
+            match.team2_short_name,
+            team2Invalid
           )}
           
           {/* Show winner flag if winner is not in team1 or team2 */}
@@ -137,6 +171,18 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
               />
             </View>
           ) : null}
+          
+          {/* Show correctness indicator if match finished */}
+          {matchFinished && (
+            <View style={styles.correctnessIndicator}>
+              <Text style={[
+                styles.correctnessSymbol, 
+                match.is_correct ? styles.correctSymbol : styles.incorrectSymbol
+              ]}>
+                {match.is_correct ? '✓' : '✗'}
+              </Text>
+            </View>
+          )}
         </View>
       )}
       
@@ -262,5 +308,53 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: '#d1d5db',
     borderRadius: 1,
+  },
+  correctnessIndicator: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+    elevation: 2,
+  },
+  correctnessSymbol: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  correctSymbol: {
+    color: '#38a169', // Green for correct
+  },
+  incorrectSymbol: {
+    color: '#e53e3e', // Red for incorrect
+  },
+  invalidText: {
+    color: '#e53e3e', // Red text for invalid team
+    textDecorationLine: 'line-through',
+  },
+  finalCorrectnessIndicator: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+    elevation: 2,
   },
 });

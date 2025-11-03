@@ -370,7 +370,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         setLoading(true);
         await apiService.createAllDrafts(userId);
         setEditMode(true);
-        await fetchPredictions();
+        // fetchPredictions will be called automatically by useFocusEffect when editMode changes
       } catch (error) {
         console.error('Error creating drafts:', error);
         Alert.alert('שגיאה', 'לא ניתן להיכנס למצב עריכה. נסה שוב.');
@@ -389,7 +389,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         setLoading(true);
         await apiService.deleteAllDrafts(userId);
         setEditMode(false);
-        await fetchPredictions();
+        // fetchPredictions will be called automatically by useFocusEffect when editMode changes
       } catch (error) {
         console.error('Error deleting drafts:', error);
         Alert.alert('שגיאה', 'לא ניתן לצאת ממצב עריכה. נסה שוב.');

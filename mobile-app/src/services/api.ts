@@ -168,6 +168,10 @@ export interface KnockoutPrediction {
   team1_flag: string | null;
   team2_flag: string | null;
   winner_team_flag: string | null;
+  // Validation fields
+  is_correct?: boolean | null; // True if prediction is correct (match finished)
+  team1_is_valid?: boolean | null; // True if team1 can reach this match (match not finished)
+  team2_is_valid?: boolean | null; // True if team2 can reach this match (match not finished)
 }
 
 // League interfaces

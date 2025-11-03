@@ -6,6 +6,8 @@ from datetime import datetime
 from .prediction_repository import PredictionRepository
 from .shared import PredictionStatus
 from services.scoring_service import ScoringService
+from models.results import KnockoutStageResult
+from models.team import Team
 
 
 class KnockPredRefactorService:
@@ -13,6 +15,19 @@ class KnockPredRefactorService:
     Refactored knockout prediction service with simplified, cleaner logic.
     This service will eventually replace the current knockout_prediction_service.
     """
+    
+    @staticmethod
+    def _extract_match_id_from_winner_string(team_source: str) -> Optional[int]:
+        """
+        Extracts match ID from string like 'Winner_M73' -> 73
+        Returns None if not a winner string
+        """
+        if team_source.startswith('Winner_M'):
+            try:
+                return int(team_source.split('_')[1][1:])  # 'Winner_M73' -> 'M73' -> '73' -> 73
+            except (IndexError, ValueError):
+                return None
+        return None
     
     @staticmethod
     def update_knockout_prediction(
@@ -71,6 +86,18 @@ class KnockPredRefactorService:
                 db, prediction
             )
             
+            # If next prediction doesn't exist and this is a draft, create it
+            if not next_prediction and hasattr(prediction, 'knockout_pred_id'):
+                next_prediction = KnockPredRefactorService._create_next_stage_draft(
+                    db, prediction, new_winner
+                )
+                if next_prediction:
+                    # Get position from template
+                    current_template = PredictionRepository.get_match_template(
+                        db, prediction.template_match_id
+                    )
+                    position = current_template.winner_next_position if current_template else None
+            
             if next_prediction and position:
                 # Recursively update next stage with team1_id or team2_id based on position
                 # Ignore return value for recursive calls
@@ -128,6 +155,103 @@ class KnockPredRefactorService:
         )
 
     @staticmethod
+    def _get_source_match_id(db: Session, match_id: int, is_team1: bool = True) -> Optional[int]:
+        """
+        Get the source match ID for a team in a match.
+        For Round of 32, returns the match itself (no source match).
+        For other stages, extracts the source match ID from template.team_1 or template.team_2.
+        
+        Args:
+            db: Database session
+            match_id: The current match template ID
+            is_team1: True if checking team1, False if checking team2
+            
+        Returns:
+            Source match ID, or the match itself for Round of 32, or None if not found
+        """
+        template = PredictionRepository.get_match_template(db, match_id)
+        if not template:
+            return None
+        
+        # For Round of 32, return the match itself (no source match)
+        if template.stage == 'round32':
+            return match_id
+        
+        # For other stages, extract source match ID from team_1 or team_2
+        team_source = template.team_1 if is_team1 else template.team_2
+        source_match_id = KnockPredRefactorService._extract_match_id_from_winner_string(team_source)
+        
+        return source_match_id if source_match_id else None
+
+    @staticmethod
+    def _clean_invalid_team_if_needed(db: Session, team_id: Optional[int], match_id: int, is_team1: bool) -> Optional[int]:
+        """
+        Check if a team is valid for a match and return 0 if invalid, otherwise return the team_id.
+        Only clears if explicitly False (not None/undefined).
+        
+        Args:
+            db: Database session
+            team_id: The team ID to check
+            match_id: The match template ID
+            is_team1: True if checking team1, False if checking team2
+            
+        Returns:
+            team_id if valid or None, 0 if invalid
+        """
+        if not team_id:
+            return team_id
+        
+        is_valid = KnockPredRefactorService._is_team_valid_for_match(
+            db, team_id, match_id, is_team1=is_team1
+        )
+        if is_valid is False:
+            return 0
+        
+        return team_id
+
+    @staticmethod
+    def _is_team_valid_for_match(db: Session, team_id: Optional[int], match_id: int, is_team1: bool = True) -> Optional[bool]:
+        """
+        Check if a team is valid for a specific match by checking if it can reach the source match.
+        For Round of 32, checks the match itself. For other stages, finds and checks the source match.
+        
+        Args:
+            db: Database session
+            team_id: The team ID to check (None means not valid)
+            match_id: The current match template ID
+            is_team1: True if checking team1, False if checking team2
+            
+        Returns:
+            True if team is valid, False if invalid, None if we can't determine (no results yet)
+        """
+        if not team_id:
+            return None  # Don't mark as invalid if team_id is None
+        
+        # Get template to check stage
+        template = PredictionRepository.get_match_template(db, match_id)
+        if not template:
+            return None
+        
+        # For Round of 32, check the match itself
+        if template.stage == 'round32':
+            match_id_to_check = match_id
+        else:
+            # For other stages, find the source match from the previous stage
+            team_source = template.team_1 if is_team1 else template.team_2
+            source_match_id = KnockPredRefactorService._extract_match_id_from_winner_string(team_source)
+            
+            if not source_match_id:
+                return None  # Can't determine if no source match
+            
+            match_id_to_check = source_match_id
+        
+        # Check if team can reach this match
+        from services.results_service import ResultsService
+        is_reachable = ResultsService.is_winner_reachable_recursive(db, match_id_to_check, team_id)
+        
+        return is_reachable
+
+    @staticmethod
     def get_knockout_predictions(
         db: Session,
         user_id: int,
@@ -142,6 +266,7 @@ class KnockPredRefactorService:
 
         result: List[Dict[str, Any]] = []
         for prediction in predictions:
+            # Default to prediction data
             team1_id = prediction.team1_id
             team2_id = prediction.team2_id
             winner_team_id = prediction.winner_team_id
@@ -150,14 +275,23 @@ class KnockPredRefactorService:
             winner_team = prediction.winner_team
 
             if is_draft:
+                # In draft mode, prioritize result teams if they exist
+                # Otherwise, use draft teams directly (they may have been cleaned)
                 knockout_result = prediction.knockout_result if hasattr(prediction, 'knockout_result') else None
-                if knockout_result:
-                    if knockout_result.team_1:
-                        team1_id = knockout_result.team_1
-                        team1 = knockout_result.team_1_obj
-                    if knockout_result.team_2:
-                        team2_id = knockout_result.team_2
-                        team2 = knockout_result.team_2_obj
+                
+                if knockout_result and knockout_result.team_1 and knockout_result.team_2:
+                    # Result exists - use result teams (show actual teams that will play)
+                    team1_id = knockout_result.team_1
+                    team1 = knockout_result.team_1_obj
+                    team2_id = knockout_result.team_2
+                    team2 = knockout_result.team_2_obj
+                    # Keep the winner from the user's original prediction (set above)
+                else:
+                    # No result - use draft teams directly (they may have been cleaned)
+                    # Load teams by ID directly to ensure we get the correct cleaned teams
+                    team1 = PredictionRepository.get_team(db, team1_id) if team1_id else None
+                    team2 = PredictionRepository.get_team(db, team2_id) if team2_id else None
+                    winner_team = PredictionRepository.get_team(db, winner_team_id) if winner_team_id else None
 
             item: Dict[str, Any] = {
                 "id": prediction.id,
@@ -180,6 +314,36 @@ class KnockPredRefactorService:
                 "winner_team_flag": winner_team.flag_url if winner_team else None,
             }
 
+            # Get knockout result for validation/correctness check
+            knockout_result = db.query(KnockoutStageResult).filter(
+                KnockoutStageResult.id == prediction.knockout_result_id
+            ).first() if prediction.knockout_result_id else None
+            
+            # Check if match has been decided (has winner)
+            if knockout_result and knockout_result.winner_team_id:
+                # Match is finished - check if user predicted correctly
+                item["is_correct"] = (prediction.winner_team_id == knockout_result.winner_team_id)
+                # Don't include team validity since match is decided
+            else:
+                # Match not finished yet - check team reachability/validity
+                # Only check validity if team_id exists; only set if explicitly False
+                if team1_id:
+                    is_valid = KnockPredRefactorService._is_team_valid_for_match(
+                        db, team1_id, prediction.template_match_id, is_team1=True
+                    )
+                    # Only set if invalid (False), if None don't include the field
+                    if is_valid is False:
+                        item["team1_is_valid"] = False
+                
+                if team2_id:
+                    is_valid = KnockPredRefactorService._is_team_valid_for_match(
+                        db, team2_id, prediction.template_match_id, is_team1=False
+                    )
+                    # Only set if invalid (False), if None don't include the field
+                    if is_valid is False:
+                        item["team2_is_valid"] = False
+                # is_correct not relevant yet (will be None or not included)
+
             if not is_draft:
                 item["points"] = prediction.points
                 item["is_editable"] = prediction.is_editable
@@ -201,6 +365,59 @@ class KnockPredRefactorService:
         }
     
     @staticmethod
+    def _create_next_stage_draft(db: Session, prediction, winner_team_id: int) -> Optional[Any]:
+        """
+        Create a draft prediction for the next stage if it doesn't exist.
+        Only works for draft predictions.
+        """
+        # Find the template of the current prediction
+        current_template = PredictionRepository.get_match_template(
+            db, prediction.template_match_id
+        )
+        
+        if not current_template or not current_template.winner_next_knockout_match:
+            return None
+        
+        next_match_id = current_template.winner_next_knockout_match
+        
+        # Find the matching result
+        result = db.query(KnockoutStageResult).filter(
+            KnockoutStageResult.match_id == next_match_id
+        ).first()
+        
+        if not result:
+            return None
+        
+        # Find the template of the next stage
+        next_template = PredictionRepository.get_match_template(db, next_match_id)
+        if not next_template:
+            return None
+        
+        # Find original prediction for this match to link draft to it
+        original_prediction = PredictionRepository.get_knockout_prediction_by_user_and_match(
+            db, prediction.user_id, next_match_id, is_draft=False
+        )
+        knockout_pred_id = original_prediction.id if original_prediction else None
+        
+        # Create draft prediction
+        draft = PredictionRepository.create_knockout_prediction(
+            db,
+            user_id=prediction.user_id,
+            knockout_result_id=result.id,
+            template_match_id=next_match_id,
+            stage=next_template.stage,
+            team1_id=None,
+            team2_id=None,
+            winner_team_id=None,
+            is_draft=True,
+            knockout_pred_id=knockout_pred_id,
+            status=PredictionStatus.MUST_CHANGE_PREDICT.value,
+        )
+        
+        db.flush()
+        return draft
+    
+    @staticmethod
     def _find_next_prediction_and_position(
         db: Session,
         prediction
@@ -209,6 +426,9 @@ class KnockPredRefactorService:
         Find the next prediction in the knockout chain and its position.
         Returns: tuple (next_prediction, position) or (None, None) if not found
         """
+        # Determine if current prediction is a draft (check if it has knockout_pred_id field)
+        is_draft = hasattr(prediction, 'knockout_pred_id')
+        
         # Find the template of the current prediction
         current_template = PredictionRepository.get_match_template(
             db, prediction.template_match_id
@@ -220,9 +440,9 @@ class KnockPredRefactorService:
         next_match_id = current_template.winner_next_knockout_match
         position = current_template.winner_next_position  # 1 or 2
         
-        # Find the next prediction
+        # Find the next prediction (use same draft status as current prediction)
         next_prediction = PredictionRepository.get_knockout_prediction_by_user_and_match(
-            db, prediction.user_id, next_match_id, is_draft=False
+            db, prediction.user_id, next_match_id, is_draft=is_draft
         )
         
         return next_prediction, position
@@ -538,28 +758,48 @@ class KnockPredRefactorService:
         if not prediction:
             raise HTTPException(status_code=404, detail="Prediction not found")
 
-        # If draft already exists, return it
+        # If draft already exists, delete it first to recreate with cleaned teams
         existing_draft = PredictionRepository.get_knockout_prediction_by_user_and_match(
             db, user_id, prediction.template_match_id, is_draft=True
         )
         if existing_draft:
-            return {
-                "success": True,
-                "message": "Draft already exists",
-                "draft_id": existing_draft.id,
-            }
+            db.delete(existing_draft)
+            db.flush()
 
-        # Use result teams if exist; otherwise prediction teams
+        # Use result teams if exist; otherwise check validity and clean invalid teams
         knockout_result = prediction.knockout_result if hasattr(prediction, 'knockout_result') else None
+        
         if knockout_result and knockout_result.team_1 and knockout_result.team_2:
+            # Result exists - use result teams
             team1_id = knockout_result.team_1
             team2_id = knockout_result.team_2
             # Winner: prefer result winner if exists; otherwise keep user's winner
             winner_team_id = knockout_result.winner_team_id if getattr(knockout_result, 'winner_team_id', None) else prediction.winner_team_id
         else:
+            # No result - check validity and clean invalid teams
             team1_id = prediction.team1_id
             team2_id = prediction.team2_id
+            
+            # Check if teams are valid (if not, set to 0)
+            # Only clear if explicitly False (not None/undefined)
+            team1_id = KnockPredRefactorService._clean_invalid_team_if_needed(
+                db, team1_id, prediction.template_match_id, is_team1=True
+            )
+            team2_id = KnockPredRefactorService._clean_invalid_team_if_needed(
+                db, team2_id, prediction.template_match_id, is_team1=False
+            )
+            
+            # If winner is one of the invalid teams, clear it
             winner_team_id = prediction.winner_team_id
+            if winner_team_id:
+                if winner_team_id != team1_id and winner_team_id != team2_id:
+                    # Winner is not in the valid teams anymore - clear it
+                    winner_team_id = 0
+        
+        # Convert 0 to None for database (0 is sentinel, None is actual empty value)
+        team1_id = team1_id if team1_id != 0 else None
+        team2_id = team2_id if team2_id != 0 else None
+        winner_team_id = winner_team_id if winner_team_id != 0 else None
 
         # Create draft copy
         draft = PredictionRepository.create_knockout_prediction(
@@ -595,13 +835,13 @@ class KnockPredRefactorService:
         created = 0
         skipped = 0
         for prediction in predictions:
-            # Skip if draft exists
+            # Delete existing draft if exists (create_draft_from_prediction will recreate it)
             existing = PredictionRepository.get_knockout_prediction_by_user_and_match(
                 db, user_id, prediction.template_match_id, is_draft=True
             )
             if existing:
-                skipped += 1
-                continue
+                db.delete(existing)
+                db.flush()
 
             # Delegate to single-item creator to avoid duplicate logic
             res = KnockPredRefactorService.create_draft_from_prediction(db, user_id, prediction.id)

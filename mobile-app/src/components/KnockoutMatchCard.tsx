@@ -49,8 +49,24 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, 
   // Use green border if there's a pending change, otherwise use status color
   const borderColor = pendingWinner ? '#10b981' : getStatusColor(prediction.status);
   
+  // Check if match is finished (has is_correct field)
+  const matchFinished = prediction.is_correct !== undefined && prediction.is_correct !== null;
+  const isCorrect = prediction.is_correct === true;
+  
+  // Get validity flags (only if match not finished)
+  // Only mark as invalid if explicitly false (not undefined/null)
+  const team1Invalid = matchFinished ? false : (prediction.team1_is_valid === false);
+  const team2Invalid = matchFinished ? false : (prediction.team2_is_valid === false);
+  
   return (
     <View style={[styles.matchCard, { borderColor }]}>
+      {matchFinished && (
+        <View style={styles.correctnessIndicator}>
+          <Text style={[styles.correctnessSymbol, isCorrect ? styles.correctSymbol : styles.incorrectSymbol]}>
+            {isCorrect ? '✓' : '✗'}
+          </Text>
+        </View>
+      )}
       <View style={styles.teamContainer}>
         <TouchableOpacity 
           style={[
@@ -70,7 +86,8 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, 
             style={[
               styles.teamName,
               isTeam1Winner && styles.winnerText,
-              team1IsTBD && styles.tbdText
+              team1IsTBD && styles.tbdText,
+              team1Invalid && styles.invalidText
             ]}
             numberOfLines={2}
             adjustsFontSizeToFit={true}
@@ -100,7 +117,8 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, 
             style={[
               styles.teamName,
               isTeam2Winner && styles.winnerText,
-              team2IsTBD && styles.tbdText
+              team2IsTBD && styles.tbdText,
+              team2Invalid && styles.invalidText
             ]}
             numberOfLines={2}
             adjustsFontSizeToFit={true}
@@ -120,7 +138,7 @@ const styles = StyleSheet.create({
     borderRadius: 9, // 12 * 0.75
     padding: 12, // 16 * 0.75
     marginBottom: 9, // 12 * 0.75
-    marginHorizontal: 4, // Even smaller margin
+    marginHorizontal: 4,
     marginTop: 6, // 8 * 0.75
     borderWidth: 2,
     borderColor: 'transparent',
@@ -129,8 +147,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    height: 90, // 120 * 0.75
-    width: '48%', // For 2 columns layout
+    height: 120, // 90 * 1.5 - Increased height
+    width: '96%', // Double width - single column layout
   },
   teamContainer: {
     flexDirection: 'row',
@@ -139,26 +157,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   teamButton: {
-    width: 60, // 120 * 0.5
-    height: 60, // 80 * 0.75
+    width: 120, // 60 * 2 - Double width
+    height: 90, // 60 * 1.5 - Increased height
     alignItems: 'center',
     justifyContent: 'center', // Center everything vertically
-    paddingHorizontal: 4, // 8 * 0.5
+    paddingHorizontal: 8,
     borderRadius: 6, // 8 * 0.75
     borderWidth: 1,
     borderColor: '#e2e8f0',
     backgroundColor: '#f8fafc',
-    marginHorizontal: 2, // 4 * 0.5
+    marginHorizontal: 4,
   },
   teamFlag: {
-    width: 24, // 32 * 0.75
-    height: 18, // 24 * 0.75
+    width: 48, // 32 * 1.5 - Increased flags
+    height: 36, // 24 * 1.5 - Increased flags
     borderRadius: 3, // 4 * 0.75
-    marginBottom: 4, // 8 * 0.5
+    marginBottom: 6,
   },
   teamName: {
-    fontSize: 7, // Even smaller text
+    fontSize: 15, // 10 * 1.5 - Increased font size
     fontWeight: '600',
+    fontFamily: 'System',
+    letterSpacing: 0.3,
     color: '#2d3748',
     textAlign: 'center',
     textAlignVertical: 'center',
@@ -167,14 +187,18 @@ const styles = StyleSheet.create({
   tbdText: {
     color: '#111827', // near-black
     fontWeight: '900', // very bold
-    fontSize: 27, // 36 * 0.75
+    fontSize: 40, // Increased for bigger card
+    fontFamily: 'System',
+    letterSpacing: 1,
     textAlign: 'center',
     textAlignVertical: 'center',
   },
   vs: {
-    fontSize: 10, // Even smaller
+    fontSize: 21, // 14 * 1.5 - Increased font size
+    fontFamily: 'System',
+    letterSpacing: 0.5,
     color: '#718096',
-    marginHorizontal: 4, // Smaller padding between columns
+    marginHorizontal: 8,
     fontWeight: 'bold',
   },
   winnerButton: {
@@ -196,6 +220,37 @@ const styles = StyleSheet.create({
   justSavedButton: {
     backgroundColor: '#dbeafe', // Light blue background for just saved
     borderColor: '#3b82f6', // Blue border for just saved
+  },
+  correctnessIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  correctnessSymbol: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  correctSymbol: {
+    color: '#38a169', // Green for correct
+  },
+  incorrectSymbol: {
+    color: '#e53e3e', // Red for incorrect
+  },
+  invalidText: {
+    color: '#e53e3e', // Red text for invalid team
+    textDecorationLine: 'line-through',
   },
 });
 

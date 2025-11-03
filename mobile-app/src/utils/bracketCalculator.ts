@@ -54,6 +54,10 @@ export interface BracketMatch {
   topLeftY?: number;
   bottomRightX?: number;
   bottomRightY?: number;
+  // Validation fields
+  is_correct?: boolean | null; // True if prediction is correct (match finished)
+  team1_is_valid?: boolean | null; // True if team1 can reach this match (match not finished)
+  team2_is_valid?: boolean | null; // True if team2 can reach this match (match not finished)
 }
 
 export interface OrganizedBracket {
@@ -158,7 +162,11 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       winner_team_flag: prediction.winner_team_flag,
       winner_team_name: prediction.winner_team_name,
       status: prediction.status, // Add status from prediction
-      side
+      side,
+      // Validation fields
+      is_correct: prediction.is_correct,
+      team1_is_valid: prediction.team1_is_valid,
+      team2_is_valid: prediction.team2_is_valid,
     };
 
     // Organize by stage and side
