@@ -13,7 +13,7 @@ All services use PredictionRepository for database operations.
 from .match_prediction_service import MatchPredictionService
 from .group_prediction_service import GroupPredictionService
 from .third_place_prediction_service import ThirdPlacePredictionService
-from .knockout_prediction_service import KnockoutPredictionService
+from .knock_pred_refactor_service import KnockPredRefactorService
 from .prediction_repository import PredictionRepository
 from .shared import PredictionStatus, PlacesPredictions
 
@@ -38,11 +38,12 @@ class PredictionService:
     get_third_place_predictions_data = staticmethod(ThirdPlacePredictionService.get_third_place_predictions_data)
     
     # Knockout predictions
-    get_knockout_predictions = staticmethod(KnockoutPredictionService.get_knockout_predictions)
-    update_knockout_prediction_winner = staticmethod(KnockoutPredictionService.update_knockout_prediction_winner)
-    update_batch_knockout_predictions = staticmethod(KnockoutPredictionService.update_batch_knockout_predictions)
-    create_draft_from_prediction = staticmethod(KnockoutPredictionService.create_draft_from_prediction)
-    create_all_drafts_from_predictions = staticmethod(KnockoutPredictionService.create_all_drafts_from_predictions)
+    get_knockout_predictions = staticmethod(KnockPredRefactorService.get_knockout_predictions)
+    update_knockout_prediction_winner = staticmethod(KnockPredRefactorService.update_knockout_prediction_by_id)
+    update_batch_knockout_predictions = staticmethod(KnockPredRefactorService.update_batch_knockout_predictions)
+    create_draft_from_prediction = staticmethod(KnockPredRefactorService.create_draft_from_prediction)
+    create_all_drafts_from_predictions = staticmethod(KnockPredRefactorService.create_all_drafts_from_predictions)
+    delete_all_drafts_for_user = staticmethod(KnockPredRefactorService.delete_all_drafts_for_user)
     
     # Status management
     set_status = staticmethod(PredictionRepository.set_prediction_status)
@@ -52,7 +53,6 @@ __all__ = [
     'MatchPredictionService',
     'GroupPredictionService',
     'ThirdPlacePredictionService',
-    'KnockoutPredictionService',
     'PredictionRepository',
     'PredictionStatus',
     'PlacesPredictions',

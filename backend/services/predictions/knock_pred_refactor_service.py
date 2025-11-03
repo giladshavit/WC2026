@@ -126,6 +126,79 @@ class KnockPredRefactorService:
             db, prediction, "Prediction updated successfully", 
             winner_team_name=winner_team_name, changed=changed
         )
+
+    @staticmethod
+    def get_knockout_predictions(
+        db: Session,
+        user_id: int,
+        stage: Optional[str] = None,
+        is_draft: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Get all user's knockout predictions. If stage is provided, filter by that stage.
+        If is_draft is True, returns draft predictions instead of regular ones.
+        """
+        predictions = PredictionRepository.get_knockout_predictions_by_user(db, user_id, stage, is_draft=is_draft)
+
+        result: List[Dict[str, Any]] = []
+        for prediction in predictions:
+            team1_id = prediction.team1_id
+            team2_id = prediction.team2_id
+            winner_team_id = prediction.winner_team_id
+            team1 = prediction.team1
+            team2 = prediction.team2
+            winner_team = prediction.winner_team
+
+            if is_draft:
+                knockout_result = prediction.knockout_result if hasattr(prediction, 'knockout_result') else None
+                if knockout_result:
+                    if knockout_result.team_1:
+                        team1_id = knockout_result.team_1
+                        team1 = knockout_result.team_1_obj
+                    if knockout_result.team_2:
+                        team2_id = knockout_result.team_2
+                        team2 = knockout_result.team_2_obj
+
+            item: Dict[str, Any] = {
+                "id": prediction.id,
+                "user_id": prediction.user_id,
+                "knockout_result_id": prediction.knockout_result_id,
+                "template_match_id": prediction.template_match_id,
+                "stage": prediction.stage,
+                "team1_id": team1_id,
+                "team2_id": team2_id,
+                "winner_team_id": winner_team_id,
+                "status": prediction.status,
+                "team1_name": team1.name if team1 else None,
+                "team2_name": team2.name if team2 else None,
+                "winner_team_name": winner_team.name if winner_team else None,
+                "team1_short_name": team1.short_name if team1 else None,
+                "team2_short_name": team2.short_name if team2 else None,
+                "winner_team_short_name": winner_team.short_name if winner_team else None,
+                "team1_flag": team1.flag_url if team1 else None,
+                "team2_flag": team2.flag_url if team2 else None,
+                "winner_team_flag": winner_team.flag_url if winner_team else None,
+            }
+
+            if not is_draft:
+                item["points"] = prediction.points
+                item["is_editable"] = prediction.is_editable
+                item["created_at"] = prediction.created_at
+                item["updated_at"] = prediction.updated_at
+            else:
+                if hasattr(prediction, 'knockout_pred_id'):
+                    item["knockout_pred_id"] = prediction.knockout_pred_id
+
+            result.append(item)
+
+        user_scores = None
+        if not is_draft:
+            user_scores = PredictionRepository.get_user_scores(db, user_id)
+
+        return {
+            "predictions": result,
+            "knockout_score": user_scores.knockout_score if user_scores else None,
+        }
     
     @staticmethod
     def _find_next_prediction_and_position(
@@ -452,3 +525,104 @@ class KnockPredRefactorService:
         
         # Commit all changes at the end
         PredictionRepository.commit(db)
+
+    @staticmethod
+    def create_draft_from_prediction(db: Session, user_id: int, prediction_id: int) -> Dict[str, Any]:
+        """
+        Create a draft prediction by copying from existing prediction.
+        Priority: result data first (teams, winner if exists), otherwise copy prediction as-is.
+        Status is always copied from the original prediction.
+        """
+        # Get the original prediction
+        prediction = PredictionRepository.get_knockout_prediction_by_id(db, prediction_id, is_draft=False)
+        if not prediction:
+            raise HTTPException(status_code=404, detail="Prediction not found")
+
+        # If draft already exists, return it
+        existing_draft = PredictionRepository.get_knockout_prediction_by_user_and_match(
+            db, user_id, prediction.template_match_id, is_draft=True
+        )
+        if existing_draft:
+            return {
+                "success": True,
+                "message": "Draft already exists",
+                "draft_id": existing_draft.id,
+            }
+
+        # Use result teams if exist; otherwise prediction teams
+        knockout_result = prediction.knockout_result if hasattr(prediction, 'knockout_result') else None
+        if knockout_result and knockout_result.team_1 and knockout_result.team_2:
+            team1_id = knockout_result.team_1
+            team2_id = knockout_result.team_2
+            # Winner: prefer result winner if exists; otherwise keep user's winner
+            winner_team_id = knockout_result.winner_team_id if getattr(knockout_result, 'winner_team_id', None) else prediction.winner_team_id
+        else:
+            team1_id = prediction.team1_id
+            team2_id = prediction.team2_id
+            winner_team_id = prediction.winner_team_id
+
+        # Create draft copy
+        draft = PredictionRepository.create_knockout_prediction(
+            db,
+            user_id=user_id,
+            knockout_result_id=prediction.knockout_result_id or 0,
+            template_match_id=prediction.template_match_id,
+            stage=prediction.stage,
+            team1_id=team1_id,
+            team2_id=team2_id,
+            winner_team_id=winner_team_id,
+            is_draft=True,
+            knockout_pred_id=prediction.id,
+            status=prediction.status,
+        )
+
+        PredictionRepository.commit(db)
+        return {
+            "success": True,
+            "message": "Draft created",
+            "draft_id": draft.id,
+        }
+
+    @staticmethod
+    def create_all_drafts_from_predictions(db: Session, user_id: int) -> Dict[str, Any]:
+        """
+        Create drafts for all user's knockout predictions.
+        Simple copy: use result teams (and winner if present), otherwise copy prediction data.
+        Status is copied as-is from the original prediction.
+        """
+        predictions = PredictionRepository.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
+
+        created = 0
+        skipped = 0
+        for prediction in predictions:
+            # Skip if draft exists
+            existing = PredictionRepository.get_knockout_prediction_by_user_and_match(
+                db, user_id, prediction.template_match_id, is_draft=True
+            )
+            if existing:
+                skipped += 1
+                continue
+
+            # Delegate to single-item creator to avoid duplicate logic
+            res = KnockPredRefactorService.create_draft_from_prediction(db, user_id, prediction.id)
+            if res.get("success"):
+                created += 1
+
+        # Nothing else to do, create_draft_from_prediction commits
+        return {
+            "success": True,
+            "message": "Drafts created",
+            "created": created,
+            "skipped": skipped,
+        }
+
+    @staticmethod
+    def delete_all_drafts_for_user(db: Session, user_id: int) -> Dict[str, Any]:
+        """Delete all draft predictions for a given user."""
+        drafts = PredictionRepository.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=True)
+        deleted = 0
+        for draft in drafts:
+            db.delete(draft)
+            deleted += 1
+        db.commit()
+        return {"success": True, "deleted": deleted}

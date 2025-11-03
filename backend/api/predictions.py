@@ -4,14 +4,10 @@ from typing import Dict, Any, List
 from pydantic import BaseModel
 from dataclasses import dataclass
 
-from services.predictions import PredictionService, PlacesPredictions
-from services.predictions.knockout_prediction_service import KnockoutPredictionService
-from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
+from services.predictions import PredictionService
 from services.predictions import PredictionRepository
-from services.group_service import GroupService
 from services.stage_manager import StageManager, Stage
 from services.match_service import MatchService
-from models.predictions import KnockoutStagePrediction, ThirdPlacePrediction
 from database import get_db
 
 router = APIRouter()
@@ -255,8 +251,8 @@ async def update_batch_knockout_predictions(
             detail=f"Knockout predictions are no longer editable. Current stage: {current_stage.name}"
         )
     
-    # Use new refactored service
-    result = KnockPredRefactorService.update_batch_knockout_predictions(
+    # Use prediction service wrapper (routes to refactor service internally)
+    result = PredictionService.update_batch_knockout_predictions(
         db, request.user_id, request.predictions, is_draft=False
     )
     
@@ -296,8 +292,8 @@ def update_knockout_prediction_winner(
                 detail=f"This knockout prediction is no longer editable. Stage: {prediction.stage}"
             )
 
-        # Use new refactored service
-        return KnockPredRefactorService.update_knockout_prediction_by_id(
+        # Use prediction service wrapper (routes to refactor service internally)
+        return PredictionService.update_knockout_prediction_winner(
             db, prediction_id, request.winner_team_number, request.winner_team_name, is_draft=is_draft
         )
         
@@ -357,7 +353,8 @@ def delete_all_drafts_for_user(
     Called when exiting edit mode.
     """
     try:
-        result = KnockoutPredictionService.delete_all_drafts_for_user(db, user_id)
+        from services.predictions import PredictionService
+        result = PredictionService.delete_all_drafts_for_user(db, user_id)
         return result
     except HTTPException:
         raise
