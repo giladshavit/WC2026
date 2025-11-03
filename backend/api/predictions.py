@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 from services.predictions import PredictionService, PlacesPredictions
 from services.predictions.knockout_prediction_service import KnockoutPredictionService
+from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
+from services.predictions import PredictionRepository
 from services.group_service import GroupService
 from services.stage_manager import StageManager, Stage
 from services.match_service import MatchService
@@ -241,12 +243,10 @@ def get_knockout_predictions(
 @router.post("/predictions/knockout/batch", response_model=Dict[str, Any])
 async def update_batch_knockout_predictions(
     request: BatchKnockoutPredictionRequest,
-    is_draft: bool = False,
     db: Session = Depends(get_db)
 ):
     """
-    Update multiple knockout predictions at once with penalty calculation
-    If is_draft is True, updates draft predictions instead of regular ones.
+    Update multiple knockout predictions at once
     """
     current_stage = StageManager.get_current_stage(db)
     if current_stage.value > Stage.ROUND32.value:
@@ -255,8 +255,9 @@ async def update_batch_knockout_predictions(
             detail=f"Knockout predictions are no longer editable. Current stage: {current_stage.name}"
         )
     
-    result = PredictionService.update_batch_knockout_predictions(
-        db, request.user_id, request.predictions, is_draft=is_draft
+    # Use new refactored service
+    result = KnockPredRefactorService.update_batch_knockout_predictions(
+        db, request.user_id, request.predictions, is_draft=False
     )
     
     if "error" in result:
@@ -279,25 +280,27 @@ def update_knockout_prediction_winner(
 ):
     """
     Update a knockout prediction - choose winner and update next stages
-    If is_draft is True, updates draft prediction instead of regular one.
     """
     try:
-        # Check if knockout prediction is editable (only check is_editable for non-draft)
+        # Pre-checks (match existing behavior)
         from services.predictions import PredictionRepository
         prediction = PredictionRepository.get_knockout_prediction_by_id(db, prediction_id, is_draft=is_draft)
         
         if not prediction:
             raise HTTPException(status_code=404, detail="Knockout prediction not found")
         
-        # Draft predictions are always editable, so only check for regular predictions
-        if not is_draft and not prediction.is_editable:
+        # Draft predictions are always editable; for regular predictions enforce is_editable
+        if not is_draft and not getattr(prediction, 'is_editable', True):
             raise HTTPException(
                 status_code=403,
                 detail=f"This knockout prediction is no longer editable. Stage: {prediction.stage}"
             )
+
+        # Use new refactored service
+        return KnockPredRefactorService.update_knockout_prediction_by_id(
+            db, prediction_id, request.winner_team_number, request.winner_team_name, is_draft=is_draft
+        )
         
-        result = PredictionService.update_knockout_prediction_winner(db, prediction_id, request, is_draft=is_draft)
-        return result
     except HTTPException:
         raise
     except Exception as e:

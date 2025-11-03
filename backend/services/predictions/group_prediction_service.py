@@ -2,6 +2,7 @@ from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
 from .prediction_repository import PredictionRepository
 from .shared import PlacesPredictions
+from .knock_pred_refactor_service import KnockPredRefactorService
 
 
 class GroupPredictionService:
@@ -166,14 +167,17 @@ class GroupPredictionService:
         if not match_id:
             return
         
-        # Find relevant knockout prediction - use lazy import to avoid circular dependency
-        from .knockout_prediction_service import KnockoutPredictionService
-        knockout_prediction = PredictionRepository.get_knockout_prediction_by_user_and_match(db, user_id, match_id)
+        # Find relevant knockout prediction
+        knockout_prediction = PredictionRepository.get_knockout_prediction_by_user_and_match(db, user_id, match_id, is_draft=False)
         if not knockout_prediction:
             return
         
-        # Update knockout prediction teams
-        KnockoutPredictionService.update_knockout_prediction_teams(db, knockout_prediction, old_team, new_team)
+        # Update knockout prediction teams using new refactored service
+        # Determine which team to update (team1 or team2)
+        if knockout_prediction.team1_id == old_team:
+            KnockPredRefactorService.update_knockout_prediction(db, knockout_prediction, team1_id=new_team)
+        elif knockout_prediction.team2_id == old_team:
+            KnockPredRefactorService.update_knockout_prediction(db, knockout_prediction, team2_id=new_team)
     
     @staticmethod
     def _handle_third_place_change(db: Session, user_id: int, old_third_place: int, 
@@ -195,13 +199,13 @@ class GroupPredictionService:
     @staticmethod
     def _update_knockout_for_third_place_change(db: Session, user_id: int, old_team_id: int, new_team_id: int):
         """Update knockout prediction if the old third place team is in team2 position"""
-        from .knockout_prediction_service import KnockoutPredictionService
         knockout_prediction = PredictionRepository.get_knockout_prediction_by_user_and_team2(
-            db, user_id, old_team_id
+            db, user_id, old_team_id, is_draft=False
         )
         if knockout_prediction:
-            KnockoutPredictionService.update_knockout_prediction_teams(
-                db, knockout_prediction, old_team_id, new_team_id
+            # Update team2 (since we're looking for team2 position)
+            KnockPredRefactorService.update_knockout_prediction(
+                db, knockout_prediction, team2_id=new_team_id
             )
     
     @staticmethod
