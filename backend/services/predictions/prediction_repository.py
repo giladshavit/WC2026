@@ -228,7 +228,8 @@ class PredictionRepository:
     def create_knockout_prediction(db: Session, user_id: int, knockout_result_id: int, template_match_id: int,
                                   stage: str, team1_id: Optional[int] = None, team2_id: Optional[int] = None,
                                   winner_team_id: Optional[int] = None, knockout_pred_id: Optional[int] = None,
-                                  status: Optional[str] = None, is_draft: bool = False) -> Any:
+                                  status: Optional[str] = None, is_draft: bool = False,
+                                  current_winner_team_id: Optional[int] = None) -> Any:
         """Create a new knockout prediction"""
         model = PredictionRepository._get_knockout_model(is_draft)
         prediction = model(
@@ -243,6 +244,9 @@ class PredictionRepository:
         # Add knockout_pred_id only for draft
         if is_draft and knockout_pred_id is not None:
             prediction.knockout_pred_id = knockout_pred_id
+        # Add current_winner_team_id only for draft
+        if is_draft and current_winner_team_id is not None:
+            prediction.current_winner_team_id = current_winner_team_id
         # Set status if provided (important for drafts to copy status from original)
         if status is not None:
             prediction.status = status

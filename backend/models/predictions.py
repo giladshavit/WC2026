@@ -90,6 +90,8 @@ class KnockoutStagePrediction(Base):
     team2_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # Second team
     winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     status = Column(String(20), nullable=True, default="gray")  # green/yellow/red/gray
+    is_team1_valid = Column(Boolean, default=True, nullable=False)  # Whether team1 is valid (can reach this match)
+    is_team2_valid = Column(Boolean, default=True, nullable=False)  # Whether team2 is valid (can reach this match)
     points = Column(Integer, default=0, nullable=False)  # Points earned for this prediction
     is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -114,7 +116,10 @@ class KnockoutStagePredictionDraft(Base):
     team1_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # First team
     team2_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # Second team
     winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    current_winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     status = Column(String(20), nullable=True, default="gray")  # green/yellow/red/gray
+    is_team1_valid = Column(Boolean, default=True, nullable=False)  # Whether team1 is valid (can reach this match)
+    is_team2_valid = Column(Boolean, default=True, nullable=False)  # Whether team2 is valid (can reach this match)
     knockout_pred_id = Column(Integer, ForeignKey("knockout_stage_predictions.id"), nullable=True)  # Link to original prediction
     
     # Relationships
@@ -124,3 +129,4 @@ class KnockoutStagePredictionDraft(Base):
     team1 = relationship("Team", foreign_keys=[team1_id])
     team2 = relationship("Team", foreign_keys=[team2_id])
     winner_team = relationship("Team", foreign_keys=[winner_team_id])
+    current_winner_team = relationship("Team", foreign_keys=[current_winner_team_id])

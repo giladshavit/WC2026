@@ -161,8 +161,8 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             team2Invalid
           )}
           
-          {/* Show winner flag if winner is not in team1 or team2 */}
-          {hasWinnerNotInTeams && match.winner_team_flag ? (
+          {/* Show middle winner flag if winner_team_flag exists */}
+          {match.winner_team_flag ? (
             <View style={styles.winnerFlagContainer}>
               <Image 
                 source={{ uri: match.winner_team_flag }} 
