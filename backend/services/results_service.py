@@ -672,10 +672,12 @@ class ResultsService:
             # Match has actual teams assigned - check if winner is one of them
             if winner_team_id in {knockout_result.team_1, knockout_result.team_2}:
                 return True
+            else:
+                return False
         
         # Check if this is the first knockout stage (Round of 32) - base case
         if template.stage == 'round32':
-            return False
+            return True
         
         # Get the two source matches
         source_match_1_id, source_match_2_id = ResultsService.get_source_match_ids(template)
@@ -749,7 +751,6 @@ class ResultsService:
         
         # Determine which prediction is the winner and which is the loser
         winner_prediction = source_pred_1 if (source_pred_1.winner_team_id == prediction.winner_team_id) else source_pred_2
-        loser_prediction = source_pred_2 if (source_pred_1.winner_team_id == prediction.winner_team_id) else source_pred_1
         
         # If winner prediction is not MUST_CHANGE -> MIGHT_CHANGE (yellow)
         if not ResultsService.is_prediction_must_change(winner_prediction):
