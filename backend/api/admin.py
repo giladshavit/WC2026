@@ -219,6 +219,7 @@ def update_match_result(
     """
     Update or create a match result (admin only)
     """
+    print(f"🔍 [DEBUG API] update_match_result endpoint called: match_id={match_id}, request={result_request}")
     try:
         result = ResultsService.update_match_result(
             db=db,
@@ -231,10 +232,15 @@ def update_match_result(
             away_team_penalties=result_request.away_team_penalties,
             outcome_type=result_request.outcome_type
         )
+        print(f"✅ [DEBUG API] update_match_result completed: {result}")
         return result
     except ValueError as e:
+        print(f"❌ [DEBUG API] ValueError: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        print(f"❌ [DEBUG API] Exception: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.put("/admin/matches/{match_id}/status", response_model=Dict[str, Any])
@@ -278,6 +284,39 @@ def get_knockout_matches_with_results(db: Session = Depends(get_db)):
     Only returns matches where both teams are defined
     """
     return ResultsService.get_knockout_matches_with_results(db)
+
+class KnockoutResultRequest(BaseModel):
+    match_id: int
+    team_1_id: int
+    team_2_id: int
+    winner_team_id: int
+
+@router.put("/admin/knockout/result", response_model=Dict[str, Any])
+def update_knockout_result(
+    result_request: KnockoutResultRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Update or create a knockout stage result (admin only).
+    This will:
+    - Set match is_editable to False
+    - Update/create knockout result
+    - Process all predictions (award points if correct, invalidate if wrong)
+    """
+    try:
+        result = ResultsService.update_knockout_result(
+            db,
+            result_request.match_id,
+            result_request.team_1_id,
+            result_request.team_2_id,
+            result_request.winner_team_id
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating knockout result: {str(e)}")
 
 # Group results endpoints
 @router.get("/admin/groups/results", response_model=List[Dict[str, Any]])
@@ -441,11 +480,17 @@ def rebuild_round32_bracket(db: Session = Depends(get_db)):
         # Step 3: Update prediction statuses for all subsequent knockout stages
         ResultsService.update_knockout_statuses_after_round32(db)
         
+        # Step 4: Update validity for all predictions
+        from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
+        KnockPredRefactorService.update_all_predictions_validity(db)
+        db.commit()
+        
         return {
             "message": "Round of 32 bracket rebuilt and all knockout statuses updated successfully",
             "bracket_rebuilt": True,
             "round32_statuses_updated": True,
-            "subsequent_statuses_updated": True
+            "subsequent_statuses_updated": True,
+            "validity_updated": True
         }
         
     except Exception as e:

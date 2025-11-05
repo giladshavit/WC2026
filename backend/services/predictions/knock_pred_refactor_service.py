@@ -317,6 +317,39 @@ class KnockPredRefactorService:
         }
 
     @staticmethod
+    def update_all_predictions_validity(db: Session) -> None:
+        """
+        Update validity for all knockout predictions based on current results and predictions.
+        This should be called after admin operations that might affect validity (e.g., entering results).
+        """
+        from models.predictions import KnockoutStagePrediction
+        from models.results import KnockoutStageResult
+        
+        # Get all knockout predictions
+        predictions = db.query(KnockoutStagePrediction).all()
+        
+        for prediction in predictions:
+            # Get knockout result for this prediction
+            knockout_result = db.query(KnockoutStageResult).filter(
+                KnockoutStageResult.id == prediction.knockout_result_id
+            ).first() if prediction.knockout_result_id else None
+            
+            # Create a temporary item dict for the update function
+            item = {}
+            
+            # Update validity for both teams using the existing logic
+            KnockPredRefactorService._update_team_validity(
+                db, prediction, item, prediction.team1_id, True, "team_1", "is_team1_valid", "team1_is_valid",
+                knockout_result, prediction.user_id
+            )
+            KnockPredRefactorService._update_team_validity(
+                db, prediction, item, prediction.team2_id, False, "team_2", "is_team2_valid", "team2_is_valid",
+                knockout_result, prediction.user_id
+            )
+        
+        db.flush()
+    
+    @staticmethod
     def _update_team_validity(
         db: Session,
         prediction,
@@ -420,10 +453,14 @@ class KnockPredRefactorService:
                 KnockoutStageResult.id == prediction.knockout_result_id
             ).first() if prediction.knockout_result_id else None
             
-            # Check correctness and validity
-            KnockPredRefactorService._check_prediction_correctness_and_validity(
-                db, prediction, item, team1_id, team2_id, knockout_result, user_id
-            )
+            # Get validity from DB (read-only)
+            item["team1_is_valid"] = getattr(prediction, "is_team1_valid", True)
+            item["team2_is_valid"] = getattr(prediction, "is_team2_valid", True)
+            
+            # Check if match has been decided (has winner)
+            if knockout_result and knockout_result.winner_team_id:
+                # Match is finished - check if user predicted correctly
+                item["is_correct"] = (prediction.winner_team_id == knockout_result.winner_team_id)
 
             # Add additional fields based on is_draft
             KnockPredRefactorService._add_additional_fields_to_item(item, prediction, is_draft)

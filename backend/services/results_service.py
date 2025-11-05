@@ -135,11 +135,28 @@ class ResultsService:
         match.status = "finished"
         db.commit()
         
-        # Update KnockoutStageResult if this is a knockout match
-        if match.is_knockout:
-            ResultsService._update_knockout_stage_result(db, match_id, winner_team_id)
+        # Check if this is a knockout match
+        is_knockout = match.stage in ['round32', 'round16', 'quarter', 'semi', 'final']
         
-        # Update scoring for all users who predicted this match
+        # Update KnockoutStageResult if this is a knockout match
+        if is_knockout:
+            # Get team1 and team2 from the match
+            team_1_id = match.home_team_id
+            team_2_id = match.away_team_id
+            # Call the new update_knockout_result function that handles predictions
+            ResultsService.update_knockout_result(
+                db, match_id, team_1_id, team_2_id, winner_team_id
+            )
+            # Note: update_knockout_result already handles scoring, so we skip the match scoring below
+            return {
+                "match_id": match_id,
+                "home_team_score": result.home_team_score,
+                "away_team_score": result.away_team_score,
+                "winner_team_id": result.winner_team_id,
+                "message": "Match result updated successfully"
+            }
+        
+        # Update scoring for all users who predicted this match (only for non-knockout matches)
         ScoringService.update_match_scoring_for_all_users(db, result)
         
         return {
@@ -865,3 +882,203 @@ class ResultsService:
         except Exception as e:
             db.rollback()
             raise Exception(f"Error resetting user scores: {str(e)}")
+    
+    @staticmethod
+    def _invalidate_team_in_next_stage_recursive(
+        db: Session,
+        next_prediction,
+        position: int,
+        wrong_winner_team_id: int
+    ) -> None:
+        """
+        Recursively invalidate a team in the next stage if it's not valid.
+        
+        Args:
+            db: Database session
+            next_prediction: The next prediction (already found)
+            position: Position in next prediction (1 for team1, 2 for team2)
+            wrong_winner_team_id: The team ID that was predicted but is wrong
+        """
+        from .predictions.shared import PredictionStatus
+        from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
+        
+        # Check which team is at the position in next prediction
+        if position == 1:
+            team_at_position = next_prediction.team1_id
+            is_valid_field = 'is_team1_valid'
+        else:  # position == 2
+            team_at_position = next_prediction.team2_id
+            is_valid_field = 'is_team2_valid'
+        
+        # Check if the team at position is the wrong winner - if not, nothing to do
+        if team_at_position != wrong_winner_team_id:
+            return
+        
+        # 1. Check if team is valid - if not, stop
+        is_valid = getattr(next_prediction, is_valid_field, True)
+        
+        if not is_valid:
+            return  # Already invalid, stop
+        
+        # 2. If valid, change to invalid
+        setattr(next_prediction, is_valid_field, False)
+        db.flush()
+        
+        # 3. Check if this is the winner in the next prediction
+        if next_prediction.winner_team_id == wrong_winner_team_id:
+            # 4. If yes: change status to red and call recursively with next prediction
+            next_prediction.status = PredictionStatus.MUST_CHANGE_PREDICT.value
+            db.flush()
+            
+            # Get the next prediction and position for recursive call
+            next_next_prediction, next_next_position = KnockPredRefactorService._find_next_prediction_and_position(
+                db, next_prediction
+            )
+            
+            if next_next_prediction and next_next_position:
+                ResultsService._invalidate_team_in_next_stage_recursive(
+                    db, next_next_prediction, next_next_position, wrong_winner_team_id
+                )
+        else:
+            # The winner is not the wrong winner - check if status is green (PREDICTED) and change to yellow (MIGHT_CHANGE_PREDICT)
+            if next_prediction.status == PredictionStatus.PREDICTED.value:
+                next_prediction.status = PredictionStatus.MIGHT_CHANGE_PREDICT.value
+                db.flush()
+    
+    @staticmethod
+    def _set_predictions_not_editable(db: Session, match_id: int) -> List[KnockoutStagePrediction]:
+        """
+        Set all predictions for a match to is_editable = False.
+        
+        Args:
+            db: Database session
+            match_id: The match template ID
+            
+        Returns:
+            List of predictions that were updated
+        """
+        predictions = db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.template_match_id == match_id
+        ).all()
+        
+        for pred in predictions:
+            pred.is_editable = False
+        
+        db.flush()
+        return predictions
+    
+    @staticmethod
+    def _create_or_update_knockout_result(
+        db: Session,
+        match_id: int,
+        team_1_id: int,
+        team_2_id: int,
+        winner_team_id: int
+    ) -> KnockoutStageResult:
+        """
+        Create or update a knockout stage result.
+        MOST IMPORTANT: This function updates the result with the winner_team_id.
+        
+        Args:
+            db: Database session
+            match_id: The match template ID
+            team_1_id: Team 1 ID
+            team_2_id: Team 2 ID
+            winner_team_id: Winner team ID (THIS IS THE MOST IMPORTANT FIELD)
+            
+        Returns:
+            The knockout result object
+        """
+        knockout_result = db.query(KnockoutStageResult).filter(
+            KnockoutStageResult.match_id == match_id
+        ).first()
+        
+        if knockout_result:
+            # Update existing result
+            knockout_result.team_1 = team_1_id
+            knockout_result.team_2 = team_2_id
+            knockout_result.winner_team_id = winner_team_id
+        else:
+            # Create new result
+            knockout_result = KnockoutStageResult(
+                match_id=match_id,
+                team_1=team_1_id,
+                team_2=team_2_id,
+                winner_team_id=winner_team_id
+            )
+            db.add(knockout_result)
+        
+        db.flush()
+        return knockout_result
+    
+    @staticmethod
+    def update_knockout_result(
+        db: Session,
+        match_id: int,
+        team_1_id: int,
+        team_2_id: int,
+        winner_team_id: int
+    ) -> Dict[str, Any]:
+        """
+        Update or create a knockout stage result and process all predictions.
+        
+        This function:
+        1. Sets match is_editable to False
+        2. Updates/creates knockout result
+        3. Processes all predictions:
+           - Compares winner with prediction
+           - Awards points if correct (via ScoringService)
+           - If wrong, recursively invalidates teams in next stages
+        
+        Args:
+            db: Database session
+            match_id: The match template ID
+            team_1_id: Team 1 ID
+            team_2_id: Team 2 ID
+            winner_team_id: Winner team ID
+            
+        Returns:
+            Dict with success message
+        """
+        # 1. Verify match exists
+        match = db.query(Match).filter(Match.id == match_id).first()
+        if not match:
+            raise ValueError(f"Match with ID {match_id} not found")
+        
+        # 2. Set is_editable to False for all predictions and get them
+        predictions = ResultsService._set_predictions_not_editable(db, match_id)
+        
+        # 3. Update or create knockout result
+        knockout_result = ResultsService._create_or_update_knockout_result(
+            db, match_id, team_1_id, team_2_id, winner_team_id
+        )
+        
+        # 4. Process all predictions and award points (via ScoringService)
+        ScoringService.update_knockout_scoring_for_all_users(db, knockout_result)
+        
+        # 5. Process each prediction for invalidation
+        for prediction in predictions:
+            if prediction.winner_team_id != winner_team_id:
+                # Wrong prediction - invalidate team in next stages recursively
+                # The wrong winner is prediction.winner_team_id (the one that was predicted but is wrong)
+                wrong_winner_team_id = prediction.winner_team_id
+                
+                # Get the next prediction and position first
+                from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
+                
+                next_prediction, position = KnockPredRefactorService._find_next_prediction_and_position(
+                    db, prediction
+                )
+                
+                if next_prediction and position:
+                    ResultsService._invalidate_team_in_next_stage_recursive(
+                        db, next_prediction, position, wrong_winner_team_id
+                    )
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Knockout result updated successfully",
+            "match_id": match_id
+        }
