@@ -3,7 +3,6 @@ import { createMaterialTopTabNavigator } from '@react-navigation/material-top-ta
 import GroupsScreen from '../screens/predictions/GroupsScreen';
 import ThirdPlaceScreen from '../screens/predictions/ThirdPlaceScreen';
 import KnockoutScreen from '../screens/predictions/KnockoutScreen';
-import BracketScreen from '../screens/predictions/BracketScreen';
 
 const Tab = createMaterialTopTabNavigator();
 
@@ -45,11 +44,6 @@ export default function PredictionsTopTabs() {
         name="Knockout" 
         component={KnockoutScreen}
         options={{ title: 'Knockout' }}
-      />
-      <Tab.Screen 
-        name="Bracket" 
-        component={BracketScreen}
-        options={{ title: 'Bracket' }}
       />
     </Tab.Navigator>
   );

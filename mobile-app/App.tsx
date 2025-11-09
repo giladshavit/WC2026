@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import BottomTabs from './src/navigation/BottomTabs';
+import MainNavigator from './src/navigation/MainNavigator';
 import AuthScreen from './src/screens/auth/AuthScreen';
 import { TournamentProvider } from './src/contexts/TournamentContext';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
@@ -21,7 +21,7 @@ function AppContent() {
 
   return (
     <NavigationContainer>
-      {isAuthenticated ? <BottomTabs /> : <AuthScreen />}
+      {isAuthenticated ? <MainNavigator /> : <AuthScreen />}
       <StatusBar style="auto" />
     </NavigationContainer>
   );
