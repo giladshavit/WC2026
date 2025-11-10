@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
-from services.match_service import MatchService
+from services.predictions.match_prediction_service import MatchPredictionService
 from services.team_service import TeamService
 from services.group_service import GroupService
 from services.results_service import ResultsService
@@ -261,7 +261,7 @@ def update_match_status(
                 detail=f"Invalid status. Must be one of: {valid_statuses}"
             )
         
-        result = MatchService.update_match_status(
+        result = MatchPredictionService.update_match_status(
             db=db,
             match_id=match_id,
             status=status_request.status

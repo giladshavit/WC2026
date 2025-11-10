@@ -1,6 +1,6 @@
 from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
-from .prediction_repository import PredictionRepository
+from .db_prediction_repository import DBPredRepository
 from services.scoring_service import ScoringService
 
 
@@ -30,9 +30,9 @@ class ThirdPlacePredictionService:
             existing_prediction, advancing_team_ids, db
         )
         
-        PredictionRepository.update_third_place_prediction(db, existing_prediction, advancing_team_ids)
-        PredictionRepository.update_third_place_prediction_changed_groups(db, existing_prediction, None)
-        PredictionRepository.commit(db)
+        DBPredRepository.update_third_place_prediction(db, existing_prediction, advancing_team_ids)
+        DBPredRepository.update_third_place_prediction_changed_groups(db, existing_prediction, None)
+        DBPredRepository.commit(db)
         
         ThirdPlacePredictionService._update_knockout_predictions_for_third_place(db, user_id, advancing_team_ids)
         
@@ -50,10 +50,10 @@ class ThirdPlacePredictionService:
     def _create_new_third_place_prediction(db: Session, user_id: int, 
                                           advancing_team_ids: List[int]) -> Dict[str, Any]:
         """Create a new third place prediction"""
-        new_prediction = PredictionRepository.create_third_place_prediction(
+        new_prediction = DBPredRepository.create_third_place_prediction(
             db, user_id, advancing_team_ids
         )
-        PredictionRepository.commit(db)
+        DBPredRepository.commit(db)
         
         ThirdPlacePredictionService._update_knockout_predictions_for_third_place(db, user_id, advancing_team_ids)
         
@@ -79,7 +79,7 @@ class ThirdPlacePredictionService:
         if validation_error:
             return validation_error
         
-        existing_prediction = PredictionRepository.get_third_place_prediction_by_user(db, user_id)
+        existing_prediction = DBPredRepository.get_third_place_prediction_by_user(db, user_id)
         
         if existing_prediction:
             return ThirdPlacePredictionService._update_existing_third_place_prediction(
@@ -179,7 +179,7 @@ class ThirdPlacePredictionService:
     @staticmethod
     def _build_third_place_teams(db: Session, user_id: int, advancing_team_ids: List[int]) -> List[Dict[str, Any]]:
         """Build list of third place teams with is_selected flag"""
-        group_predictions = PredictionRepository.get_group_predictions_by_user(db, user_id)
+        group_predictions = DBPredRepository.get_group_predictions_by_user(db, user_id)
         
         if len(group_predictions) != 12:
             return []
@@ -187,10 +187,10 @@ class ThirdPlacePredictionService:
         third_place_teams = []
         for pred in group_predictions:
             third_place_team_id = pred.third_place
-            team = PredictionRepository.get_team(db, third_place_team_id)
+            team = DBPredRepository.get_team(db, third_place_team_id)
             
             if team:
-                group = PredictionRepository.get_group(db, pred.group_id)
+                group = DBPredRepository.get_group(db, pred.group_id)
                 group_name = group.name if group else f"Group {pred.group_id}"
                 
                 third_place_teams.append({
@@ -246,13 +246,13 @@ class ThirdPlacePredictionService:
         """
         Get unified third-place data: eligible teams + predictions with is_selected field
         """
-        prediction = PredictionRepository.get_third_place_prediction_by_user(db, user_id)
+        prediction = DBPredRepository.get_third_place_prediction_by_user(db, user_id)
         
         advancing_team_ids = ThirdPlacePredictionService._extract_advancing_team_ids(prediction)
         prediction_info = ThirdPlacePredictionService._build_prediction_info(prediction)
         
         # Validate that user has predicted all 12 groups
-        group_predictions = PredictionRepository.get_group_predictions_by_user(db, user_id)
+        group_predictions = DBPredRepository.get_group_predictions_by_user(db, user_id)
         if len(group_predictions) != 12:
             return {"error": "User must predict all 12 groups first"}
         
@@ -260,8 +260,8 @@ class ThirdPlacePredictionService:
             db, user_id, advancing_team_ids
         )
         
-        user_scores = PredictionRepository.get_user_scores(db, user_id)
-        third_place_result = PredictionRepository.get_third_place_result(db)
+        user_scores = DBPredRepository.get_user_scores(db, user_id)
+        third_place_result = DBPredRepository.get_third_place_result(db)
         
         # If result exists, make prediction not editable
         if third_place_result and prediction:

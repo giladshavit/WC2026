@@ -5,9 +5,9 @@ from pydantic import BaseModel
 from dataclasses import dataclass
 
 from services.predictions import PredictionService
-from services.predictions import PredictionRepository
+from services.predictions import DBPredRepository
 from services.stage_manager import StageManager, Stage
-from services.match_service import MatchService
+from services.predictions.match_prediction_service import MatchPredictionService
 from database import get_db
 
 router = APIRouter()
@@ -60,7 +60,7 @@ def get_matches_with_predictions(user_id: int, db: Session = Depends(get_db)):
     """
     Get all matches with the user's predictions and user scores
     """
-    return MatchService.get_all_matches_with_predictions(db, user_id)
+    return MatchPredictionService.get_all_matches_with_predictions(db, user_id)
 
 @router.post("/predictions/matches/batch", response_model=Dict[str, Any])
 def create_or_update_batch_match_predictions(
@@ -279,8 +279,8 @@ def update_knockout_prediction_winner(
     """
     try:
         # Pre-checks (match existing behavior)
-        from services.predictions import PredictionRepository
-        prediction = PredictionRepository.get_knockout_prediction_by_id(db, prediction_id, is_draft=is_draft)
+        from services.predictions import DBPredRepository
+        prediction = DBPredRepository.get_knockout_prediction_by_id(db, prediction_id, is_draft=is_draft)
         
         if not prediction:
             raise HTTPException(status_code=404, detail="Knockout prediction not found")

@@ -1,6 +1,12 @@
 from typing import List, Optional, Any
 from sqlalchemy.orm import Session
-from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction, KnockoutStagePredictionDraft
+from models.predictions import (
+    MatchPrediction,
+    GroupStagePrediction,
+    ThirdPlacePrediction,
+    KnockoutStagePrediction,
+    KnockoutStagePredictionDraft,
+)
 from models.user import User
 from models.matches import Match
 from models.groups import Group
@@ -8,9 +14,10 @@ from models.team import Team
 from models.matches_template import MatchTemplate
 from models.user_scores import UserScores
 from models.third_place_combinations import ThirdPlaceCombination
+from models.results import MatchResult
 
 
-class PredictionRepository:
+class DBPredRepository:
     """
     Repository for all database operations related to predictions.
     This class contains ONLY database operations - no business logic.
@@ -19,6 +26,11 @@ class PredictionRepository:
     # ========================================
     # Match Prediction Operations
     # ========================================
+    
+    @staticmethod
+    def get_all_matches(db: Session) -> List[Match]:
+        """Get all matches"""
+        return db.query(Match).all()
     
     @staticmethod
     def get_match_prediction_by_user_and_match(db: Session, user_id: int, match_id: int) -> Optional[MatchPrediction]:
@@ -194,13 +206,13 @@ class PredictionRepository:
     @staticmethod
     def get_knockout_prediction_by_id(db: Session, prediction_id: int, is_draft: bool = False) -> Optional[Any]:
         """Get knockout prediction by ID"""
-        model = PredictionRepository._get_knockout_model(is_draft)
+        model = DBPredRepository._get_knockout_model(is_draft)
         return db.query(model).filter(model.id == prediction_id).first()
     
     @staticmethod
     def get_knockout_predictions_by_user(db: Session, user_id: int, stage: Optional[str] = None, is_draft: bool = False) -> List[Any]:
         """Get all knockout predictions for a user, optionally filtered by stage"""
-        model = PredictionRepository._get_knockout_model(is_draft)
+        model = DBPredRepository._get_knockout_model(is_draft)
         query = db.query(model).filter(model.user_id == user_id)
         if stage:
             query = query.filter(model.stage == stage)
@@ -209,7 +221,7 @@ class PredictionRepository:
     @staticmethod
     def get_knockout_prediction_by_user_and_match(db: Session, user_id: int, match_id: int, is_draft: bool = False) -> Optional[Any]:
         """Get knockout prediction by user_id and template_match_id"""
-        model = PredictionRepository._get_knockout_model(is_draft)
+        model = DBPredRepository._get_knockout_model(is_draft)
         return db.query(model).filter(
             model.user_id == user_id,
             model.template_match_id == match_id
@@ -218,7 +230,7 @@ class PredictionRepository:
     @staticmethod
     def get_knockout_prediction_by_user_and_team2(db: Session, user_id: int, team2_id: int, is_draft: bool = False) -> Optional[Any]:
         """Get knockout prediction by user_id and team2_id"""
-        model = PredictionRepository._get_knockout_model(is_draft)
+        model = DBPredRepository._get_knockout_model(is_draft)
         return db.query(model).filter(
             model.user_id == user_id,
             model.team2_id == team2_id
@@ -231,7 +243,7 @@ class PredictionRepository:
                                   status: Optional[str] = None, is_draft: bool = False,
                                   current_winner_team_id: Optional[int] = None) -> Any:
         """Create a new knockout prediction"""
-        model = PredictionRepository._get_knockout_model(is_draft)
+        model = DBPredRepository._get_knockout_model(is_draft)
         prediction = model(
             user_id=user_id,
             knockout_result_id=knockout_result_id,
@@ -315,6 +327,11 @@ class PredictionRepository:
         return db.query(UserScores).filter(UserScores.user_id == user_id).first()
     
     @staticmethod
+    def get_match_result_by_match(db: Session, match_id: int) -> Optional[MatchResult]:
+        """Get match result by match_id"""
+        return db.query(MatchResult).filter(MatchResult.match_id == match_id).first()
+    
+    @staticmethod
     def get_third_place_combination_by_hash(db: Session, hash_key: str) -> Optional[ThirdPlaceCombination]:
         """Get third place combination by hash key"""
         return db.query(ThirdPlaceCombination).filter(
@@ -387,6 +404,11 @@ class PredictionRepository:
     def flush(db: Session):
         """Flush changes to database"""
         db.flush()
+
+    @staticmethod
+    def rollback(db: Session):
+        """Rollback changes in database session"""
+        db.rollback()
     
     # ========================================
     # Status Management Operations

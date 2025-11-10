@@ -1,6 +1,6 @@
 from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
-from .prediction_repository import PredictionRepository
+from .db_prediction_repository import DBPredRepository
 from .shared import PlacesPredictions
 from .knock_pred_refactor_service import KnockPredRefactorService
 
@@ -14,7 +14,7 @@ class GroupPredictionService:
         """
         Create or update a group prediction
         """
-        existing_prediction = PredictionRepository.get_group_prediction_by_user_and_group(db, user_id, group_id)
+        existing_prediction = DBPredRepository.get_group_prediction_by_user_and_group(db, user_id, group_id)
         
         if existing_prediction:
             return GroupPredictionService._update_group_prediction(db, existing_prediction, places, user_id)
@@ -82,7 +82,7 @@ class GroupPredictionService:
         old_places = GroupPredictionService._save_old_places_values(existing_prediction)
         
         # Update places in database
-        PredictionRepository.update_group_prediction(
+        DBPredRepository.update_group_prediction(
             db, existing_prediction, 
             places.first_place, places.second_place, 
             places.third_place, places.fourth_place
@@ -93,10 +93,10 @@ class GroupPredictionService:
             db, user_id, existing_prediction.group_id, old_places, places
         )
         
-        PredictionRepository.commit(db)
+        DBPredRepository.commit(db)
         
         # Handle third place change (affects third place predictions)
-        group = PredictionRepository.get_group(db, existing_prediction.group_id)
+        group = DBPredRepository.get_group(db, existing_prediction.group_id)
         group_name = group.name if group else None
         third_place_changed = GroupPredictionService._handle_third_place_change(
             db, user_id, old_places["third_place"], places.third_place, group_name
@@ -109,16 +109,16 @@ class GroupPredictionService:
     @staticmethod
     def _create_new_group_prediction(db: Session, places: PlacesPredictions, group_id: int, user_id: int) -> Dict[str, Any]:
         """Create a new group prediction"""
-        new_prediction = PredictionRepository.create_group_prediction(
+        new_prediction = DBPredRepository.create_group_prediction(
             db, user_id, group_id, 
             places.first_place, places.second_place, 
             places.third_place, places.fourth_place
         )
-        PredictionRepository.commit(db)
+        DBPredRepository.commit(db)
         
         # If this is a new prediction, delete existing third place predictions
-        PredictionRepository.delete_third_place_predictions_by_user(db, user_id)
-        PredictionRepository.commit(db)
+        DBPredRepository.delete_third_place_predictions_by_user(db, user_id)
+        DBPredRepository.commit(db)
         
         return {
             "id": new_prediction.id,
@@ -134,11 +134,11 @@ class GroupPredictionService:
     @staticmethod
     def _get_match_id_from_group_template(db: Session, group_id: int, position: int) -> Optional[int]:
         """Get match_id from group template based on position (1 or 2)"""
-        group = PredictionRepository.get_group(db, group_id)
+        group = DBPredRepository.get_group(db, group_id)
         if not group:
             return None
         
-        group_template = PredictionRepository.get_group_template_by_name(db, group.name)
+        group_template = DBPredRepository.get_group_template_by_name(db, group.name)
         if not group_template:
             return None
         
@@ -168,7 +168,7 @@ class GroupPredictionService:
             return
         
         # Find relevant knockout prediction
-        knockout_prediction = PredictionRepository.get_knockout_prediction_by_user_and_match(db, user_id, match_id, is_draft=False)
+        knockout_prediction = DBPredRepository.get_knockout_prediction_by_user_and_match(db, user_id, match_id, is_draft=False)
         if not knockout_prediction:
             return
         
@@ -199,7 +199,7 @@ class GroupPredictionService:
     @staticmethod
     def _update_knockout_for_third_place_change(db: Session, user_id: int, old_team_id: int, new_team_id: int):
         """Update knockout prediction if the old third place team is in team2 position"""
-        knockout_prediction = PredictionRepository.get_knockout_prediction_by_user_and_team2(
+        knockout_prediction = DBPredRepository.get_knockout_prediction_by_user_and_team2(
             db, user_id, old_team_id, is_draft=False
         )
         if knockout_prediction:
@@ -214,7 +214,7 @@ class GroupPredictionService:
         """
         Update third-place predictions and mark the group as changed
         """
-        third_place_prediction = PredictionRepository.get_third_place_prediction_by_user(db, user_id)
+        third_place_prediction = DBPredRepository.get_third_place_prediction_by_user(db, user_id)
         if not third_place_prediction:
             return
         
@@ -233,7 +233,7 @@ class GroupPredictionService:
             db, third_place_prediction, group_name
         )
         
-        PredictionRepository.commit(db)
+        DBPredRepository.commit(db)
     
     @staticmethod
     def _replace_team_in_third_place_prediction(prediction, old_team_id: int, new_team_id: int) -> bool:
@@ -263,7 +263,7 @@ class GroupPredictionService:
         # Add group if not already in list
         if group_name not in changed_list:
             changed_list.append(group_name)
-            PredictionRepository.update_third_place_prediction_changed_groups(
+            DBPredRepository.update_third_place_prediction_changed_groups(
                 db, prediction, ",".join(changed_list)
             )
     
@@ -326,8 +326,8 @@ class GroupPredictionService:
     def _build_group_data(db: Session, user_id: int, group) -> Dict[str, Any]:
         """Build complete group data with teams, result, and prediction"""
         teams = GroupPredictionService._extract_teams_from_group(group)
-        pred = PredictionRepository.get_group_prediction_by_user_and_group(db, user_id, group.id)
-        group_result = PredictionRepository.get_group_stage_result_by_group(db, group.id)
+        pred = DBPredRepository.get_group_prediction_by_user_and_group(db, user_id, group.id)
+        group_result = DBPredRepository.get_group_stage_result_by_group(db, group.id)
         
         group_data = {
             "group_id": group.id,
@@ -346,14 +346,14 @@ class GroupPredictionService:
         Get all groups with their teams and user's predictions (if exist)
         Always returns all 12 groups, with or without predictions
         """
-        groups = PredictionRepository.get_groups_ordered(db)
+        groups = DBPredRepository.get_groups_ordered(db)
         
         result = [
             GroupPredictionService._build_group_data(db, user_id, group)
             for group in groups
         ]
         
-        user_scores = PredictionRepository.get_user_scores(db, user_id)
+        user_scores = DBPredRepository.get_user_scores(db, user_id)
         
         return {
             "groups": result,

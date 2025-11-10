@@ -7,14 +7,14 @@ This module contains specialized services for different types of predictions:
 - ThirdPlacePredictionService: Third place qualifying teams predictions
 - KnockoutPredictionService: Knockout stage predictions
 
-All services use PredictionRepository for database operations.
+All services use DBPredRepository for database operations.
 """
 
 from .match_prediction_service import MatchPredictionService
 from .group_prediction_service import GroupPredictionService
 from .third_place_prediction_service import ThirdPlacePredictionService
 from .knock_pred_refactor_service import KnockPredRefactorService
-from .prediction_repository import PredictionRepository
+from .db_prediction_repository import DBPredRepository
 from .shared import PredictionStatus, PlacesPredictions
 
 # Backward compatibility - create a unified interface
@@ -46,14 +46,14 @@ class PredictionService:
     delete_all_drafts_for_user = staticmethod(KnockPredRefactorService.delete_all_drafts_for_user)
     
     # Status management
-    set_status = staticmethod(PredictionRepository.set_prediction_status)
+    set_status = staticmethod(DBPredRepository.set_prediction_status)
 
 __all__ = [
     'PredictionService',
     'MatchPredictionService',
     'GroupPredictionService',
     'ThirdPlacePredictionService',
-    'PredictionRepository',
+    'DBPredRepository',
     'PredictionStatus',
     'PlacesPredictions',
 ]
