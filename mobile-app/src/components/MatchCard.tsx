@@ -71,6 +71,10 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     home: null,
     away: null,
   });
+  const overwriteRef = React.useRef<Record<ScoreField, boolean>>({
+    home: false,
+    away: false,
+  });
 
   const isEditable = match.can_edit;
   const separatorChar = ':';
@@ -99,24 +103,36 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
   }, [homeScore, awayScore, match.id, onScoreChange, match.user_prediction.home_score, match.user_prediction.away_score]);
 
   const handleHomeInputChange = React.useCallback((value: string) => {
-    handleScoreChange('home', value);
-
-    if (isEditable && value !== '' && awayScore === '') {
-      setTimeout(() => {
-        awayInputRef.current?.focus();
-      }, 250);
+    const trimmed = value.slice(-1);
+    if (trimmed === '') {
+      handleScoreChange('home', '');
+      return;
     }
-  }, [handleScoreChange, isEditable, awayScore]);
+
+    if (overwriteRef.current.home) {
+      overwriteRef.current.home = false;
+    }
+
+    handleScoreChange('home', trimmed);
+    setHomeFocused(false);
+    homeInputRef.current?.blur();
+  }, [handleScoreChange]);
  
    const handleAwayInputChange = React.useCallback((value: string) => {
-    handleScoreChange('away', value);
-
-    if (isEditable && value !== '' && homeScore === '') {
-      setTimeout(() => {
-        homeInputRef.current?.focus();
-      }, 250);
+    const trimmed = value.slice(-1);
+    if (trimmed === '') {
+      handleScoreChange('away', '');
+      return;
     }
-  }, [handleScoreChange, homeScore, isEditable]);
+
+    if (overwriteRef.current.away) {
+      overwriteRef.current.away = false;
+    }
+
+    handleScoreChange('away', trimmed);
+    setAwayFocused(false);
+    awayInputRef.current?.blur();
+  }, [handleScoreChange]);
 
   const handleFocus = React.useCallback((field: ScoreField) => {
     const isHome = field === 'home';
@@ -127,6 +143,7 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     setFocusedState(true);
     onInputFocus?.(match.id);
     originalScoreRef.current[field] = scoreValue;
+    overwriteRef.current[field] = isEditable && scoreValue.length > 0;
 
     
     const input = inputRef.current;
@@ -148,6 +165,7 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     }
 
     originalScoreRef.current[field] = null;
+    overwriteRef.current[field] = false;
   }, [awayScore, handleScoreChange, homeScore]);
 
   const formatDate = (dateString: string) => {
@@ -210,6 +228,9 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     const inputRef = isHome ? homeInputRef : awayInputRef;
     const handleChange = isHome ? handleHomeInputChange : handleAwayInputChange;
 
+    const displayValue = scoreValue || (isEditable ? (isFieldFocused ? '' : '+') : '-');
+    const placeholderColor = isEditable ? '#111827' : '#a0aec0';
+
     return (
       <View
         style={[
@@ -220,23 +241,34 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
       >
         <TextInput
           ref={inputRef}
-          style={[
-            styles.scoreInput,
-            isEditable ? styles.scoreInputEditable : styles.scoreInputDisabled,
-          ]}
+          style={styles.hiddenInput}
           value={scoreValue}
           onChangeText={handleChange}
-          placeholder={isEditable ? (isFieldFocused ? '' : '+') : '-'}
-          placeholderTextColor={isEditable ? '#111827' : '#a0aec0'}
           keyboardType="numeric"
           editable={isEditable}
           maxLength={2}
-          caretHidden
-          selectionColor="transparent"
-          selectTextOnFocus
           onFocus={() => handleFocus(field)}
           onBlur={() => handleBlur(field)}
+          autoCorrect={false}
+          autoCapitalize="none"
         />
+
+        <TouchableOpacity
+          style={styles.visibleButton}
+          onPress={() => inputRef.current?.focus()}
+          activeOpacity={0.8}
+          disabled={!isEditable}
+        >
+          <Text
+            style={[
+              styles.scoreInput,
+              isEditable ? styles.scoreInputEditable : styles.scoreInputDisabled,
+              !scoreValue && { color: placeholderColor },
+            ]}
+          >
+            {displayValue}
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -413,18 +445,31 @@ const styles = StyleSheet.create({
     borderColor: '#1f2937',
   },
   scoreInput: {
-    width: 42,
-    height: 42,
     borderWidth: 0,
     textAlign: 'center',
     fontSize: 20,
     fontWeight: 'bold',
+    includeFontPadding: false,
   },
   scoreInputEditable: {
     color: '#111827',
   },
   scoreInputDisabled: {
     color: '#a0aec0',
+  },
+  hiddenInput: {
+    position: 'absolute',
+    top: -100,
+    left: 0,
+    width: 0,
+    height: 0,
+    opacity: 0,
+  },
+  visibleButton: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scoreSeparator: {
     fontSize: 22,
