@@ -1,11 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
+import type { TextInput as RNTextInput } from 'react-native';
 import { Match } from '../services/api';
+
+type ScoreField = 'home' | 'away';
 
 interface MatchCardProps {
   match: Match;
   onScoreChange: (matchId: number, homeScore: number | null, awayScore: number | null) => void;
   hasPendingChanges?: boolean;
+  onInputFocus?: (matchId: number) => void;
 }
 
 // Component for status indicator
@@ -52,16 +56,29 @@ const PointsDisplay = ({ userPrediction, actualResult }: { userPrediction: any; 
   );
 };
 
-export default function MatchCard({ match, onScoreChange, hasPendingChanges = false }: MatchCardProps) {
+export default function MatchCard({ match, onScoreChange, hasPendingChanges = false, onInputFocus }: MatchCardProps) {
   const [homeScore, setHomeScore] = React.useState<string>(
     match.user_prediction.home_score?.toString() || ''
   );
   const [awayScore, setAwayScore] = React.useState<string>(
     match.user_prediction.away_score?.toString() || ''
   );
+  const [homeFocused, setHomeFocused] = React.useState(false);
+  const [awayFocused, setAwayFocused] = React.useState(false);
+  const homeInputRef = React.useRef<RNTextInput | null>(null);
+  const awayInputRef = React.useRef<RNTextInput | null>(null);
+  const originalScoreRef = React.useRef<Record<ScoreField, string | null>>({
+    home: null,
+    away: null,
+  });
+
+  const isEditable = match.can_edit;
+  const separatorChar = ':';
+  const homeName = match.home_team.name || '';
+  const awayName = match.away_team.name || '';
 
   // Call onScoreChange only when user manually changes scores
-  const handleScoreChange = React.useCallback((field: 'home' | 'away', value: string) => {
+  const handleScoreChange = React.useCallback((field: ScoreField, value: string) => {
     if (field === 'home') {
       setHomeScore(value);
     } else {
@@ -80,6 +97,58 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
       onScoreChange(match.id, home, away);
     }
   }, [homeScore, awayScore, match.id, onScoreChange, match.user_prediction.home_score, match.user_prediction.away_score]);
+
+  const handleHomeInputChange = React.useCallback((value: string) => {
+    handleScoreChange('home', value);
+
+    if (isEditable && value !== '' && awayScore === '') {
+      setTimeout(() => {
+        awayInputRef.current?.focus();
+      }, 250);
+    }
+  }, [handleScoreChange, isEditable, awayScore]);
+ 
+   const handleAwayInputChange = React.useCallback((value: string) => {
+    handleScoreChange('away', value);
+
+    if (isEditable && value !== '' && homeScore === '') {
+      setTimeout(() => {
+        homeInputRef.current?.focus();
+      }, 250);
+    }
+  }, [handleScoreChange, homeScore, isEditable]);
+
+  const handleFocus = React.useCallback((field: ScoreField) => {
+    const isHome = field === 'home';
+    const scoreValue = isHome ? homeScore : awayScore;
+    const setFocusedState = isHome ? setHomeFocused : setAwayFocused;
+    const inputRef = isHome ? homeInputRef : awayInputRef;
+
+    setFocusedState(true);
+    onInputFocus?.(match.id);
+    originalScoreRef.current[field] = scoreValue;
+
+    
+    const input = inputRef.current;
+    if (input && scoreValue.length > 0) {
+      input.setNativeProps({ selection: { start: 0, end: scoreValue.length } });
+    }
+  }, [awayScore, homeScore, isEditable, match.id, onInputFocus]);
+
+  const handleBlur = React.useCallback((field: ScoreField) => {
+    const isHome = field === 'home';
+    const setFocusedState = isHome ? setHomeFocused : setAwayFocused;
+    const currentScore = isHome ? homeScore : awayScore;
+    const originalScore = originalScoreRef.current[field];
+
+    setFocusedState(false);
+
+    if (currentScore === '' && originalScore) {
+      handleScoreChange(field, originalScore);
+    }
+
+    originalScoreRef.current[field] = null;
+  }, [awayScore, handleScoreChange, homeScore]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -110,67 +179,105 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     }
   };
 
+  const renderTeamColumn = (field: ScoreField) => {
+    const team = field === 'home' ? match.home_team : match.away_team;
+    return (
+      <View style={styles.teamColumn}>
+        <View style={styles.teamFlagWrapper}>
+          {team.flag_url && (
+            <Image source={{ uri: team.flag_url }} style={styles.teamFlagLarge} />
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  const renderTeamName = (field: ScoreField) => {
+    const name = field === 'home' ? homeName : awayName;
+    return (
+      <View style={styles.teamNameWrapper}>
+        <Text style={styles.teamName} numberOfLines={2}>
+          {name}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderScoreInput = (field: ScoreField) => {
+    const isHome = field === 'home';
+    const scoreValue = isHome ? homeScore : awayScore;
+    const isFieldFocused = isHome ? homeFocused : awayFocused;
+    const inputRef = isHome ? homeInputRef : awayInputRef;
+    const handleChange = isHome ? handleHomeInputChange : handleAwayInputChange;
+
+    return (
+      <View
+        style={[
+          styles.scoreBox,
+          isEditable ? styles.scoreBoxEditable : styles.scoreBoxLocked,
+          isFieldFocused && isEditable && styles.scoreBoxFocused,
+        ]}
+      >
+        <TextInput
+          ref={inputRef}
+          style={[
+            styles.scoreInput,
+            isEditable ? styles.scoreInputEditable : styles.scoreInputDisabled,
+          ]}
+          value={scoreValue}
+          onChangeText={handleChange}
+          placeholder={isEditable ? (isFieldFocused ? '' : '+') : '-'}
+          placeholderTextColor={isEditable ? '#111827' : '#a0aec0'}
+          keyboardType="numeric"
+          editable={isEditable}
+          maxLength={2}
+          caretHidden
+          selectionColor="transparent"
+          selectTextOnFocus
+          onFocus={() => handleFocus(field)}
+          onBlur={() => handleBlur(field)}
+        />
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, hasPendingChanges && styles.containerPending]}>
       <View style={styles.header}>
-        <Text style={styles.stageText}>{getStageText(match.stage)}</Text>
-        <MatchStatusIndicator status={match.status} />
-        <Text style={styles.dateText}>{formatDate(match.date)}</Text>
+        <View style={styles.stageContainer}>
+          <Text style={styles.stageText}>{getStageText(match.stage)}</Text>
+        </View>
+        <View style={styles.timeContainer}>
+          <Text style={styles.kickoffText}>{formatDate(match.date)}</Text>
+        </View>
+        <View style={styles.statusWrapper}>
+          <MatchStatusIndicator status={match.status} />
+        </View>
       </View>
       
         <View style={styles.matchLayout}>
-          {/* Home Flag - Fixed position at left edge */}
-          <View style={styles.homeFlagContainer}>
-            {match.home_team.flag_url && (
-              <Image source={{ uri: match.home_team.flag_url }} style={styles.teamFlag} />
-            )}
-          </View>
+          {renderTeamColumn('home')}
 
-          {/* Home Team Name - Fixed distance from flag */}
-          <View style={styles.homeTeamContainer}>
-            <Text style={styles.homeTeamName}>{match.home_team.name}</Text>
-          </View>
-
-          {/* Score Section */}
           <View style={styles.scoreSection}>
-            <TextInput
+            {renderScoreInput('home')}
+            <Text
               style={[
-                styles.scoreInput,
-                !match.can_edit && styles.scoreInputDisabled
+                styles.scoreSeparator,
+                isEditable ? styles.scoreSeparatorEditable : styles.scoreSeparatorLocked,
               ]}
-              value={homeScore}
-              onChangeText={(value) => handleScoreChange('home', value)}
-              placeholder="0"
-              keyboardType="numeric"
-              editable={match.can_edit}
-              maxLength={2}
-            />
-            <Text style={styles.scoreSeparator}>:</Text>
-            <TextInput
-              style={[
-                styles.scoreInput,
-                !match.can_edit && styles.scoreInputDisabled
-              ]}
-              value={awayScore}
-              onChangeText={(value) => handleScoreChange('away', value)}
-              placeholder="0"
-              keyboardType="numeric"
-              editable={match.can_edit}
-              maxLength={2}
-            />
+            >
+              {separatorChar}
+            </Text>
+            {renderScoreInput('away')}
           </View>
 
-          {/* Away Flag - Fixed position at right edge */}
-          <View style={styles.awayFlagContainer}>
-            {match.away_team.flag_url && (
-              <Image source={{ uri: match.away_team.flag_url }} style={styles.teamFlag} />
-            )}
-          </View>
+          {renderTeamColumn('away')}
+        </View>
 
-          {/* Away Team Name - Fixed distance from flag */}
-          <View style={styles.awayTeamContainer}>
-            <Text style={styles.awayTeamName}>{match.away_team.name}</Text>
-          </View>
+        <View style={styles.namesRow}>
+          {renderTeamName('home')}
+          <View style={styles.scoreSpacer} />
+          {renderTeamName('away')}
         </View>
 
         {/* Actual result - below score inputs */}
@@ -187,10 +294,11 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
+    backgroundColor: '#f4f6fb',
     marginHorizontal: 16,
     marginVertical: 8,
-    padding: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: {
@@ -200,125 +308,134 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+    minHeight: 145,
+    borderWidth: 2,
+    borderColor: '#f4f6fb',
   },
   containerPending: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#f6ad55',
+    borderColor: '#f6ad55',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
+  },
+  stageContainer: {
+    flex: 1,
+    alignItems: 'flex-start',
   },
   stageText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#667eea',
+    color: '#2d3748',
   },
-  dateText: {
-    fontSize: 12,
-    color: '#718096',
+  timeContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  kickoffText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2d3748',
+  },
+  statusWrapper: {
+    flex: 1,
+    alignItems: 'flex-end',
   },
   matchLayout: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
-    paddingHorizontal: 0,
-    position: 'relative',
-    minHeight: 40, // Height for flags and score section
-  },
-  homeFlagContainer: {
-    width: 30,
-    height: 30,
     justifyContent: 'center',
+    marginBottom: 6,
+    gap: 14,
+  },
+  teamColumn: {
     alignItems: 'center',
-    position: 'absolute',
-    left: 0, // Fixed at left edge
-    zIndex: 1,
-  },
-  awayFlagContainer: {
-    width: 30,
-    height: 30,
     justifyContent: 'center',
+    width: 90,
+    paddingHorizontal: 8,
+  },
+  teamFlagWrapper: {
+    height: 40,
+    justifyContent: 'center',
+  },
+  teamFlagLarge: {
+    width: 56,
+    height: 40,
+    borderRadius: 8,
+  },
+  teamNameWrapper: {
+    width: 90,
     alignItems: 'center',
-    position: 'absolute',
-    right: 0, // Fixed at right edge
-    zIndex: 1,
   },
-  teamFlag: {
-    width: 28,
-    height: 20,
-    borderRadius: 3,
-  },
-  homeTeamContainer: {
-    position: 'absolute',
-    left: 36, // 30px flag width + 6px distance
-    right: '50%',
-    marginRight: 51, // Half of score section width (47px) + 4px spacing
-    justifyContent: 'center',
-  },
-  homeTeamName: {
+  teamName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2d3748',
-    textAlign: 'left',
+    color: '#1f2937',
+    textAlign: 'center',
+    marginTop: 0,
   },
-  awayTeamContainer: {
-    position: 'absolute',
-    right: 36, // 30px flag width + 6px distance from flag
-    left: '50%',
-    marginLeft: 51, // Half of score section width (47px) + 4px spacing
+  namesRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     justifyContent: 'center',
+    marginTop: 8,
+    gap: 14,
   },
-  awayTeamName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#2d3748',
-    textAlign: 'right',
+  scoreSpacer: {
+    width: 116,
   },
   scoreSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fbbf24', // Gold/yellow color like in the image
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    position: 'absolute',
-    left: '50%',
-    transform: [{ translateX: -47 }], // Half of the score section width to center it
-    zIndex: 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    justifyContent: 'center',
+    alignSelf: 'center',
+    width: 116,
+  },
+  scoreBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  scoreBoxEditable: {
+    borderWidth: 2,
+    borderColor: '#2563eb',
+  },
+  scoreBoxLocked: {
+    borderWidth: 2,
+    borderColor: '#a0aec0',
+  },
+  scoreBoxFocused: {
+    borderColor: '#1f2937',
   },
   scoreInput: {
-    width: 30,
-    height: 26,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 4,
+    width: 42,
+    height: 42,
+    borderWidth: 0,
     textAlign: 'center',
-    fontSize: 15,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#1f2937',
+  },
+  scoreInputEditable: {
+    color: '#111827',
   },
   scoreInputDisabled: {
-    backgroundColor: '#f9fafb',
-    borderColor: '#e5e7eb',
-    color: '#9ca3af',
+    color: '#a0aec0',
   },
   scoreSeparator: {
-    fontSize: 17,
+    fontSize: 22,
     fontWeight: 'bold',
+    marginHorizontal: 8,
+  },
+  scoreSeparatorEditable: {
     color: '#1f2937',
-    marginHorizontal: 4,
+  },
+  scoreSeparatorLocked: {
+    color: '#a0aec0',
   },
   // Status indicator styles
   statusContainer: {

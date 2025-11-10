@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { Match, apiService, MatchesResponse } from '../../services/api';
 import MatchCard from '../../components/MatchCard';
 import { useTournament } from '../../contexts/TournamentContext';
@@ -14,6 +14,7 @@ export default function MatchesScreen() {
   const [saving, setSaving] = useState(false);
   const [matchesScore, setMatchesScore] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const hasAutoScrolledRef = useRef(false);
   
   // Get tournament context data
   const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
@@ -56,6 +57,10 @@ export default function MatchesScreen() {
 
   // Scroll to first match without result when matches are loaded
   useEffect(() => {
+    if (hasAutoScrolledRef.current) {
+      return;
+    }
+
     if (!loading && matches.length > 0 && flatListRef.current) {
       // Find first match without result
       const firstMatchWithoutResult = matches.findIndex(
@@ -70,7 +75,10 @@ export default function MatchesScreen() {
             animated: true,
             viewPosition: 0, // Scroll to top of the viewport
           });
+          hasAutoScrolledRef.current = true;
         }, 100);
+      } else {
+        hasAutoScrolledRef.current = true;
       }
     }
   }, [loading, matches]);
@@ -111,6 +119,9 @@ export default function MatchesScreen() {
       
       // Clear pending changes immediately
       setPendingChanges(new Map());
+
+      // Dismiss the keyboard since we are done editing
+      Keyboard.dismiss();
       
       // Wait 2 seconds for the server to process the updates and force refresh
       setTimeout(() => {
@@ -158,6 +169,25 @@ export default function MatchesScreen() {
     }
   };
 
+  const handleMatchFocus = useCallback((matchId: number) => {
+    const index = matches.findIndex(match => match.id === matchId);
+    if (index >= 0) {
+      try {
+        flatListRef.current?.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0.3,
+        });
+      } catch (error) {
+        const offset = Math.max(index - 1, 0);
+        flatListRef.current?.scrollToIndex({
+          index: offset,
+          animated: true,
+        });
+      }
+    }
+  }, [matches]);
+
   const renderMatch = ({ item }: { item: Match }) => {
     const pendingChange = pendingChanges.get(item.id);
     const matchWithPendingChanges = pendingChange ? {
@@ -174,6 +204,7 @@ export default function MatchesScreen() {
         match={matchWithPendingChanges} 
         onScoreChange={handleScoreChange}
         hasPendingChanges={!!pendingChange}
+        onInputFocus={handleMatchFocus}
       />
     );
   };
@@ -189,37 +220,44 @@ export default function MatchesScreen() {
 
   if (matches.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No matches available</Text>
-        <Text style={styles.emptySubtext}>Check that the server is running and matches are created</Text>
-      </View>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+      >
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No matches available</Text>
+          <Text style={styles.emptySubtext}>Check that the server is running and matches are created</Text>
+        </View>
+      </KeyboardAvoidingView>
     );
   }
 
   return (
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+    >
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Match Predictions</Text>
-        {matchesScore !== null && (
-          <View style={styles.pointsContainer}>
-            <Text style={styles.totalPoints}>{matchesScore} pts</Text>
-          </View>
-        )}
-        {pendingChanges.size > 0 && (
-          <TouchableOpacity 
-            style={[styles.saveButton, (!canSave) && styles.saveButtonDisabled]} 
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            style={[styles.saveButton, (!canSave) && styles.saveButtonDisabled]}
             onPress={handleSaveAll}
             disabled={!canSave}
+            activeOpacity={0.85}
           >
-            <Text style={styles.saveButtonText}>
-              {saving
-                ? 'Saving...'
-                : hasIncompletePending
-                  ? 'Fill scores before saving'
-                  : `Save Predictions (${pendingChanges.size})`}
-            </Text>
+            <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save'}</Text>
           </TouchableOpacity>
-        )}
+        </View>
+        <View style={styles.headerRight}>
+          {matchesScore !== null && (
+            <View style={styles.pointsContainer}>
+              <Text style={styles.totalPoints}>{matchesScore} pts</Text>
+            </View>
+          )}
+        </View>
       </View>
       <FlatList
         ref={flatListRef}
@@ -230,6 +268,7 @@ export default function MatchesScreen() {
         refreshing={refreshing}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
+        keyboardShouldPersistTaps="handled"
         onScrollToIndexFailed={(info) => {
           // Fallback if scroll fails
           const wait = new Promise(resolve => setTimeout(resolve, 500));
@@ -239,10 +278,14 @@ export default function MatchesScreen() {
         }}
       />
     </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: '#f7fafc',
@@ -252,23 +295,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#667eea',
+  headerLeft: {
     flex: 1,
+    alignItems: 'flex-start',
+  },
+  headerRight: {
+    flex: 1,
+    alignItems: 'flex-end',
   },
   pointsContainer: {
     backgroundColor: '#48bb78',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    marginRight: 8,
+    marginRight: 4,
   },
   totalPoints: {
     fontSize: 14,
@@ -280,9 +325,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
+    minWidth: 90,
+    alignItems: 'center',
   },
   saveButtonDisabled: {
-    backgroundColor: '#a0aec0',
+    backgroundColor: '#cbd5f5',
   },
   saveButtonText: {
     color: '#fff',
