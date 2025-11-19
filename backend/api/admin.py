@@ -565,3 +565,150 @@ def reset_all_results_and_scores(db: Session = Depends(get_db)):
         print(f"❌ Error in reset_all_results_and_scores: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/admin/delete-all-predictions", response_model=Dict[str, Any])
+def delete_all_predictions(db: Session = Depends(get_db)):
+    """
+    Delete all predictions from all prediction tables (admin only)
+    This will:
+    1. Delete all match predictions
+    2. Delete all group stage predictions
+    3. Delete all third place predictions
+    4. Delete all knockout stage predictions
+    """
+    try:
+        from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
+        
+        # Count records before deletion
+        match_pred_count = db.query(MatchPrediction).count()
+        group_pred_count = db.query(GroupStagePrediction).count()
+        third_place_pred_count = db.query(ThirdPlacePrediction).count()
+        knockout_pred_count = db.query(KnockoutStagePrediction).count()
+        
+        total_before = match_pred_count + group_pred_count + third_place_pred_count + knockout_pred_count
+        
+        if total_before == 0:
+            return {
+                "message": "No predictions found to delete",
+                "deleted": False,
+                "match_predictions_deleted": 0,
+                "group_predictions_deleted": 0,
+                "third_place_predictions_deleted": 0,
+                "knockout_predictions_deleted": 0
+            }
+        
+        # Delete all predictions
+        deleted_match = db.query(MatchPrediction).delete()
+        deleted_group = db.query(GroupStagePrediction).delete()
+        deleted_third_place = db.query(ThirdPlacePrediction).delete()
+        deleted_knockout = db.query(KnockoutStagePrediction).delete()
+        
+        # Commit the changes
+        db.commit()
+        
+        total_deleted = deleted_match + deleted_group + deleted_third_place + deleted_knockout
+        
+        return {
+            "message": "All predictions deleted successfully",
+            "deleted": True,
+            "match_predictions_deleted": deleted_match,
+            "group_predictions_deleted": deleted_group,
+            "third_place_predictions_deleted": deleted_third_place,
+            "knockout_predictions_deleted": deleted_knockout,
+            "total_deleted": total_deleted
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in delete_all_predictions: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.delete("/admin/delete-all-knockout-predictions", response_model=Dict[str, Any])
+def delete_all_knockout_predictions(db: Session = Depends(get_db)):
+    """
+    Delete all knockout stage predictions (admin only)
+    """
+    try:
+        from models.predictions import KnockoutStagePrediction
+        
+        # Count records before deletion
+        knockout_pred_count = db.query(KnockoutStagePrediction).count()
+        
+        if knockout_pred_count == 0:
+            return {
+                "message": "No knockout predictions found to delete",
+                "deleted": False,
+                "knockout_predictions_deleted": 0
+            }
+        
+        # Delete all knockout predictions
+        deleted_knockout = db.query(KnockoutStagePrediction).delete()
+        
+        # Commit the changes
+        db.commit()
+        
+        return {
+            "message": "All knockout predictions deleted successfully",
+            "deleted": True,
+            "knockout_predictions_deleted": deleted_knockout
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in delete_all_knockout_predictions: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/admin/rebuild-knockout-from-predictions", response_model=Dict[str, Any])
+def rebuild_knockout_from_predictions(
+    user_id: int = 1,
+    db: Session = Depends(get_db)
+):
+    """
+    Rebuild knockout bracket from existing predictions (admin only)
+    Creates next stage predictions from existing predictions with winners
+    """
+    try:
+        from models.predictions import KnockoutStagePrediction
+        from services.predictions.knockout_prediction_service import KnockoutPredictionService
+        from services.predictions.db_prediction_repository import DBPredRepository
+        
+        # Get all predictions with winners, ordered by stage
+        predictions = db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.user_id == user_id,
+            KnockoutStagePrediction.winner_team_id != None
+        ).order_by(KnockoutStagePrediction.template_match_id).all()
+        
+        created_count = 0
+        
+        for prediction in predictions:
+            # Get the template for this prediction
+            template = DBPredRepository.get_match_template(db, prediction.template_match_id)
+            
+            if not template:
+                continue
+            
+            # Check if this prediction has a next stage
+            if not template.winner_next_knockout_match:
+                continue
+            
+            # Try to create next stage prediction
+            next_prediction = KnockoutPredictionService._create_next_stage_if_needed(
+                db, prediction, template, is_draft=False
+            )
+            
+            if next_prediction:
+                created_count += 1
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Rebuilt knockout bracket for user {user_id}",
+            "created_predictions": created_count,
+            "processed_predictions": len(predictions)
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in rebuild_knockout_from_predictions: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

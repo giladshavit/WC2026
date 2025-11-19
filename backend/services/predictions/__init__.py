@@ -44,6 +44,7 @@ class PredictionService:
     create_draft_from_prediction = staticmethod(KnockPredRefactorService.create_draft_from_prediction)
     create_all_drafts_from_predictions = staticmethod(KnockPredRefactorService.create_all_drafts_from_predictions)
     delete_all_drafts_for_user = staticmethod(KnockPredRefactorService.delete_all_drafts_for_user)
+    delete_all_knockout_predictions_for_user = staticmethod(KnockPredRefactorService.delete_all_knockout_predictions_for_user)
     
     # Status management
     set_status = staticmethod(DBPredRepository.set_prediction_status)

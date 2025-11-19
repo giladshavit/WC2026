@@ -81,6 +81,13 @@ class KnockPredRefactorService:
             
             db.flush()
             
+            # Create next stage prediction if needed (before finding it)
+            template = DBPredRepository.get_match_template(db, prediction.template_match_id)
+            if template:
+                from .knockout_prediction_service import KnockoutPredictionService
+                is_draft = hasattr(prediction, 'knockout_pred_id')
+                KnockoutPredictionService._create_next_stage_if_needed(db, prediction, template, is_draft=is_draft)
+            
             # Find next prediction and position
             next_prediction, position = KnockPredRefactorService._find_next_prediction_and_position(
                 db, prediction
@@ -971,6 +978,17 @@ class KnockPredRefactorService:
         deleted = 0
         for draft in drafts:
             db.delete(draft)
+            deleted += 1
+        db.commit()
+        return {"success": True, "deleted": deleted}
+
+    @staticmethod
+    def delete_all_knockout_predictions_for_user(db: Session, user_id: int) -> Dict[str, Any]:
+        """Delete all knockout predictions (not drafts) for a given user."""
+        predictions = DBPredRepository.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
+        deleted = 0
+        for prediction in predictions:
+            db.delete(prediction)
             deleted += 1
         db.commit()
         return {"success": True, "deleted": deleted}
