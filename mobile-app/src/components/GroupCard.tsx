@@ -6,9 +6,10 @@ interface GroupCardProps {
   group: GroupPrediction;
   onTeamPress: (groupId: number, teamId: number) => void;
   isIncomplete?: boolean;
+  hasPendingChanges?: boolean;
 }
 
-export default function GroupCard({ group, onTeamPress, isIncomplete = false }: GroupCardProps) {
+export default function GroupCard({ group, onTeamPress, isIncomplete = false, hasPendingChanges = false }: GroupCardProps) {
   // Helper function to get position for a team
   const getTeamPosition = (teamId: number): number | null => {
     if (group.first_place === teamId) return 1;
@@ -16,6 +17,17 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false }: 
     if (group.third_place === teamId) return 3;
     if (group.fourth_place === teamId) return 4;
     return null;
+  };
+
+  // Get subtle background color based on group number for visual separation
+  const getGroupBackgroundColor = () => {
+    const groupNum = parseInt(group.group_name) || 0;
+    // Alternate between subtle warm shades (less white)
+    if (groupNum % 2 === 0) {
+      return '#f8f9fa'; // Very light gray
+    } else {
+      return '#f5f6f7'; // Slightly darker light gray
+    }
   };
 
   // Helper function to get actual position from result
@@ -42,17 +54,20 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false }: 
   const isEditable = group.is_editable && !hasResult;
 
   return (
-    <View style={[styles.container, isIncomplete && styles.containerIncomplete]}>
+    <View style={[styles.container, { backgroundColor: getGroupBackgroundColor() }, hasPendingChanges && styles.containerPending, isIncomplete && styles.containerIncomplete]}>
       {/* Group Header */}
       <View style={styles.header}>
+        <View style={styles.headerLeft} />
         <Text style={styles.groupName}>Group {group.group_name}</Text>
-        {hasResult && (
-          <View style={[styles.pointsContainer, group.points === 0 && styles.pointsContainerZero]}>
-            <Text style={styles.pointsText}>
-              {group.points} נק׳
-            </Text>
-          </View>
-        )}
+        <View style={styles.headerRight}>
+          {hasResult && (
+            <View style={[styles.pointsContainer, group.points === 0 && styles.pointsContainerZero]}>
+              <Text style={styles.pointsText}>
+                {group.points} pts
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Teams List */}
@@ -74,6 +89,25 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false }: 
             } else {
               // Wrong prediction - red
               badgeStyle = styles.positionBadgeWrong;
+            }
+          } else if (!hasResult && position !== null) {
+            // No result yet - use different colors to distinguish qualification status
+            switch (position) {
+              case 1:
+              case 2:
+                // Places 1-2: Qualified automatically (same color)
+                badgeStyle = styles.positionBadgeQualified;
+                break;
+              case 3:
+                // Place 3: Waiting for qualification
+                badgeStyle = styles.positionBadgeWaiting;
+                break;
+              case 4:
+                // Place 4: Eliminated
+                badgeStyle = styles.positionBadgeEliminated;
+                break;
+              default:
+                badgeStyle = styles.positionBadge;
             }
           }
           
@@ -121,36 +155,56 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false }: 
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
-    margin: 6,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    backgroundColor: '#ffffff', // White background for better contrast
+    marginHorizontal: 16,
+    marginVertical: 8, // Spacing between groups
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0', // Light gray border
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 6,
     flex: 1,
+  },
+  containerPending: {
+    borderColor: '#f6ad55',
+    borderWidth: 2,
+    backgroundColor: '#fff9e6', // Light yellow background for pending
   },
   containerIncomplete: {
     borderColor: '#f6ad55',
+    borderWidth: 2,
+    backgroundColor: '#fff9e6', // Light yellow background for incomplete
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 10,
+    padding: 12,
+    backgroundColor: '#f7fafc', // Very light gray-blue for header
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
+    flex: 1,
+    alignItems: 'flex-end',
   },
   groupName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#667eea',
+    color: '#111827',
+    textAlign: 'center',
+    flex: 1,
   },
   pointsContainer: {
     backgroundColor: '#48bb78',
@@ -172,37 +226,113 @@ const styles = StyleSheet.create({
   teamRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRadius: 6,
-    marginBottom: 2,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    marginBottom: 4,
+    backgroundColor: '#ffffff', // White background for team rows
   },
   positionBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#667eea',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#48bb78', // Green badge
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  positionBadgeQualified: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#2563eb', // Deeper blue for places 1-2 (qualified automatically)
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  positionBadgeWaiting: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#f59e0b', // Orange/amber for place 3 (waiting for qualification)
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  positionBadgeEliminated: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#1f2937', // Dark gray/black for place 4 (eliminated)
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   positionBadgeCorrect: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#48bb78', // Green for correct
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   positionBadgeWrong: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#f56565', // Red for wrong
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   positionBadgePlaceholder: {
     backgroundColor: '#e2e8f0',

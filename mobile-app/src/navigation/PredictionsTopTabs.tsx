@@ -10,22 +10,22 @@ export default function PredictionsTopTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#667eea',
-        tabBarInactiveTintColor: '#a0aec0',
+        tabBarActiveTintColor: '#16a34a',
+        tabBarInactiveTintColor: '#6b7280',
         tabBarLabelStyle: {
           fontSize: 14,
           fontWeight: 'bold',
           textAlign: 'center',
         },
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: '#d4edda',
           elevation: 0,
           shadowOpacity: 0,
           borderBottomWidth: 1,
           borderBottomColor: '#e2e8f0',
         },
         tabBarIndicatorStyle: {
-          backgroundColor: '#667eea',
+          backgroundColor: '#16a34a',
           height: 3,
         },
       }}

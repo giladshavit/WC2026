@@ -151,7 +151,7 @@ export default function GroupsScreen() {
       const filledCount = positionsArray.filter(p => p !== null).length;
       
       if (filledCount === 4) {
-        // Complete prediction
+        // Complete prediction - all 4 positions filled
         completeGroups.push({
           group_id: groupId,
           first_place: positions.first_place!,
@@ -159,8 +159,46 @@ export default function GroupsScreen() {
           third_place: positions.third_place!,
           fourth_place: positions.fourth_place!,
         });
-      } else if (filledCount > 0 && filledCount < 4) {
-        // Incomplete prediction
+      } else if (filledCount === 3) {
+        // 3 positions filled - auto-complete the 4th before saving
+        const group = groups.find(g => g.group_id === groupId);
+        if (group) {
+          // Find the unselected team
+          const selectedTeamIds = [
+            positions.first_place,
+            positions.second_place,
+            positions.third_place,
+            positions.fourth_place,
+          ].filter(id => id !== null) as number[];
+          
+          const unselectedTeam = group.teams.find(
+            team => !selectedTeamIds.includes(team.id)
+          );
+          
+          if (unselectedTeam) {
+            // Auto-complete the missing position
+            const completedPositions = { ...positions };
+            if (completedPositions.first_place === null) {
+              completedPositions.first_place = unselectedTeam.id;
+            } else if (completedPositions.second_place === null) {
+              completedPositions.second_place = unselectedTeam.id;
+            } else if (completedPositions.third_place === null) {
+              completedPositions.third_place = unselectedTeam.id;
+            } else if (completedPositions.fourth_place === null) {
+              completedPositions.fourth_place = unselectedTeam.id;
+            }
+            
+            completeGroups.push({
+              group_id: groupId,
+              first_place: completedPositions.first_place!,
+              second_place: completedPositions.second_place!,
+              third_place: completedPositions.third_place!,
+              fourth_place: completedPositions.fourth_place!,
+            });
+          }
+        }
+      } else if (filledCount > 0 && filledCount < 3) {
+        // Less than 3 positions filled - incomplete prediction
         incompleteGroupIds.push(groupId);
       }
       // filledCount === 0 means empty - ignore
@@ -179,7 +217,7 @@ export default function GroupsScreen() {
       
       Alert.alert(
         'Incomplete Predictions',
-        `Please complete all 4 positions for: ${groupNames}`,
+        `Please complete at least 3 positions for: ${groupNames}`,
         [{ text: 'OK' }]
       );
       
@@ -351,61 +389,14 @@ export default function GroupsScreen() {
 
       // Save to pending changes
       newChanges.set(groupId, positions);
-
-        // Check if 3 teams are selected - auto-assign the 4th with delay
-        const selectedCount = [
-          positions.first_place,
-          positions.second_place,
-          positions.third_place,
-          positions.fourth_place,
-        ].filter(p => p !== null).length;
-
-        if (selectedCount === 3) {
-          // Find the unselected team
-          const unselectedTeam = group.teams.find(
-            team =>
-              team.id !== positions.first_place &&
-              team.id !== positions.second_place &&
-              team.id !== positions.third_place &&
-              team.id !== positions.fourth_place
-          );
-
-          if (unselectedTeam) {
-            // Delay the auto-assignment of the 4th team by 150ms
-            setTimeout(() => {
-              setPendingChanges(prevChanges => {
-                const updatedChanges = new Map(prevChanges);
-                const currentPositions = updatedChanges.get(groupId);
-                
-                if (!currentPositions) return updatedChanges;
-
-                // Assign to the remaining empty position
-                const newPositions = { ...currentPositions };
-                if (newPositions.first_place === null) {
-                  newPositions.first_place = unselectedTeam.id;
-                } else if (newPositions.second_place === null) {
-                  newPositions.second_place = unselectedTeam.id;
-                } else if (newPositions.third_place === null) {
-                  newPositions.third_place = unselectedTeam.id;
-                } else if (newPositions.fourth_place === null) {
-                  newPositions.fourth_place = unselectedTeam.id;
-                }
-
-                updatedChanges.set(groupId, newPositions);
-                return updatedChanges;
-              });
-            }, 150);
-          }
-        }
-
-        return newChanges;
+      return newChanges;
     });
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#667eea" />
+        <ActivityIndicator size="large" color="#16a34a" />
         <Text style={styles.loadingText}>Loading groups...</Text>
       </View>
     );
@@ -420,32 +411,35 @@ export default function GroupsScreen() {
     );
   }
 
-  // Check if there are any complete pending changes to save
+  // Check if there are any savable pending changes (3 or 4 positions filled)
   const hasChanges = Array.from(pendingChanges.values()).some(positions => {
     const positionsArray = [positions.first_place, positions.second_place, positions.third_place, positions.fourth_place];
-    return positionsArray.filter(p => p !== null).length === 4;
+    const filledCount = positionsArray.filter(p => p !== null).length;
+    return filledCount >= 3; // Allow save if 3 or 4 positions are filled (4th will be auto-completed)
   });
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>Group Predictions</Text>
-          {groupsScore !== null && (
-            <Text style={styles.totalScore}>{groupsScore} pts</Text>
-          )}
-        </View>
-        {hasChanges && (
-          <TouchableOpacity 
-            style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            style={[styles.saveButton, (!hasChanges || saving) && styles.saveButtonDisabled]}
             onPress={handleSave}
-            disabled={saving}
+            disabled={!hasChanges || saving}
+            activeOpacity={0.85}
           >
             <Text style={styles.saveButtonText}>
               {saving ? 'Saving...' : 'Save'}
             </Text>
           </TouchableOpacity>
-        )}
+        </View>
+        <View style={styles.headerRight}>
+          {groupsScore !== null && (
+            <View style={styles.pointsContainer}>
+              <Text style={styles.totalPoints}>{groupsScore} pts</Text>
+            </View>
+          )}
+        </View>
       </View>
       <FlatList
         data={groups}
@@ -466,6 +460,7 @@ export default function GroupsScreen() {
               group={displayGroup} 
               onTeamPress={handleTeamPress}
               isIncomplete={incompleteGroups.includes(item.group_id)}
+              hasPendingChanges={!!pendingChange}
             />
           );
         }}
@@ -473,7 +468,7 @@ export default function GroupsScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         showsVerticalScrollIndicator={false}
-        numColumns={2}
+        numColumns={1}
         contentContainerStyle={styles.listContainer}
       />
     </View>
@@ -483,37 +478,45 @@ export default function GroupsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f7fafc',
+    backgroundColor: '#d4edda',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
+    paddingVertical: 12,
+    backgroundColor: '#d4edda',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
-  titleContainer: {
+  headerLeft: {
     flex: 1,
+    alignItems: 'flex-start',
   },
-  title: {
-    fontSize: 20,
+  headerRight: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  pointsContainer: {
+    backgroundColor: '#48bb78',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 4,
+  },
+  totalPoints: {
+    fontSize: 14,
     fontWeight: 'bold',
-    color: '#667eea',
-    marginBottom: 4,
-  },
-  totalScore: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#48bb78',
+    color: '#fff',
   },
   saveButton: {
     backgroundColor: '#48bb78',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
+    minWidth: 90,
+    alignItems: 'center',
   },
   saveButtonDisabled: {
     backgroundColor: '#a0aec0',
@@ -527,7 +530,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f7fafc',
+    backgroundColor: '#d4edda',
   },
   loadingText: {
     marginTop: 16,
@@ -538,7 +541,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f7fafc',
+    backgroundColor: '#d4edda',
     padding: 20,
   },
   emptyText: {
@@ -553,7 +556,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   listContainer: {
-    paddingHorizontal: 6,
     paddingBottom: 20,
   },
 });

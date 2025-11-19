@@ -7,6 +7,7 @@ import PredictionsMenuScreen from '../screens/PredictionsMenuScreen';
 import PredictionsTopTabs from './PredictionsTopTabs';
 import LeagueStack from './LeagueStack';
 import StatisticsScreen from '../screens/StatisticsScreen';
+import BracketScreen from '../screens/predictions/BracketScreen';
 
 export type MainStackParamList = {
   Home: undefined;
@@ -14,6 +15,7 @@ export type MainStackParamList = {
   PredictionsMenu: undefined;
   MatchPredictions: undefined;
   RoutePredictions: undefined;
+  Bracket: undefined;
   Leagues: undefined;
   Statistics: undefined;
 };
@@ -25,7 +27,7 @@ export default function MainNavigator() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#667eea',
+          backgroundColor: '#16a34a',
         },
         headerTintColor: '#fff',
         headerTitleStyle: {
@@ -68,6 +70,14 @@ export default function MainNavigator() {
         component={PredictionsTopTabs}
         options={{
           title: 'Route Predictions',
+        }}
+      />
+      <Stack.Screen
+        name="Bracket"
+        component={BracketScreen}
+        options={{
+          title: 'Full Bracket',
+          headerBackTitle: 'back',
         }}
       />
       <Stack.Screen

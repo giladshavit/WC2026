@@ -25,6 +25,7 @@ import * as MediaLibrary from 'expo-media-library';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const COLUMN_WIDTH = 120;
+const Y_OFFSET = 80; // Offset to move bracket down (positive = move down on screen)
 
 // Calculate available height for bracket display
 // Subtract: status bar (~44px), tab bar (~60px), navigation header (~60px), bottom tabs (~80px)
@@ -107,7 +108,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       
       if (match) {
         const spacing = (AVAILABLE_HEIGHT - 40) / 8;
-        marginTop = (match.verticalPosition || 0) * spacing;
+        marginTop = (match.verticalPosition || 0) * spacing + Y_OFFSET; // Add Y_OFFSET to match bracket offset
       }
       
       absoluteLayout = {
@@ -454,7 +455,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         {/* Remove column titles to save space */}
         <View style={styles.matchesContainer}>
           {matches.map((match, index) => {
-            const calculatedMarginTop = (match.verticalPosition || index) * spacing;
+            const calculatedMarginTop = (match.verticalPosition || index) * spacing + Y_OFFSET;
             
             return (
             <View 
@@ -750,9 +751,9 @@ export default function BracketScreen({}: BracketScreenProps) {
         >
           {/* SVG overlay for bracket lines */}
           <Svg 
-            style={[styles.bracketLines, { height: AVAILABLE_HEIGHT }]}
+            style={[styles.bracketLines, { height: AVAILABLE_HEIGHT + Y_OFFSET + 60 }]}
             width={screenWidth * 3.25}
-            height={AVAILABLE_HEIGHT}
+            height={AVAILABLE_HEIGHT + Y_OFFSET + 60}
             pointerEvents="none"
           >
             {/* All the same SVG lines as above */}
@@ -1035,7 +1036,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingTop: 20,
+    paddingBottom: 60, // Extra padding at bottom to prevent cutoff in screenshot
   },
   loadingContainer: {
     flex: 1,
@@ -1071,8 +1073,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     flex: 1,
-    minHeight: AVAILABLE_HEIGHT, // Use calculated available height
-    paddingBottom: 20, // Extra padding to prevent cutoff
+    minHeight: AVAILABLE_HEIGHT + Y_OFFSET + 40, // Add Y_OFFSET and extra padding to prevent cutoff
+    paddingBottom: 40, // Extra padding to prevent cutoff (increased from 20)
     pointerEvents: 'box-none',
   },
   matchWrapper: {
@@ -1153,7 +1155,7 @@ const styles = StyleSheet.create({
     top: -10000, // Hide off-screen
     left: -10000,
     width: screenWidth * 3.25, // Optimal width for full bracket capture
-    height: AVAILABLE_HEIGHT,
+    height: AVAILABLE_HEIGHT + Y_OFFSET + 60, // Add Y_OFFSET and extra padding to prevent cutoff
     backgroundColor: '#f8fafc',
   },
   hiddenScrollView: {

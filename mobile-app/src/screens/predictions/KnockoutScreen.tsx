@@ -1,15 +1,14 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import PagerView from 'react-native-pager-view';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KnockoutPrediction, apiService } from '../../services/api';
 import KnockoutMatchCard from '../../components/KnockoutMatchCard';
 import { useTournament } from '../../contexts/TournamentContext';
 import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
 import { useAuth } from '../../contexts/AuthContext';
-
-const Tab = createMaterialTopTabNavigator();
 
 interface KnockoutScreenProps {}
 
@@ -20,46 +19,52 @@ interface PendingChange {
   winner_team_name: string;
 }
 
-// Context to avoid passing props that cause remounts
-const KnockoutContext = React.createContext<{
-  pendingChanges: PendingChange[];
-  onTeamPress: (predictionId: number, teamId: number, teamName: string, teamNumber: number) => void;
-  onSendChanges: () => void;
-  onRefreshData: () => void;
-  onClearSpecificPendingChanges: (predictionIds: number[]) => void;
-  onUpdateOriginalWinners: (predictions: KnockoutPrediction[]) => void;
-  onTriggerRefresh: () => void;
-  refreshTrigger: number;
-  originalWinners: {[predictionId: number]: number};
-  currentFocusedStage: string | null;
-  setCurrentFocusedStage: (stage: string | null) => void;
-  predictionStages: {[predictionId: number]: string};
-}>({ pendingChanges: [], onTeamPress: () => {}, onSendChanges: () => {}, onRefreshData: () => {}, onClearSpecificPendingChanges: () => {}, onUpdateOriginalWinners: () => {}, onTriggerRefresh: () => {}, refreshTrigger: 0, originalWinners: {}, currentFocusedStage: null, setCurrentFocusedStage: () => {}, predictionStages: {} });
+// Stage configuration
+const STAGES = [
+  { key: 'round32', name: 'Round of 32' },
+  { key: 'round16', name: 'Round of 16' },
+  { key: 'quarter', name: 'Quarter Final' },
+  { key: 'semi', name: 'Semi Final' },
+  { key: 'final', name: 'Final' },
+];
 
-// Individual stage component
-const StageScreen = React.memo(({ route }: { route: any }) => {
-  const { stage, stageName } = route.params || {};
-  const { pendingChanges, onTeamPress, onSendChanges, onRefreshData, onClearSpecificPendingChanges, onUpdateOriginalWinners, onTriggerRefresh, refreshTrigger, originalWinners, currentFocusedStage, setCurrentFocusedStage, predictionStages } = useContext(KnockoutContext);
+// Stage content component
+interface StageContentProps {
+  stageKey: string;
+  stageName: string;
+  pendingChanges: PendingChange[];
+  pendingChangesById: { [id: number]: PendingChange };
+  originalWinners: {[predictionId: number]: number};
+  predictionStages: {[predictionId: number]: string};
+  onTeamPress: (predictionId: number, teamId: number, teamName: string, teamNumber: number) => void;
+  onRefresh: () => void;
+  refreshing: boolean;
+  refreshTrigger?: number;
+  onPredictionsUpdated?: (stageKey: string, predictions: KnockoutPrediction[]) => void;
+}
+
+const StageContent = React.memo(({ 
+  stageKey, 
+  stageName, 
+  pendingChanges, 
+  pendingChangesById, 
+  originalWinners, 
+  predictionStages,
+  onTeamPress,
+  onRefresh,
+  refreshing,
+  refreshTrigger,
+  onPredictionsUpdated
+}: StageContentProps) => {
   const { getCurrentUserId } = useAuth();
-  // Build O(1) lookup map for this stage screen
-  const pendingChangesById = React.useMemo(() => {
-    const map: { [id: number]: PendingChange } = {};
-    for (const change of pendingChanges) {
-      map[change.prediction_id] = change;
-    }
-    return map;
-  }, [pendingChanges]);
+  const insets = useSafeAreaInsets();
   const [predictions, setPredictions] = useState<KnockoutPrediction[]>([]);
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   const fetchPredictions = async (isRefresh = false) => {
     try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
+      if (!isRefresh) {
         setLoading(true);
       }
       
@@ -69,8 +74,13 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
         return;
       }
       
-      const data = await apiService.getKnockoutPredictions(userId, stage);
+      const data = await apiService.getKnockoutPredictions(userId, stageKey);
       setPredictions(data.predictions);
+      
+      // Notify parent component about updated predictions
+      if (onPredictionsUpdated) {
+        onPredictionsUpdated(stageKey, data.predictions);
+      }
       
       // Check if there are any matches updated from bracket
       const bracketUpdatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';
@@ -81,89 +91,37 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
       );
       
       if (relevantBracketUpdates.length > 0) {
-        console.log(`🔄 [FETCH] Found ${relevantBracketUpdates.length} bracket updates for stage ${stage}`);
-        // Clear pending changes only for the specific matches that were updated from bracket
-        const updatedMatchIds = relevantBracketUpdates.map((update: any) => update.matchId);
-        // Find prediction IDs that correspond to these template match IDs
-        const predictionIdsToClear = data.predictions
-          .filter(prediction => updatedMatchIds.includes(prediction.template_match_id))
-          .map(prediction => prediction.id);
-        
-        console.log(`🔄 [BRACKET UPDATE] Clearing pending changes for predictions: ${predictionIdsToClear.join(', ')}`);
-        onClearSpecificPendingChanges(predictionIdsToClear);
-        
-        // Update original winners with the latest data from server for this stage
-        console.log(`🔄 [BRACKET UPDATE] Updating original winners with latest data for stage ${stage}`);
-        onUpdateOriginalWinners(data.predictions);
-        
-        // Also refresh all other stages to get the latest data (but don't clear pending changes)
-        console.log(`🔄 [BRACKET UPDATE] Triggering refresh for all stages`);
-        onTriggerRefresh();
-        
+        console.log(`🔄 [FETCH] Found ${relevantBracketUpdates.length} bracket updates for stage ${stageKey}`);
         // Remove these updates from AsyncStorage
         const remainingUpdates = bracketUpdatedMatches.filter((update: any) => 
           !stageMatchIds.includes(update.matchId)
         );
         await AsyncStorage.setItem('bracketUpdatedMatches', JSON.stringify(remainingUpdates));
       }
-      
-      // Don't clear pending changes when user manually refreshes
-      // Only clear when we have bracket updates from other screens
-      if (isRefresh) {
-        console.log(`🔄 [FETCH] Manual refresh for stage ${stage} - keeping pending changes`);
-      }
     } catch (error) {
-      console.error(`Error fetching ${stage} predictions:`, error);
+      console.error(`Error fetching ${stageKey} predictions:`, error);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
-  // Track when this stage is focused
-  useFocusEffect(
-    React.useCallback(() => {
-      console.log(`🎯 [FOCUS] Stage ${stage} is now focused`);
-      setCurrentFocusedStage(stage);
-      
-      return () => {
-        console.log(`🎯 [UNFOCUS] Stage ${stage} is no longer focused`);
-        setCurrentFocusedStage(null);
-      };
-    }, [stage, setCurrentFocusedStage])
-  );
-
-  // Fetch data when component mounts
   useEffect(() => {
     fetchPredictions();
-  }, [stage]);
+  }, [stageKey]);
 
-  // Listen for refresh requests from parent (only for focused stage)
+  // Refresh when refreshTrigger changes (after save)
   useEffect(() => {
-    if (refreshTrigger > 0 && currentFocusedStage === stage) {
-      console.log(`🔄 [REFRESH TRIGGER] Stage: ${stage} is focused, refreshing`);
+    if (refreshTrigger && refreshTrigger > 0) {
       fetchPredictions();
-    } else if (refreshTrigger > 0) {
-      console.log(`⏭️ [REFRESH TRIGGER] Stage: ${stage} is not focused (focused: ${currentFocusedStage}), skipping refresh`);
     }
-  }, [refreshTrigger, currentFocusedStage, stage]);
-
-
-  // Refresh data when screen comes into focus (but don't clear pending changes)
-  useFocusEffect(
-    React.useCallback(() => {
-      console.log(`🔄 [FOCUS REFRESH] Stage ${stage} focused, pendingChanges: ${pendingChanges.length}`);
-      // Always refresh to get the latest data from server, but preserve pending changes
-      console.log(`🔄 [FOCUS REFRESH] Refreshing data for stage ${stage} (preserving pending changes)`);
-      fetchPredictions();
-    }, [stage])
-  );
+  }, [refreshTrigger]);
 
   const handleRefresh = () => {
     fetchPredictions(true);
+    onRefresh();
   };
 
-  const handleTeamPress = (teamId: number) => {
+  const handleTeamPressLocal = (teamId: number) => {
     // Find the prediction for this team
     const prediction = predictions.find(p => p.team1_id === teamId || p.team2_id === teamId);
     if (!prediction) return;
@@ -188,12 +146,12 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
     return (
       <KnockoutMatchCard 
         prediction={item} 
-        onTeamPress={handleTeamPress}
+        onTeamPress={handleTeamPressLocal}
         pendingWinner={pendingWinner}
         originalWinner={originalWinner}
       />
     );
-  }, [handleTeamPress, pendingChangesById, originalWinners]);
+  }, [handleTeamPressLocal, pendingChangesById, originalWinners]);
 
   if (loading) {
     return (
@@ -204,6 +162,14 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
     );
   }
 
+  const hasChanges = pendingChanges.length > 0;
+
+  const renderHeader = () => (
+    <View style={styles.stageTitleContainer}>
+      <Text style={styles.stageTitle}>{stageName}</Text>
+    </View>
+  );
+
   return (
     <View style={styles.stageContainer}>
       <FlatList
@@ -211,7 +177,8 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
         data={predictions}
         renderItem={renderMatch}
         keyExtractor={(item) => `prediction-${item.id}`}
-        contentContainerStyle={[styles.listContainer, pendingChanges.length > 0 && styles.listWithButton]}
+        ListHeaderComponent={renderHeader}
+        contentContainerStyle={[styles.listContainer, hasChanges && styles.listWithButton]}
         showsVerticalScrollIndicator={false}
         onRefresh={handleRefresh}
         refreshing={refreshing}
@@ -223,34 +190,30 @@ const StageScreen = React.memo(({ route }: { route: any }) => {
         numColumns={1}
         columnWrapperStyle={undefined}
       />
-      {pendingChanges.length > 0 && (
-        <View style={styles.pendingChangesContainer}>
-          <Text style={styles.pendingChangesText}>
-            {pendingChanges.length} שינויים ממתינים
-          </Text>
-          <TouchableOpacity 
-            style={[styles.sendButton, sending && styles.sendButtonDisabled]}
-            onPress={onSendChanges}
-            disabled={sending}
-          >
-            <Text style={styles.sendButtonText}>
-              {sending ? 'שולח...' : 'שלח שינויים'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
     </View>
   );
 });
 
 export default function KnockoutScreen({}: KnockoutScreenProps) {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [sending, setSending] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [currentStageIndex, setCurrentStageIndex] = useState(0);
   const [originalWinners, setOriginalWinners] = useState<{[predictionId: number]: number}>({});
-  const [currentFocusedStage, setCurrentFocusedStage] = useState<string | null>(null);
   const [predictionStages, setPredictionStages] = useState<{[predictionId: number]: string}>({});
+  const [knockoutScore, setKnockoutScore] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [stagesCompleted, setStagesCompleted] = useState<{[stageKey: string]: boolean}>({
+    round32: false,
+    round16: false,
+    quarter: false,
+    semi: false,
+    final: false,
+  });
+  
+  const pagerRef = useRef<PagerView>(null);
 
   // Get tournament context data
   const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
@@ -261,25 +224,10 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   // Get current user ID
   const { getCurrentUserId } = useAuth();
 
-  // Helper function to convert stage name to tab name
-  const getTabNameFromStage = (stage: string): string | null => {
-    switch (stage) {
-      case 'round32':
-        return 'Round32';
-      case 'round16':
-        return 'Round16';
-      case 'quarter':
-        return 'Quarter';
-      case 'semi':
-        return 'Semi';
-      case 'final':
-        return 'Final';
-      default:
-        return null;
-    }
-  };
+  const currentStageKey = STAGES[currentStageIndex]?.key || 'round32';
+  const currentStageName = STAGES[currentStageIndex]?.name || 'Round of 32';
 
-  // O(1) lookup map for pending changes
+  // Build O(1) lookup map for pending changes
   const pendingChangesById = React.useMemo(() => {
     const map: { [id: number]: PendingChange } = {};
     for (const change of pendingChanges) {
@@ -288,7 +236,24 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     return map;
   }, [pendingChanges]);
 
-  const handleTeamPress = React.useCallback((predictionId: number, teamId: number, teamName: string, teamNumber: number) => {
+  // Load knockout score
+  useEffect(() => {
+    const loadScore = async () => {
+      try {
+        const userId = getCurrentUserId();
+        if (!userId) return;
+        
+        const response = await apiService.getKnockoutPredictions(userId);
+        setKnockoutScore(response.knockout_score);
+      } catch (error) {
+        console.error('Error loading knockout score:', error);
+      }
+    };
+    
+    loadScore();
+  }, [getCurrentUserId, pendingChanges]);
+
+  const handleTeamPress = (predictionId: number, teamId: number, teamName: string, teamNumber: number) => {
     const currentWinner = pendingChanges.find(change => change.prediction_id === predictionId);
     const originalWinner = originalWinners[predictionId];
     
@@ -307,7 +272,6 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     
     // בדוק אם יש שינויים משלב אחר
     if (pendingChanges.length > 0) {
-      const currentStage = currentFocusedStage;
       const newPredictionStage = predictionStages[predictionId];
       
       // בדוק אם יש שינויים משלב אחר
@@ -329,11 +293,10 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
                 // נחזור לשלב עם השינויים הקיימים
                 const existingChangeStage = predictionStages[pendingChanges[0].prediction_id];
                 if (existingChangeStage) {
-                  // ממיר את שם השלב לשם הטאב
-                  const tabName = getTabNameFromStage(existingChangeStage);
-                  if (tabName) {
-                    // נווט אל טאב ה-Knockout ואל המסך הפנימי המתאים
-                    (navigation as any).navigate('Knockout', { screen: tabName });
+                  const stageIndex = STAGES.findIndex(s => s.key === existingChangeStage);
+                  if (stageIndex !== -1) {
+                    setCurrentStageIndex(stageIndex);
+                    pagerRef.current?.setPage(stageIndex);
                   }
                 }
               }
@@ -365,8 +328,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         winner_team_name: teamName
       }];
     });
-  }, [originalWinners, pendingChanges, currentFocusedStage]);
-
+  };
 
   const performSendChanges = React.useCallback(async () => {
     if (pendingChanges.length === 0) return;
@@ -398,8 +360,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
           // Clear pending changes immediately
           setPendingChanges([]);
           
-          // Trigger refresh of all stage screens
-          console.log(`🔄 [SEND CHANGES] Triggering refresh for all stages`);
+          // Trigger refresh of current stage to show updated data
           setRefreshTrigger(prev => prev + 1);
           
           // Reload original winners after successful save to get the real team IDs
@@ -418,6 +379,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
               });
               
               setOriginalWinners(originalMap);
+              setKnockoutScore(response.knockout_score);
               console.log('Reloaded original winners after save:', originalMap);
             } catch (error) {
               console.error('Error reloading original winners:', error);
@@ -435,7 +397,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     } finally {
       setSending(false);
     }
-  }, [pendingChanges, getCurrentUserId]);
+  }, [pendingChanges, getCurrentUserId, originalWinners]);
 
   const handleSendChanges = React.useCallback(async () => {
     const numberOfChanges = pendingChanges.length;
@@ -449,39 +411,6 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     showPenaltyConfirmation(performSendChanges, numberOfChanges);
   }, [pendingChanges.length, showPenaltyConfirmation, performSendChanges]);
 
-  const handleRefreshData = React.useCallback(() => {
-    console.log(`🔄 [REFRESH DATA] Clearing pending changes and triggering refresh`);
-    setPendingChanges([]);
-    setRefreshTrigger(prev => prev + 1);
-  }, []);
-
-  const handleClearSpecificPendingChanges = React.useCallback((predictionIds: number[]) => {
-    console.log(`🔄 [CLEAR SPECIFIC] Clearing pending changes for predictions: ${predictionIds.join(', ')}`);
-    setPendingChanges(prev => prev.filter(change => !predictionIds.includes(change.prediction_id)));
-    setRefreshTrigger(prev => prev + 1);
-  }, []);
-
-  const handleUpdateOriginalWinners = React.useCallback((predictions: KnockoutPrediction[]) => {
-    console.log(`🔄 [UPDATE ORIGINAL WINNERS] Updating original winners with ${predictions.length} predictions`);
-    const newOriginalWinners: {[predictionId: number]: number} = {};
-    
-    predictions.forEach(prediction => {
-      if (prediction.winner_team_id) {
-        newOriginalWinners[prediction.id] = prediction.winner_team_id;
-      }
-    });
-    
-    // Update only the specific predictions that were updated, not all of them
-    setOriginalWinners(prev => ({ ...prev, ...newOriginalWinners }));
-    console.log('Updated original winners:', newOriginalWinners);
-  }, []);
-
-  const handleTriggerRefresh = React.useCallback(() => {
-    console.log(`🔄 [TRIGGER REFRESH] Triggering refresh for all stages`);
-    setRefreshTrigger(prev => prev + 1);
-  }, []);
-
-
   // Load original winners and prediction stages from server on component mount
   useEffect(() => {
     const loadOriginalWinners = async () => {
@@ -489,8 +418,6 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         const userId = getCurrentUserId();
         if (!userId) return;
         
-        // For now, we'll use the existing API to get knockout predictions
-        // and extract the original winners and stages
         const response = await apiService.getKnockoutPredictions(userId);
         const originalMap: {[predictionId: number]: number} = {};
         const stagesMap: {[predictionId: number]: string} = {};
@@ -499,7 +426,6 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
           if (prediction.winner_team_id) {
             originalMap[prediction.id] = prediction.winner_team_id;
           }
-          // נשתמש ב-stage מהתגובה
           if (prediction.stage) {
             stagesMap[prediction.id] = prediction.stage;
           }
@@ -507,6 +433,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         
         setOriginalWinners(originalMap);
         setPredictionStages(stagesMap);
+        setKnockoutScore(response.knockout_score);
         console.log('Loaded original winners:', originalMap);
         console.log('Loaded prediction stages:', stagesMap);
       } catch (error) {
@@ -517,94 +444,265 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     loadOriginalWinners();
   }, [getCurrentUserId]);
 
+  const goToPreviousStage = () => {
+    if (currentStageIndex > 0) {
+      const newIndex = currentStageIndex - 1;
+      setCurrentStageIndex(newIndex);
+      pagerRef.current?.setPage(newIndex);
+    }
+  };
+
+  const goToNextStage = () => {
+    if (currentStageIndex < STAGES.length - 1) {
+      const newIndex = currentStageIndex + 1;
+      setCurrentStageIndex(newIndex);
+      pagerRef.current?.setPage(newIndex);
+    }
+  };
+
+  const handlePageSelected = (e: any) => {
+    const newIndex = e.nativeEvent.position;
+    setCurrentStageIndex(newIndex);
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 1000);
+  };
+
+
+  // Check if all predictions in a stage are completed
+  const checkStageCompletion = React.useCallback((stageKey: string, predictions: KnockoutPrediction[]) => {
+    // Filter predictions for this stage
+    const stagePredictions = predictions.filter(p => p.stage === stageKey);
+    
+    // Check if all predictions have a winner (not null and not TBD)
+    const allCompleted = stagePredictions.length > 0 && stagePredictions.every(prediction => {
+      const isTBD = (name?: string | null) => !name || name === 'TBD' || name.trim() === '';
+      const team1IsTBD = isTBD(prediction.team1_name);
+      const team2IsTBD = isTBD(prediction.team2_name);
+      
+      // If both teams are TBD, this match doesn't count
+      if (team1IsTBD && team2IsTBD) {
+        return true; // Skip TBD matches
+      }
+      
+      // Check if winner is set and not TBD
+      return prediction.winner_team_id !== null && prediction.winner_team_id !== undefined;
+    });
+    
+    return allCompleted;
+  }, []);
+
+  // Handle predictions update from StageContent
+  const handlePredictionsUpdated = React.useCallback((stageKey: string, predictions: KnockoutPrediction[]) => {
+    const isCompleted = checkStageCompletion(stageKey, predictions);
+    const wasCompleted = stagesCompleted[stageKey];
+    
+    // If stage is now completed and wasn't before, move to next stage
+    if (isCompleted && !wasCompleted) {
+      setStagesCompleted(prev => ({ ...prev, [stageKey]: true }));
+      
+      // Find current stage index and move to next if exists
+      const currentStageIndex = STAGES.findIndex(s => s.key === stageKey);
+      if (currentStageIndex !== -1 && currentStageIndex < STAGES.length - 1) {
+        // Small delay to ensure UI updates smoothly
+        setTimeout(() => {
+          const nextIndex = currentStageIndex + 1;
+          setCurrentStageIndex(nextIndex);
+          pagerRef.current?.setPage(nextIndex);
+        }, 300);
+      }
+    } else if (isCompleted) {
+      // Update state even if already completed (in case of refresh)
+      setStagesCompleted(prev => ({ ...prev, [stageKey]: true }));
+    }
+  }, [stagesCompleted, checkStageCompletion]);
+
+  const hasChanges = pendingChanges.length > 0;
+
   return (
-    <KnockoutContext.Provider value={{ pendingChanges, onTeamPress: handleTeamPress, onSendChanges: handleSendChanges, onRefreshData: handleRefreshData, onClearSpecificPendingChanges: handleClearSpecificPendingChanges, onUpdateOriginalWinners: handleUpdateOriginalWinners, onTriggerRefresh: handleTriggerRefresh, refreshTrigger, originalWinners, currentFocusedStage, setCurrentFocusedStage, predictionStages }}>
+    <View style={styles.container}>
+      {/* Unified header with save, navigation arrows, stage name, and points */}
       <View style={styles.header}>
-        <View style={styles.titleContainer}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            style={[styles.saveButton, (!hasChanges || sending) && styles.saveButtonDisabled]}
+            onPress={handleSendChanges}
+            disabled={!hasChanges || sending}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.saveButtonText}>
+              {sending ? 'Saving...' : 'Save'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.headerCenter}>
+          <TouchableOpacity
+            style={[styles.navButton, currentStageIndex === 0 && styles.navButtonDisabled]}
+            onPress={goToPreviousStage}
+            disabled={currentStageIndex === 0}
+          >
+            <Text style={[styles.navButtonText, currentStageIndex === 0 && styles.navButtonTextDisabled]}>←</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.navButton, styles.navButtonRight, currentStageIndex === STAGES.length - 1 && styles.navButtonDisabled]}
+            onPress={goToNextStage}
+            disabled={currentStageIndex === STAGES.length - 1}
+          >
+            <Text style={[styles.navButtonText, currentStageIndex === STAGES.length - 1 && styles.navButtonTextDisabled]}>→</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.headerRight}>
+          {knockoutScore !== null && (
+            <View style={styles.pointsContainer}>
+              <Text style={styles.totalPoints}>{knockoutScore} pts</Text>
+            </View>
+          )}
         </View>
       </View>
-      <Tab.Navigator
-        screenOptions={{
-          tabBarStyle: styles.tabBar,
-          tabBarLabelStyle: styles.tabLabel,
-          tabBarIndicatorStyle: styles.tabIndicator,
-          tabBarActiveTintColor: '#667eea',
-          tabBarInactiveTintColor: '#718096',
-        }}
+
+      {/* PagerView for swipe navigation */}
+      <PagerView
+        ref={pagerRef}
+        style={styles.pagerView}
+        initialPage={0}
+        onPageSelected={handlePageSelected}
       >
-        <Tab.Screen 
-          name="Round32" 
-          component={StageScreen}
-          initialParams={{ stage: 'round32', stageName: 'Round of 32' }}
-          options={{ tabBarLabel: 'Round 32' }}
-        />
-        <Tab.Screen 
-          name="Round16" 
-          component={StageScreen}
-          initialParams={{ stage: 'round16', stageName: 'Round of 16' }}
-          options={{ tabBarLabel: 'Round 16' }}
-        />
-        <Tab.Screen 
-          name="Quarter" 
-          component={StageScreen}
-          initialParams={{ stage: 'quarter', stageName: 'Quarter Final' }}
-          options={{ tabBarLabel: 'Quarter' }}
-        />
-        <Tab.Screen 
-          name="Semi" 
-          component={StageScreen}
-          initialParams={{ stage: 'semi', stageName: 'Semi Final' }}
-          options={{ tabBarLabel: 'Semi' }}
-        />
-        <Tab.Screen 
-          name="Final" 
-          component={StageScreen}
-          initialParams={{ stage: 'final', stageName: 'Final' }}
-          options={{ tabBarLabel: 'Final' }}
-        />
-      </Tab.Navigator>
-    </KnockoutContext.Provider>
+        {STAGES.map((stage, index) => (
+          <View key={stage.key} style={styles.page}>
+            <StageContent
+              stageKey={stage.key}
+              stageName={stage.name}
+              pendingChanges={pendingChanges}
+              pendingChangesById={pendingChangesById}
+              originalWinners={originalWinners}
+              predictionStages={predictionStages}
+              onTeamPress={handleTeamPress}
+              onRefresh={handleRefresh}
+              refreshing={refreshing}
+              refreshTrigger={refreshTrigger}
+              onPredictionsUpdated={handlePredictionsUpdated}
+            />
+          </View>
+        ))}
+      </PagerView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#d4edda',
+  },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 0,
+    paddingVertical: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
-  titleContainer: {
+  headerLeft: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  headerCenter: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  tabBar: {
-    backgroundColor: '#fff',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+  headerRight: {
+    flex: 1,
+    alignItems: 'flex-end',
   },
-  tabLabel: {
+  pointsContainer: {
+    backgroundColor: '#48bb78',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  totalPoints: {
     fontSize: 14,
-    fontWeight: '600',
-    textTransform: 'none',
+    fontWeight: 'bold',
+    color: '#fff',
   },
-  tabIndicator: {
-    backgroundColor: '#667eea',
-    height: 3,
+  saveButton: {
+    backgroundColor: '#48bb78',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 90,
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#a0aec0',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  navButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#f7fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    minWidth: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  navButtonRight: {
+    marginRight: 0,
+    marginLeft: 8,
+  },
+  navButtonDisabled: {
+    opacity: 0.3,
+  },
+  navButtonText: {
+    fontSize: 18,
+    color: '#667eea',
+    fontWeight: 'bold',
+  },
+  navButtonTextDisabled: {
+    color: '#a0aec0',
+  },
+  pagerView: {
+    flex: 1,
+  },
+  page: {
+    flex: 1,
   },
   stageContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#d4edda',
+  },
+  stageTitleContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: '#d4edda',
+    borderBottomWidth: 1,
+    borderBottomColor: '#c3e6cb',
+  },
+  stageTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1a202c',
+    textAlign: 'center',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#d4edda',
   },
   loadingText: {
     marginTop: 10,
@@ -614,56 +712,7 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 0,
   },
-  row: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-  },
   listWithButton: {
-    paddingBottom: 80, // Space for the fixed button
-  },
-  pendingChangesContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#f0fdf4',
-    padding: 12,
-    margin: 0,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#10b981',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  pendingChangesText: {
-    color: '#059669',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  sendButton: {
-    backgroundColor: '#10b981',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#94a3b8',
-  },
-  sendButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 14,
+    paddingBottom: 80, // Space for the fixed button (if needed)
   },
 });
-

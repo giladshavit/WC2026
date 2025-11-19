@@ -25,6 +25,12 @@ const options: Array<{
     emoji: '🗺️',
     navigateTo: 'RoutePredictions',
   },
+  {
+    title: 'Show Full Bracket',
+    description: 'View complete tournament bracket',
+    emoji: '🏆',
+    navigateTo: 'Bracket',
+  },
 ];
 
 export default function PredictionsMenuScreen() {
@@ -85,6 +91,7 @@ const styles = StyleSheet.create({
   },
   buttonsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     width: '100%',
   },
@@ -103,6 +110,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 4,
+    marginBottom: 16,
   },
   emoji: {
     fontSize: 42,

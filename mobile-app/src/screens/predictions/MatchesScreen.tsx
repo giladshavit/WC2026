@@ -212,7 +212,7 @@ export default function MatchesScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#667eea" />
+        <ActivityIndicator size="large" color="#16a34a" />
         <Text style={styles.loadingText}>Loading matches...</Text>
       </View>
     );
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#f7fafc',
+    backgroundColor: '#d4edda',
   },
   header: {
     flexDirection: 'row',
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#d4edda',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f7fafc',
+    backgroundColor: '#d4edda',
   },
   loadingText: {
     marginTop: 16,
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f7fafc',
+    backgroundColor: '#d4edda',
     padding: 20,
   },
   emptyText: {

@@ -6,6 +6,7 @@
 const COLUMN_WIDTH = 120;
 const CARD_WIDTH = 90;
 const CARD_HEIGHT = 60;
+const Y_OFFSET = 80; // Offset to move bracket down (positive = move down on screen)
 
 /**
  * Calculate actual card coordinates for a match based on its column and position
@@ -22,7 +23,7 @@ function getCardCoordinates(
   
   // Calculate card position within column (centered)
   const cardX = columnCenterX - (CARD_WIDTH / 2);
-  const cardY = (verticalPosition * spacing);
+  const cardY = (verticalPosition * spacing) + Y_OFFSET; // Add Y offset to move bracket down
   
   return {
     topLeftX: cardX,

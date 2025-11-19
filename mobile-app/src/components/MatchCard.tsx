@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Animated } from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Match } from '../services/api';
 
@@ -51,8 +51,36 @@ const PointsDisplay = ({ userPrediction, actualResult }: { userPrediction: any; 
   
   return (
     <View style={[styles.pointsContainer, isZeroPoints && styles.pointsContainerZero]}>
-      <Text style={styles.pointsText}>{points} נק׳</Text>
+      <Text style={styles.pointsText}>{points} pts</Text>
     </View>
+  );
+};
+
+// Component for blinking cursor
+const BlinkingCursor = () => {
+  const opacity = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    const blink = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    blink.start();
+    return () => blink.stop();
+  }, [opacity]);
+
+  return (
+    <Animated.View style={[styles.cursor, { opacity }]} />
   );
 };
 
@@ -116,7 +144,13 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     handleScoreChange('home', trimmed);
     setHomeFocused(false);
     homeInputRef.current?.blur();
-  }, [handleScoreChange]);
+
+    // If match has no result and away score is empty, focus on away input
+    const hasNoResult = !match.actual_result;
+    if (hasNoResult && isEditable && !awayScore) {
+      awayInputRef.current?.focus();
+    }
+  }, [handleScoreChange, match.actual_result, isEditable, awayScore]);
  
    const handleAwayInputChange = React.useCallback((value: string) => {
     const trimmed = value.slice(-1);
@@ -132,7 +166,13 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     handleScoreChange('away', trimmed);
     setAwayFocused(false);
     awayInputRef.current?.blur();
-  }, [handleScoreChange]);
+
+    // If match has no result and home score is empty, focus on home input
+    const hasNoResult = !match.actual_result;
+    if (hasNoResult && isEditable && !homeScore) {
+      homeInputRef.current?.focus();
+    }
+  }, [handleScoreChange, match.actual_result, isEditable, homeScore]);
 
   const handleFocus = React.useCallback((field: ScoreField) => {
     const isHome = field === 'home';
@@ -228,6 +268,10 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     const inputRef = isHome ? homeInputRef : awayInputRef;
     const handleChange = isHome ? handleHomeInputChange : handleAwayInputChange;
 
+    // Check if we should show cursor: match has no result, field is editable, empty, and focused
+    const hasNoResult = !match.actual_result;
+    const shouldShowCursor = hasNoResult && isEditable && !scoreValue && isFieldFocused;
+
     const displayValue = scoreValue || (isEditable ? (isFieldFocused ? '' : '+') : '-');
     const placeholderColor = isEditable ? '#111827' : '#a0aec0';
 
@@ -259,15 +303,21 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
           activeOpacity={0.8}
           disabled={!isEditable}
         >
-          <Text
-            style={[
-              styles.scoreInput,
-              isEditable ? styles.scoreInputEditable : styles.scoreInputDisabled,
-              !scoreValue && { color: placeholderColor },
-            ]}
-          >
-            {displayValue}
-          </Text>
+          {shouldShowCursor ? (
+            <View style={styles.cursorContainer}>
+              <BlinkingCursor />
+            </View>
+          ) : (
+            <Text
+              style={[
+                styles.scoreInput,
+                isEditable ? styles.scoreInputEditable : styles.scoreInputDisabled,
+                !scoreValue && { color: placeholderColor },
+              ]}
+            >
+              {displayValue}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     );
@@ -326,26 +376,28 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#f4f6fb',
+    backgroundColor: '#d4edda', // Light green background
     marginHorizontal: 16,
     marginVertical: 8,
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 8,
     minHeight: 145,
-    borderWidth: 2,
-    borderColor: '#f4f6fb',
+    borderWidth: 1,
+    borderColor: '#c3e6cb', // Slightly darker green border
   },
   containerPending: {
     borderColor: '#f6ad55',
+    borderWidth: 2,
+    backgroundColor: '#fff9e6', // Light yellow background for pending
   },
   header: {
     flexDirection: 'row',
@@ -428,10 +480,18 @@ const styles = StyleSheet.create({
   scoreBox: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   scoreBoxEditable: {
     borderWidth: 2,
@@ -525,5 +585,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
     paddingHorizontal: 8,
+  },
+  // Cursor styles
+  cursorContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cursor: {
+    width: 2,
+    height: 24,
+    backgroundColor: '#111827',
   },
 });

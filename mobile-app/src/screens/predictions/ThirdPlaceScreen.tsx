@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,7 +34,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const { getCurrentUserId } = useAuth();
 
   // Calculate number of changes in third place prediction
-  const calculateThirdPlaceChanges = () => {
+  const calculateThirdPlaceChanges = useMemo(() => {
     // Get currently selected teams
     const currentlySelected = Array.from(selectedTeams);
     
@@ -50,7 +50,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     );
     
     return newSelections.length;
-  };
+  }, [selectedTeams, teams]);
 
   // Calculate dynamic height based on actual measured heights
   const getCardHeight = () => {
@@ -184,8 +184,8 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   };
 
   const performSave = async () => {
-    if (selectedTeams.size === 0) {
-      Alert.alert('No Selection', 'Please select at least one team to advance.');
+    if (selectedTeams.size !== 8) {
+      Alert.alert('Incomplete Selection', 'Please select exactly 8 teams to advance.');
       return;
     }
 
@@ -214,15 +214,13 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   };
 
   const handleSave = async () => {
-    const numberOfChanges = calculateThirdPlaceChanges();
-    
-    if (numberOfChanges === 0) {
+    if (calculateThirdPlaceChanges === 0) {
       Alert.alert('No Changes', 'No changes to save');
       return;
     }
 
     // Use the generic penalty confirmation hook
-    showPenaltyConfirmation(performSave, numberOfChanges);
+    showPenaltyConfirmation(performSave, calculateThirdPlaceChanges);
   };
 
   const renderTeam = ({ item }: { item: ThirdPlaceTeam }) => {
@@ -243,14 +241,20 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     // Logic: Changed (yellow border) + Selected (green background) can coexist
     // But if there's a result, don't show changed indicator
     let cardStyle: any = styles.teamCard;
-    if (isChanged && isSelected && !hasResult) {
+    if (hasResult && isSelected && isCorrect === false) {
+      // Wrong prediction: red background
+      cardStyle = [styles.teamCard, styles.teamCardIncorrect];
+    } else if (hasResult && isSelected && isCorrect === true) {
+      // Correct prediction: green background but no border (results are final)
+      cardStyle = [styles.teamCard, styles.teamCardSelectedNoBorder];
+    } else if (isChanged && isSelected && !hasResult) {
       // Both changed and selected (and no result): yellow border + green background
       cardStyle = [styles.teamCard, styles.teamCardSelected, styles.teamCardChanged];
     } else if (isChanged && !hasResult) {
       // Only changed (and no result): yellow border only
       cardStyle = [styles.teamCard, styles.teamCardChanged];
-    } else if (isSelected) {
-      // Only selected: green border + green background
+    } else if (isSelected && !hasResult) {
+      // Only selected (and no result): green border + green background
       cardStyle = [styles.teamCard, styles.teamCardSelected];
     }
     
@@ -303,7 +307,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#667eea" />
+        <ActivityIndicator size="large" color="#16a34a" />
         <Text style={styles.loadingText}>Loading third place teams...</Text>
       </View>
     );
@@ -319,6 +323,18 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     );
   }
 
+  // Calculate number of correct predictions if there are results
+  const hasResult = thirdPlaceResult !== null;
+  let correctCount = 0;
+  if (hasResult && thirdPlaceResult.result_groups) {
+    // Count how many selected teams have groups that appear in result_groups
+    teams.forEach(team => {
+      if (selectedTeams.has(team.id) && thirdPlaceResult.result_groups.includes(team.group_name)) {
+        correctCount++;
+      }
+    });
+  }
+
   return (
     <View style={styles.container}>
       <View 
@@ -326,29 +342,30 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
       >
         <View style={styles.headerTop}>
-          <View style={{ flex: 1 }}></View>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity
+              style={[styles.saveButton, (!isEditable || calculateThirdPlaceChanges === 0 || saving || selectedTeams.size !== 8) && styles.saveButtonDisabled]}
+              onPress={handleSave}
+              disabled={!isEditable || calculateThirdPlaceChanges === 0 || saving || selectedTeams.size !== 8}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.saveButtonText}>
+                {saving ? 'Saving...' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+          </View>
           <Text 
             style={styles.counter}
             onLayout={(event) => setCounterHeight(event.nativeEvent.layout.height)}
+            pointerEvents="none"
           >
-            Selected: {selectedTeams.size}/8
+            {hasResult ? `Correct: ${correctCount}/8` : `Selected: ${selectedTeams.size}/8`}
           </Text>
-          <View style={styles.rightSection}>
+          <View style={styles.headerRight}>
             {thirdPlaceScore !== null && (
               <View style={styles.totalScoreContainer}>
                 <Text style={styles.totalScore}>{thirdPlaceScore} pts</Text>
               </View>
-            )}
-            {isEditable && selectedTeams.size > 0 && (
-              <TouchableOpacity 
-                style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
-                onPress={handleSave}
-                disabled={saving}
-              >
-                <Text style={styles.saveButtonText}>
-                  {saving ? 'Saving...' : 'Save'}
-                </Text>
-              </TouchableOpacity>
             )}
           </View>
         </View>
@@ -371,34 +388,38 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f7fafc',
+    backgroundColor: '#d4edda',
   },
   header: {
     paddingHorizontal: 16,
-    paddingVertical: 4,
-    backgroundColor: '#f7fafc',
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: '#d4edda',
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     position: 'relative',
+    marginTop: 4,
   },
   counter: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#38a169',
+    color: '#111827',
     position: 'absolute',
     left: 0,
     right: 0,
     textAlign: 'center',
+    zIndex: 1,
   },
-  rightSection: {
+  headerLeft: {
     flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 8,
+    alignItems: 'flex-start',
+  },
+  headerRight: {
+    flex: 1,
+    alignItems: 'flex-end',
   },
   totalScoreContainer: {
     backgroundColor: '#48bb78',
@@ -416,6 +437,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
+    minWidth: 90,
+    alignItems: 'center',
+    zIndex: 10,
+    elevation: 10,
   },
   saveButtonDisabled: {
     backgroundColor: '#a0aec0',
@@ -434,7 +459,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f7fafc',
+    backgroundColor: '#d4edda',
   },
   loadingText: {
     marginTop: 16,
@@ -468,8 +493,14 @@ const styles = StyleSheet.create({
     borderColor: '#48bb78',
     backgroundColor: '#f0fff4',
   },
+  teamCardSelectedNoBorder: {
+    backgroundColor: '#f0fff4', // Green background but no border
+  },
   teamCardChanged: {
     borderColor: '#f6ad55',
+  },
+  teamCardIncorrect: {
+    backgroundColor: '#fee2e2', // Light red background for incorrect predictions
   },
   teamFlag: {
     width: 40,

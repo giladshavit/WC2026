@@ -134,21 +134,21 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, 
 
 const styles = StyleSheet.create({
   matchCard: {
-    backgroundColor: '#fff',
-    borderRadius: 9, // 12 * 0.75
-    padding: 12, // 16 * 0.75
-    marginBottom: 9, // 12 * 0.75
-    marginHorizontal: 4,
-    marginTop: 6, // 8 * 0.75
-    borderWidth: 2,
-    borderColor: 'transparent',
+    backgroundColor: '#ffffff', // White background to contrast with green screen background
+    borderRadius: 20, // More rounded corners for the card
+    padding: 16,
+    marginBottom: 12,
+    marginHorizontal: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0', // Light gray border
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    height: 120, // 90 * 1.5 - Increased height
-    width: '96%', // Double width - single column layout
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 6,
+    height: 120,
+    width: '96%',
   },
   teamContainer: {
     flexDirection: 'row',
@@ -157,22 +157,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   teamButton: {
-    width: 120, // 60 * 2 - Double width
-    height: 90, // 60 * 1.5 - Increased height
+    width: 120,
+    height: 90,
     alignItems: 'center',
-    justifyContent: 'center', // Center everything vertically
+    justifyContent: 'center',
     paddingHorizontal: 8,
-    borderRadius: 6, // 8 * 0.75
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
+    borderRadius: 18, // More rounded corners
+    borderWidth: 1.5,
+    borderColor: '#c3e6cb',
+    backgroundColor: '#ffffff', // White background for team buttons
     marginHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   teamFlag: {
-    width: 48, // 32 * 1.5 - Increased flags
-    height: 36, // 24 * 1.5 - Increased flags
-    borderRadius: 3, // 4 * 0.75
-    marginBottom: 6,
+    width: 42, // Slightly reduced from 48
+    height: 32, // Slightly reduced from 36
+    borderRadius: 6,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   teamName: {
     fontSize: 15, // 10 * 1.5 - Increased font size
@@ -202,16 +212,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   winnerButton: {
-    backgroundColor: '#f0fff4', // Light green background for winner
-    borderColor: '#38a169', // Green border for winner
+    backgroundColor: '#c6f6d5', // Brighter green background for winner
+    borderColor: '#48bb78', // Green border for winner
+    borderWidth: 2,
   },
   winnerText: {
     color: '#38a169', // Green text for winner
     fontWeight: '700', // Bolder text for winner
   },
   pendingWinnerButton: {
-    backgroundColor: '#f0fff4', // Light green background for pending winner (same as winner)
-    borderColor: '#38a169', // Green border for pending winner (same as winner)
+    backgroundColor: '#c6f6d5', // Brighter green background for pending winner
+    borderColor: '#48bb78', // Green border for pending winner
+    borderWidth: 2,
   },
   originalWinnerButton: {
     backgroundColor: '#dbeafe', // Light blue background for original choice
