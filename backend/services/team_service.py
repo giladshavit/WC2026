@@ -64,6 +64,8 @@ class TeamService:
             {
                 "id": team.id,
                 "name": team.name,
+                "short_name": team.short_name,
+                "flag_url": team.flag_url,
                 "group_letter": team.group_letter,
                 "group_position": team.group_position,
                 "goals_for": team.goals_for,

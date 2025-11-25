@@ -428,6 +428,31 @@ def advance_tournament_stage(db: Session = Depends(get_db)):
         "penalty": new_stage.get_penalty_for()
     }
 
+@router.post("/admin/stage/advance-to-group-stage")
+def advance_to_group_stage(db: Session = Depends(get_db)):
+    """
+    Advance directly to GROUP_CYCLE_1 (first group stage cycle) if currently at PRE_GROUP_STAGE (admin only)
+    """
+    current_stage = StageManager.get_current_stage(db)
+    
+    if current_stage == Stage.PRE_GROUP_STAGE:
+        StageManager.set_current_stage(Stage.GROUP_CYCLE_1, db)
+        return {
+            "message": "Stage advanced to GROUP_CYCLE_1 (Group Stage Cycle 1)",
+            "stage": "GROUP_CYCLE_1",
+            "stage_value": Stage.GROUP_CYCLE_1.value,
+            "penalty": Stage.GROUP_CYCLE_1.get_penalty_for(),
+            "previous_stage": "PRE_GROUP_STAGE"
+        }
+    else:
+        return {
+            "message": f"Already past PRE_GROUP_STAGE. Current stage: {current_stage.name}",
+            "stage": current_stage.name,
+            "stage_value": current_stage.value,
+            "penalty": current_stage.get_penalty_for(),
+            "skipped": True
+        }
+
 @router.post("/admin/stage/reset")
 def reset_tournament_stage(db: Session = Depends(get_db)):
     """
@@ -566,6 +591,76 @@ def reset_all_results_and_scores(db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@router.post("/admin/delete-all-results", response_model=Dict[str, Any])
+def delete_all_results_only(db: Session = Depends(get_db)):
+    """
+    Delete all results and reset scores (admin only)
+    This will:
+    1. Delete all match results
+    2. Delete all group stage results
+    3. Delete all third place results
+    4. Delete all knockout stage results
+    5. Reset all user scores to zero
+    6. Reset all prediction points to zero
+    7. Reset all match statuses to scheduled
+    """
+    try:
+        import subprocess
+        import os
+        
+        # Step 1: Delete all results using the existing script
+        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "deletion", "delete_all_results.py")
+        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
+        
+        print(f"🔧 Running delete_all_results script...")
+        print(f"Script path: {script_path}")
+        print(f"Python path: {python_path}")
+        
+        process_result = subprocess.run(
+            [python_path, script_path],
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(os.path.dirname(__file__))
+        )
+        
+        print(f"Script return code: {process_result.returncode}")
+        if process_result.stdout:
+            print(f"Script stdout: {process_result.stdout}")
+        if process_result.stderr:
+            print(f"Script stderr: {process_result.stderr}")
+        
+        if process_result.returncode != 0:
+            raise Exception(f"Script failed with return code {process_result.returncode}: {process_result.stderr}")
+        
+        # Step 2: Reset all user scores and prediction points
+        scores_result = ResultsService.reset_all_user_scores(db)
+        
+        # Step 3: Reset match statuses to scheduled
+        matches = db.query(Match).all()
+        match_count = 0
+        for match in matches:
+            if match.status != "scheduled":
+                match.status = "scheduled"
+                match_count += 1
+        
+        db.commit()
+        
+        return {
+            "message": "All results deleted and scores reset successfully",
+            "results_deleted": True,
+            "users_reset": scores_result["users_reset"],
+            "match_predictions_reset": scores_result["match_predictions_reset"],
+            "group_predictions_reset": scores_result["group_predictions_reset"],
+            "third_place_predictions_reset": scores_result["third_place_predictions_reset"],
+            "knockout_predictions_reset": scores_result["knockout_predictions_reset"],
+            "matches_reset": match_count
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in delete_all_results_only: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 @router.post("/admin/delete-all-predictions", response_model=Dict[str, Any])
 def delete_all_predictions(db: Session = Depends(get_db)):
     """
@@ -655,6 +750,81 @@ def delete_all_knockout_predictions(db: Session = Depends(get_db)):
         
     except Exception as e:
         print(f"❌ Error in delete_all_knockout_predictions: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.delete("/admin/delete-all-knockout-results", response_model=Dict[str, Any])
+def delete_all_knockout_results(db: Session = Depends(get_db)):
+    """
+    Delete all knockout stage results (admin only)
+    This will:
+    1. Delete all KnockoutStageResult records
+    2. Delete all MatchResult records for knockout matches
+    3. Reset home_team_id and away_team_id for knockout matches (except Round of 32)
+    4. Reset match statuses to scheduled for knockout matches
+    """
+    try:
+        from models.results import KnockoutStageResult, MatchResult
+        
+        # Count records before deletion
+        knockout_result_count = db.query(KnockoutStageResult).count()
+        
+        # Get all knockout match IDs
+        knockout_matches = db.query(Match).filter(
+            Match.stage.in_(['round32', 'round16', 'quarter', 'semi', 'final'])
+        ).all()
+        
+        knockout_match_ids = [m.id for m in knockout_matches]
+        
+        # Count match results for knockout matches
+        match_result_count = db.query(MatchResult).filter(
+            MatchResult.match_id.in_(knockout_match_ids)
+        ).count()
+        
+        if knockout_result_count == 0 and match_result_count == 0:
+            return {
+                "message": "No knockout results found to delete",
+                "deleted": False,
+                "knockout_results_deleted": 0,
+                "match_results_deleted": 0,
+                "matches_reset": 0
+            }
+        
+        # Delete all knockout stage results
+        deleted_knockout_results = db.query(KnockoutStageResult).delete()
+        
+        # Delete all match results for knockout matches
+        deleted_match_results = db.query(MatchResult).filter(
+            MatchResult.match_id.in_(knockout_match_ids)
+        ).delete()
+        
+        # Reset teams and status for knockout matches (except Round of 32 which has teams from groups)
+        matches_reset = 0
+        for match in knockout_matches:
+            if match.stage != 'round32':
+                # Reset teams for Round of 16 and beyond (they come from previous knockout rounds)
+                if match.home_team_id is not None or match.away_team_id is not None:
+                    match.home_team_id = None
+                    match.away_team_id = None
+                    matches_reset += 1
+            # Reset status to scheduled
+            if match.status != "scheduled":
+                match.status = "scheduled"
+                matches_reset += 1
+        
+        # Commit the changes
+        db.commit()
+        
+        return {
+            "message": "All knockout results deleted successfully",
+            "deleted": True,
+            "knockout_results_deleted": deleted_knockout_results,
+            "match_results_deleted": deleted_match_results,
+            "matches_reset": matches_reset
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in delete_all_knockout_results: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 

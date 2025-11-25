@@ -38,22 +38,37 @@ class ResultsService:
             
             match_data = {
                 "match_id": match.id,
+                "id": match.id,  # Also include id for compatibility
                 "home_team": {
                     "id": match.home_team.id,
-                    "name": match.home_team.name
+                    "name": match.home_team.name,
+                    "flag_url": match.home_team.flag_url
                 },
                 "away_team": {
                     "id": match.away_team.id,
-                    "name": match.away_team.name
+                    "name": match.away_team.name,
+                    "flag_url": match.away_team.flag_url
                 },
                 "stage": match.stage,
                 "status": match.status,
                 "date": match.date.isoformat() if match.date else None,
+                "group": match.group,
                 "result": {
                     "home_team_score": result.home_team_score if result else None,
                     "away_team_score": result.away_team_score if result else None,
-                    "winner_team_id": result.winner_team_id if result else None
-                }
+                    "home_score": result.home_team_score if result else None,  # Also include for compatibility
+                    "away_score": result.away_team_score if result else None,  # Also include for compatibility
+                    "home_team_score_120": result.home_team_score_120 if result else None,
+                    "away_team_score_120": result.away_team_score_120 if result else None,
+                    "home_score_120": result.home_team_score_120 if result else None,  # Also include for compatibility
+                    "away_score_120": result.away_team_score_120 if result else None,  # Also include for compatibility
+                    "home_team_penalties": result.home_team_penalties if result else None,
+                    "away_team_penalties": result.away_team_penalties if result else None,
+                    "home_penalties": result.home_team_penalties if result else None,  # Also include for compatibility
+                    "away_penalties": result.away_team_penalties if result else None,  # Also include for compatibility
+                    "winner_team_id": result.winner_team_id if result else None,
+                    "outcome_type": result.outcome_type if result else "regular"
+                } if result else None
             }
             
             matches_with_results.append(match_data)
@@ -240,10 +255,30 @@ class ResultsService:
                 "group_id": group.id,
                 "group_name": group.name,
                 "teams": [
-                    {"id": group.team_1_obj.id, "name": group.team_1_obj.name},
-                    {"id": group.team_2_obj.id, "name": group.team_2_obj.name},
-                    {"id": group.team_3_obj.id, "name": group.team_3_obj.name},
-                    {"id": group.team_4_obj.id, "name": group.team_4_obj.name}
+                    {
+                        "id": group.team_1_obj.id, 
+                        "name": group.team_1_obj.name,
+                        "short_name": group.team_1_obj.short_name,
+                        "flag_url": group.team_1_obj.flag_url
+                    },
+                    {
+                        "id": group.team_2_obj.id, 
+                        "name": group.team_2_obj.name,
+                        "short_name": group.team_2_obj.short_name,
+                        "flag_url": group.team_2_obj.flag_url
+                    },
+                    {
+                        "id": group.team_3_obj.id, 
+                        "name": group.team_3_obj.name,
+                        "short_name": group.team_3_obj.short_name,
+                        "flag_url": group.team_3_obj.flag_url
+                    },
+                    {
+                        "id": group.team_4_obj.id, 
+                        "name": group.team_4_obj.name,
+                        "short_name": group.team_4_obj.short_name,
+                        "flag_url": group.team_4_obj.flag_url
+                    }
                 ],
                 "result": {
                     "first_place": result.first_place if result else None,
@@ -380,6 +415,9 @@ class ResultsService:
                     third_place_teams.append({
                         "id": team.id,
                         "name": team.name,
+                        "short_name": team.short_name,
+                        "flag_url": team.flag_url,
+                        "group_id": group.id,
                         "group_name": group.name
                     })
         
@@ -422,11 +460,13 @@ class ResultsService:
                     "stage": match.stage,
                     "home_team": {
                         "id": home_team.id,
-                        "name": home_team.name
+                        "name": home_team.name,
+                        "flag_url": home_team.flag_url
                     },
                     "away_team": {
                         "id": away_team.id,
-                        "name": away_team.name
+                        "name": away_team.name,
+                        "flag_url": away_team.flag_url
                     },
                     "date": match.date.isoformat() if match.date else None,
                     "status": match.status,
@@ -539,31 +579,107 @@ class ResultsService:
         Find the next knockout match and update it with the winner.
         This is called when a knockout match result is entered.
         """
-        # Find the template of the current match
-        current_template = db.query(MatchTemplate).filter(
-            MatchTemplate.id == match_id
-        ).first()
+        # First, get the Match to find its match_number
+        match = db.query(Match).filter(Match.id == match_id).first()
+        if not match:
+            print(f"Match {match_id} not found")
+            return
         
-        if not current_template or not current_template.winner_next_knockout_match:
-            print(f"No next match template found for match {match_id}")
+        # Find the template of the current match using match_number
+        # For knockout matches, match_number corresponds to MatchTemplate.id
+        current_template = None
+        
+        if match.match_number:
+            # Use match_number to find template (most reliable)
+            current_template = db.query(MatchTemplate).filter(
+                MatchTemplate.id == match.match_number
+            ).first()
+        else:
+            # Fallback: try to find by stage, date, and team sources
+            # This is less reliable but better than nothing
+            print(f"Warning: match_number is None for match {match_id}, trying fallback method")
+            current_template = db.query(MatchTemplate).filter(
+                MatchTemplate.stage == match.stage,
+                MatchTemplate.date == match.date
+            ).first()
+            
+            # If still not found and we have team sources, try matching by them
+            if not current_template and match.home_team_source and match.away_team_source:
+                current_template = db.query(MatchTemplate).filter(
+                    MatchTemplate.stage == match.stage,
+                    MatchTemplate.team_1 == match.home_team_source,
+                    MatchTemplate.team_2 == match.away_team_source
+                ).first()
+        
+        if not current_template:
+            print(f"No template found for match {match_id} (stage: {match.stage}, match_number: {match.match_number})")
+            return
+        
+        if not current_template.winner_next_knockout_match:
+            print(f"Template {current_template.id} has no next match (this is probably the final)")
             return
         
         # Get next match info from template
-        next_match_id = current_template.winner_next_knockout_match
+        next_template_id = current_template.winner_next_knockout_match
         position = current_template.winner_next_position  # 1 or 2
         
-        print(f"Next match: {next_match_id}, position: {position}, winner: {winner_team_id}")
+        print(f"Next template: {next_template_id}, position: {position}, winner: {winner_team_id}")
         
-        # Find both the knockout result and the match record
+        # Find the Match that corresponds to this template (using match_number)
+        next_match = db.query(Match).filter(
+            Match.match_number == next_template_id
+        ).first()
+        
+        if not next_match:
+            # Try to find by ID (in case match_number is not set)
+            next_match = db.query(Match).filter(
+                Match.id == next_template_id
+            ).first()
+        
+        if not next_match:
+            # Create the Match from template if it doesn't exist
+            print(f"Creating Match for next template {next_template_id}")
+            next_template = db.query(MatchTemplate).filter(
+                MatchTemplate.id == next_template_id
+            ).first()
+            
+            if not next_template:
+                print(f"Template {next_template_id} not found, cannot create Match")
+                return
+            
+            next_match = Match(
+                id=next_template.id,
+                stage=next_template.stage,
+                home_team_id=None,
+                away_team_id=None,
+                status="scheduled",
+                date=next_template.date,
+                match_number=next_template.id,
+                home_team_source=next_template.team_1,
+                away_team_source=next_template.team_2
+            )
+            db.add(next_match)
+            db.flush()
+            print(f"Created Match {next_match.id} for template {next_template_id}")
+        
+        next_match_id = next_match.id
+        
+        # Find or create the knockout result for this match
         next_knockout_result = db.query(KnockoutStageResult).filter(
             KnockoutStageResult.match_id == next_match_id
         ).first()
         
-        next_match = db.query(Match).filter(Match.id == next_match_id).first()
-        
-        if not next_knockout_result or not next_match:
-            print(f"No KnockoutStageResult or Match found for next match {next_match_id}")
-            return
+        if not next_knockout_result:
+            # Create knockout result if it doesn't exist
+            print(f"Creating KnockoutStageResult for next match {next_match_id}")
+            next_knockout_result = KnockoutStageResult(
+                match_id=next_match_id,
+                team_1=None,
+                team_2=None,
+                winner_team_id=None
+            )
+            db.add(next_knockout_result)
+            db.flush()
         
         # Update the knockout result with the winner
         if position == 1:
@@ -1052,6 +1168,9 @@ class ResultsService:
         knockout_result = ResultsService._create_or_update_knockout_result(
             db, match_id, team_1_id, team_2_id, winner_team_id
         )
+        
+        # 3.5. Update the next knockout stage with the winner
+        ResultsService._create_or_update_next_knockout_stage(db, match_id, winner_team_id)
         
         # 4. Process all predictions and award points (via ScoringService)
         ScoringService.update_knockout_scoring_for_all_users(db, knockout_result)

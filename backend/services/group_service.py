@@ -40,7 +40,13 @@ class GroupService:
             "id": group.id,
             "name": group.name,
             "teams": [
-                {"id": team.id, "name": team.name, "position": i+1} 
+                {
+                    "id": team.id, 
+                    "name": team.name, 
+                    "short_name": team.short_name,
+                    "flag_url": team.flag_url,
+                    "position": i+1
+                } 
                 for i, team in enumerate(teams) if team is not None
             ]
         }
