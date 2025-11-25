@@ -9,25 +9,21 @@ type NavigationProp = StackNavigationProp<MainStackParamList, 'PredictionsMenu'>
 
 const options: Array<{
   title: string;
-  description: string;
   emoji: string;
   navigateTo: keyof MainStackParamList;
 }> = [
   {
     title: 'Match Predictions',
-    description: 'Enter scores for every match',
     emoji: '⚽',
     navigateTo: 'MatchPredictions',
   },
   {
     title: 'Route Predictions',
-    description: 'Set your bracket and knockout path',
     emoji: '🗺️',
     navigateTo: 'RoutePredictions',
   },
   {
     title: 'Show Full Bracket',
-    description: 'View complete tournament bracket',
     emoji: '🏆',
     navigateTo: 'Bracket',
   },
@@ -39,22 +35,24 @@ export default function PredictionsMenuScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Text style={styles.heading}>Pick a prediction flow</Text>
-        <Text style={styles.caption}>
-          Decide whether you want to fill in match-by-match scores or manage your overall bracket path.
-        </Text>
+        <Text style={styles.heading}>My Predictions</Text>
+        <Text style={styles.subheading}>Choose how you want to manage your predictions</Text>
 
-        <View style={styles.buttonsRow}>
-          {options.map((option) => (
+        <View style={styles.buttonsContainer}>
+          {options.map((option, index) => (
             <TouchableOpacity
               key={option.title}
-              style={styles.circleButton}
+              style={[
+                styles.circleButton,
+                index === 2 && styles.lastButton, // Center the last button
+              ]}
               onPress={() => navigation.navigate(option.navigateTo)}
               activeOpacity={0.85}
             >
-              <Text style={styles.emoji}>{option.emoji}</Text>
+              <View style={styles.emojiContainer}>
+                <Text style={styles.emoji}>{option.emoji}</Text>
+              </View>
               <Text style={styles.title}>{option.title}</Text>
-              <Text style={styles.description}>{option.description}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -66,66 +64,78 @@ export default function PredictionsMenuScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f7f5ff',
+    backgroundColor: '#f8fafc',
   },
   container: {
     flex: 1,
     paddingHorizontal: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingTop: 40,
+    paddingBottom: 24,
   },
   heading: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '700',
     color: '#1a202c',
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: 'center',
     width: '100%',
   },
-  caption: {
-    fontSize: 14,
-    color: '#4a5568',
-    marginBottom: 32,
+  subheading: {
+    fontSize: 16,
+    color: '#64748b',
+    marginBottom: 48,
     textAlign: 'center',
     width: '100%',
+    fontWeight: '400',
   },
-  buttonsRow: {
+  buttonsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
     width: '100%',
   },
   circleButton: {
-    width: '47%',
+    width: '45%',
     aspectRatio: 1,
     borderRadius: 999,
     backgroundColor: '#ffffff',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    padding: 18,
+    padding: 24,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 16,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    marginHorizontal: '2.5%',
+    marginBottom: 20,
+  },
+  lastButton: {
+    // Center the third button
+    marginLeft: '27.5%',
+    marginRight: '27.5%',
+  },
+  emojiContainer: {
+    marginBottom: 12,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   emoji: {
-    fontSize: 42,
-    marginBottom: 8,
+    fontSize: 36,
   },
   title: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#2d3748',
-  },
-  description: {
-    fontSize: 12,
-    color: '#718096',
+    color: '#1e293b',
     textAlign: 'center',
-    marginTop: 4,
+    lineHeight: 20,
   },
 });
 

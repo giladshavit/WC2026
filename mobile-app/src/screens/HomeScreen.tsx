@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MainStackParamList } from '../navigation/MainNavigator';
+import { useAuth } from '../contexts/AuthContext';
 
 type NavigationProp = StackNavigationProp<MainStackParamList, 'Home'>;
 
@@ -41,6 +42,10 @@ const actions: Array<{
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
+  
+  // Check if user is admin (for now, check by username - you can change this logic)
+  const isAdmin = user?.username === 'admin' || user?.username === 'gilad';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -61,6 +66,17 @@ export default function HomeScreen() {
               <Text style={styles.buttonSubtitle}>{action.subtitle}</Text>
             </TouchableOpacity>
           ))}
+          {isAdmin && (
+            <TouchableOpacity
+              style={[styles.circleButton, styles.adminButton]}
+              onPress={() => navigation.navigate('Admin' as any)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.emoji}>⚙️</Text>
+              <Text style={styles.buttonTitle}>Admin</Text>
+              <Text style={styles.buttonSubtitle}>Manage tournament</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </SafeAreaView>
@@ -124,6 +140,10 @@ const styles = StyleSheet.create({
     color: '#718096',
     textAlign: 'center',
     marginTop: 4,
+  },
+  adminButton: {
+    borderColor: '#dc2626',
+    borderWidth: 2,
   },
 });
 

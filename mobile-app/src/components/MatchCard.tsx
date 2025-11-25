@@ -142,13 +142,21 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     }
 
     handleScoreChange('home', trimmed);
-    setHomeFocused(false);
-    homeInputRef.current?.blur();
-
+    
     // If match has no result and away score is empty, focus on away input
     const hasNoResult = !match.actual_result;
     if (hasNoResult && isEditable && !awayScore) {
-      awayInputRef.current?.focus();
+      // Don't blur - directly focus on next input to keep keyboard open
+      setHomeFocused(false);
+      setAwayFocused(true);
+      // Use requestAnimationFrame to ensure smooth transition
+      requestAnimationFrame(() => {
+        awayInputRef.current?.focus();
+      });
+    } else {
+      // Only blur if we're not moving to next input
+      setHomeFocused(false);
+      homeInputRef.current?.blur();
     }
   }, [handleScoreChange, match.actual_result, isEditable, awayScore]);
  
@@ -164,13 +172,21 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     }
 
     handleScoreChange('away', trimmed);
-    setAwayFocused(false);
-    awayInputRef.current?.blur();
-
+    
     // If match has no result and home score is empty, focus on home input
     const hasNoResult = !match.actual_result;
     if (hasNoResult && isEditable && !homeScore) {
-      homeInputRef.current?.focus();
+      // Don't blur - directly focus on next input to keep keyboard open
+      setAwayFocused(false);
+      setHomeFocused(true);
+      // Use requestAnimationFrame to ensure smooth transition
+      requestAnimationFrame(() => {
+        homeInputRef.current?.focus();
+      });
+    } else {
+      // Only blur if we're not moving to next input
+      setAwayFocused(false);
+      awayInputRef.current?.blur();
     }
   }, [handleScoreChange, match.actual_result, isEditable, homeScore]);
 
@@ -376,7 +392,7 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#d4edda', // Light green background
+    backgroundColor: '#ffffff', // White background
     marginHorizontal: 16,
     marginVertical: 8,
     paddingVertical: 18,
@@ -392,7 +408,7 @@ const styles = StyleSheet.create({
     elevation: 8,
     minHeight: 145,
     borderWidth: 1,
-    borderColor: '#c3e6cb', // Slightly darker green border
+    borderColor: '#e5e7eb', // Light gray border
   },
   containerPending: {
     borderColor: '#f6ad55',

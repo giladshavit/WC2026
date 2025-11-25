@@ -8,6 +8,7 @@ import PredictionsTopTabs from './PredictionsTopTabs';
 import LeagueStack from './LeagueStack';
 import StatisticsScreen from '../screens/StatisticsScreen';
 import BracketScreen from '../screens/predictions/BracketScreen';
+import AdminNavigator from './AdminNavigator';
 
 export type MainStackParamList = {
   Home: undefined;
@@ -18,6 +19,7 @@ export type MainStackParamList = {
   Bracket: undefined;
   Leagues: undefined;
   Statistics: undefined;
+  Admin: undefined;
 };
 
 const Stack = createStackNavigator<MainStackParamList>();
@@ -92,6 +94,13 @@ export default function MainNavigator() {
         component={StatisticsScreen}
         options={{
           title: 'Statistics',
+        }}
+      />
+      <Stack.Screen
+        name="Admin"
+        component={AdminNavigator}
+        options={{
+          headerShown: false,
         }}
       />
     </Stack.Navigator>
