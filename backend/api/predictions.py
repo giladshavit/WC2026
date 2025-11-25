@@ -203,6 +203,19 @@ def create_or_update_third_place_prediction(
         if process_result.returncode == 0:
             result["bracket_rebuilt"] = True
             result["message"] = result.get("message", "") + " Bracket rebuilt automatically."
+            
+            # Update prediction statuses for subsequent knockout stages
+            # (if there are already predictions for those stages)
+            try:
+                from services.results_service import ResultsService
+                ResultsService.update_knockout_statuses_after_round32(db)
+                result["statuses_updated"] = True
+                print("✅ Updated knockout prediction statuses for subsequent stages")
+            except Exception as status_error:
+                # Don't fail if status update errors - just log it
+                result["statuses_updated"] = False
+                result["status_update_error"] = str(status_error)
+                print(f"⚠️ Warning: Failed to update statuses: {status_error}")
         else:
             result["bracket_rebuilt"] = False
             result["bracket_error"] = f"Script failed with return code {process_result.returncode}: {process_result.stderr}"
