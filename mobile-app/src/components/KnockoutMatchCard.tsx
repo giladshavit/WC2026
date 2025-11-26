@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginHorizontal: 8,
     marginTop: 8,
-    borderWidth: 1,
+    borderWidth: 2.5, 
     borderColor: '#e2e8f0', // Light gray border
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -164,8 +164,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 18, // More rounded corners
     borderWidth: 1.5,
-    borderColor: '#c3e6cb',
-    backgroundColor: '#ffffff', // White background for team buttons
+    borderColor: '#9ca3af', // Gray border for unselected teams (changed from green)
+    backgroundColor: '#f3f4f6', // Light gray background for team buttons
     marginHorizontal: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

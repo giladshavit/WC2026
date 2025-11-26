@@ -1,5 +1,7 @@
 import React from 'react';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import GroupsScreen from '../screens/predictions/GroupsScreen';
 import ThirdPlaceScreen from '../screens/predictions/ThirdPlaceScreen';
 import KnockoutScreen from '../screens/predictions/KnockoutScreen';
@@ -7,6 +9,19 @@ import KnockoutScreen from '../screens/predictions/KnockoutScreen';
 const Tab = createMaterialTopTabNavigator();
 
 export default function PredictionsTopTabs() {
+  // Mark that RoutePredictions screen is being opened (first time)
+  useFocusEffect(
+    React.useCallback(() => {
+      // Set flag to indicate this is first time opening RoutePredictions
+      AsyncStorage.setItem('knockoutFirstTimeOpening', 'true');
+      
+      return () => {
+        // Cleanup: when leaving RoutePredictions, clear the flag
+        // This ensures next time we come from main screen, it will be first time again
+      };
+    }, [])
+  );
+
   return (
     <Tab.Navigator
       screenOptions={{

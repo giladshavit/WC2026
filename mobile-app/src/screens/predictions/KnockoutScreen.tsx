@@ -294,28 +294,60 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     return map;
   }, [pendingChanges]);
 
-  // Load last page index from AsyncStorage when screen comes into focus
+
+  // Load last page or start at first stage based on context
   useFocusEffect(
     React.useCallback(() => {
-      const loadLastPage = async () => {
+      const loadPage = async () => {
         try {
-          const lastPageStr = await AsyncStorage.getItem('knockoutScreenLastPage');
-          if (lastPageStr !== null) {
-            const lastPage = parseInt(lastPageStr, 10);
-            if (lastPage >= 0 && lastPage < STAGES.length) {
-              setCurrentStageIndex(lastPage);
-              // Set page after a small delay to ensure PagerView is ready
+          // Check if we're coming from RoutePredictions screen (first time opening)
+          // vs navigating between tabs within RoutePredictions
+          const isFirstTimeOpening = await AsyncStorage.getItem('knockoutFirstTimeOpening');
+          
+          if (isFirstTimeOpening === 'true') {
+            // First time opening RoutePredictions - start at Round of 32
+            setCurrentStageIndex(0);
+            setTimeout(() => {
+              pagerRef.current?.setPage(0);
+            }, 100);
+            // Clear the flag
+            await AsyncStorage.removeItem('knockoutFirstTimeOpening');
+          } else {
+            // Navigating between tabs - restore last position
+            const lastPageStr = await AsyncStorage.getItem('knockoutScreenLastPage');
+            if (lastPageStr !== null) {
+              const lastPage = parseInt(lastPageStr, 10);
+              if (lastPage >= 0 && lastPage < STAGES.length) {
+                setCurrentStageIndex(lastPage);
+                setTimeout(() => {
+                  pagerRef.current?.setPage(lastPage);
+                }, 100);
+              } else {
+                // Invalid page, start at first
+                setCurrentStageIndex(0);
+                setTimeout(() => {
+                  pagerRef.current?.setPage(0);
+                }, 100);
+              }
+            } else {
+              // No saved page, start at first
+              setCurrentStageIndex(0);
               setTimeout(() => {
-                pagerRef.current?.setPage(lastPage);
+                pagerRef.current?.setPage(0);
               }, 100);
             }
           }
         } catch (error) {
           console.error('Error loading last page:', error);
+          // On error, start at first
+          setCurrentStageIndex(0);
+          setTimeout(() => {
+            pagerRef.current?.setPage(0);
+          }, 100);
         }
       };
       
-      loadLastPage();
+      loadPage();
     }, [])
   );
 
@@ -558,7 +590,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const handlePageSelected = async (e: any) => {
     const newIndex = e.nativeEvent.position;
     setCurrentStageIndex(newIndex);
-    // Save current page index to AsyncStorage
+    // Save current page index to AsyncStorage when navigating between tabs
     try {
       await AsyncStorage.setItem('knockoutScreenLastPage', newIndex.toString());
     } catch (error) {
@@ -600,22 +632,9 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     const isCompleted = checkStageCompletion(stageKey, predictions);
     const wasCompleted = stagesCompleted[stageKey];
     
-    // If stage is now completed and wasn't before, move to next stage
-    if (isCompleted && !wasCompleted) {
-      setStagesCompleted(prev => ({ ...prev, [stageKey]: true }));
-      
-      // Find current stage index and move to next if exists
-      const currentStageIndex = STAGES.findIndex(s => s.key === stageKey);
-      if (currentStageIndex !== -1 && currentStageIndex < STAGES.length - 1) {
-        // Small delay to ensure UI updates smoothly
-        setTimeout(() => {
-          const nextIndex = currentStageIndex + 1;
-          setCurrentStageIndex(nextIndex);
-          pagerRef.current?.setPage(nextIndex);
-        }, 300);
-      }
-    } else if (isCompleted) {
-      // Update state even if already completed (in case of refresh)
+    // Only update completion status, but don't auto-navigate to next stage
+    // User should manually navigate between stages
+    if (isCompleted) {
       setStagesCompleted(prev => ({ ...prev, [stageKey]: true }));
     }
   }, [stagesCompleted, checkStageCompletion]);

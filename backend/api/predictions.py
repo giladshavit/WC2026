@@ -392,7 +392,7 @@ def delete_all_knockout_predictions_for_user(
     db: Session = Depends(get_db)
 ):
     """
-    Delete all knockout predictions and third place predictions (not drafts) for a specific user.
+י    Delete all knockout predictions and third place predictions (not drafts) for a specific user.
     """
     try:
         from services.predictions import PredictionService
