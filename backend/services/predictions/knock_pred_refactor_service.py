@@ -321,6 +321,8 @@ class KnockPredRefactorService:
             "team1_flag": team1.flag_url if team1 else None,
             "team2_flag": team2.flag_url if team2 else None,
             "winner_team_flag": (current_winner_team.flag_url if current_winner_team else None),
+            "team1_is_eliminated": team1.is_eliminated if team1 else False,
+            "team2_is_eliminated": team2.is_eliminated if team2 else False,
         }
 
     @staticmethod

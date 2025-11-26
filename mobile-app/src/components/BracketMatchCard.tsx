@@ -22,9 +22,14 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
   const matchFinished = match.is_correct !== undefined && match.is_correct !== null;
   
   // Get validity flags (only if match not finished)
-  // Only mark as invalid if explicitly false (not undefined/null)
+  // Invalid teams should be shown in gray (not red, not strikethrough)
+  // Mark as invalid if explicitly false (regardless of status)
   const team1Invalid = matchFinished ? false : (match.team1_is_valid === false);
   const team2Invalid = matchFinished ? false : (match.team2_is_valid === false);
+  
+  // Get elimination status
+  const team1Eliminated = match.team1_is_eliminated === true;
+  const team2Eliminated = match.team2_is_eliminated === true;
 
   // Get status-based border color
   const getStatusColor = (status?: string) => {
@@ -42,7 +47,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
 
   const borderColor = getStatusColor(match.status);
 
-  const renderTeam = (teamName: string | undefined, teamFlag: string | undefined, isWinner: boolean, teamId?: number, shortName?: string, isInvalid: boolean = false) => {
+  const renderTeam = (teamName: string | undefined, teamFlag: string | undefined, isWinner: boolean, teamId?: number, shortName?: string, isInvalid: boolean = false, isEliminated: boolean = false) => {
     const displayName = shortName || (teamName && teamName !== 'TBD' ? teamName.substring(0, 8) : 'TBD');
     const isTBD = displayName === 'TBD' || (teamName && teamName === 'TBD');
     
@@ -58,7 +63,10 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
         <Text style={[
           styles.teamName, 
           isWinner && !isTBD && styles.winnerText,
-          isInvalid && styles.invalidText
+          // Apply invalid style (gray) if invalid - applies to both winner and non-winner
+          isInvalid && styles.invalidText,
+          // Add strike-through if eliminated - applies to both winner and non-winner
+          isEliminated && styles.eliminatedText
         ]}>
           {displayName}
         </Text>
@@ -76,7 +84,10 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
         <Text style={[
           styles.finalTeamName, 
           isTeam1Winner && styles.finalWinnerText,
-          team1Invalid && styles.invalidText
+          // Apply invalid style (gray) if invalid - applies to both winner and non-winner
+          team1Invalid && styles.invalidText,
+          // Add strike-through if eliminated - applies to both winner and non-winner
+          team1Eliminated && styles.eliminatedText
         ]}>
           {team1Name}
         </Text>
@@ -102,7 +113,10 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
         <Text style={[
           styles.finalTeamName, 
           isTeam2Winner && !(team2Name === 'TBD') && styles.finalWinnerText,
-          team2Invalid && styles.invalidText
+          // Apply invalid style (gray) if invalid - applies to both winner and non-winner
+          team2Invalid && styles.invalidText,
+          // Add strike-through if eliminated - applies to both winner and non-winner
+          team2Eliminated && styles.eliminatedText
         ]}>
           {team2Name}
         </Text>
@@ -149,7 +163,8 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             isTeam1Winner,
             match.team1_id,
             match.team1_short_name,
-            team1Invalid
+            team1Invalid,
+            team1Eliminated
           )}
           
           {renderTeam(
@@ -158,7 +173,8 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             isTeam2Winner,
             match.team2_id,
             match.team2_short_name,
-            team2Invalid
+            team2Invalid,
+            team2Eliminated
           )}
           
           {/* Show middle winner flag if winner_team_flag exists */}
@@ -337,8 +353,11 @@ const styles = StyleSheet.create({
     color: '#e53e3e', // Red for incorrect
   },
   invalidText: {
-    color: '#e53e3e', // Red text for invalid team
-    textDecorationLine: 'line-through',
+    color: '#9ca3af', // Lighter gray text for invalid team (position not good)
+  },
+  eliminatedText: {
+    textDecorationLine: 'line-through', // Strike-through for eliminated teams
+    textDecorationColor: '#e53e3e', // Red strike-through for better visibility
   },
   finalCorrectnessIndicator: {
     position: 'absolute',

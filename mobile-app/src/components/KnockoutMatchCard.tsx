@@ -54,9 +54,14 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, 
   const isCorrect = prediction.is_correct === true;
   
   // Get validity flags (only if match not finished)
-  // Only mark as invalid if explicitly false (not undefined/null)
+  // Invalid teams should be shown in gray (not red, not strikethrough)
+  // Mark as invalid if explicitly false (regardless of status)
   const team1Invalid = matchFinished ? false : (prediction.team1_is_valid === false);
   const team2Invalid = matchFinished ? false : (prediction.team2_is_valid === false);
+  
+  // Get elimination status
+  const team1Eliminated = prediction.team1_is_eliminated === true;
+  const team2Eliminated = prediction.team2_is_eliminated === true;
   
   return (
     <View style={[styles.matchCard, { borderColor }]}>
@@ -85,9 +90,12 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, 
           <Text 
             style={[
               styles.teamName,
-              isTeam1Winner && styles.winnerText,
               team1IsTBD && styles.tbdText,
-              team1Invalid && styles.invalidText
+              isTeam1Winner && styles.winnerText,
+              // Apply invalid style (gray) if invalid - applies to both winner and non-winner
+              team1Invalid && styles.invalidText,
+              // Add strike-through if eliminated - applies to both winner and non-winner
+              team1Eliminated && styles.eliminatedText,
             ]}
             numberOfLines={2}
             adjustsFontSizeToFit={true}
@@ -116,9 +124,12 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, 
           <Text 
             style={[
               styles.teamName,
-              isTeam2Winner && styles.winnerText,
               team2IsTBD && styles.tbdText,
-              team2Invalid && styles.invalidText
+              isTeam2Winner && styles.winnerText,
+              // Apply invalid style (gray) if invalid - applies to both winner and non-winner
+              team2Invalid && styles.invalidText,
+              // Add strike-through if eliminated - applies to both winner and non-winner
+              team2Eliminated && styles.eliminatedText,
             ]}
             numberOfLines={2}
             adjustsFontSizeToFit={true}
@@ -261,8 +272,11 @@ const styles = StyleSheet.create({
     color: '#e53e3e', // Red for incorrect
   },
   invalidText: {
-    color: '#e53e3e', // Red text for invalid team
-    textDecorationLine: 'line-through',
+    color: '#9ca3af', // Lighter gray text for invalid team (position not good)
+  },
+  eliminatedText: {
+    textDecorationLine: 'line-through', // Strike-through for eliminated teams
+    textDecorationColor: '#e53e3e', // Red strike-through for better visibility
   },
 });
 
