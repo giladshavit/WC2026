@@ -316,17 +316,7 @@ export default function BracketScreen({}: BracketScreenProps) {
 
   const fetchPredictions = async (isRefresh = false) => {
     try {
-      // Check if early stage (groups or third place) was updated
-      const earlyStageUpdateStr = await AsyncStorage.getItem('earlyStageUpdated');
-      const shouldAutoRefresh = earlyStageUpdateStr !== null;
-      
-      if (shouldAutoRefresh) {
-        console.log('🔄 Early stage was updated - auto-refreshing knockout bracket');
-        // Clear the flag after checking
-        await AsyncStorage.removeItem('earlyStageUpdated');
-      }
-      
-      if (isRefresh || shouldAutoRefresh) {
+      if (isRefresh) {
         setRefreshing(true);
       } else {
         setLoading(true);
@@ -351,10 +341,6 @@ export default function BracketScreen({}: BracketScreenProps) {
       calculateCardCoordinates(spacing);
       
       setOrganizedBracket(organized);
-      
-      if (shouldAutoRefresh) {
-        console.log('✅ Knockout bracket refreshed after early stage update');
-      }
       
     } catch (error) {
       console.error('Error fetching bracket predictions:', error);
@@ -743,9 +729,9 @@ export default function BracketScreen({}: BracketScreenProps) {
       >
         {/* SVG overlay for bracket lines - AFTER the cards */}
         <Svg 
-          style={[styles.bracketLines, { height: AVAILABLE_HEIGHT }]}
+          style={[styles.bracketLines, { height: AVAILABLE_HEIGHT + Y_OFFSET }]}
           width={screenWidth * 3} // Wide enough for all columns (including right side at x=1155)
-          height={AVAILABLE_HEIGHT}
+          height={AVAILABLE_HEIGHT + Y_OFFSET}
           pointerEvents="none"
         >
           {renderBracketLines()}
@@ -1078,6 +1064,7 @@ const styles = StyleSheet.create({
     marginRight: 20,
     alignItems: 'center',
     pointerEvents: 'box-none',
+    zIndex: 2,
   },
   finalColumn: {
     // No special styling - just like regular column
@@ -1095,6 +1082,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'absolute',
     width: '100%',
+    zIndex: 2,
   },
   semiFinalsContainer: {
     marginBottom: 16,
@@ -1108,7 +1096,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    zIndex: -1,
+    zIndex: 1,
     pointerEvents: 'none',
   },
   buttonsContainer: {

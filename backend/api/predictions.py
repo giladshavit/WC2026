@@ -226,6 +226,16 @@ def create_or_update_third_place_prediction(
         result["bracket_error"] = str(e)
         print(f"❌ Exception running bracket script: {e}")
     
+    # Create empty knockout predictions for later stages if they don't exist
+    # This ensures the bracket displays correctly even without predictions for later stages
+    try:
+        from services.predictions.third_place_prediction_service import ThirdPlacePredictionService
+        ThirdPlacePredictionService._create_empty_knockout_predictions_if_needed(db, third_place_prediction.user_id)
+        print(f"✅ Created empty knockout predictions for later stages for user {third_place_prediction.user_id}")
+    except Exception as e:
+        # Don't fail if this errors - just log it
+        print(f"⚠️ Warning: Failed to create empty knockout predictions: {e}")
+    
     return result
 
 # ========================================
@@ -382,7 +392,7 @@ def delete_all_knockout_predictions_for_user(
     db: Session = Depends(get_db)
 ):
     """
-    Delete all knockout predictions (not drafts) for a specific user.
+    Delete all knockout predictions and third place predictions (not drafts) for a specific user.
     """
     try:
         from services.predictions import PredictionService

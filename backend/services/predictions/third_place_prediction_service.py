@@ -47,6 +47,72 @@ class ThirdPlacePredictionService:
         }
     
     @staticmethod
+    def _create_empty_knockout_predictions_if_needed(db: Session, user_id: int) -> None:
+        """
+        Create empty knockout prediction records for later stages if they don't exist.
+        This creates prediction records for round16, quarter, semi, final stages without teams.
+        Only creates predictions that don't already exist.
+        """
+        from models.predictions import KnockoutStagePrediction
+        from models.matches_template import MatchTemplate
+        from models.results import KnockoutStageResult
+        
+        try:
+            # Get knockout match templates for later stages (not round32, as it's already created)
+            knockout_templates = db.query(MatchTemplate).filter(
+                MatchTemplate.stage.in_(["round16", "quarter", "semi", "final", "third_place"])
+            ).order_by(MatchTemplate.id).all()
+            
+            created_count = 0
+            
+            for template in knockout_templates:
+                # Check if prediction already exists for this template
+                existing_prediction = db.query(KnockoutStagePrediction).filter(
+                    KnockoutStagePrediction.user_id == user_id,
+                    KnockoutStagePrediction.template_match_id == template.id
+                ).first()
+                
+                if existing_prediction:
+                    # Prediction already exists, skip
+                    continue
+                
+                # Find the corresponding KnockoutStageResult
+                knockout_result = db.query(KnockoutStageResult).filter(
+                    KnockoutStageResult.match_id == template.id
+                ).first()
+                
+                if not knockout_result:
+                    # If result doesn't exist, skip this template
+                    continue
+                
+                # Create empty prediction (no teams, no winner)
+                prediction = KnockoutStagePrediction(
+                    user_id=user_id,
+                    knockout_result_id=knockout_result.id,
+                    template_match_id=template.id,
+                    stage=template.stage,
+                    team1_id=None,
+                    team2_id=None,
+                    winner_team_id=None,
+                    status="gray",  # Default status
+                    is_editable=True
+                )
+                
+                db.add(prediction)
+                created_count += 1
+            
+            if created_count > 0:
+                db.commit()
+                print(f"Created {created_count} empty knockout predictions for user {user_id}")
+            else:
+                print(f"No new empty knockout predictions needed for user {user_id}")
+            
+        except Exception as e:
+            db.rollback()
+            print(f"Error creating empty knockout predictions for user {user_id}: {e}")
+            # Don't raise exception - third place prediction creation should succeed even if this fails
+    
+    @staticmethod
     def _create_new_third_place_prediction(db: Session, user_id: int, 
                                           advancing_team_ids: List[int]) -> Dict[str, Any]:
         """Create a new third place prediction"""

@@ -6,6 +6,9 @@ import bcrypt
 from fastapi import HTTPException, status
 from models.user import User
 from models.user_scores import UserScores
+from models.matches_template import MatchTemplate
+from models.results import KnockoutStageResult
+from models.predictions import KnockoutStagePrediction
 
 class AuthService:
     """Service for handling user authentication and authorization."""
@@ -97,6 +100,9 @@ class AuthService:
         db.add(user_scores)
         db.commit()
         
+        # Create empty knockout predictions for the new user
+        AuthService._create_empty_knockout_predictions(db, new_user.id)
+        
         # Create access token
         access_token = AuthService.create_access_token(new_user.id, new_user.username)
         
@@ -174,3 +180,64 @@ class AuthService:
             )
         
         return user
+    
+    @staticmethod
+    def _create_empty_knockout_predictions(db: Session, user_id: int) -> None:
+        """
+        Create empty knockout prediction records for a new user.
+        This creates prediction records for all knockout matches without teams.
+        First deletes any existing predictions to ensure clean state.
+        """
+        try:
+            # Delete all existing knockout predictions for this user first
+            existing_predictions = db.query(KnockoutStagePrediction).filter(
+                KnockoutStagePrediction.user_id == user_id
+            ).all()
+            
+            if existing_predictions:
+                for prediction in existing_predictions:
+                    db.delete(prediction)
+                db.flush()
+            
+            # Get all knockout match templates
+            knockout_templates = db.query(MatchTemplate).filter(
+                MatchTemplate.stage.in_(["round32", "round16", "quarter", "semi", "final", "third_place"])
+            ).order_by(MatchTemplate.id).all()
+            
+            created_count = 0
+            skipped_count = 0
+            
+            for template in knockout_templates:
+                # Find the corresponding KnockoutStageResult
+                knockout_result = db.query(KnockoutStageResult).filter(
+                    KnockoutStageResult.match_id == template.id
+                ).first()
+                
+                if not knockout_result:
+                    # If result doesn't exist, skip this template
+                    skipped_count += 1
+                    continue
+                
+                # Create empty prediction (no teams, no winner)
+                prediction = KnockoutStagePrediction(
+                    user_id=user_id,
+                    knockout_result_id=knockout_result.id,
+                    template_match_id=template.id,
+                    stage=template.stage,
+                    team1_id=None,
+                    team2_id=None,
+                    winner_team_id=None,
+                    status="gray",  # Default status
+                    is_editable=True
+                )
+                
+                db.add(prediction)
+                created_count += 1
+            
+            db.commit()
+            print(f"Created {created_count} empty knockout predictions for user {user_id} (skipped {skipped_count})")
+            
+        except Exception as e:
+            db.rollback()
+            print(f"Error creating knockout predictions for user {user_id}: {e}")
+            # Don't raise exception - user creation should succeed even if predictions fail

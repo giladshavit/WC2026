@@ -984,11 +984,25 @@ class KnockPredRefactorService:
 
     @staticmethod
     def delete_all_knockout_predictions_for_user(db: Session, user_id: int) -> Dict[str, Any]:
-        """Delete all knockout predictions (not drafts) for a given user."""
+        """Delete all knockout predictions and third place predictions (not drafts) for a given user."""
+        from models.predictions import ThirdPlacePrediction
+        
+        # Count and delete knockout predictions
         predictions = DBPredRepository.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
-        deleted = 0
+        deleted_knockout = len(predictions)
         for prediction in predictions:
             db.delete(prediction)
-            deleted += 1
+        
+        # Count and delete third place predictions
+        deleted_third_place = db.query(ThirdPlacePrediction).filter(
+            ThirdPlacePrediction.user_id == user_id
+        ).count()
+        DBPredRepository.delete_third_place_predictions_by_user(db, user_id)
+        
         db.commit()
-        return {"success": True, "deleted": deleted}
+        return {
+            "success": True, 
+            "deleted_knockout": deleted_knockout,
+            "deleted_third_place": deleted_third_place,
+            "total_deleted": deleted_knockout + deleted_third_place
+        }

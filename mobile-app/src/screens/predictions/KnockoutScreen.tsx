@@ -19,7 +19,7 @@ interface PendingChange {
   winner_team_name: string;
 }
 
-// Stage configuration
+// Stage configuration - ordered from lowest stage (Round of 32) to Final
 const STAGES = [
   { key: 'round32', name: 'Round of 32' },
   { key: 'round16', name: 'Round of 16' },
@@ -294,6 +294,31 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     return map;
   }, [pendingChanges]);
 
+  // Load last page index from AsyncStorage when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadLastPage = async () => {
+        try {
+          const lastPageStr = await AsyncStorage.getItem('knockoutScreenLastPage');
+          if (lastPageStr !== null) {
+            const lastPage = parseInt(lastPageStr, 10);
+            if (lastPage >= 0 && lastPage < STAGES.length) {
+              setCurrentStageIndex(lastPage);
+              // Set page after a small delay to ensure PagerView is ready
+              setTimeout(() => {
+                pagerRef.current?.setPage(lastPage);
+              }, 100);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading last page:', error);
+        }
+      };
+      
+      loadLastPage();
+    }, [])
+  );
+
   // Load knockout score
   useEffect(() => {
     const loadScore = async () => {
@@ -502,25 +527,43 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     loadOriginalWinners();
   }, [getCurrentUserId]);
 
-  const goToPreviousStage = () => {
+  const goToPreviousStage = async () => {
     if (currentStageIndex > 0) {
       const newIndex = currentStageIndex - 1;
       setCurrentStageIndex(newIndex);
       pagerRef.current?.setPage(newIndex);
+      // Save current page index to AsyncStorage
+      try {
+        await AsyncStorage.setItem('knockoutScreenLastPage', newIndex.toString());
+      } catch (error) {
+        console.error('Error saving knockout screen page:', error);
+      }
     }
   };
 
-  const goToNextStage = () => {
+  const goToNextStage = async () => {
     if (currentStageIndex < STAGES.length - 1) {
       const newIndex = currentStageIndex + 1;
       setCurrentStageIndex(newIndex);
       pagerRef.current?.setPage(newIndex);
+      // Save current page index to AsyncStorage
+      try {
+        await AsyncStorage.setItem('knockoutScreenLastPage', newIndex.toString());
+      } catch (error) {
+        console.error('Error saving knockout screen page:', error);
+      }
     }
   };
 
-  const handlePageSelected = (e: any) => {
+  const handlePageSelected = async (e: any) => {
     const newIndex = e.nativeEvent.position;
     setCurrentStageIndex(newIndex);
+    // Save current page index to AsyncStorage
+    try {
+      await AsyncStorage.setItem('knockoutScreenLastPage', newIndex.toString());
+    } catch (error) {
+      console.error('Error saving knockout screen page:', error);
+    }
   };
 
   const handleRefresh = () => {
