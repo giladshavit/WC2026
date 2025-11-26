@@ -579,121 +579,42 @@ class ResultsService:
         Find the next knockout match and update it with the winner.
         This is called when a knockout match result is entered.
         """
-        # First, get the Match to find its match_number
         match = db.query(Match).filter(Match.id == match_id).first()
         if not match:
-            print(f"Match {match_id} not found")
             return
         
-        # Find the template of the current match using match_number
-        # For knockout matches, match_number corresponds to MatchTemplate.id
-        current_template = None
+        current_template = db.query(MatchTemplate).filter(
+            MatchTemplate.id == match.match_number
+        ).first()
         
-        if match.match_number:
-            # Use match_number to find template (most reliable)
-            current_template = db.query(MatchTemplate).filter(
-                MatchTemplate.id == match.match_number
-            ).first()
-        else:
-            # Fallback: try to find by stage, date, and team sources
-            # This is less reliable but better than nothing
-            print(f"Warning: match_number is None for match {match_id}, trying fallback method")
-            current_template = db.query(MatchTemplate).filter(
-                MatchTemplate.stage == match.stage,
-                MatchTemplate.date == match.date
-            ).first()
-            
-            # If still not found and we have team sources, try matching by them
-            if not current_template and match.home_team_source and match.away_team_source:
-                current_template = db.query(MatchTemplate).filter(
-                    MatchTemplate.stage == match.stage,
-                    MatchTemplate.team_1 == match.home_team_source,
-                    MatchTemplate.team_2 == match.away_team_source
-                ).first()
-        
-        if not current_template:
-            print(f"No template found for match {match_id} (stage: {match.stage}, match_number: {match.match_number})")
+        if not current_template or not current_template.winner_next_knockout_match:
             return
         
-        if not current_template.winner_next_knockout_match:
-            print(f"Template {current_template.id} has no next match (this is probably the final)")
-            return
-        
-        # Get next match info from template
         next_template_id = current_template.winner_next_knockout_match
-        position = current_template.winner_next_position  # 1 or 2
+        position = current_template.winner_next_position
         
-        print(f"Next template: {next_template_id}, position: {position}, winner: {winner_team_id}")
-        
-        # Find the Match that corresponds to this template (using match_number)
         next_match = db.query(Match).filter(
             Match.match_number == next_template_id
         ).first()
         
         if not next_match:
-            # Try to find by ID (in case match_number is not set)
-            next_match = db.query(Match).filter(
-                Match.id == next_template_id
-            ).first()
+            return
         
-        if not next_match:
-            # Create the Match from template if it doesn't exist
-            print(f"Creating Match for next template {next_template_id}")
-            next_template = db.query(MatchTemplate).filter(
-                MatchTemplate.id == next_template_id
-            ).first()
-            
-            if not next_template:
-                print(f"Template {next_template_id} not found, cannot create Match")
-                return
-            
-            next_match = Match(
-                id=next_template.id,
-                stage=next_template.stage,
-                home_team_id=None,
-                away_team_id=None,
-                status="scheduled",
-                date=next_template.date,
-                match_number=next_template.id,
-                home_team_source=next_template.team_1,
-                away_team_source=next_template.team_2
-            )
-            db.add(next_match)
-            db.flush()
-            print(f"Created Match {next_match.id} for template {next_template_id}")
-        
-        next_match_id = next_match.id
-        
-        # Find or create the knockout result for this match
         next_knockout_result = db.query(KnockoutStageResult).filter(
-            KnockoutStageResult.match_id == next_match_id
+            KnockoutStageResult.match_id == next_match.id
         ).first()
         
         if not next_knockout_result:
-            # Create knockout result if it doesn't exist
-            print(f"Creating KnockoutStageResult for next match {next_match_id}")
-            next_knockout_result = KnockoutStageResult(
-                match_id=next_match_id,
-                team_1=None,
-                team_2=None,
-                winner_team_id=None
-            )
-            db.add(next_knockout_result)
-            db.flush()
+            return
         
-        # Update the knockout result with the winner
         if position == 1:
             next_knockout_result.team_1 = winner_team_id
             next_match.home_team_id = winner_team_id
-            print(f"Updated next match {next_match_id} team_1/home_team with winner {winner_team_id}")
         elif position == 2:
             next_knockout_result.team_2 = winner_team_id
             next_match.away_team_id = winner_team_id
-            print(f"Updated next match {next_match_id} team_2/away_team with winner {winner_team_id}")
         
         db.commit()
-        db.refresh(next_knockout_result)
-        db.refresh(next_match)
     
     @staticmethod
     def get_predicted_loser(prediction):
@@ -1201,3 +1122,203 @@ class ResultsService:
             "message": "Knockout result updated successfully",
             "match_id": match_id
         }
+    
+    @staticmethod
+    def build_round32_bracket_from_results(db: Session) -> Dict[str, Any]:
+        """
+        Build Round of 32 bracket from actual group stage and third place results.
+        This creates/updates Match records and KnockoutStageResult records for Round of 32.
+        
+        Returns:
+            Dict with success status and summary
+        """
+        from models.third_place_combinations import ThirdPlaceCombination
+        from models.matches_template import MatchTemplate
+        from datetime import datetime, timedelta
+        
+        try:
+            # Step 1: Verify we have all required results
+            group_results = db.query(GroupStageResult).all()
+            if len(group_results) != 12:
+                raise ValueError(f"Expected 12 group results, found {len(group_results)}")
+            
+            third_place_result = db.query(ThirdPlaceResult).first()
+            if not third_place_result:
+                raise ValueError("No third place results found")
+            
+            # Step 2: Build the list of third-place qualifiers from actual results
+            qualifying_teams = [
+                third_place_result.first_team_qualifying,
+                third_place_result.second_team_qualifying,
+                third_place_result.third_team_qualifying,
+                third_place_result.fourth_team_qualifying,
+                third_place_result.fifth_team_qualifying,
+                third_place_result.sixth_team_qualifying,
+                third_place_result.seventh_team_qualifying,
+                third_place_result.eighth_team_qualifying
+            ]
+            
+            # Find the groups of the qualifying teams
+            third_place_groups = []
+            for team_id in qualifying_teams:
+                team = db.query(Team).filter(Team.id == team_id).first()
+                if team:
+                    third_place_groups.append(team.group_letter)
+            
+            # Step 3: Find the matching combination
+            hash_key = ''.join(sorted(third_place_groups))
+            combination = db.query(ThirdPlaceCombination).filter(
+                ThirdPlaceCombination.hash_key == hash_key
+            ).first()
+            
+            if not combination:
+                raise ValueError(f"No combination found for hash_key: {hash_key}")
+            
+            # Step 4: Create mapping for third-place teams
+            third_team_mapping = {
+                '3rd_team_1': 'match_1E',
+                '3rd_team_2': 'match_1I',
+                '3rd_team_3': 'match_1A',
+                '3rd_team_4': 'match_1L',
+                '3rd_team_5': 'match_1D',
+                '3rd_team_6': 'match_1G',
+                '3rd_team_7': 'match_1B',
+                '3rd_team_8': 'match_1K'
+            }
+            
+            # Step 5: Get round 32 templates
+            round32_templates = db.query(MatchTemplate).filter(
+                MatchTemplate.stage == 'round32'
+            ).order_by(MatchTemplate.id).all()
+            
+            if len(round32_templates) != 16:
+                raise ValueError(f"Expected 16 round32 templates, found {len(round32_templates)}")
+            
+            # Step 6: Helper function to resolve team from source
+            def get_team_for_source(team_source: str):
+                if team_source.startswith('3rd_team_'):
+                    # Third-place team from actual results
+                    column_name = third_team_mapping.get(team_source)
+                    if not column_name:
+                        return None
+                    
+                    third_place_source = getattr(combination, column_name, None)  # 3A, 3B, etc.
+                    if not third_place_source:
+                        return None
+                    
+                    group_letter = third_place_source[1]  # 3A -> A
+                    group = db.query(Group).filter(Group.name == group_letter).first()
+                    
+                    if group:
+                        result = db.query(GroupStageResult).filter(
+                            GroupStageResult.group_id == group.id
+                        ).first()
+                        
+                        if result:
+                            return db.query(Team).filter(Team.id == result.third_place).first()
+                    
+                    return None
+                else:
+                    # Regular team (1A, 2B, etc.) from actual results
+                    if len(team_source) >= 2 and team_source[0].isdigit():
+                        group_letter = team_source[1]  # 1A -> A
+                        position = int(team_source[0])  # 1A -> 1
+                        
+                        group = db.query(Group).filter(Group.name == group_letter).first()
+                        if group:
+                            result = db.query(GroupStageResult).filter(
+                                GroupStageResult.group_id == group.id
+                            ).first()
+                            
+                            if result:
+                                if position == 1:
+                                    return db.query(Team).filter(Team.id == result.first_place).first()
+                                elif position == 2:
+                                    return db.query(Team).filter(Team.id == result.second_place).first()
+                    
+                    return None
+            
+            # Step 7: Create/update matches and results
+            base_date = datetime(2026, 7, 1)
+            matches_created = 0
+            matches_updated = 0
+            results_created = 0
+            results_updated = 0
+            
+            for i, template in enumerate(round32_templates):
+                match_id = 73 + i  # Matches 73-88
+                
+                # Resolve the participating teams
+                home_team = get_team_for_source(template.team_1)
+                away_team = get_team_for_source(template.team_2)
+                
+                if not home_team or not away_team:
+                    continue
+                
+                # Create or update Match record
+                match_date = base_date + timedelta(days=i//2)  # 2 matches per day
+                match_time = datetime.combine(match_date.date(), datetime.min.time().replace(hour=16 + (i % 2) * 3))
+                
+                existing_match = db.query(Match).filter(Match.id == match_id).first()
+                if not existing_match:
+                    match = Match(
+                        id=match_id,
+                        stage='round32',
+                        home_team_id=home_team.id,
+                        away_team_id=away_team.id,
+                        status='scheduled',
+                        date=match_time,
+                        match_number=template.id,  # Use template.id to link to template
+                        home_team_source=template.team_1,
+                        away_team_source=template.team_2
+                    )
+                    db.add(match)
+                    matches_created += 1
+                else:
+                    existing_match.home_team_id = home_team.id
+                    existing_match.away_team_id = away_team.id
+                    existing_match.home_team_source = template.team_1
+                    existing_match.away_team_source = template.team_2
+                    existing_match.status = 'scheduled'
+                    if not existing_match.date:
+                        existing_match.date = match_time
+                    if not existing_match.match_number:
+                        existing_match.match_number = template.id
+                    matches_updated += 1
+                
+                # Create or update KnockoutStageResult record
+                existing_result = db.query(KnockoutStageResult).filter(
+                    KnockoutStageResult.match_id == match_id
+                ).first()
+                
+                if not existing_result:
+                    result = KnockoutStageResult(
+                        match_id=match_id,
+                        team_1=home_team.id,
+                        team_2=away_team.id,
+                        winner_team_id=None
+                    )
+                    db.add(result)
+                    results_created += 1
+                else:
+                    existing_result.team_1 = home_team.id
+                    existing_result.team_2 = away_team.id
+                    # Don't reset winner_team_id if it exists
+                    results_updated += 1
+            
+            db.commit()
+            
+            return {
+                "success": True,
+                "message": "Round of 32 bracket built successfully",
+                "matches_created": matches_created,
+                "matches_updated": matches_updated,
+                "results_created": results_created,
+                "results_updated": results_updated,
+                "total_matches": 16,
+                "combination_hash": hash_key
+            }
+            
+        except Exception as e:
+            db.rollback()
+            raise Exception(f"Error building Round of 32 bracket: {str(e)}")

@@ -524,6 +524,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#1e40af',
   },
   positionBadgeWaiting: {
     width: 32,
@@ -533,6 +535,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#d97706',
   },
   positionBadgeEliminated: {
     width: 32,
@@ -542,6 +546,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#111827',
   },
   positionText: {
     fontSize: 14,
