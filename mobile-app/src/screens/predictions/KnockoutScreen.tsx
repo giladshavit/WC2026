@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PagerView from 'react-native-pager-view';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -64,7 +64,21 @@ const StageContent = React.memo(({
 
   const fetchPredictions = async (isRefresh = false) => {
     try {
-      if (!isRefresh) {
+      // Check if early stage (groups or third place) was updated
+      const earlyStageUpdateStr = await AsyncStorage.getItem('earlyStageUpdated');
+      const shouldAutoRefresh = earlyStageUpdateStr !== null;
+      
+      if (shouldAutoRefresh) {
+        const updateData = JSON.parse(earlyStageUpdateStr);
+        console.log(`🔄 [${stageKey}] Early stage (${updateData.stage}) was updated - auto-refreshing predictions`);
+        // Clear the flag after checking (only once per stage)
+        if (stageKey === 'round32') {
+          await AsyncStorage.removeItem('earlyStageUpdated');
+          console.log(`✅ [${stageKey}] Cleared early stage update flag`);
+        }
+      }
+      
+      if (!isRefresh && !shouldAutoRefresh) {
         setLoading(true);
       }
       
@@ -80,6 +94,10 @@ const StageContent = React.memo(({
       // Notify parent component about updated predictions
       if (onPredictionsUpdated) {
         onPredictionsUpdated(stageKey, data.predictions);
+      }
+      
+      if (shouldAutoRefresh) {
+        console.log(`✅ ${stageKey} predictions refreshed after early stage update`);
       }
       
       // Check if there are any matches updated from bracket
@@ -106,6 +124,19 @@ const StageContent = React.memo(({
   };
 
   useEffect(() => {
+    // Check for early stage updates when stage changes
+    const checkEarlyStageUpdate = async () => {
+      try {
+        const earlyStageUpdateStr = await AsyncStorage.getItem('earlyStageUpdated');
+        if (earlyStageUpdateStr !== null) {
+          const updateData = JSON.parse(earlyStageUpdateStr);
+          console.log(`🔄 [EFFECT-${stageKey}] Early stage (${updateData.stage}) update detected - will refresh`);
+        }
+      } catch (error) {
+        console.error(`Error checking early stage update in useEffect:`, error);
+      }
+    };
+    checkEarlyStageUpdate();
     fetchPredictions();
   }, [stageKey]);
 
@@ -115,6 +146,33 @@ const StageContent = React.memo(({
       fetchPredictions();
     }
   }, [refreshTrigger]);
+
+  // Check for early stage updates when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkAndRefresh = async () => {
+        try {
+          const earlyStageUpdateStr = await AsyncStorage.getItem('earlyStageUpdated');
+          if (earlyStageUpdateStr !== null) {
+            const updateData = JSON.parse(earlyStageUpdateStr);
+            console.log(`🔄 [FOCUS-${stageKey}] Early stage (${updateData.stage}) updated detected - refreshing...`);
+            await fetchPredictions(true);
+            // Clear the flag only for round32 to allow other stages to refresh too
+            if (stageKey === 'round32') {
+              await AsyncStorage.removeItem('earlyStageUpdated');
+              console.log(`✅ [FOCUS-${stageKey}] Cleared early stage update flag`);
+            }
+          } else {
+            console.log(`ℹ️ [FOCUS-${stageKey}] No early stage update flag found`);
+          }
+        } catch (error) {
+          console.error(`❌ [FOCUS-${stageKey}] Error checking early stage update:`, error);
+        }
+      };
+      checkAndRefresh();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [stageKey])
+  );
 
   const handleRefresh = () => {
     fetchPredictions(true);

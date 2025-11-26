@@ -316,7 +316,17 @@ export default function BracketScreen({}: BracketScreenProps) {
 
   const fetchPredictions = async (isRefresh = false) => {
     try {
-      if (isRefresh) {
+      // Check if early stage (groups or third place) was updated
+      const earlyStageUpdateStr = await AsyncStorage.getItem('earlyStageUpdated');
+      const shouldAutoRefresh = earlyStageUpdateStr !== null;
+      
+      if (shouldAutoRefresh) {
+        console.log('🔄 Early stage was updated - auto-refreshing knockout bracket');
+        // Clear the flag after checking
+        await AsyncStorage.removeItem('earlyStageUpdated');
+      }
+      
+      if (isRefresh || shouldAutoRefresh) {
         setRefreshing(true);
       } else {
         setLoading(true);
@@ -341,6 +351,10 @@ export default function BracketScreen({}: BracketScreenProps) {
       calculateCardCoordinates(spacing);
       
       setOrganizedBracket(organized);
+      
+      if (shouldAutoRefresh) {
+        console.log('✅ Knockout bracket refreshed after early stage update');
+      }
       
     } catch (error) {
       console.error('Error fetching bracket predictions:', error);

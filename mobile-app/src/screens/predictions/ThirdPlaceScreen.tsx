@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Image, Dimensions } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThirdPlaceTeam, apiService } from '../../services/api';
@@ -200,6 +201,13 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       const advancingTeamIds = Array.from(selectedTeams);
       const result = await apiService.updateThirdPlacePrediction(userId, advancingTeamIds);
       console.log('Save result:', result);
+      
+      // Mark that third place stage was updated - this will trigger refresh in knockout screens
+      await AsyncStorage.setItem('earlyStageUpdated', JSON.stringify({
+        stage: 'third_place',
+        timestamp: Date.now()
+      }));
+      console.log('✅ Third place stage updated - marked for knockout refresh');
       
       Alert.alert('Success', 'Third place prediction saved successfully!');
       

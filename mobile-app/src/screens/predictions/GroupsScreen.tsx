@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GroupPrediction, apiService, GroupsResponse } from '../../services/api';
 import GroupCard from '../../components/GroupCard';
 import { useTournament } from '../../contexts/TournamentContext';
@@ -300,6 +301,13 @@ export default function GroupsScreen() {
           return group;
         });
       });
+      
+      // Mark that groups stage was updated - this will trigger refresh in knockout screens
+      await AsyncStorage.setItem('earlyStageUpdated', JSON.stringify({
+        stage: 'groups',
+        timestamp: Date.now()
+      }));
+      console.log('✅ Groups stage updated - marked for knockout refresh');
       
       // No success alert - silent save
     } catch (error) {
