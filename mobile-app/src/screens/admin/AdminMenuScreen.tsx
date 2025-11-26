@@ -49,6 +49,115 @@ const adminOptions: Array<{
 export default function AdminMenuScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [deleting, setDeleting] = useState(false);
+  const [creatingRandom, setCreatingRandom] = useState(false);
+  const [rebuilding, setRebuilding] = useState(false);
+
+  const handleCreateRandomResults = (updateExisting: boolean) => {
+    const action = updateExisting ? 'update' : 'create';
+    Alert.alert(
+      `🎲 ${updateExisting ? 'Update' : 'Create'} Random Group + 3rd Results`,
+      `This will:\n` +
+      `1. ${updateExisting ? 'Update' : 'Create'} random results for all groups (randomly shuffle teams 1-4)\n` +
+      `2. ${updateExisting ? 'Update' : 'Create'} random third place qualifying results from 3rd place teams\n` +
+      `3. Build Round of 32 bracket from the results\n\n` +
+      `${updateExisting ? 'Existing results will be updated.' : 'Groups with existing results will be skipped unless you use the update button.'}\n\n` +
+      `Continue?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: updateExisting ? 'Update' : 'Create',
+          style: 'default',
+          onPress: async () => {
+            setCreatingRandom(true);
+            try {
+              const result = await apiService.createRandomGroupAndThirdPlaceResults(updateExisting);
+              
+              let message = `✅ Success!\n\n`;
+              message += `Groups:\n`;
+              message += `  - Created: ${result.groups.created}\n`;
+              message += `  - Updated: ${result.groups.updated}\n`;
+              message += `  - Skipped: ${result.groups.skipped}\n`;
+              message += `  - Errors: ${result.groups.errors}\n`;
+              message += `  - Total: ${result.groups.total}\n\n`;
+              message += `Third Place:\n`;
+              message += `  - ${result.third_place.created ? 'Created' : 'Updated'}\n`;
+              message += `  - Teams assigned: ${result.third_place.teams_assigned}\n\n`;
+              message += `Round of 32 Bracket:\n`;
+              if (result.bracket && result.bracket.built) {
+                if (result.bracket.summary) {
+                  message += `  - ✅ Built successfully\n`;
+                  message += `  - Matches created: ${result.bracket.summary.matches_created || 0}\n`;
+                  message += `  - Matches updated: ${result.bracket.summary.matches_updated || 0}\n`;
+                  message += `  - Results created: ${result.bracket.summary.results_created || 0}\n`;
+                  message += `  - Results updated: ${result.bracket.summary.results_updated || 0}`;
+                } else {
+                  message += `  - ✅ Built successfully`;
+                }
+              } else if (result.bracket && result.bracket.error) {
+                message += `  - ⚠️ Warning: ${result.bracket.error}`;
+              } else {
+                message += `  - ⚠️ Not built`;
+              }
+              
+              Alert.alert('Success', message);
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Could not create random results');
+            } finally {
+              setCreatingRandom(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRebuildRound32 = () => {
+    Alert.alert(
+      'Rebuild Round of 32 Bracket',
+      'This will:\n' +
+      '• Rebuild Round of 32 bracket from group and third place results\n' +
+      '• Update Round of 32 prediction statuses\n' +
+      '• Update prediction statuses for all subsequent knockout stages\n' +
+      '• Update validity for all predictions (red/green indicators)\n\n' +
+      'Continue?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Rebuild',
+          style: 'default',
+          onPress: async () => {
+            setRebuilding(true);
+            try {
+              const result = await apiService.rebuildRound32Bracket();
+              let message = '✅ Round of 32 bracket rebuilt successfully!\n\n';
+              if (result.bracket_summary) {
+                message += `Bracket Summary:\n`;
+                message += `  - Matches created: ${result.bracket_summary.matches_created || 0}\n`;
+                message += `  - Matches updated: ${result.bracket_summary.matches_updated || 0}\n`;
+                message += `  - Results created: ${result.bracket_summary.results_created || 0}\n`;
+                message += `  - Results updated: ${result.bracket_summary.results_updated || 0}\n\n`;
+              }
+              message += 'Updates:\n';
+              message += `  - Round 32 statuses: ${result.round32_statuses_updated ? '✅' : '❌'}\n`;
+              message += `  - Subsequent statuses: ${result.subsequent_statuses_updated ? '✅' : '❌'}\n`;
+              message += `  - Validity: ${result.validity_updated ? '✅' : '❌'}`;
+              Alert.alert('Success', message);
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Could not rebuild Round 32 bracket');
+            } finally {
+              setRebuilding(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleDeleteAllResults = () => {
     Alert.alert(
@@ -123,6 +232,33 @@ export default function AdminMenuScreen() {
           ))}
         </View>
 
+        {/* Quick Actions */}
+        <View style={styles.quickActionsContainer}>
+          <Text style={styles.quickActionsTitle}>Quick Actions</Text>
+          
+          <TouchableOpacity
+            style={[styles.quickActionButton, styles.createRandomButton, (creatingRandom || deleting || rebuilding) && styles.buttonDisabled]}
+            onPress={() => handleCreateRandomResults(false)}
+            disabled={creatingRandom || deleting || rebuilding}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.quickActionButtonText}>
+              {creatingRandom ? 'Creating...' : '🎲 Create Random Group + 3rd Results'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.quickActionButton, styles.rebuildButton, (rebuilding || deleting || creatingRandom) && styles.buttonDisabled]}
+            onPress={handleRebuildRound32}
+            disabled={rebuilding || deleting || creatingRandom}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.quickActionButtonText}>
+              {rebuilding ? 'Rebuilding...' : '🔄 Rebuild Round 32 Bracket'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity
           style={[styles.deleteButton, deleting && styles.deleteButtonDisabled]}
           onPress={handleDeleteAllResults}
@@ -168,6 +304,41 @@ const styles = StyleSheet.create({
   },
   optionsContainer: {
     gap: 12,
+    marginBottom: 24,
+  },
+  quickActionsContainer: {
+    marginBottom: 24,
+  },
+  quickActionsTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a202c',
+    marginBottom: 12,
+  },
+  quickActionButton: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  createRandomButton: {
+    backgroundColor: '#9333ea',
+  },
+  rebuildButton: {
+    backgroundColor: '#2563eb',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  quickActionButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   optionCard: {
     flexDirection: 'row',

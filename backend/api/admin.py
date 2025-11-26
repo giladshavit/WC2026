@@ -470,42 +470,28 @@ def reset_tournament_stage(db: Session = Depends(get_db)):
 def rebuild_round32_bracket(db: Session = Depends(get_db)):
     """
     Rebuild Round of 32 bracket from results and update prediction statuses (admin only)
+    This will:
+    1. Build Round of 32 bracket from group and third place results
+    2. Update Round of 32 prediction statuses
+    3. Update prediction statuses for all subsequent knockout stages
+    4. Update validity for all predictions (red/green indicators)
     """
     try:
-        import subprocess
-        import os
-        
-        # Step 1: Run the build_round32_from_results script
-        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "build_round32_from_results.py")
-        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
-        
-        print(f"🔧 Running bracket rebuild script...")
-        print(f"Script path: {script_path}")
-        print(f"Python path: {python_path}")
-        
-        process_result = subprocess.run(
-            [python_path, script_path],
-            capture_output=True,
-            text=True,
-            cwd=os.path.dirname(os.path.dirname(__file__))
-        )
-        
-        print(f"Script return code: {process_result.returncode}")
-        if process_result.stdout:
-            print(f"Script stdout: {process_result.stdout}")
-        if process_result.stderr:
-            print(f"Script stderr: {process_result.stderr}")
-        
-        if process_result.returncode != 0:
-            raise Exception(f"Script failed with return code {process_result.returncode}: {process_result.stderr}")
+        # Step 1: Build Round of 32 bracket from results
+        print("🔧 Building Round of 32 bracket from results...")
+        bracket_result = ResultsService.build_round32_bracket_from_results(db)
+        print(f"✅ Bracket built: {bracket_result['matches_created']} created, {bracket_result['matches_updated']} updated")
         
         # Step 2: Update Round of 32 prediction statuses
+        print("🔧 Updating Round of 32 prediction statuses...")
         ResultsService.update_round32_statuses(db)
         
         # Step 3: Update prediction statuses for all subsequent knockout stages
+        print("🔧 Updating subsequent knockout stage statuses...")
         ResultsService.update_knockout_statuses_after_round32(db)
         
         # Step 4: Update validity for all predictions
+        print("🔧 Updating prediction validity...")
         from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
         KnockPredRefactorService.update_all_predictions_validity(db)
         db.commit()
@@ -513,6 +499,7 @@ def rebuild_round32_bracket(db: Session = Depends(get_db)):
         return {
             "message": "Round of 32 bracket rebuilt and all knockout statuses updated successfully",
             "bracket_rebuilt": True,
+            "bracket_summary": bracket_result,
             "round32_statuses_updated": True,
             "subsequent_statuses_updated": True,
             "validity_updated": True
@@ -520,6 +507,7 @@ def rebuild_round32_bracket(db: Session = Depends(get_db)):
         
     except Exception as e:
         print(f"❌ Error in rebuild_round32_bracket: {e}")
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/admin/reset-all-results", response_model=Dict[str, Any])
@@ -531,77 +519,8 @@ def reset_all_results_and_scores(db: Session = Depends(get_db)):
     2. Delete all group stage results
     3. Delete all third place results
     4. Delete all knockout stage results
-    5. Reset all user scores to zero
-    6. Reset all match statuses to scheduled
-    """
-    try:
-        import subprocess
-        import os
-        
-        # Step 1: Delete all results using the existing script
-        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "deletion", "delete_all_results.py")
-        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
-        
-        print(f"🔧 Running delete_all_results script...")
-        print(f"Script path: {script_path}")
-        print(f"Python path: {python_path}")
-        
-        process_result = subprocess.run(
-            [python_path, script_path],
-            capture_output=True,
-            text=True,
-            cwd=os.path.dirname(os.path.dirname(__file__))
-        )
-        
-        print(f"Script return code: {process_result.returncode}")
-        if process_result.stdout:
-            print(f"Script stdout: {process_result.stdout}")
-        if process_result.stderr:
-            print(f"Script stderr: {process_result.stderr}")
-        
-        if process_result.returncode != 0:
-            raise Exception(f"Script failed with return code {process_result.returncode}: {process_result.stderr}")
-        
-        # Step 2: Reset all user scores and prediction points
-        scores_result = ResultsService.reset_all_user_scores(db)
-        
-        # Step 3: Reset match statuses to scheduled
-        matches = db.query(Match).all()
-        match_count = 0
-        for match in matches:
-            if match.status != "scheduled":
-                match.status = "scheduled"
-                match_count += 1
-        
-        db.commit()
-        
-        return {
-            "message": "All results and scores reset successfully",
-            "results_deleted": True,
-            "users_reset": scores_result["users_reset"],
-            "match_predictions_reset": scores_result["match_predictions_reset"],
-            "group_predictions_reset": scores_result["group_predictions_reset"],
-            "third_place_predictions_reset": scores_result["third_place_predictions_reset"],
-            "knockout_predictions_reset": scores_result["knockout_predictions_reset"],
-            "matches_reset": match_count
-        }
-        
-    except Exception as e:
-        print(f"❌ Error in reset_all_results_and_scores: {e}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-@router.post("/admin/delete-all-results", response_model=Dict[str, Any])
-def delete_all_results_only(db: Session = Depends(get_db)):
-    """
-    Delete all results and reset scores (admin only)
-    This will:
-    1. Delete all match results
-    2. Delete all group stage results
-    3. Delete all third place results
-    4. Delete all knockout stage results
-    5. Reset all user scores to zero
-    6. Reset all prediction points to zero
+    5. Reset validity for all knockout predictions (set to True)
+    6. Reset all user scores to zero
     7. Reset all match statuses to scheduled
     """
     try:
@@ -632,10 +551,106 @@ def delete_all_results_only(db: Session = Depends(get_db)):
         if process_result.returncode != 0:
             raise Exception(f"Script failed with return code {process_result.returncode}: {process_result.stderr}")
         
-        # Step 2: Reset all user scores and prediction points
+        # Step 2: Reset validity for all knockout predictions (set to True since no results exist)
+        from models.predictions import KnockoutStagePrediction
+        knockout_predictions = db.query(KnockoutStagePrediction).all()
+        validity_reset_count = 0
+        for prediction in knockout_predictions:
+            if not prediction.is_team1_valid or not prediction.is_team2_valid:
+                prediction.is_team1_valid = True
+                prediction.is_team2_valid = True
+                validity_reset_count += 1
+        
+        print(f"✅ Reset validity for {validity_reset_count} knockout predictions")
+        
+        # Step 3: Reset all user scores and prediction points
         scores_result = ResultsService.reset_all_user_scores(db)
         
-        # Step 3: Reset match statuses to scheduled
+        # Step 4: Reset match statuses to scheduled
+        matches = db.query(Match).all()
+        match_count = 0
+        for match in matches:
+            if match.status != "scheduled":
+                match.status = "scheduled"
+                match_count += 1
+        
+        db.commit()
+        
+        return {
+            "message": "All results and scores reset successfully",
+            "results_deleted": True,
+            "knockout_validity_reset": validity_reset_count,
+            "users_reset": scores_result["users_reset"],
+            "match_predictions_reset": scores_result["match_predictions_reset"],
+            "group_predictions_reset": scores_result["group_predictions_reset"],
+            "third_place_predictions_reset": scores_result["third_place_predictions_reset"],
+            "knockout_predictions_reset": scores_result["knockout_predictions_reset"],
+            "matches_reset": match_count
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in reset_all_results_and_scores: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/admin/delete-all-results", response_model=Dict[str, Any])
+def delete_all_results_only(db: Session = Depends(get_db)):
+    """
+    Delete all results and reset scores (admin only)
+    This will:
+    1. Delete all match results
+    2. Delete all group stage results
+    3. Delete all third place results
+    4. Delete all knockout stage results
+    5. Reset validity for all knockout predictions (set to True)
+    6. Reset all user scores to zero
+    7. Reset all prediction points to zero
+    8. Reset all match statuses to scheduled
+    """
+    try:
+        import subprocess
+        import os
+        
+        # Step 1: Delete all results using the existing script
+        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "deletion", "delete_all_results.py")
+        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
+        
+        print(f"🔧 Running delete_all_results script...")
+        print(f"Script path: {script_path}")
+        print(f"Python path: {python_path}")
+        
+        process_result = subprocess.run(
+            [python_path, script_path],
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(os.path.dirname(__file__))
+        )
+        
+        print(f"Script return code: {process_result.returncode}")
+        if process_result.stdout:
+            print(f"Script stdout: {process_result.stdout}")
+        if process_result.stderr:
+            print(f"Script stderr: {process_result.stderr}")
+        
+        if process_result.returncode != 0:
+            raise Exception(f"Script failed with return code {process_result.returncode}: {process_result.stderr}")
+        
+        # Step 2: Reset validity for all knockout predictions (set to True since no results exist)
+        from models.predictions import KnockoutStagePrediction
+        knockout_predictions = db.query(KnockoutStagePrediction).all()
+        validity_reset_count = 0
+        for prediction in knockout_predictions:
+            if not prediction.is_team1_valid or not prediction.is_team2_valid:
+                prediction.is_team1_valid = True
+                prediction.is_team2_valid = True
+                validity_reset_count += 1
+        
+        print(f"✅ Reset validity for {validity_reset_count} knockout predictions")
+        
+        # Step 3: Reset all user scores and prediction points
+        scores_result = ResultsService.reset_all_user_scores(db)
+        
+        # Step 4: Reset match statuses to scheduled
         matches = db.query(Match).all()
         match_count = 0
         for match in matches:
@@ -648,6 +663,7 @@ def delete_all_results_only(db: Session = Depends(get_db)):
         return {
             "message": "All results deleted and scores reset successfully",
             "results_deleted": True,
+            "knockout_validity_reset": validity_reset_count,
             "users_reset": scores_result["users_reset"],
             "match_predictions_reset": scores_result["match_predictions_reset"],
             "group_predictions_reset": scores_result["group_predictions_reset"],
@@ -880,5 +896,184 @@ def rebuild_knockout_from_predictions(
         
     except Exception as e:
         print(f"❌ Error in rebuild_knockout_from_predictions: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+class CreateRandomResultsRequest(BaseModel):
+    update_existing: bool = False
+
+@router.post("/admin/create-random-group-and-third-place-results", response_model=Dict[str, Any])
+def create_random_group_and_third_place_results(
+    request: CreateRandomResultsRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Create random group stage results and third place results (admin only)
+    This will:
+    1. Create random results for all groups (randomly shuffle teams 1-4)
+    2. Create random third place qualifying results from the 3rd place teams
+    """
+    import random
+    
+    try:
+        from models.groups import Group
+        from models.results import GroupStageResult, ThirdPlaceResult
+        from models.team import Team
+        
+        groups_created = 0
+        groups_updated = 0
+        groups_skipped = 0
+        groups_errors = 0
+        
+        # Step 1: Create random group results
+        print("🎲 Creating random group stage results...")
+        groups = db.query(Group).order_by(Group.name).all()
+        
+        for group in groups:
+            # Get teams in this group
+            teams = [
+                group.team_1_obj,
+                group.team_2_obj,
+                group.team_3_obj,
+                group.team_4_obj
+            ]
+            
+            # Filter out None values
+            teams = [team for team in teams if team is not None]
+            
+            if len(teams) != 4:
+                print(f"  ❌ Group {group.name} has {len(teams)} teams instead of 4")
+                groups_errors += 1
+                continue
+            
+            # Check if result already exists
+            existing_result = db.query(GroupStageResult).filter(
+                GroupStageResult.group_id == group.id
+            ).first()
+            
+            if existing_result and not request.update_existing:
+                print(f"  ⚠️  Result already exists for group {group.name}, skipping...")
+                groups_skipped += 1
+                continue
+            
+            # Shuffle teams randomly
+            shuffled_teams = teams.copy()
+            random.shuffle(shuffled_teams)
+            
+            # Assign positions
+            first_place = shuffled_teams[0].id
+            second_place = shuffled_teams[1].id
+            third_place = shuffled_teams[2].id
+            fourth_place = shuffled_teams[3].id
+            
+            try:
+                # Create or update result
+                ResultsService.update_group_stage_result(
+                    db=db,
+                    group_id=group.id,
+                    first_place_team_id=first_place,
+                    second_place_team_id=second_place,
+                    third_place_team_id=third_place,
+                    fourth_place_team_id=fourth_place
+                )
+                
+                if existing_result:
+                    groups_updated += 1
+                else:
+                    groups_created += 1
+                    
+            except Exception as e:
+                print(f"  ❌ Error creating result for group {group.name}: {e}")
+                groups_errors += 1
+                db.rollback()
+        
+        # Step 2: Get all third place teams from group results
+        print("\n🎲 Creating random third place qualifying results...")
+        third_place_teams = ResultsService.get_third_place_teams_from_groups(db)
+        
+        if len(third_place_teams) < 8:
+            db.rollback()
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough third place teams found. Need 8, found {len(third_place_teams)}. Please ensure all groups have results."
+            )
+        
+        # Shuffle third place teams randomly
+        shuffled_third_place = third_place_teams.copy()
+        random.shuffle(shuffled_third_place)
+        
+        # Check if third place result already exists
+        existing_third_place = db.query(ThirdPlaceResult).first()
+        
+        if existing_third_place and not request.update_existing:
+            db.rollback()
+            raise HTTPException(
+                status_code=400,
+                detail="Third place result already exists. Use update_existing=true to update it."
+            )
+        
+        # Create or update third place result
+        try:
+            ResultsService.update_third_place_result(
+                db=db,
+                first_team_qualifying=shuffled_third_place[0]["id"],
+                second_team_qualifying=shuffled_third_place[1]["id"],
+                third_team_qualifying=shuffled_third_place[2]["id"],
+                fourth_team_qualifying=shuffled_third_place[3]["id"],
+                fifth_team_qualifying=shuffled_third_place[4]["id"],
+                sixth_team_qualifying=shuffled_third_place[5]["id"],
+                seventh_team_qualifying=shuffled_third_place[6]["id"],
+                eighth_team_qualifying=shuffled_third_place[7]["id"]
+            )
+            
+            third_place_created = not existing_third_place
+            third_place_updated = bool(existing_third_place)
+            
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Error creating third place result: {str(e)}")
+        
+        db.commit()
+        
+        # Step 3: Build Round of 32 bracket from the results
+        print("\n🏆 Building Round of 32 bracket from results...")
+        bracket_built = False
+        bracket_error = None
+        bracket_summary = None
+        
+        try:
+            bracket_result = ResultsService.build_round32_bracket_from_results(db)
+            bracket_built = True
+            bracket_summary = bracket_result
+            print(f"✅ Round of 32 bracket built successfully: {bracket_result['matches_created']} created, {bracket_result['matches_updated']} updated")
+        except Exception as e:
+            bracket_error = str(e)
+            print(f"⚠️  Warning: Failed to build bracket: {bracket_error}")
+        
+        return {
+            "message": "Random group and third place results created successfully",
+            "groups": {
+                "created": groups_created,
+                "updated": groups_updated,
+                "skipped": groups_skipped,
+                "errors": groups_errors,
+                "total": len(groups)
+            },
+            "third_place": {
+                "created": third_place_created,
+                "updated": third_place_updated,
+                "teams_assigned": 8
+            },
+            "bracket": {
+                "built": bracket_built,
+                "error": bracket_error,
+                "summary": bracket_summary
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in create_random_group_and_third_place_results: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

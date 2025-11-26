@@ -148,6 +148,7 @@ export default function AdminStageScreen() {
     );
   };
 
+
   const getCurrentStageIndex = () => {
     if (!currentStage) return -1;
     return ALL_STAGES.findIndex(s => s.name === currentStage.stage);

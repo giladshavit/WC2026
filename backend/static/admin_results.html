@@ -250,6 +250,12 @@
                                     ➡️ Advance to Next Stage
                                 </button>
                                 <button 
+                                    onclick="advanceToGroupStage()" 
+                                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                                >
+                                    🏆 Advance to Group Stage
+                                </button>
+                                <button 
                                     onclick="resetStage()" 
                                     class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded transition-colors"
                                 >
@@ -297,6 +303,53 @@
                                 <p><strong>Quarter:</strong> Blocks quarter knockout predictions (penalty: 9)</p>
                                 <p><strong>Semi:</strong> Blocks semi knockout predictions (penalty: 10)</p>
                                 <p><strong>Final:</strong> Blocks final knockout predictions (penalty: 11)</p>
+                            </div>
+                        </div>
+
+                        <!-- Knockout Predictions Management -->
+                        <div class="mb-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
+                            <h3 class="text-lg font-semibold text-orange-800 mb-2">🏆 Knockout Predictions Management</h3>
+                            <p class="text-sm text-orange-600 mb-4">
+                                Manage knockout stage predictions
+                            </p>
+                            <div class="flex gap-2">
+                                <button 
+                                    onclick="deleteAllKnockoutPredictions(this)" 
+                                    class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                                >
+                                    🗑️ Delete All Knockout Predictions
+                                </button>
+                                <button 
+                                    onclick="rebuildKnockoutFromPredictions(this)" 
+                                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                                >
+                                    🔨 Rebuild Knockout from Predictions
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Create Random Results -->
+                        <div class="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                            <h3 class="text-lg font-semibold text-purple-800 mb-2">🎲 Create Random Group and Third Place Results</h3>
+                            <p class="text-sm text-purple-600 mb-4">
+                                This will create random results for all groups (randomly shuffle teams 1-4) and random third place qualifying results.
+                                Existing results will be updated if they exist.
+                            </p>
+                            <div class="flex gap-2">
+                                <button 
+                                    id="create-random-results-button"
+                                    onclick="createRandomGroupAndThirdPlaceResults(this, false)" 
+                                    class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                                >
+                                    🎲 Create Random Results
+                                </button>
+                                <button 
+                                    id="create-random-results-update-button"
+                                    onclick="createRandomGroupAndThirdPlaceResults(this, true)" 
+                                    class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded transition-colors"
+                                >
+                                    🔄 Update Existing Results
+                                </button>
                             </div>
                         </div>
 
@@ -427,8 +480,18 @@
                     <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${match.match_id}</td>
                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${getStageDisplayName(match.stage)}</td>
                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(match.date)}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">${match.home_team.name}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">${match.away_team.name}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div class="flex items-center space-x-2">
+                            ${match.home_team.flag_url ? `<img src="${match.home_team.flag_url}" alt="${match.home_team.name}" class="w-6 h-4 object-cover rounded" />` : ''}
+                            <span>${match.home_team.name}</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div class="flex items-center space-x-2">
+                            ${match.away_team.flag_url ? `<img src="${match.away_team.flag_url}" alt="${match.away_team.name}" class="w-6 h-4 object-cover rounded" />` : ''}
+                            <span>${match.away_team.name}</span>
+                        </div>
+                    </td>
                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                         <span class="font-medium">
                             ${match.result.home_team_score !== null && match.result.away_team_score !== null
@@ -493,7 +556,12 @@
                 
                 let teamsHtml = '';
                 group.teams.forEach(team => {
-                    teamsHtml += `<div class="text-sm text-gray-600">${team.name}</div>`;
+                    teamsHtml += `
+                        <div class="flex items-center space-x-2 text-sm text-gray-600">
+                            ${team.flag_url ? `<img src="${team.flag_url}" alt="${team.name}" class="w-5 h-4 object-cover rounded" />` : ''}
+                            <span>${team.name}</span>
+                        </div>
+                    `;
                 });
 
                 let resultHtml = '';
@@ -502,21 +570,33 @@
                         <div class="mt-4">
                             <h4 class="font-semibold text-gray-800 mb-2">Current Result:</h4>
                             <div class="space-y-1">
-                                <div class="flex justify-between text-sm">
+                                <div class="flex justify-between items-center text-sm">
                                     <span>1st:</span>
-                                    <span class="font-medium">${getTeamNameById(group.result.first_place, group.teams)}</span>
+                                    <span class="font-medium flex items-center space-x-2">
+                                        ${getTeamFlagById(group.result.first_place, group.teams)}
+                                        <span>${getTeamNameById(group.result.first_place, group.teams)}</span>
+                                    </span>
                                 </div>
-                                <div class="flex justify-between text-sm">
+                                <div class="flex justify-between items-center text-sm">
                                     <span>2nd:</span>
-                                    <span class="font-medium">${getTeamNameById(group.result.second_place, group.teams)}</span>
+                                    <span class="font-medium flex items-center space-x-2">
+                                        ${getTeamFlagById(group.result.second_place, group.teams)}
+                                        <span>${getTeamNameById(group.result.second_place, group.teams)}</span>
+                                    </span>
                                 </div>
-                                <div class="flex justify-between text-sm">
+                                <div class="flex justify-between items-center text-sm">
                                     <span>3rd:</span>
-                                    <span class="font-medium">${getTeamNameById(group.result.third_place, group.teams)}</span>
+                                    <span class="font-medium flex items-center space-x-2">
+                                        ${getTeamFlagById(group.result.third_place, group.teams)}
+                                        <span>${getTeamNameById(group.result.third_place, group.teams)}</span>
+                                    </span>
                                 </div>
-                                <div class="flex justify-between text-sm">
+                                <div class="flex justify-between items-center text-sm">
                                     <span>4th:</span>
-                                    <span class="font-medium">${getTeamNameById(group.result.fourth_place, group.teams)}</span>
+                                    <span class="font-medium flex items-center space-x-2">
+                                        ${getTeamFlagById(group.result.fourth_place, group.teams)}
+                                        <span>${getTeamNameById(group.result.fourth_place, group.teams)}</span>
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -837,6 +917,14 @@
         function getTeamNameById(teamId, teams) {
             const team = teams.find(t => t.id === teamId);
             return team ? team.name : 'Unknown';
+        }
+        
+        function getTeamFlagById(teamId, teams) {
+            const team = teams.find(t => t.id === teamId);
+            if (team && team.flag_url) {
+                return `<img src="${team.flag_url}" alt="${team.name}" class="w-5 h-4 object-cover rounded" />`;
+            }
+            return '';
         }
 
         function showError(tab, message) {
@@ -1320,6 +1408,35 @@
             }
         }
 
+        async function advanceToGroupStage() {
+            if (confirm('Are you sure you want to advance directly to Group Stage (GROUP_CYCLE_1)?')) {
+                try {
+                    const response = await fetch('/api/admin/stage/advance-to-group-stage', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.skipped) {
+                            alert(`Already past PRE_GROUP_STAGE. Current stage: ${data.stage}`);
+                        } else {
+                            alert(`Stage advanced to ${data.stage} (Group Stage Cycle 1)`);
+                        }
+                        loadStageInfo();
+                    } else {
+                        const error = await response.json();
+                        alert(`Error: ${error.detail || 'Failed to advance to group stage'}`);
+                    }
+                } catch (error) {
+                    console.error('Error advancing to group stage:', error);
+                    alert('Error advancing to group stage');
+                }
+            }
+        }
+        
         async function resetStage() {
             if (confirm('Are you sure you want to reset the tournament stage to the beginning? This will make all predictions editable again.')) {
                 try {
@@ -1341,6 +1458,116 @@
                 } catch (error) {
                     console.error('Error resetting stage:', error);
                     alert('Error resetting stage');
+                }
+            }
+        }
+
+        async function deleteAllKnockoutPredictions(buttonElement) {
+            const confirmation = confirm(
+                '⚠️ WARNING: This will permanently delete ALL knockout predictions!\n\n' +
+                'This will delete all knockout stage predictions for all users.\n' +
+                'This action CANNOT be undone!\n\n' +
+                'Are you absolutely sure?'
+            );
+            
+            if (!confirmation) {
+                return;
+            }
+            
+            const button = buttonElement;
+            
+            try {
+                if (button) {
+                    button.disabled = true;
+                    button.textContent = '⏳ Deleting...';
+                    button.classList.add('opacity-50');
+                }
+                
+                const response = await fetch('/api/admin/delete-all-knockout-predictions', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                alert(
+                    `✅ Success!\n\n` +
+                    `Deleted ${data.knockout_predictions_deleted || 0} knockout predictions`
+                );
+                
+            } catch (error) {
+                console.error('Error deleting knockout predictions:', error);
+                alert('❌ Error deleting knockout predictions: ' + error.message);
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = '🗑️ Delete All Knockout Predictions';
+                    button.classList.remove('opacity-50');
+                }
+            }
+        }
+
+        async function rebuildKnockoutFromPredictions(buttonElement) {
+            const userId = prompt('Enter User ID to rebuild knockout predictions for:', '1');
+            
+            if (!userId || !userId.match(/^\d+$/)) {
+                alert('Invalid user ID');
+                return;
+            }
+            
+            const confirmation = confirm(
+                `⚠️ This will rebuild knockout bracket from predictions for user ${userId}.\n\n` +
+                'This will create next stage predictions based on existing predictions with winners.\n\n' +
+                'Continue?'
+            );
+            
+            if (!confirmation) {
+                return;
+            }
+            
+            const button = buttonElement;
+            
+            try {
+                if (button) {
+                    button.disabled = true;
+                    button.textContent = '⏳ Rebuilding...';
+                    button.classList.add('opacity-50');
+                }
+                
+                const response = await fetch(`/api/admin/rebuild-knockout-from-predictions?user_id=${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                alert(
+                    `✅ Success!\n\n` +
+                    `Message: ${data.message}\n` +
+                    `Created ${data.created_predictions || 0} new predictions\n` +
+                    `Processed ${data.processed_predictions || 0} predictions`
+                );
+                
+            } catch (error) {
+                console.error('Error rebuilding knockout:', error);
+                alert('❌ Error rebuilding knockout: ' + error.message);
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = '🔨 Rebuild Knockout from Predictions';
+                    button.classList.remove('opacity-50');
                 }
             }
         }
@@ -1417,6 +1644,97 @@
                 if (button) {
                     button.disabled = false;
                     button.textContent = '🗑️ Reset All Results and Scores';
+                    button.classList.remove('opacity-50');
+                }
+            }
+        }
+
+        async function createRandomGroupAndThirdPlaceResults(buttonElement, updateExisting) {
+            const action = updateExisting ? 'update' : 'create';
+            const confirmation = confirm(
+                `🎲 ${updateExisting ? 'Update' : 'Create'} Random Group and Third Place Results?\n\n` +
+                `This will:\n` +
+                `1. ${updateExisting ? 'Update' : 'Create'} random results for all groups (randomly shuffle teams 1-4)\n` +
+                `2. ${updateExisting ? 'Update' : 'Create'} random third place qualifying results from 3rd place teams\n\n` +
+                `${updateExisting ? 'Existing results will be updated.' : 'Groups with existing results will be skipped unless you use the update button.'}\n\n` +
+                `Continue?`
+            );
+            
+            if (!confirmation) {
+                return;
+            }
+            
+            const button = buttonElement;
+            
+            try {
+                if (button) {
+                    button.disabled = true;
+                    button.textContent = updateExisting ? '⏳ Updating...' : '⏳ Creating...';
+                    button.classList.add('opacity-50');
+                }
+                
+                const response = await fetch('/api/admin/create-random-group-and-third-place-results', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ update_existing: updateExisting })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    let message = `✅ Success!\n\n`;
+                    message += `Groups:\n`;
+                    message += `  - Created: ${data.groups.created}\n`;
+                    message += `  - Updated: ${data.groups.updated}\n`;
+                    message += `  - Skipped: ${data.groups.skipped}\n`;
+                    message += `  - Errors: ${data.groups.errors}\n`;
+                    message += `  - Total: ${data.groups.total}\n\n`;
+                    message += `Third Place:\n`;
+                    message += `  - ${data.third_place.created ? 'Created' : 'Updated'}\n`;
+                    message += `  - Teams assigned: ${data.third_place.teams_assigned}\n\n`;
+                    message += `Round of 32 Bracket:\n`;
+                    if (data.bracket && data.bracket.built) {
+                        if (data.bracket.summary) {
+                            message += `  - ✅ Built successfully\n`;
+                            message += `  - Matches created: ${data.bracket.summary.matches_created || 0}\n`;
+                            message += `  - Matches updated: ${data.bracket.summary.matches_updated || 0}\n`;
+                            message += `  - Results created: ${data.bracket.summary.results_created || 0}\n`;
+                            message += `  - Results updated: ${data.bracket.summary.results_updated || 0}`;
+                        } else {
+                            message += `  - ✅ Built successfully`;
+                        }
+                    } else if (data.bracket && data.bracket.error) {
+                        message += `  - ⚠️ Warning: ${data.bracket.error}`;
+                    } else {
+                        message += `  - ⚠️ Not built`;
+                    }
+                    
+                    alert(message);
+                    
+                    // Reload relevant tabs
+                    groups = [];
+                    thirdPlaceResult = null;
+                    knockoutMatches = [];
+                    if (document.getElementById('groups-tab').classList.contains('active')) {
+                        fetchGroups();
+                    } else if (document.getElementById('third-place-tab').classList.contains('active')) {
+                        fetchThirdPlaceResults();
+                    } else if (document.getElementById('knockout-tab').classList.contains('active')) {
+                        fetchKnockoutMatches();
+                    }
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.detail || 'Failed to create random results'}`);
+                }
+            } catch (error) {
+                console.error('Error creating random results:', error);
+                alert('Error creating random results: ' + error.message);
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = updateExisting ? '🔄 Update Existing Results' : '🎲 Create Random Results';
                     button.classList.remove('opacity-50');
                 }
             }

@@ -61,6 +61,7 @@ export default function AdminKnockoutScreen() {
   const [editingMatchId, setEditingMatchId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [rebuilding, setRebuilding] = useState(false);
 
   useEffect(() => {
     fetchMatches();
@@ -215,6 +216,47 @@ export default function AdminKnockoutScreen() {
               Alert.alert('Error', error.message || 'Could not delete knockout results');
             } finally {
               setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRebuildRound32 = () => {
+    Alert.alert(
+      'Rebuild Round of 32 Bracket',
+      'This will:\n' +
+      '• Rebuild Round of 32 bracket from group and third place results\n' +
+      '• Update Round of 32 prediction statuses\n' +
+      '• Update prediction statuses for all subsequent knockout stages\n' +
+      '• Update validity for all predictions (red/green indicators)\n\n' +
+      'Continue?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Rebuild',
+          style: 'default',
+          onPress: async () => {
+            setRebuilding(true);
+            try {
+              const result = await apiService.rebuildRound32Bracket();
+              Alert.alert(
+                'Success',
+                '✅ Round of 32 bracket rebuilt successfully!\n\n' +
+                '• Bracket rebuilt\n' +
+                '• Round 32 statuses updated\n' +
+                '• Subsequent statuses updated\n' +
+                '• Validity updated'
+              );
+              fetchMatches();
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Could not rebuild Round 32 bracket');
+            } finally {
+              setRebuilding(false);
             }
           },
         },
@@ -542,6 +584,15 @@ export default function AdminKnockoutScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
+          style={[styles.rebuildButton, rebuilding && styles.rebuildButtonDisabled]}
+          onPress={handleRebuildRound32}
+          disabled={rebuilding}
+        >
+          <Text style={styles.rebuildButtonText}>
+            {rebuilding ? 'Rebuilding...' : '🔄 Rebuild Round 32 Bracket'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.deleteButton, deleting && styles.deleteButtonDisabled]}
           onPress={handleDeleteAllResults}
           disabled={deleting}
@@ -595,6 +646,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+    gap: 12,
+  },
+  rebuildButton: {
+    backgroundColor: '#9333ea',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  rebuildButtonDisabled: {
+    opacity: 0.5,
+  },
+  rebuildButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   deleteButton: {
     backgroundColor: '#dc2626',
