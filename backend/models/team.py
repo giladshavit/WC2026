@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, CHAR
+from sqlalchemy import Column, Integer, String, DateTime, CHAR, Boolean
 
 from .base import Base
 
@@ -16,6 +16,9 @@ class Team(Base):
     group_position = Column(Integer, nullable=True)  # 1, 2, 3, 4 (position in group)
     goals_for = Column(Integer, default=0)  # goals scored
     goals_against = Column(Integer, default=0)  # goals conceded
+    
+    # Elimination status
+    is_eliminated = Column(Boolean, default=False, nullable=False)  # Whether the team has been eliminated
     
     created_at = Column(DateTime, default=datetime.utcnow)
     

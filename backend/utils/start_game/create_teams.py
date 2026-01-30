@@ -76,7 +76,8 @@ def create_teams():
                 id=team_data["id"],
                 name=team_data["name"],
                 group_letter=team_data["group"],
-                group_position=team_data["position"]
+                group_position=team_data["position"],
+                is_eliminated=False 
             )
             session.add(team)
         

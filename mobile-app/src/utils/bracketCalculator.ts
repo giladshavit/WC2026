@@ -59,6 +59,9 @@ export interface BracketMatch {
   is_correct?: boolean | null; // True if prediction is correct (match finished)
   team1_is_valid?: boolean | null; // True if team1 can reach this match (match not finished)
   team2_is_valid?: boolean | null; // True if team2 can reach this match (match not finished)
+  // Elimination status
+  team1_is_eliminated?: boolean; // True if team1 has been eliminated
+  team2_is_eliminated?: boolean; // True if team2 has been eliminated
 }
 
 export interface OrganizedBracket {
@@ -168,6 +171,9 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       is_correct: prediction.is_correct,
       team1_is_valid: prediction.team1_is_valid,
       team2_is_valid: prediction.team2_is_valid,
+      // Elimination status
+      team1_is_eliminated: prediction.team1_is_eliminated,
+      team2_is_eliminated: prediction.team2_is_eliminated,
     };
 
     // Organize by stage and side

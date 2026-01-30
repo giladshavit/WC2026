@@ -376,12 +376,13 @@ class KnockPredRefactorService:
             return
         
         is_valid = None
-        if knockout_result:
+        # Only check validity if knockout_result exists AND has both team_1 and team_2
+        if knockout_result and knockout_result.team_1 is not None and knockout_result.team_2 is not None:
             # Check if team matches result at the specified position
             result_team_id = getattr(knockout_result, result_team_field)
             is_valid = (result_team_id == team_id)
         else:
-            # No result - check previous prediction
+            # No result or missing teams - this is a prediction without result, check previous stages
             is_valid = KnockPredRefactorService._check_team_valid_from_previous_prediction(
                 db, team_id, prediction.template_match_id, user_id, is_team1=is_team1
             )

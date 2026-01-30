@@ -222,6 +222,23 @@ class ResultsService:
             )
             db.add(result)
         
+        # Update is_eliminated for new teams
+        # Places 1, 2, 3: not eliminated (False)
+        # Place 4: eliminated (True)
+        first_place_team = db.query(Team).filter(Team.id == first_place_team_id).first()
+        second_place_team = db.query(Team).filter(Team.id == second_place_team_id).first()
+        third_place_team = db.query(Team).filter(Team.id == third_place_team_id).first()
+        fourth_place_team = db.query(Team).filter(Team.id == fourth_place_team_id).first()
+        
+        if first_place_team:
+            first_place_team.is_eliminated = False
+        if second_place_team:
+            second_place_team.is_eliminated = False
+        if third_place_team:
+            third_place_team.is_eliminated = False
+        if fourth_place_team:
+            fourth_place_team.is_eliminated = True
+        
         db.commit()
         db.refresh(result)
         
@@ -378,6 +395,27 @@ class ResultsService:
         
         db.commit()
         db.refresh(result)
+        
+        # Update is_eliminated for third place teams
+        # Teams that qualify: not eliminated (False)
+        # Teams that don't qualify: eliminated (True)
+        qualifying_team_ids = [
+            first_team_qualifying, second_team_qualifying, third_team_qualifying, fourth_team_qualifying,
+            fifth_team_qualifying, sixth_team_qualifying, seventh_team_qualifying, eighth_team_qualifying
+        ]
+        
+        # Get all third place teams from group stage results
+        group_results = db.query(GroupStageResult).all()
+        all_third_place_team_ids = [gr.third_place for gr in group_results]
+        
+        # Update is_eliminated for all third place teams
+        for third_place_team_id in all_third_place_team_ids:
+            team = db.query(Team).filter(Team.id == third_place_team_id).first()
+            if team:
+                # If team is in qualifying list, not eliminated; otherwise, eliminated
+                team.is_eliminated = (third_place_team_id not in qualifying_team_ids)
+        
+        db.commit()
         
         # Update scoring for all users who predicted third place qualifying teams
         ScoringService.update_third_place_scoring_for_all_users(db, result)
@@ -1077,6 +1115,7 @@ class ResultsService:
         Returns:
             Dict with success message
         """
+        print(f"Updating knockout result for match {match_id}, team_1_id: {team_1_id}, team_2_id: {team_2_id}, winner_team_id: {winner_team_id}")
         # 1. Verify match exists
         match = db.query(Match).filter(Match.id == match_id).first()
         if not match:
@@ -1098,6 +1137,7 @@ class ResultsService:
         
         # 5. Process each prediction for invalidation
         for prediction in predictions:
+            print(f"Processing prediction: {prediction.id}, winner_team_id: {prediction.winner_team_id}, winner_team_id_from_result: {winner_team_id}")
             if prediction.winner_team_id != winner_team_id:
                 # Wrong prediction - invalidate team in next stages recursively
                 # The wrong winner is prediction.winner_team_id (the one that was predicted but is wrong)
