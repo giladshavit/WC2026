@@ -4,32 +4,32 @@ from models.results import GroupStageResult
 from models.team import Team
 from typing import List, Dict, Any
 import json
+from services.database import DBReader, DBWriter, DBUtils
 
 class GroupService:
     @staticmethod
     def create_group(db: Session, name: str) -> Dict[str, Any]:
         """Create a new group"""
-        existing_group = db.query(Group).filter(Group.name == name).first()
+        existing_group = DBReader.get_group_by_name(db, name)
         if existing_group:
             return {"error": f"Group {name} already exists"}
         
-        group = Group(name=name)
-        db.add(group)
-        db.commit()
-        db.refresh(group)
+        group = DBWriter.create_group(db, name)
+        DBUtils.commit(db)
+        DBUtils.refresh(db, group)
         
         return {"id": group.id, "name": group.name, "created": True}
     
     @staticmethod
     def get_all_groups(db: Session) -> List[Dict[str, Any]]:
         """Get all groups"""
-        groups = db.query(Group).all()
+        groups = DBReader.get_all_groups(db)
         return [{"id": group.id, "name": group.name} for group in groups]
     
     @staticmethod
     def get_group_with_teams(db: Session, group_name: str) -> Dict[str, Any]:
         """Get a group with its teams"""
-        group = db.query(Group).filter(Group.name == group_name).first()
+        group = DBReader.get_group_by_name(db, group_name)
         if not group:
             return {"error": f"Group {group_name} not found"}
         
@@ -54,7 +54,7 @@ class GroupService:
     @staticmethod
     def get_all_groups_with_teams(db: Session) -> List[Dict[str, Any]]:
         """Get all groups with their teams"""
-        groups = db.query(Group).all()
+        groups = DBReader.get_all_groups(db)
         result = []
         
         for group in groups:
@@ -68,31 +68,29 @@ class GroupService:
     def create_group_stage_result(db: Session, group_id: int, first_place: int, 
                                 second_place: int, third_place: int, fourth_place: int) -> Dict[str, Any]:
         """Create a result for a group (all 4 places at once)"""
-        existing_result = db.query(GroupStageResult).filter(
-            GroupStageResult.group_id == group_id
-        ).first()
+        existing_result = DBReader.get_group_stage_result(db, group_id)
         
         if existing_result:
             return {"error": f"Result for group {group_id} already exists"}
         
-        result = GroupStageResult(
+        result = DBWriter.create_group_stage_result(
+            db,
             group_id=group_id,
-            first_place=first_place,
-            second_place=second_place,
-            third_place=third_place,
-            fourth_place=fourth_place
+            first=first_place,
+            second=second_place,
+            third=third_place,
+            fourth=fourth_place
         )
         
-        db.add(result)
-        db.commit()
-        db.refresh(result)
+        DBUtils.commit(db)
+        DBUtils.refresh(db, result)
         
         return {"id": result.id, "created": True}
     
     @staticmethod
     def get_group_stage_results(db: Session, group_id: int) -> Dict[str, Any]:
         """Get group results"""
-        result = db.query(GroupStageResult).filter(GroupStageResult.group_id == group_id).first()
+        result = DBReader.get_group_stage_result(db, group_id)
         
         if not result:
             return {"error": f"No results found for group {group_id}"}

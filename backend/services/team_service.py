@@ -1,6 +1,7 @@
 from typing import Dict, List, Any
 from sqlalchemy.orm import Session
 from models.team import Team
+from services.database import DBReader, DBWriter, DBUtils
 
 class TeamService:
     
@@ -10,16 +11,15 @@ class TeamService:
         Create a new team
         """
         # Check if the team already exists
-        existing_team = db.query(Team).filter(Team.name == name).first()
+        existing_team = DBReader.get_team_by_name(db, name)
         
         if existing_team:
             return {"error": f"Team {name} already exists"}
         
-        team = Team(name=name)
+        team = DBWriter.create_team(db, name)
         
-        db.add(team)
-        db.commit()
-        db.refresh(team)
+        DBUtils.commit(db)
+        DBUtils.refresh(db, team)
         
         return {
             "id": team.id,
@@ -35,16 +35,15 @@ class TeamService:
         """
         Update a team with its group information
         """
-        team = db.query(Team).filter(Team.id == team_id).first()
+        team = DBReader.get_team(db, team_id)
         
         if not team:
             return {"error": f"Team with id {team_id} not found"}
         
-        team.group_letter = group_letter
-        team.group_position = group_position
+        DBWriter.update_team_group(db, team, group_letter, group_position)
         
-        db.commit()
-        db.refresh(team)
+        DBUtils.commit(db)
+        DBUtils.refresh(db, team)
         
         return {
             "id": team.id,
@@ -59,7 +58,7 @@ class TeamService:
         """
         Get all teams
         """
-        teams = db.query(Team).all()
+        teams = DBReader.get_all_teams(db)
         return [
             {
                 "id": team.id,

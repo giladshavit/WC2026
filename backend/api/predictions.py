@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from dataclasses import dataclass
 
 from services.predictions import PredictionService
-from services.predictions import DBPredRepository
+from services.database import DBReader, DBUtils
 from services.stage_manager import StageManager, Stage
 from services.predictions.match_prediction_service import MatchPredictionService
 from database import get_db
@@ -302,8 +302,7 @@ def update_knockout_prediction_winner(
     """
     try:
         # Pre-checks (match existing behavior)
-        from services.predictions import DBPredRepository
-        prediction = DBPredRepository.get_knockout_prediction_by_id(db, prediction_id, is_draft=is_draft)
+        prediction = DBReader.get_knockout_prediction_by_id(db, prediction_id, is_draft=is_draft)
         
         if not prediction:
             raise HTTPException(status_code=404, detail="Knockout prediction not found")
@@ -323,7 +322,7 @@ def update_knockout_prediction_winner(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Error updating prediction: {str(e)}")
 
 
@@ -343,7 +342,7 @@ def create_draft_from_prediction(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Error creating draft: {str(e)}")
 
 
@@ -362,7 +361,7 @@ def create_all_drafts_from_predictions(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Error creating drafts: {str(e)}")
 
 
@@ -382,7 +381,7 @@ def delete_all_drafts_for_user(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Error deleting drafts: {str(e)}")
 
 
@@ -401,5 +400,5 @@ def delete_all_knockout_predictions_for_user(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Error deleting knockout predictions: {str(e)}")

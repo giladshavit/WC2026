@@ -9,6 +9,7 @@ from services.team_service import TeamService
 from services.group_service import GroupService
 from services.results_service import ResultsService
 from services.stage_manager import StageManager, Stage
+from services.database import DBUtils
 from models.groups import Group
 from models.matches import Match, MatchStatus
 from database import get_db
@@ -315,7 +316,7 @@ def update_knockout_result(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        db.rollback()
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Error updating knockout result: {str(e)}")
 
 # Group results endpoints
@@ -507,7 +508,8 @@ def rebuild_round32_bracket(db: Session = Depends(get_db)):
         
     except Exception as e:
         print(f"❌ Error in rebuild_round32_bracket: {e}")
-        db.rollback()
+        from services.database import DBUtils
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/admin/reset-all-results", response_model=Dict[str, Any])
@@ -590,7 +592,7 @@ def reset_all_results_and_scores(db: Session = Depends(get_db)):
         
     except Exception as e:
         print(f"❌ Error in reset_all_results_and_scores: {e}")
-        db.rollback()
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/admin/delete-all-results", response_model=Dict[str, Any])
@@ -674,7 +676,7 @@ def delete_all_results_only(db: Session = Depends(get_db)):
         
     except Exception as e:
         print(f"❌ Error in delete_all_results_only: {e}")
-        db.rollback()
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/admin/delete-all-predictions", response_model=Dict[str, Any])
@@ -731,7 +733,7 @@ def delete_all_predictions(db: Session = Depends(get_db)):
         
     except Exception as e:
         print(f"❌ Error in delete_all_predictions: {e}")
-        db.rollback()
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.delete("/admin/delete-all-knockout-predictions", response_model=Dict[str, Any])
@@ -766,7 +768,7 @@ def delete_all_knockout_predictions(db: Session = Depends(get_db)):
         
     except Exception as e:
         print(f"❌ Error in delete_all_knockout_predictions: {e}")
-        db.rollback()
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.delete("/admin/delete-all-knockout-results", response_model=Dict[str, Any])
@@ -841,7 +843,7 @@ def delete_all_knockout_results(db: Session = Depends(get_db)):
         
     except Exception as e:
         print(f"❌ Error in delete_all_knockout_results: {e}")
-        db.rollback()
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/admin/rebuild-knockout-from-predictions", response_model=Dict[str, Any])
@@ -856,19 +858,18 @@ def rebuild_knockout_from_predictions(
     try:
         from models.predictions import KnockoutStagePrediction
         from services.predictions.knockout_prediction_service import KnockoutPredictionService
-        from services.predictions.db_prediction_repository import DBPredRepository
+        from services.database import DBReader, DBUtils
         
         # Get all predictions with winners, ordered by stage
-        predictions = db.query(KnockoutStagePrediction).filter(
-            KnockoutStagePrediction.user_id == user_id,
-            KnockoutStagePrediction.winner_team_id != None
-        ).order_by(KnockoutStagePrediction.template_match_id).all()
+        predictions = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
+        predictions = [p for p in predictions if p.winner_team_id is not None]
+        predictions.sort(key=lambda p: p.template_match_id)
         
         created_count = 0
         
         for prediction in predictions:
             # Get the template for this prediction
-            template = DBPredRepository.get_match_template(db, prediction.template_match_id)
+            template = DBReader.get_match_template(db, prediction.template_match_id)
             
             if not template:
                 continue
@@ -885,7 +886,7 @@ def rebuild_knockout_from_predictions(
             if next_prediction:
                 created_count += 1
         
-        db.commit()
+        DBUtils.commit(db)
         
         return {
             "success": True,
@@ -896,7 +897,7 @@ def rebuild_knockout_from_predictions(
         
     except Exception as e:
         print(f"❌ Error in rebuild_knockout_from_predictions: {e}")
-        db.rollback()
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 class CreateRandomResultsRequest(BaseModel):
@@ -985,14 +986,14 @@ def create_random_group_and_third_place_results(
             except Exception as e:
                 print(f"  ❌ Error creating result for group {group.name}: {e}")
                 groups_errors += 1
-                db.rollback()
+                DBUtils.rollback(db)
         
         # Step 2: Get all third place teams from group results
         print("\n🎲 Creating random third place qualifying results...")
         third_place_teams = ResultsService.get_third_place_teams_from_groups(db)
         
         if len(third_place_teams) < 8:
-            db.rollback()
+            DBUtils.rollback(db)
             raise HTTPException(
                 status_code=400,
                 detail=f"Not enough third place teams found. Need 8, found {len(third_place_teams)}. Please ensure all groups have results."
@@ -1006,7 +1007,7 @@ def create_random_group_and_third_place_results(
         existing_third_place = db.query(ThirdPlaceResult).first()
         
         if existing_third_place and not request.update_existing:
-            db.rollback()
+            DBUtils.rollback(db)
             raise HTTPException(
                 status_code=400,
                 detail="Third place result already exists. Use update_existing=true to update it."
@@ -1030,7 +1031,7 @@ def create_random_group_and_third_place_results(
             third_place_updated = bool(existing_third_place)
             
         except Exception as e:
-            db.rollback()
+            DBUtils.rollback(db)
             raise HTTPException(status_code=500, detail=f"Error creating third place result: {str(e)}")
         
         db.commit()
@@ -1075,5 +1076,5 @@ def create_random_group_and_third_place_results(
         raise
     except Exception as e:
         print(f"❌ Error in create_random_group_and_third_place_results: {e}")
-        db.rollback()
+        DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

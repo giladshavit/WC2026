@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from datetime import datetime
 
-from .db_prediction_repository import DBPredRepository
+from services.database import DBReader, DBWriter, DBUtils
 from .shared import PredictionStatus
 from services.scoring_service import ScoringService
 from models.results import KnockoutStageResult
@@ -62,27 +62,29 @@ class KnockPredRefactorService:
         if winner_team_id is not None:
             # Update winner
             new_winner = winner_team_id
-            prediction.winner_team_id = new_winner if new_winner != 0 else None
-            
-            # Update updated_at if field exists
-            if hasattr(prediction, 'updated_at'):
-                prediction.updated_at = datetime.utcnow()
+            resolved_winner = new_winner if new_winner != 0 else None
+            DBWriter.update_knockout_prediction(
+                db,
+                prediction,
+                winner_team_id=resolved_winner,
+                updated_at=datetime.utcnow() if hasattr(prediction, 'updated_at') else None
+            )
             
             # Determine status based on winner value
             if new_winner == 0:
                 # Winner is 0 or None -> red status
-                prediction.status = PredictionStatus.MUST_CHANGE_PREDICT.value
+                DBWriter.set_prediction_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT.value)
             else:
                 # Check if winner matches one of the teams in prediction
                 if prediction.team1_id == new_winner or prediction.team2_id == new_winner:
-                    prediction.status = PredictionStatus.PREDICTED.value  # green
+                    DBWriter.set_prediction_status(prediction, PredictionStatus.PREDICTED.value)  # green
                 else:
-                    prediction.status = PredictionStatus.MUST_CHANGE_PREDICT.value  # red
+                    DBWriter.set_prediction_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT.value)  # red
             
-            db.flush()
+            DBUtils.flush(db)
             
             # Create next stage prediction if needed (before finding it)
-            template = DBPredRepository.get_match_template(db, prediction.template_match_id)
+            template = DBReader.get_match_template(db, prediction.template_match_id)
             if template:
                 from .knockout_prediction_service import KnockoutPredictionService
                 is_draft = hasattr(prediction, 'knockout_pred_id')
@@ -100,7 +102,7 @@ class KnockPredRefactorService:
                 )
                 if next_prediction:
                     # Get position from template
-                    current_template = DBPredRepository.get_match_template(
+                    current_template = DBReader.get_match_template(
                         db, prediction.template_match_id
                     )
                     position = current_template.winner_next_position if current_template else None
@@ -120,16 +122,17 @@ class KnockPredRefactorService:
         # Case 2: Update teams (winner is None)
         elif team1_id is not None or team2_id is not None:
             # Update the relevant team(s)
-            if team1_id is not None:
-                prediction.team1_id = team1_id if team1_id != 0 else None
-            if team2_id is not None:
-                prediction.team2_id = team2_id if team2_id != 0 else None
+            resolved_team1 = team1_id if (team1_id is None or team1_id != 0) else None
+            resolved_team2 = team2_id if (team2_id is None or team2_id != 0) else None
+            DBWriter.update_knockout_prediction(
+                db,
+                prediction,
+                team1_id=resolved_team1,
+                team2_id=resolved_team2,
+                updated_at=datetime.utcnow() if hasattr(prediction, 'updated_at') else None
+            )
             
-            # Update updated_at if field exists
-            if hasattr(prediction, 'updated_at'):
-                prediction.updated_at = datetime.utcnow()
-            
-            db.flush()
+            DBUtils.flush(db)
             
             # Check current winner - if it matches one of the new teams, mark as yellow
             if prediction.winner_team_id:
@@ -138,19 +141,19 @@ class KnockPredRefactorService:
                 
                 if prediction.winner_team_id == new_team1 or prediction.winner_team_id == new_team2:
                     # Winner matches one of the teams -> yellow
-                    prediction.status = PredictionStatus.MIGHT_CHANGE_PREDICT.value
+                    DBWriter.set_prediction_status(prediction, PredictionStatus.MIGHT_CHANGE_PREDICT.value)
                 else:
                     # Winner doesn't match -> red, clear winner recursively
-                    prediction.status = PredictionStatus.MUST_CHANGE_PREDICT.value
+                    DBWriter.set_prediction_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT.value)
                     # Ignore return value for recursive call
                     KnockPredRefactorService.update_knockout_prediction(
                         db, prediction, winner_team_id=0
                     )
             else:
                 # No winner set -> red
-                prediction.status = PredictionStatus.MUST_CHANGE_PREDICT.value
+                DBWriter.set_prediction_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT.value)
             
-            db.flush()
+            DBUtils.flush(db)
         
         # Check if prediction changed
         changed = (old_winner != prediction.winner_team_id) if winner_team_id is not None else True
@@ -176,7 +179,7 @@ class KnockPredRefactorService:
         Returns:
             Source match ID, or the match itself for Round of 32, or None if not found
         """
-        template = DBPredRepository.get_match_template(db, match_id)
+        template = DBReader.get_match_template(db, match_id)
         if not template:
             return None
         
@@ -212,7 +215,7 @@ class KnockPredRefactorService:
             return None
         
         # Get template to check stage
-        template = DBPredRepository.get_match_template(db, match_id)
+        template = DBReader.get_match_template(db, match_id)
         if not template:
             return None
         
@@ -228,7 +231,7 @@ class KnockPredRefactorService:
             return None  # Can't determine if no source match
         
         # Get the user's prediction for the previous match
-        previous_prediction = DBPredRepository.get_knockout_prediction_by_user_and_match(
+        previous_prediction = DBReader.get_knockout_prediction(
             db, user_id, source_match_id, is_draft=False
         )
         
@@ -268,7 +271,7 @@ class KnockPredRefactorService:
 
         # Get current winner team for draft mode (to show the flag of current winner)
         current_winner_team_id = prediction.current_winner_team_id if hasattr(prediction, 'current_winner_team_id') else None
-        current_winner_team = DBPredRepository.get_team(db, current_winner_team_id) if current_winner_team_id else None
+        current_winner_team = DBReader.get_team(db, current_winner_team_id) if current_winner_team_id else None
         
         # In draft mode, prioritize result teams if they exist
         # Otherwise, use draft teams directly (they may have been cleaned)
@@ -284,9 +287,9 @@ class KnockPredRefactorService:
         else:
             # No result - use draft teams directly (they may have been cleaned)
             # Load teams by ID directly to ensure we get the correct cleaned teams
-            team1 = DBPredRepository.get_team(db, team1_id) if team1_id else None
-            team2 = DBPredRepository.get_team(db, team2_id) if team2_id else None
-            winner_team = DBPredRepository.get_team(db, winner_team_id) if winner_team_id else None
+            team1 = DBReader.get_team(db, team1_id) if team1_id else None
+            team2 = DBReader.get_team(db, team2_id) if team2_id else None
+            winner_team = DBReader.get_team(db, winner_team_id) if winner_team_id else None
 
         return (team1_id, team2_id, winner_team_id, team1, team2, winner_team, current_winner_team)
 
@@ -331,17 +334,15 @@ class KnockPredRefactorService:
         Update validity for all knockout predictions based on current results and predictions.
         This should be called after admin operations that might affect validity (e.g., entering results).
         """
-        from models.predictions import KnockoutStagePrediction
-        from models.results import KnockoutStageResult
-        
         # Get all knockout predictions
-        predictions = db.query(KnockoutStagePrediction).all()
+        predictions = DBReader.get_all_knockout_predictions(db)
         
         for prediction in predictions:
             # Get knockout result for this prediction
-            knockout_result = db.query(KnockoutStageResult).filter(
-                KnockoutStageResult.id == prediction.knockout_result_id
-            ).first() if prediction.knockout_result_id else None
+            knockout_result = (
+                DBReader.get_knockout_result_by_id(db, prediction.knockout_result_id)
+                if prediction.knockout_result_id else None
+            )
             
             # Create a temporary item dict for the update function
             item = {}
@@ -356,7 +357,7 @@ class KnockPredRefactorService:
                 knockout_result, prediction.user_id
             )
         
-        db.flush()
+        DBUtils.flush(db)
     
     @staticmethod
     def _update_team_validity(
@@ -420,7 +421,7 @@ class KnockPredRefactorService:
                 db, prediction, item, team2_id, False, "team_2", "is_team2_valid", "team2_is_valid",
                 knockout_result, user_id
             )
-            db.flush()
+            DBUtils.flush(db)
 
     @staticmethod
     def _add_additional_fields_to_item(item: Dict[str, Any], prediction, is_draft: bool) -> None:
@@ -444,7 +445,7 @@ class KnockPredRefactorService:
         Get all user's knockout predictions. If stage is provided, filter by that stage.
         If is_draft is True, returns draft predictions instead of regular ones.
         """
-        predictions = DBPredRepository.get_knockout_predictions_by_user(db, user_id, stage, is_draft=is_draft)
+        predictions = DBReader.get_knockout_predictions_by_user(db, user_id, stage, is_draft=is_draft)
 
         result: List[Dict[str, Any]] = []
         for prediction in predictions:
@@ -459,9 +460,10 @@ class KnockPredRefactorService:
             )
 
             # Get knockout result for validation/correctness check
-            knockout_result = db.query(KnockoutStageResult).filter(
-                KnockoutStageResult.id == prediction.knockout_result_id
-            ).first() if prediction.knockout_result_id else None
+            knockout_result = (
+                DBReader.get_knockout_result_by_id(db, prediction.knockout_result_id)
+                if prediction.knockout_result_id else None
+            )
             
             # Get validity from DB (read-only)
             item["team1_is_valid"] = getattr(prediction, "is_team1_valid", True)
@@ -479,7 +481,7 @@ class KnockPredRefactorService:
 
         user_scores = None
         if not is_draft:
-            user_scores = DBPredRepository.get_user_scores(db, user_id)
+            user_scores = DBReader.get_user_scores(db, user_id)
 
         return {
             "predictions": result,
@@ -493,7 +495,7 @@ class KnockPredRefactorService:
         Only works for draft predictions.
         """
         # Find the template of the current prediction
-        current_template = DBPredRepository.get_match_template(
+        current_template = DBReader.get_match_template(
             db, prediction.template_match_id
         )
         
@@ -503,26 +505,24 @@ class KnockPredRefactorService:
         next_match_id = current_template.winner_next_knockout_match
         
         # Find the matching result
-        result = db.query(KnockoutStageResult).filter(
-            KnockoutStageResult.match_id == next_match_id
-        ).first()
+        result = DBReader.get_knockout_result(db, next_match_id)
         
         if not result:
             return None
         
         # Find the template of the next stage
-        next_template = DBPredRepository.get_match_template(db, next_match_id)
+        next_template = DBReader.get_match_template(db, next_match_id)
         if not next_template:
             return None
         
         # Find original prediction for this match to link draft to it
-        original_prediction = DBPredRepository.get_knockout_prediction_by_user_and_match(
+        original_prediction = DBReader.get_knockout_prediction(
             db, prediction.user_id, next_match_id, is_draft=False
         )
         knockout_pred_id = original_prediction.id if original_prediction else None
         
         # Create draft prediction
-        draft = DBPredRepository.create_knockout_prediction(
+        draft = DBWriter.create_knockout_prediction(
             db,
             user_id=prediction.user_id,
             knockout_result_id=result.id,
@@ -535,8 +535,8 @@ class KnockPredRefactorService:
             knockout_pred_id=knockout_pred_id,
             status=PredictionStatus.MUST_CHANGE_PREDICT.value,
         )
-        
-        db.flush()
+
+        DBUtils.flush(db)
         return draft
     
     @staticmethod
@@ -552,7 +552,7 @@ class KnockPredRefactorService:
         is_draft = hasattr(prediction, 'knockout_pred_id')
         
         # Find the template of the current prediction
-        current_template = DBPredRepository.get_match_template(
+        current_template = DBReader.get_match_template(
             db, prediction.template_match_id
         )
         
@@ -563,7 +563,7 @@ class KnockPredRefactorService:
         position = current_template.winner_next_position  # 1 or 2
         
         # Find the next prediction (use same draft status as current prediction)
-        next_prediction = DBPredRepository.get_knockout_prediction_by_user_and_match(
+        next_prediction = DBReader.get_knockout_prediction(
             db, prediction.user_id, next_match_id, is_draft=is_draft
         )
         
@@ -580,7 +580,7 @@ class KnockPredRefactorService:
         """Creates success response"""
         # Find winner team name
         if not winner_team_name and prediction.winner_team_id:
-            winner_team = DBPredRepository.get_team(db, prediction.winner_team_id)
+            winner_team = DBReader.get_team(db, prediction.winner_team_id)
             winner_team_name = winner_team.name if winner_team else None
         
         response = {
@@ -624,7 +624,7 @@ class KnockPredRefactorService:
             HTTPException: If prediction not found, not editable, or invalid input
         """
         # Get prediction
-        prediction = DBPredRepository.get_knockout_prediction_by_id(db, prediction_id, is_draft=is_draft)
+        prediction = DBReader.get_knockout_prediction_by_id(db, prediction_id, is_draft=is_draft)
         if not prediction:
             raise HTTPException(status_code=404, detail="Knockout prediction not found")
         
@@ -659,7 +659,7 @@ class KnockPredRefactorService:
         )
         
         # Commit changes
-        DBPredRepository.commit(db)
+        DBUtils.commit(db)
         
         return result
     
@@ -709,7 +709,7 @@ class KnockPredRefactorService:
                         continue
                     
                     # Get prediction
-                    prediction = DBPredRepository.get_knockout_prediction_by_id(db, prediction_id, is_draft=False)
+                    prediction = DBReader.get_knockout_prediction_by_id(db, prediction_id, is_draft=False)
                     if not prediction:
                         errors.append(f"Prediction {prediction_id} not found")
                         continue
@@ -748,7 +748,7 @@ class KnockPredRefactorService:
                     errors.append(f"Error updating prediction {pred_id_str}: {str(e)}")
             
             # Commit all changes
-            DBPredRepository.commit(db)
+            DBUtils.commit(db)
             
             # Apply penalty if there were changes
             penalty_points = 0
@@ -778,7 +778,7 @@ class KnockPredRefactorService:
         """Create hash key from advancing team IDs"""
         letters = []
         for team_id in advancing_team_ids:
-            team = DBPredRepository.get_team(db, team_id)
+            team = DBReader.get_team(db, team_id)
             if team and team.group_letter:
                 letters.append(team.group_letter)
         
@@ -798,7 +798,7 @@ class KnockPredRefactorService:
         # Build hash key and find combination
         hash_key = KnockPredRefactorService._create_new_hash_key(db, advancing_team_ids)
         
-        combination = DBPredRepository.get_third_place_combination_by_hash(db, hash_key)
+        combination = DBReader.get_third_place_combination_by_hash(db, hash_key)
         if not combination:
             return
         
@@ -815,7 +815,7 @@ class KnockPredRefactorService:
         }
 
         # Get Round of 32 templates where team_2 uses third-place source
-        templates = DBPredRepository.get_match_templates_by_stage(db, 'round32')
+        templates = DBReader.get_match_templates_by_stage(db, 'round32')
         relevant_templates = [t for t in templates if t.team_2 and t.team_2.startswith('3rd_team_')]
 
         # Helper: resolve third-place team from source
@@ -829,21 +829,21 @@ class KnockPredRefactorService:
                 return None
             
             group_letter = third_place_source[1]  # 'A'
-            group = DBPredRepository.get_group_by_name(db, group_letter)
+            group = DBReader.get_group_by_name(db, group_letter)
             if not group:
                 return None
 
-            group_pred = DBPredRepository.get_group_prediction_by_user_and_group_id(db, user_id, group.id)
+            group_pred = DBReader.get_group_prediction(db, user_id, group.id)
             if not group_pred:
                 return None
 
-            team = DBPredRepository.get_team(db, group_pred.third_place)
+            team = DBReader.get_team(db, group_pred.third_place)
             return team
 
         # Iterate relevant templates and update predictions
         for template in relevant_templates:
             # Find the user's prediction for this match
-            prediction = DBPredRepository.get_knockout_prediction_by_user_and_match(
+            prediction = DBReader.get_knockout_prediction(
                 db, user_id, template.id, is_draft=False
             )
             if not prediction:
@@ -866,7 +866,7 @@ class KnockPredRefactorService:
             )
         
         # Commit all changes at the end
-        DBPredRepository.commit(db)
+        DBUtils.commit(db)
 
     @staticmethod
     def create_draft_from_prediction(db: Session, user_id: int, prediction_id: int) -> Dict[str, Any]:
@@ -876,17 +876,17 @@ class KnockPredRefactorService:
         Status is always copied from the original prediction.
         """
         # Get the original prediction
-        prediction = DBPredRepository.get_knockout_prediction_by_id(db, prediction_id, is_draft=False)
+        prediction = DBReader.get_knockout_prediction_by_id(db, prediction_id, is_draft=False)
         if not prediction:
             raise HTTPException(status_code=404, detail="Prediction not found")
 
         # If draft already exists, delete it first to recreate with cleaned teams
-        existing_draft = DBPredRepository.get_knockout_prediction_by_user_and_match(
+        existing_draft = DBReader.get_knockout_prediction(
             db, user_id, prediction.template_match_id, is_draft=True
         )
         if existing_draft:
-            db.delete(existing_draft)
-            db.flush()
+            DBWriter.delete_knockout_prediction(db, existing_draft)
+            DBUtils.flush(db)
 
         # Do not recompute validity in draft creation; validity computed in get_knockout_predictions
 
@@ -919,7 +919,7 @@ class KnockPredRefactorService:
         # Keep 0 values as-is (we use 0 as sentinel instead of None)
 
         # Create draft copy
-        draft = DBPredRepository.create_knockout_prediction(
+        draft = DBWriter.create_knockout_prediction(
             db,
             user_id=user_id,
             knockout_result_id=prediction.knockout_result_id or 0,
@@ -934,7 +934,7 @@ class KnockPredRefactorService:
             current_winner_team_id=current_winner_team_id,
         )
 
-        DBPredRepository.commit(db)
+        DBUtils.commit(db)
         return {
             "success": True,
             "message": "Draft created",
@@ -948,18 +948,18 @@ class KnockPredRefactorService:
         Simple copy: use result teams (and winner if present), otherwise copy prediction data.
         Status is copied as-is from the original prediction.
         """
-        predictions = DBPredRepository.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
+        predictions = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
 
         created = 0
         skipped = 0
         for prediction in predictions:
             # Delete existing draft if exists (create_draft_from_prediction will recreate it)
-            existing = DBPredRepository.get_knockout_prediction_by_user_and_match(
+            existing = DBReader.get_knockout_prediction(
                 db, user_id, prediction.template_match_id, is_draft=True
             )
             if existing:
-                db.delete(existing)
-                db.flush()
+                DBWriter.delete_knockout_prediction(db, existing)
+                DBUtils.flush(db)
 
             # Delegate to single-item creator to avoid duplicate logic
             res = KnockPredRefactorService.create_draft_from_prediction(db, user_id, prediction.id)
@@ -977,12 +977,12 @@ class KnockPredRefactorService:
     @staticmethod
     def delete_all_drafts_for_user(db: Session, user_id: int) -> Dict[str, Any]:
         """Delete all draft predictions for a given user."""
-        drafts = DBPredRepository.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=True)
+        drafts = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=True)
         deleted = 0
         for draft in drafts:
-            db.delete(draft)
+            DBWriter.delete_knockout_prediction(db, draft)
             deleted += 1
-        db.commit()
+        DBUtils.commit(db)
         return {"success": True, "deleted": deleted}
 
     @staticmethod
@@ -991,18 +991,16 @@ class KnockPredRefactorService:
         from models.predictions import ThirdPlacePrediction
         
         # Count and delete knockout predictions
-        predictions = DBPredRepository.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
+        predictions = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
         deleted_knockout = len(predictions)
         for prediction in predictions:
-            db.delete(prediction)
+            DBWriter.delete_knockout_prediction(db, prediction)
         
         # Count and delete third place predictions
-        deleted_third_place = db.query(ThirdPlacePrediction).filter(
-            ThirdPlacePrediction.user_id == user_id
-        ).count()
-        DBPredRepository.delete_third_place_predictions_by_user(db, user_id)
+        deleted_third_place = len(DBReader.get_third_place_predictions_by_user(db, user_id))
+        DBWriter.delete_third_place_predictions_by_user(db, user_id)
         
-        db.commit()
+        DBUtils.commit(db)
         return {
             "success": True, 
             "deleted_knockout": deleted_knockout,

@@ -10,6 +10,7 @@ from models.user import User
 from models.user_scores import UserScores
 from models.team import Team
 from services.stage_manager import StageManager, Stage
+from services.database import DBReader, DBWriter, DBUtils
 
 
 class ScoringService:
@@ -125,7 +126,7 @@ class ScoringService:
         Returns:
             List of users with their points, ordered by points descending
         """
-        users = db.query(User).order_by(User.total_points.desc()).limit(limit).all()
+        users = DBReader.get_users_ordered_by_points(db, limit)
         
         leaderboard = []
         for rank, user in enumerate(users, 1):
@@ -152,9 +153,7 @@ class ScoringService:
             Dict with summary of the operation
         """
         # Get all users who predicted this match
-        predictions = db.query(MatchPrediction).filter(
-            MatchPrediction.match_id == result.match_id
-        ).all()
+        predictions = DBReader.get_match_predictions_by_match(db, result.match_id)
         
         updated_users = set()
         for prediction in predictions:
@@ -162,30 +161,32 @@ class ScoringService:
             new_points = ScoringService.calculate_match_prediction_points(prediction, result)
             
             # Update prediction points
-            old_points = prediction.points
-            prediction.points = new_points
+            old_points = prediction.points if prediction.points is not None else 0
+            DBWriter.update_match_prediction(db, prediction, points=new_points)
             
             # Update user scores in user_scores table
-            user_scores = db.query(UserScores).filter(UserScores.user_id == prediction.user_id).first()
+            user_scores = DBReader.get_user_scores(db, prediction.user_id)
             if not user_scores:
-                # Create new UserScores record if it doesn't exist
-                user_scores = UserScores(
-                    user_id=prediction.user_id,
-                    matches_score=0,
-                    groups_score=0,
-                    third_place_score=0,
-                    knockout_score=0,
-                    penalty=0,
-                    total_points=0
-                )
-                db.add(user_scores)
+                user_scores = DBWriter.create_user_scores(db, prediction.user_id)
             
             # Update matches score and total points
-            user_scores.matches_score = user_scores.matches_score - old_points + new_points
-            ScoringService.update_total_points(user_scores)
+            new_matches_score = (user_scores.matches_score or 0) - old_points + new_points
+            new_total_points = (
+                new_matches_score +
+                (user_scores.groups_score or 0) +
+                (user_scores.third_place_score or 0) +
+                (user_scores.knockout_score or 0) -
+                (user_scores.penalty or 0)
+            )
+            DBWriter.update_user_scores(
+                db,
+                user_scores,
+                matches_score=new_matches_score,
+                total_points=new_total_points
+            )
             updated_users.add(prediction.user_id)
         
-        db.commit()
+        DBUtils.commit(db)
         
         return {
             "message": f"Updated scoring for {len(updated_users)} users",
@@ -238,9 +239,7 @@ class ScoringService:
             Dict with summary of the operation
         """
         # Get all users who predicted this group
-        predictions = db.query(GroupStagePrediction).filter(
-            GroupStagePrediction.group_id == result.group_id
-        ).all()
+        predictions = DBReader.get_group_predictions_by_group(db, result.group_id)
         
         updated_users = set()
         for prediction in predictions:
@@ -248,30 +247,32 @@ class ScoringService:
             new_points = ScoringService.calculate_group_prediction_points(prediction, result)
             
             # Update prediction points
-            old_points = prediction.points
-            prediction.points = new_points
+            old_points = prediction.points if prediction.points is not None else 0
+            DBWriter.update_group_prediction(db, prediction, points=new_points)
             
             # Update user scores in user_scores table
-            user_scores = db.query(UserScores).filter(UserScores.user_id == prediction.user_id).first()
+            user_scores = DBReader.get_user_scores(db, prediction.user_id)
             if not user_scores:
-                # Create new UserScores record if it doesn't exist
-                user_scores = UserScores(
-                    user_id=prediction.user_id,
-                    matches_score=0,
-                    groups_score=0,
-                    third_place_score=0,
-                    knockout_score=0,
-                    penalty=0,
-                    total_points=0
-                )
-                db.add(user_scores)
+                user_scores = DBWriter.create_user_scores(db, prediction.user_id)
             
             # Update groups score and total points
-            user_scores.groups_score = user_scores.groups_score - old_points + new_points
-            ScoringService.update_total_points(user_scores)
+            new_groups_score = (user_scores.groups_score or 0) - old_points + new_points
+            new_total_points = (
+                (user_scores.matches_score or 0) +
+                new_groups_score +
+                (user_scores.third_place_score or 0) +
+                (user_scores.knockout_score or 0) -
+                (user_scores.penalty or 0)
+            )
+            DBWriter.update_user_scores(
+                db,
+                user_scores,
+                groups_score=new_groups_score,
+                total_points=new_total_points
+            )
             updated_users.add(prediction.user_id)
         
-        db.commit()
+        DBUtils.commit(db)
         
         return {
             "message": f"Updated group scoring for {len(updated_users)} users",
@@ -365,8 +366,7 @@ class ScoringService:
         Returns:
             str: Group name (A, B, C, etc.) or None if not found
         """
-        team = db.query(Team).filter(Team.id == team_id).first()
-        return team.group_letter if team and team.group_letter else None
+        return DBReader.get_team_group_letter(db, team_id)
     
     @staticmethod
     def update_third_place_scoring_for_all_users(db: Session, result: ThirdPlaceResult) -> Dict[str, Any]:
@@ -382,7 +382,7 @@ class ScoringService:
             Dict with summary of the operation
         """
         # Get all users who predicted third place qualifying teams
-        predictions = db.query(ThirdPlacePrediction).all()
+        predictions = DBReader.get_all_third_place_predictions(db)
         
         updated_users = set()
         for prediction in predictions:
@@ -390,30 +390,32 @@ class ScoringService:
             new_points = ScoringService.calculate_third_place_prediction_points(prediction, result, db)
             
             # Update prediction points
-            old_points = prediction.points
-            prediction.points = new_points
+            old_points = prediction.points if prediction.points is not None else 0
+            DBWriter.update_third_place_prediction_fields(db, prediction, points=new_points)
             
             # Update user scores in user_scores table
-            user_scores = db.query(UserScores).filter(UserScores.user_id == prediction.user_id).first()
+            user_scores = DBReader.get_user_scores(db, prediction.user_id)
             if not user_scores:
-                # Create new UserScores record if it doesn't exist
-                user_scores = UserScores(
-                    user_id=prediction.user_id,
-                    matches_score=0,
-                    groups_score=0,
-                    third_place_score=0,
-                    knockout_score=0,
-                    penalty=0,
-                    total_points=0
-                )
-                db.add(user_scores)
+                user_scores = DBWriter.create_user_scores(db, prediction.user_id)
             
             # Update third place score and total points
-            user_scores.third_place_score = user_scores.third_place_score - old_points + new_points
-            ScoringService.update_total_points(user_scores)
+            new_third_place_score = (user_scores.third_place_score or 0) - old_points + new_points
+            new_total_points = (
+                (user_scores.matches_score or 0) +
+                (user_scores.groups_score or 0) +
+                new_third_place_score +
+                (user_scores.knockout_score or 0) -
+                (user_scores.penalty or 0)
+            )
+            DBWriter.update_user_scores(
+                db,
+                user_scores,
+                third_place_score=new_third_place_score,
+                total_points=new_total_points
+            )
             updated_users.add(prediction.user_id)
         
-        db.commit()
+        DBUtils.commit(db)
         
         return {
             "message": f"Updated third place scoring for {len(updated_users)} users",
@@ -444,14 +446,12 @@ class ScoringService:
         Points are awarded based on correct winner prediction.
         """
         # Get the match to determine the stage
-        match = db.query(Match).filter(Match.id == knockout_result.match_id).first()
+        match = DBReader.get_match(db, knockout_result.match_id)
         if not match:
             return {"message": "Match not found", "updated_users": 0}
         
         # Find all predictions for this knockout match
-        predictions = db.query(KnockoutStagePrediction).filter(
-            KnockoutStagePrediction.template_match_id == knockout_result.match_id
-        ).all()
+        predictions = DBReader.get_knockout_predictions_by_match(db, knockout_result.match_id)
         
         updated_users = set()
         for prediction in predictions:
@@ -460,29 +460,31 @@ class ScoringService:
             
             # Calculate new points using the helper function
             new_points = ScoringService.calculate_knockout_prediction_points(prediction, knockout_result, match.stage)
-            prediction.points = new_points
+            DBWriter.update_knockout_prediction(db, prediction, points=new_points)
             
             # Update user scores in user_scores table
-            user_scores = db.query(UserScores).filter(UserScores.user_id == prediction.user_id).first()
+            user_scores = DBReader.get_user_scores(db, prediction.user_id)
             if not user_scores:
-                # Create new UserScores record if it doesn't exist
-                user_scores = UserScores(
-                    user_id=prediction.user_id,
-                    matches_score=0,
-                    groups_score=0,
-                    third_place_score=0,
-                    knockout_score=0,
-                    penalty=0,
-                    total_points=0
-                )
-                db.add(user_scores)
+                user_scores = DBWriter.create_user_scores(db, prediction.user_id)
             
             # Update knockout score and total points
-            user_scores.knockout_score = user_scores.knockout_score - old_points + new_points
-            ScoringService.update_total_points(user_scores)
+            new_knockout_score = (user_scores.knockout_score or 0) - old_points + new_points
+            new_total_points = (
+                (user_scores.matches_score or 0) +
+                (user_scores.groups_score or 0) +
+                (user_scores.third_place_score or 0) +
+                new_knockout_score -
+                (user_scores.penalty or 0)
+            )
+            DBWriter.update_user_scores(
+                db,
+                user_scores,
+                knockout_score=new_knockout_score,
+                total_points=new_total_points
+            )
             updated_users.add(prediction.user_id)
         
-        db.commit()
+        DBUtils.commit(db)
         
         return {
             "message": f"Updated knockout scoring for {len(updated_users)} users",
@@ -507,10 +509,10 @@ class ScoringService:
         return user_scores.penalty
     
     @staticmethod
-    def update_total_points(user_scores: UserScores) -> None:
-        """Update total_points field based on scores and penalties."""
-        user_scores.total_points = (ScoringService.get_total_scores(user_scores) - 
-                                  ScoringService.get_total_penalties(user_scores))
+    def update_total_points(user_scores: UserScores) -> int:
+        """Calculate total_points based on scores and penalties."""
+        return (ScoringService.get_total_scores(user_scores) -
+                ScoringService.get_total_penalties(user_scores))
     
     # === PENALTY SYSTEM ===
     
@@ -524,39 +526,38 @@ class ScoringService:
     def apply_penalty_to_user(db: Session, user_id: int, penalty_points: int) -> Dict[str, Any]:
         """Apply penalty points to user's score in user_scores table."""
         # Get or create user_scores record
-        user_scores = db.query(UserScores).filter(UserScores.user_id == user_id).first()
+        user_scores = DBReader.get_user_scores(db, user_id)
         if not user_scores:
-            # Create new UserScores record if it doesn't exist
-            user_scores = UserScores(
-                user_id=user_id,
-                matches_score=0,
-                groups_score=0,
-                third_place_score=0,
-                knockout_score=0,
-                penalty=0,
-                total_points=0
-            )
-            db.add(user_scores)
-            db.flush()
+            user_scores = DBWriter.create_user_scores(db, user_id)
         
         old_penalty = user_scores.penalty
         old_total = user_scores.total_points
         
         # Add penalty points to accumulated penalty
-        user_scores.penalty = user_scores.penalty + penalty_points
+        new_penalty = (user_scores.penalty or 0) + penalty_points
+        new_total_points = (
+            (user_scores.matches_score or 0) +
+            (user_scores.groups_score or 0) +
+            (user_scores.third_place_score or 0) +
+            (user_scores.knockout_score or 0) -
+            new_penalty
+        )
+        DBWriter.update_user_scores(
+            db,
+            user_scores,
+            penalty=new_penalty,
+            total_points=new_total_points
+        )
         
-        # Recalculate total points using helper function
-        ScoringService.update_total_points(user_scores)
-        
-        db.commit()
+        DBUtils.commit(db)
         
         return {
             "user_id": user_id,
             "old_penalty": old_penalty,
-            "new_penalty": user_scores.penalty,
+            "new_penalty": new_penalty,
             "penalty_added": penalty_points,
             "old_total_points": old_total,
-            "new_total_points": user_scores.total_points
+            "new_total_points": new_total_points
         }
     
     @staticmethod

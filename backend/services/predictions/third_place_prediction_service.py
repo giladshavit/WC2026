@@ -1,6 +1,6 @@
 from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
-from .db_prediction_repository import DBPredRepository
+from services.database import DBReader, DBWriter, DBUtils
 from services.scoring_service import ScoringService
 
 
@@ -30,9 +30,9 @@ class ThirdPlacePredictionService:
             existing_prediction, advancing_team_ids, db
         )
         
-        DBPredRepository.update_third_place_prediction(db, existing_prediction, advancing_team_ids)
-        DBPredRepository.update_third_place_prediction_changed_groups(db, existing_prediction, None)
-        DBPredRepository.commit(db)
+        DBWriter.update_third_place_prediction(db, existing_prediction, advancing_team_ids)
+        DBWriter.update_third_place_prediction_changed_groups(db, existing_prediction, None)
+        DBUtils.commit(db)
         
         ThirdPlacePredictionService._update_knockout_predictions_for_third_place(db, user_id, advancing_team_ids)
         
@@ -53,62 +53,55 @@ class ThirdPlacePredictionService:
         This creates prediction records for round16, quarter, semi, final stages without teams.
         Only creates predictions that don't already exist.
         """
-        from models.predictions import KnockoutStagePrediction
-        from models.matches_template import MatchTemplate
-        from models.results import KnockoutStageResult
-        
         try:
             # Get knockout match templates for later stages (not round32, as it's already created)
-            knockout_templates = db.query(MatchTemplate).filter(
-                MatchTemplate.stage.in_(["round16", "quarter", "semi", "final", "third_place"])
-            ).order_by(MatchTemplate.id).all()
+            knockout_templates = DBReader.get_match_templates_by_stages_ordered(
+                db, ["round16", "quarter", "semi", "final", "third_place"]
+            )
             
             created_count = 0
             
             for template in knockout_templates:
                 # Check if prediction already exists for this template
-                existing_prediction = db.query(KnockoutStagePrediction).filter(
-                    KnockoutStagePrediction.user_id == user_id,
-                    KnockoutStagePrediction.template_match_id == template.id
-                ).first()
+                existing_prediction = DBReader.get_knockout_prediction(
+                    db, user_id, template.id, is_draft=False
+                )
                 
                 if existing_prediction:
                     # Prediction already exists, skip
                     continue
                 
                 # Find the corresponding KnockoutStageResult
-                knockout_result = db.query(KnockoutStageResult).filter(
-                    KnockoutStageResult.match_id == template.id
-                ).first()
+                knockout_result = DBReader.get_knockout_result(db, template.id)
                 
                 if not knockout_result:
                     # If result doesn't exist, skip this template
                     continue
                 
                 # Create empty prediction (no teams, no winner)
-                prediction = KnockoutStagePrediction(
-                    user_id=user_id,
-                    knockout_result_id=knockout_result.id,
-                    template_match_id=template.id,
-                    stage=template.stage,
+                DBWriter.create_knockout_prediction(
+                    db,
+                    user_id,
+                    knockout_result.id,
+                    template.id,
+                    template.stage,
+                    is_draft=False,
                     team1_id=None,
                     team2_id=None,
                     winner_team_id=None,
-                    status="gray",  # Default status
+                    status="gray",
                     is_editable=True
                 )
-                
-                db.add(prediction)
                 created_count += 1
             
             if created_count > 0:
-                db.commit()
+                DBUtils.commit(db)
                 print(f"Created {created_count} empty knockout predictions for user {user_id}")
             else:
                 print(f"No new empty knockout predictions needed for user {user_id}")
             
         except Exception as e:
-            db.rollback()
+            DBUtils.rollback(db)
             print(f"Error creating empty knockout predictions for user {user_id}: {e}")
             # Don't raise exception - third place prediction creation should succeed even if this fails
     
@@ -116,10 +109,10 @@ class ThirdPlacePredictionService:
     def _create_new_third_place_prediction(db: Session, user_id: int, 
                                           advancing_team_ids: List[int]) -> Dict[str, Any]:
         """Create a new third place prediction"""
-        new_prediction = DBPredRepository.create_third_place_prediction(
+        new_prediction = DBWriter.create_third_place_prediction(
             db, user_id, advancing_team_ids
         )
-        DBPredRepository.commit(db)
+        DBUtils.commit(db)
         
         ThirdPlacePredictionService._update_knockout_predictions_for_third_place(db, user_id, advancing_team_ids)
         
@@ -145,7 +138,7 @@ class ThirdPlacePredictionService:
         if validation_error:
             return validation_error
         
-        existing_prediction = DBPredRepository.get_third_place_prediction_by_user(db, user_id)
+        existing_prediction = DBReader.get_third_place_prediction(db, user_id)
         
         if existing_prediction:
             return ThirdPlacePredictionService._update_existing_third_place_prediction(
@@ -245,7 +238,7 @@ class ThirdPlacePredictionService:
     @staticmethod
     def _build_third_place_teams(db: Session, user_id: int, advancing_team_ids: List[int]) -> List[Dict[str, Any]]:
         """Build list of third place teams with is_selected flag"""
-        group_predictions = DBPredRepository.get_group_predictions_by_user(db, user_id)
+        group_predictions = DBReader.get_group_predictions_by_user(db, user_id)
         
         if len(group_predictions) != 12:
             return []
@@ -253,10 +246,10 @@ class ThirdPlacePredictionService:
         third_place_teams = []
         for pred in group_predictions:
             third_place_team_id = pred.third_place
-            team = DBPredRepository.get_team(db, third_place_team_id)
+            team = DBReader.get_team(db, third_place_team_id)
             
             if team:
-                group = DBPredRepository.get_group(db, pred.group_id)
+                group = DBReader.get_group(db, pred.group_id)
                 group_name = group.name if group else f"Group {pred.group_id}"
                 
                 third_place_teams.append({
@@ -312,13 +305,13 @@ class ThirdPlacePredictionService:
         """
         Get unified third-place data: eligible teams + predictions with is_selected field
         """
-        prediction = DBPredRepository.get_third_place_prediction_by_user(db, user_id)
+        prediction = DBReader.get_third_place_prediction(db, user_id)
         
         advancing_team_ids = ThirdPlacePredictionService._extract_advancing_team_ids(prediction)
         prediction_info = ThirdPlacePredictionService._build_prediction_info(prediction)
         
         # Validate that user has predicted all 12 groups
-        group_predictions = DBPredRepository.get_group_predictions_by_user(db, user_id)
+        group_predictions = DBReader.get_group_predictions_by_user(db, user_id)
         if len(group_predictions) != 12:
             return {"error": "User must predict all 12 groups first"}
         
@@ -326,8 +319,8 @@ class ThirdPlacePredictionService:
             db, user_id, advancing_team_ids
         )
         
-        user_scores = DBPredRepository.get_user_scores(db, user_id)
-        third_place_result = DBPredRepository.get_third_place_result(db)
+        user_scores = DBReader.get_user_scores(db, user_id)
+        third_place_result = DBReader.get_third_place_result(db)
         
         # If result exists, make prediction not editable
         if third_place_result and prediction:

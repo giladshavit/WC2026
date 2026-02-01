@@ -2,12 +2,13 @@ import random
 import string
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, desc
+from sqlalchemy import desc
 from fastapi import HTTPException, status
 
 from models.league import League, LeagueMembership
 from models.user import User
 from models.user_scores import UserScores
+from services.database import DBReader, DBWriter, DBUtils
 
 class LeagueService:
     
@@ -27,28 +28,24 @@ class LeagueService:
             invite_code = LeagueService.generate_invite_code()
             
             # Check if code already exists (very unlikely but safe)
-            while db.query(League).filter(League.invite_code == invite_code).first():
+            while DBReader.get_league_by_invite_code(db, invite_code):
                 invite_code = LeagueService.generate_invite_code()
             
             # Create the league
-            new_league = League(
+            new_league = DBWriter.create_league(
+                db,
                 name=name,
-                description=description,
+                created_by=user_id,
                 invite_code=invite_code,
-                created_by=user_id
+                description=description
             )
             
-            db.add(new_league)
-            db.commit()
-            db.refresh(new_league)
+            DBUtils.commit(db)
+            DBUtils.refresh(db, new_league)
             
             # Automatically join the creator to the league
-            membership = LeagueMembership(
-                league_id=new_league.id,
-                user_id=user_id
-            )
-            db.add(membership)
-            db.commit()
+            DBWriter.create_league_membership(db, new_league.id, user_id)
+            DBUtils.commit(db)
             
             return {
                 "id": new_league.id,
@@ -61,7 +58,7 @@ class LeagueService:
             }
             
         except Exception as e:
-            db.rollback()
+            DBUtils.rollback(db)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to create league: {str(e)}"
@@ -72,12 +69,7 @@ class LeagueService:
         """Join a league using an invite code."""
         try:
             # Find the league by invite code
-            league = db.query(League).filter(
-                and_(
-                    League.invite_code == invite_code,
-                    League.is_active == True
-                )
-            ).first()
+            league = DBReader.get_active_league_by_invite_code(db, invite_code)
             
             if not league:
                 raise HTTPException(
@@ -86,12 +78,7 @@ class LeagueService:
                 )
             
             # Check if user is already a member
-            existing_membership = db.query(LeagueMembership).filter(
-                and_(
-                    LeagueMembership.league_id == league.id,
-                    LeagueMembership.user_id == user_id
-                )
-            ).first()
+            existing_membership = DBReader.get_league_membership(db, league.id, user_id)
             
             if existing_membership:
                 raise HTTPException(
@@ -100,12 +87,8 @@ class LeagueService:
                 )
             
             # Add user to the league
-            membership = LeagueMembership(
-                league_id=league.id,
-                user_id=user_id
-            )
-            db.add(membership)
-            db.commit()
+            membership = DBWriter.create_league_membership(db, league.id, user_id)
+            DBUtils.commit(db)
             
             return {
                 "league_id": league.id,
@@ -116,7 +99,7 @@ class LeagueService:
         except HTTPException:
             raise
         except Exception as e:
-            db.rollback()
+            DBUtils.rollback(db)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to join league: {str(e)}"
@@ -126,18 +109,14 @@ class LeagueService:
     def get_user_leagues(db: Session, user_id: int) -> List[Dict[str, Any]]:
         """Get all leagues that a user is a member of."""
         try:
-            memberships = db.query(LeagueMembership).filter(
-                LeagueMembership.user_id == user_id
-            ).all()
+            memberships = DBReader.get_league_memberships_by_user(db, user_id)
             
             leagues = []
             for membership in memberships:
                 league = membership.league
                 if league and league.is_active:
                     # Count members
-                    member_count = db.query(LeagueMembership).filter(
-                        LeagueMembership.league_id == league.id
-                    ).count()
+                    member_count = DBReader.get_league_membership_count(db, league.id)
                     
                     leagues.append({
                         "id": league.id,
@@ -163,9 +142,7 @@ class LeagueService:
         """Get global standings (all users from user_scores)."""
         try:
             # Get all users with their scores using LEFT JOIN, ordered by total points descending
-            standings = db.query(User, UserScores).outerjoin(
-                UserScores, User.id == UserScores.user_id
-            ).order_by(desc(UserScores.total_points)).all()
+            standings = DBReader.get_global_standings(db)
             
             result = []
             for rank, (user, scores) in enumerate(standings, 1):
@@ -201,12 +178,7 @@ class LeagueService:
         """Get league standings (only league members with their scores)."""
         try:
             # Verify league exists
-            league = db.query(League).filter(
-                and_(
-                    League.id == league_id,
-                    League.is_active == True
-                )
-            ).first()
+            league = DBReader.get_active_league_by_id(db, league_id)
             
             if not league:
                 raise HTTPException(
@@ -215,13 +187,7 @@ class LeagueService:
                 )
             
             # Get league members with their scores using LEFT JOIN
-            standings = db.query(User, UserScores, LeagueMembership).join(
-                LeagueMembership, User.id == LeagueMembership.user_id
-            ).outerjoin(
-                UserScores, User.id == UserScores.user_id
-            ).filter(
-                LeagueMembership.league_id == league_id
-            ).order_by(desc(UserScores.total_points)).all()
+            standings = DBReader.get_league_standings(db, league_id)
             
             result = []
             for rank, (user, scores, membership) in enumerate(standings, 1):
@@ -259,12 +225,7 @@ class LeagueService:
     def get_league_info(db: Session, league_id: int) -> Dict[str, Any]:
         """Get basic league information."""
         try:
-            league = db.query(League).filter(
-                and_(
-                    League.id == league_id,
-                    League.is_active == True
-                )
-            ).first()
+            league = DBReader.get_active_league_by_id(db, league_id)
             
             if not league:
                 raise HTTPException(
@@ -273,9 +234,7 @@ class LeagueService:
                 )
             
             # Count members
-            member_count = db.query(LeagueMembership).filter(
-                LeagueMembership.league_id == league_id
-            ).count()
+            member_count = DBReader.get_league_membership_count(db, league_id)
             
             return {
                 "id": league.id,

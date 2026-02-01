@@ -1,3 +1,10 @@
+"""
+DEPRECATED: This file is deprecated and will be removed in Phase 2.
+Use backend/services/database/ instead:
+  - DBReader for all read operations
+  - DBWriter for all write operations
+  - DBUtils for commit/flush/rollback
+"""
 from typing import List, Optional, Any
 from sqlalchemy.orm import Session
 from models.predictions import (

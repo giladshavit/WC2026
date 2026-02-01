@@ -9,6 +9,7 @@ from models.user_scores import UserScores
 from models.matches_template import MatchTemplate
 from models.results import KnockoutStageResult
 from models.predictions import KnockoutStagePrediction
+from services.database import DBReader, DBWriter, DBUtils
 
 class AuthService:
     """Service for handling user authentication and authorization."""
@@ -64,7 +65,7 @@ class AuthService:
     def register_user(db: Session, username: str, password: str, name: str) -> Dict[str, Any]:
         """Register a new user."""
         # Check if username already exists
-        existing_user = db.query(User).filter(User.username == username).first()
+        existing_user = DBReader.get_user_by_username(db, username)
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -75,30 +76,20 @@ class AuthService:
         password_hash = AuthService.hash_password(password)
         
         # Create new user
-        new_user = User(
+        new_user = DBWriter.create_user(
+            db,
             username=username,
             password_hash=password_hash,
             name=name,
-            email=f"{username}@temp.com"  # Temporary email for now
+            email=f"{username}@temp.com"
         )
         
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
+        DBUtils.commit(db)
+        DBUtils.refresh(db, new_user)
         
         # Create user scores entry automatically
-        user_scores = UserScores(
-            user_id=new_user.id,
-            matches_score=0,
-            groups_score=0,
-            third_place_score=0,
-            knockout_score=0,
-            penalty=0,
-            total_points=0
-        )
-        
-        db.add(user_scores)
-        db.commit()
+        DBWriter.create_user_scores(db, new_user.id)
+        DBUtils.commit(db)
         
         # Create empty knockout predictions for the new user
         AuthService._create_empty_knockout_predictions(db, new_user.id)
@@ -118,7 +109,7 @@ class AuthService:
     def login_user(db: Session, username: str, password: str) -> Dict[str, Any]:
         """Authenticate user and return access token."""
         # Find user by username
-        user = db.query(User).filter(User.username == username).first()
+        user = DBReader.get_user_by_username(db, username)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -140,8 +131,8 @@ class AuthService:
             )
         
         # Update last login
-        user.last_login = datetime.utcnow()
-        db.commit()
+        DBWriter.update_user_last_login(db, user, datetime.utcnow())
+        DBUtils.commit(db)
         
         # Create access token
         access_token = AuthService.create_access_token(user.id, user.username)
@@ -166,7 +157,7 @@ class AuthService:
                 detail="Invalid token"
             )
         
-        user = db.query(User).filter(User.id == user_id).first()
+        user = DBReader.get_user(db, user_id)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -190,28 +181,26 @@ class AuthService:
         """
         try:
             # Delete all existing knockout predictions for this user first
-            existing_predictions = db.query(KnockoutStagePrediction).filter(
-                KnockoutStagePrediction.user_id == user_id
-            ).all()
+            existing_predictions = DBReader.get_knockout_predictions_by_user(
+                db, user_id, stage=None, is_draft=False
+            )
             
             if existing_predictions:
                 for prediction in existing_predictions:
-                    db.delete(prediction)
-                db.flush()
+                    DBWriter.delete_knockout_prediction(db, prediction)
+                DBUtils.flush(db)
             
             # Get all knockout match templates
-            knockout_templates = db.query(MatchTemplate).filter(
-                MatchTemplate.stage.in_(["round32", "round16", "quarter", "semi", "final", "third_place"])
-            ).order_by(MatchTemplate.id).all()
+            knockout_templates = DBReader.get_match_templates_by_stages_ordered(
+                db, ["round32", "round16", "quarter", "semi", "final", "third_place"]
+            )
             
             created_count = 0
             skipped_count = 0
             
             for template in knockout_templates:
                 # Find the corresponding KnockoutStageResult
-                knockout_result = db.query(KnockoutStageResult).filter(
-                    KnockoutStageResult.match_id == template.id
-                ).first()
+                knockout_result = DBReader.get_knockout_result(db, template.id)
                 
                 if not knockout_result:
                     # If result doesn't exist, skip this template
@@ -219,25 +208,25 @@ class AuthService:
                     continue
                 
                 # Create empty prediction (no teams, no winner)
-                prediction = KnockoutStagePrediction(
-                    user_id=user_id,
-                    knockout_result_id=knockout_result.id,
-                    template_match_id=template.id,
-                    stage=template.stage,
+                DBWriter.create_knockout_prediction(
+                    db,
+                    user_id,
+                    knockout_result.id,
+                    template.id,
+                    template.stage,
+                    is_draft=False,
                     team1_id=None,
                     team2_id=None,
                     winner_team_id=None,
-                    status="gray",  # Default status
+                    status="gray",
                     is_editable=True
                 )
-                
-                db.add(prediction)
                 created_count += 1
             
-            db.commit()
+            DBUtils.commit(db)
             print(f"Created {created_count} empty knockout predictions for user {user_id} (skipped {skipped_count})")
             
         except Exception as e:
-            db.rollback()
+            DBUtils.rollback(db)
             print(f"Error creating knockout predictions for user {user_id}: {e}")
             # Don't raise exception - user creation should succeed even if predictions fail

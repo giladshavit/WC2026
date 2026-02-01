@@ -5,7 +5,7 @@ from models.matches import Match, MatchStatus
 from models.predictions import MatchPrediction
 from models.user_scores import UserScores
 from models.results import MatchResult
-from .db_prediction_repository import DBPredRepository
+from services.database import DBReader, DBWriter, DBUtils
 from services.scoring_service import ScoringService
 
 
@@ -20,7 +20,7 @@ class MatchPredictionService:
         """
         Get all matches with the user's predictions and user scores.
         """
-        matches = DBPredRepository.get_all_matches(db)
+        matches = DBReader.get_all_matches(db)
         all_matches: List[Dict[str, Any]] = []
 
         for match in matches:
@@ -29,16 +29,16 @@ class MatchPredictionService:
 
             MatchPredictionService._update_match_status_if_needed(match, db)
 
-            prediction = DBPredRepository.get_match_prediction_by_user_and_match(db, user_id, match.id)
+            prediction = DBReader.get_match_prediction(db, user_id, match.id)
 
-            actual_result = DBPredRepository.get_match_result_by_match(db, match.id)
+            actual_result = DBReader.get_match_result(db, match.id)
 
             match_data = MatchPredictionService._create_match_data(match, prediction, actual_result)
             all_matches.append(match_data)
 
         all_matches.sort(key=lambda x: x["date"])
 
-        user_scores = DBPredRepository.get_user_scores(db, user_id)
+        user_scores = DBReader.get_user_scores(db, user_id)
 
         return {
             "matches": all_matches,
@@ -100,16 +100,19 @@ class MatchPredictionService:
         current_time = datetime.utcnow()
         time_since_match_start = (current_time - match.date).total_seconds() / 3600
 
+        new_status = match.status
         if match.status == MatchStatus.SCHEDULED.value:
             if 0 <= time_since_match_start <= 1.0:
-                match.status = MatchStatus.LIVE_EDITABLE.value
+                new_status = MatchStatus.LIVE_EDITABLE.value
             elif time_since_match_start > 1.0:
-                match.status = MatchStatus.LIVE_LOCKED.value
+                new_status = MatchStatus.LIVE_LOCKED.value
         elif match.status == MatchStatus.LIVE_EDITABLE.value:
             if time_since_match_start > 1.0:
-                match.status = MatchStatus.LIVE_LOCKED.value
+                new_status = MatchStatus.LIVE_LOCKED.value
 
-        DBPredRepository.commit(db)
+        if new_status != match.status:
+            DBWriter.set_match_status(db, match, new_status)
+        DBUtils.commit(db)
 
     @staticmethod
     def _are_both_teams_set(match: Match) -> bool:
@@ -124,12 +127,12 @@ class MatchPredictionService:
         Update match status (admin only).
         """
         try:
-            match = DBPredRepository.get_match(db, match_id)
+            match = DBReader.get_match(db, match_id)
             if not match:
                 return {"error": "Match not found"}
 
-            match.status = status
-            DBPredRepository.commit(db)
+            DBWriter.set_match_status(db, match, status)
+            DBUtils.commit(db)
 
             return {
                 "id": match.id,
@@ -137,7 +140,7 @@ class MatchPredictionService:
                 "updated": True,
             }
         except Exception as exc:
-            DBPredRepository.rollback(db)
+            DBUtils.rollback(db)
             return {"error": f"Failed to update match status: {str(exc)}"}
 
     # ========================================
@@ -159,7 +162,7 @@ class MatchPredictionService:
         predicted_winner = MatchPredictionService._calculate_predicted_winner(match, home_score, away_score)
         
         # Check if prediction already exists for this match
-        existing_prediction = DBPredRepository.get_match_prediction_by_user_and_match(db, user_id, match_id)
+        existing_prediction = DBReader.get_match_prediction(db, user_id, match_id)
         
         if existing_prediction:
             return MatchPredictionService._update_existing_prediction(
@@ -194,10 +197,10 @@ class MatchPredictionService:
             results.append(result)
             
             # Force database flush after each update
-            DBPredRepository.flush(db)
+            DBUtils.flush(db)
         
         # Commit all changes to database
-        DBPredRepository.commit(db)
+        DBUtils.commit(db)
         
         return {
             "predictions": results,
@@ -211,7 +214,7 @@ class MatchPredictionService:
         Validate that match exists and is editable
         Returns: (match, error_dict) - if error, match is None and error_dict is returned
         """
-        match = DBPredRepository.get_match(db, match_id)
+        match = DBReader.get_match(db, match_id)
         if not match:
             return None, {"error": "Match not found"}
         
@@ -253,10 +256,14 @@ class MatchPredictionService:
         """
         Update an existing match prediction
         """
-        DBPredRepository.update_match_prediction(
-            db, existing_prediction, home_score, away_score, predicted_winner
+        DBWriter.update_match_prediction(
+            db,
+            existing_prediction,
+            home_score=home_score,
+            away_score=away_score,
+            predicted_winner=predicted_winner
         )
-        DBPredRepository.commit(db)
+        DBUtils.commit(db)
         
         penalty_applied = MatchPredictionService._apply_penalty_if_needed(db, user_id, match)
         
@@ -277,10 +284,10 @@ class MatchPredictionService:
         """
         Create a new match prediction
         """
-        new_prediction = DBPredRepository.create_match_prediction(
+        new_prediction = DBWriter.create_match_prediction(
             db, user_id, match_id, home_score, away_score, predicted_winner
         )
-        DBPredRepository.commit(db)
+        DBUtils.commit(db)
         
         penalty_applied = MatchPredictionService._apply_penalty_if_needed(db, user_id, match)
         

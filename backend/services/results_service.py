@@ -9,6 +9,7 @@ from models.predictions import KnockoutStagePrediction
 from models.groups import Group
 from .scoring_service import ScoringService
 from .predictions import PredictionService, PredictionStatus
+from services.database import DBReader, DBWriter, DBUtils
 
 
 class ResultsService:
@@ -21,20 +22,13 @@ class ResultsService:
         Returns matches with home_team, away_team, stage, date, and result data.
         """
         # Get all matches where both teams are defined
-        matches = db.query(Match).filter(
-            and_(
-                Match.home_team_id.isnot(None),
-                Match.away_team_id.isnot(None)
-            )
-        ).all()
+        matches = DBReader.get_matches_with_teams(db)
         
         matches_with_results = []
         
         for match in matches:
             # Get the result if it exists
-            result = db.query(MatchResult).filter(
-                MatchResult.match_id == match.id
-            ).first()
+            result = DBReader.get_match_result(db, match.id)
             
             match_data = {
                 "match_id": match.id,
@@ -92,7 +86,7 @@ class ResultsService:
         Winner team ID is calculated automatically based on final scores.
         """
         # Verify the match exists and has both teams
-        match = db.query(Match).filter(Match.id == match_id).first()
+        match = DBReader.get_match(db, match_id)
         if not match:
             raise ValueError(f"Match with ID {match_id} not found")
         
@@ -113,25 +107,13 @@ class ResultsService:
         )
         
         # Check if result already exists
-        existing_result = db.query(MatchResult).filter(
-            MatchResult.match_id == match_id
-        ).first()
+        existing_result = DBReader.get_match_result(db, match_id)
         
         if existing_result:
             # Update existing result
-            existing_result.home_team_score = home_team_score
-            existing_result.away_team_score = away_team_score
-            existing_result.home_team_score_120 = home_team_score_120
-            existing_result.away_team_score_120 = away_team_score_120
-            existing_result.home_team_penalties = home_team_penalties
-            existing_result.away_team_penalties = away_team_penalties
-            existing_result.outcome_type = outcome_type
-            existing_result.winner_team_id = winner_team_id
-            result = existing_result
-        else:
-            # Create new result
-            result = MatchResult(
-                match_id=match_id,
+            result = DBWriter.update_match_result(
+                db,
+                existing_result,
                 home_team_score=home_team_score,
                 away_team_score=away_team_score,
                 home_team_score_120=home_team_score_120,
@@ -141,14 +123,27 @@ class ResultsService:
                 outcome_type=outcome_type,
                 winner_team_id=winner_team_id
             )
-            db.add(result)
+        else:
+            # Create new result
+            result = DBWriter.create_match_result(
+                db,
+                match_id=match_id,
+                home_score=home_team_score,
+                away_score=away_team_score,
+                winner_id=winner_team_id,
+                home_score_120=home_team_score_120,
+                away_score_120=away_team_score_120,
+                home_penalties=home_team_penalties,
+                away_penalties=away_team_penalties,
+                outcome_type=outcome_type
+            )
         
-        db.commit()
-        db.refresh(result)
+        DBUtils.commit(db)
+        DBUtils.refresh(db, result)
         
         # Update match status to finished
-        match.status = "finished"
-        db.commit()
+        DBWriter.set_match_status(db, match, "finished")
+        DBUtils.commit(db)
         
         # Check if this is a knockout match
         is_knockout = match.stage in ['round32', 'round16', 'quarter', 'semi', 'final']
@@ -200,47 +195,48 @@ class ResultsService:
             raise ValueError("All 4 teams must be different")
         
         # Check if result already exists
-        existing_result = db.query(GroupStageResult).filter(
-            GroupStageResult.group_id == group_id
-        ).first()
+        existing_result = DBReader.get_group_stage_result(db, group_id)
         
         if existing_result:
             # Update existing result
-            existing_result.first_place = first_place_team_id
-            existing_result.second_place = second_place_team_id
-            existing_result.third_place = third_place_team_id
-            existing_result.fourth_place = fourth_place_team_id
-            result = existing_result
-        else:
-            # Create new result
-            result = GroupStageResult(
-                group_id=group_id,
+            result = DBWriter.update_group_stage_result(
+                db,
+                existing_result,
                 first_place=first_place_team_id,
                 second_place=second_place_team_id,
                 third_place=third_place_team_id,
                 fourth_place=fourth_place_team_id
             )
-            db.add(result)
+        else:
+            # Create new result
+            result = DBWriter.create_group_stage_result(
+                db,
+                group_id=group_id,
+                first=first_place_team_id,
+                second=second_place_team_id,
+                third=third_place_team_id,
+                fourth=fourth_place_team_id
+            )
         
         # Update is_eliminated for new teams
         # Places 1, 2, 3: not eliminated (False)
         # Place 4: eliminated (True)
-        first_place_team = db.query(Team).filter(Team.id == first_place_team_id).first()
-        second_place_team = db.query(Team).filter(Team.id == second_place_team_id).first()
-        third_place_team = db.query(Team).filter(Team.id == third_place_team_id).first()
-        fourth_place_team = db.query(Team).filter(Team.id == fourth_place_team_id).first()
+        first_place_team = DBReader.get_team(db, first_place_team_id)
+        second_place_team = DBReader.get_team(db, second_place_team_id)
+        third_place_team = DBReader.get_team(db, third_place_team_id)
+        fourth_place_team = DBReader.get_team(db, fourth_place_team_id)
         
         if first_place_team:
-            first_place_team.is_eliminated = False
+            DBWriter.update_team_eliminated(db, first_place_team, False)
         if second_place_team:
-            second_place_team.is_eliminated = False
+            DBWriter.update_team_eliminated(db, second_place_team, False)
         if third_place_team:
-            third_place_team.is_eliminated = False
+            DBWriter.update_team_eliminated(db, third_place_team, False)
         if fourth_place_team:
-            fourth_place_team.is_eliminated = True
+            DBWriter.update_team_eliminated(db, fourth_place_team, True)
         
-        db.commit()
-        db.refresh(result)
+        DBUtils.commit(db)
+        DBUtils.refresh(db, result)
         
         # Update scoring for all users who predicted this group
         ScoringService.update_group_scoring_for_all_users(db, result)
@@ -259,14 +255,12 @@ class ResultsService:
         """
         Get all groups with their current results (admin only).
         """
-        groups = db.query(Group).all()
+        groups = DBReader.get_all_groups(db)
         groups_with_results = []
         
         for group in groups:
             # Get the result if it exists
-            result = db.query(GroupStageResult).filter(
-                GroupStageResult.group_id == group.id
-            ).first()
+            result = DBReader.get_group_stage_result(db, group.id)
             
             group_data = {
                 "group_id": group.id,
@@ -314,7 +308,7 @@ class ResultsService:
         """
         Get current third place qualifying results and eligible teams (admin only).
         """
-        result = db.query(ThirdPlaceResult).first()
+        result = DBReader.get_third_place_result(db)
         
         # Get eligible teams (teams that finished in 3rd place)
         eligible_teams = ResultsService.get_third_place_teams_from_groups(db)
@@ -366,22 +360,13 @@ class ResultsService:
             raise ValueError("All 8 teams must be different")
         
         # Check if result already exists
-        existing_result = db.query(ThirdPlaceResult).first()
+        existing_result = DBReader.get_third_place_result(db)
         
         if existing_result:
             # Update existing result
-            existing_result.first_team_qualifying = first_team_qualifying
-            existing_result.second_team_qualifying = second_team_qualifying
-            existing_result.third_team_qualifying = third_team_qualifying
-            existing_result.fourth_team_qualifying = fourth_team_qualifying
-            existing_result.fifth_team_qualifying = fifth_team_qualifying
-            existing_result.sixth_team_qualifying = sixth_team_qualifying
-            existing_result.seventh_team_qualifying = seventh_team_qualifying
-            existing_result.eighth_team_qualifying = eighth_team_qualifying
-            result = existing_result
-        else:
-            # Create new result
-            result = ThirdPlaceResult(
+            result = DBWriter.update_third_place_result(
+                db,
+                existing_result,
                 first_team_qualifying=first_team_qualifying,
                 second_team_qualifying=second_team_qualifying,
                 third_team_qualifying=third_team_qualifying,
@@ -391,10 +376,22 @@ class ResultsService:
                 seventh_team_qualifying=seventh_team_qualifying,
                 eighth_team_qualifying=eighth_team_qualifying
             )
-            db.add(result)
+        else:
+            # Create new result
+            result = DBWriter.create_third_place_result(
+                db,
+                first_team_qualifying=first_team_qualifying,
+                second_team_qualifying=second_team_qualifying,
+                third_team_qualifying=third_team_qualifying,
+                fourth_team_qualifying=fourth_team_qualifying,
+                fifth_team_qualifying=fifth_team_qualifying,
+                sixth_team_qualifying=sixth_team_qualifying,
+                seventh_team_qualifying=seventh_team_qualifying,
+                eighth_team_qualifying=eighth_team_qualifying
+            )
         
-        db.commit()
-        db.refresh(result)
+        DBUtils.commit(db)
+        DBUtils.refresh(db, result)
         
         # Update is_eliminated for third place teams
         # Teams that qualify: not eliminated (False)
@@ -405,17 +402,21 @@ class ResultsService:
         ]
         
         # Get all third place teams from group stage results
-        group_results = db.query(GroupStageResult).all()
+        group_results = DBReader.get_all_group_stage_results(db)
         all_third_place_team_ids = [gr.third_place for gr in group_results]
         
         # Update is_eliminated for all third place teams
         for third_place_team_id in all_third_place_team_ids:
-            team = db.query(Team).filter(Team.id == third_place_team_id).first()
+            team = DBReader.get_team(db, third_place_team_id)
             if team:
                 # If team is in qualifying list, not eliminated; otherwise, eliminated
-                team.is_eliminated = (third_place_team_id not in qualifying_team_ids)
+                DBWriter.update_team_eliminated(
+                    db,
+                    team,
+                    third_place_team_id not in qualifying_team_ids
+                )
         
-        db.commit()
+        DBUtils.commit(db)
         
         # Update scoring for all users who predicted third place qualifying teams
         ScoringService.update_third_place_scoring_for_all_users(db, result)
@@ -438,17 +439,15 @@ class ResultsService:
         Get all teams that finished in 3rd place from group stage results.
         This is used to populate the dropdown for third place qualifying selection.
         """
-        groups = db.query(Group).all()
+        groups = DBReader.get_all_groups(db)
         third_place_teams = []
         
         for group in groups:
-            result = db.query(GroupStageResult).filter(
-                GroupStageResult.group_id == group.id
-            ).first()
+            result = DBReader.get_group_stage_result(db, group.id)
             
             if result and result.third_place:
                 # Get team details
-                team = db.query(Team).filter(Team.id == result.third_place).first()
+                team = DBReader.get_team(db, result.third_place)
                 if team:
                     third_place_teams.append({
                         "id": team.id,
@@ -468,29 +467,23 @@ class ResultsService:
         Only returns matches where both teams are defined.
         """
         # Get all knockout matches
-        knockout_matches = db.query(Match).filter(
-            Match.stage.in_(['round32', 'round16', 'quarter', 'semi', 'final'])
-        ).filter(
-            Match.home_team_id.isnot(None),
-            Match.away_team_id.isnot(None)
-        ).all()
+        knockout_matches = DBReader.get_knockout_matches_with_teams(
+            db,
+            ['round32', 'round16', 'quarter', 'semi', 'final']
+        )
         
         matches_with_results = []
         
         for match in knockout_matches:
             # Get the knockout stage result
-            knockout_result = db.query(KnockoutStageResult).filter(
-                KnockoutStageResult.match_id == match.id
-            ).first()
+            knockout_result = DBReader.get_knockout_result(db, match.id)
             
             # Get match result (scores)
-            match_result = db.query(MatchResult).filter(
-                MatchResult.match_id == match.id
-            ).first()
+            match_result = DBReader.get_match_result(db, match.id)
             
             # Get team details
-            home_team = db.query(Team).filter(Team.id == match.home_team_id).first()
-            away_team = db.query(Team).filter(Team.id == match.away_team_id).first()
+            home_team = DBReader.get_team(db, match.home_team_id)
+            away_team = DBReader.get_team(db, match.away_team_id)
             
             if home_team and away_team:
                 match_data = {
@@ -591,15 +584,13 @@ class ResultsService:
         This is called when a knockout match result is entered.
         """
         # Find the knockout stage result for this match
-        knockout_result = db.query(KnockoutStageResult).filter(
-            KnockoutStageResult.match_id == match_id
-        ).first()
+        knockout_result = DBReader.get_knockout_result(db, match_id)
         
         if knockout_result:
             # Update the winner
-            knockout_result.winner_team_id = winner_team_id
-            db.commit()
-            db.refresh(knockout_result)
+            DBWriter.update_knockout_result(db, knockout_result, winner_team_id=winner_team_id)
+            DBUtils.commit(db)
+            DBUtils.refresh(db, knockout_result)
             print(f"Updated KnockoutStageResult for match {match_id} with winner {winner_team_id}")
             
             # Update scoring for knockout stage predictions
@@ -617,13 +608,11 @@ class ResultsService:
         Find the next knockout match and update it with the winner.
         This is called when a knockout match result is entered.
         """
-        match = db.query(Match).filter(Match.id == match_id).first()
+        match = DBReader.get_match(db, match_id)
         if not match:
             return
         
-        current_template = db.query(MatchTemplate).filter(
-            MatchTemplate.id == match.match_number
-        ).first()
+        current_template = DBReader.get_match_template(db, match.match_number)
         
         if not current_template or not current_template.winner_next_knockout_match:
             return
@@ -631,28 +620,24 @@ class ResultsService:
         next_template_id = current_template.winner_next_knockout_match
         position = current_template.winner_next_position
         
-        next_match = db.query(Match).filter(
-            Match.match_number == next_template_id
-        ).first()
+        next_match = DBReader.get_match_by_number(db, next_template_id)
         
         if not next_match:
             return
         
-        next_knockout_result = db.query(KnockoutStageResult).filter(
-            KnockoutStageResult.match_id == next_match.id
-        ).first()
+        next_knockout_result = DBReader.get_knockout_result(db, next_match.id)
         
         if not next_knockout_result:
             return
         
         if position == 1:
-            next_knockout_result.team_1 = winner_team_id
-            next_match.home_team_id = winner_team_id
+            DBWriter.update_knockout_result(db, next_knockout_result, team_1=winner_team_id)
+            DBWriter.update_match(db, next_match, home_team_id=winner_team_id)
         elif position == 2:
-            next_knockout_result.team_2 = winner_team_id
-            next_match.away_team_id = winner_team_id
+            DBWriter.update_knockout_result(db, next_knockout_result, team_2=winner_team_id)
+            DBWriter.update_match(db, next_match, away_team_id=winner_team_id)
         
-        db.commit()
+        DBUtils.commit(db)
     
     @staticmethod
     def get_predicted_loser(prediction):
@@ -679,15 +664,11 @@ class ResultsService:
         מעדכן את הסטטוסים של כל ההימורים של 32 האחרונות בהתאם לתוצאות
         """
         # שלוף את כל ההימורים של 32 האחרונות
-        predictions = db.query(KnockoutStagePrediction).filter(
-            KnockoutStagePrediction.stage == 'round32'
-        ).all()
+        predictions = DBReader.get_knockout_predictions_by_stage(db, 'round32')
         
         for prediction in predictions:
             # שלוף את התוצאה האמיתית של המשחק הזה
-            result = db.query(KnockoutStageResult).filter(
-                KnockoutStageResult.match_id == prediction.template_match_id
-            ).first()
+            result = DBReader.get_knockout_result(db, prediction.template_match_id)
             
             if not result:
                 continue
@@ -702,7 +683,7 @@ class ResultsService:
             status = PredictionStatus.PREDICTED if (predicted_loser and ResultsService.is_team_in_result(predicted_loser, result)) else PredictionStatus.MIGHT_CHANGE_PREDICT
             PredictionService.set_status(prediction, status)
         
-        db.commit()
+        DBUtils.commit(db)
     
     @staticmethod
     def extract_match_id_from_winner_string(team_source: str) -> Optional[int]:
@@ -751,14 +732,12 @@ class ResultsService:
         visited.add(match_id)
         
         # Get the template for this match
-        template = db.query(MatchTemplate).filter(MatchTemplate.id == match_id).first()
+        template = DBReader.get_match_template(db, match_id)
         if not template:
             return False
         
         # Check if this match has actual results with teams
-        knockout_result = db.query(KnockoutStageResult).filter(
-            KnockoutStageResult.match_id == match_id
-        ).first()
+        knockout_result = DBReader.get_knockout_result(db, match_id)
         
         if knockout_result and knockout_result.team_1 and knockout_result.team_2:
             # Match has actual teams assigned - check if winner is one of them
@@ -873,15 +852,11 @@ class ResultsService:
         
         for stage_name in stages_to_update:
             # Get all predictions for this stage
-            predictions = db.query(KnockoutStagePrediction).filter(
-                KnockoutStagePrediction.stage == stage_name
-            ).all()
+            predictions = DBReader.get_knockout_predictions_by_stage(db, stage_name)
             
             for prediction in predictions:
                 # Get the match template
-                template = db.query(MatchTemplate).filter(
-                    MatchTemplate.id == prediction.template_match_id
-                ).first()
+                template = DBReader.get_match_template(db, prediction.template_match_id)
                 
                 if not template:
                     continue
@@ -893,15 +868,13 @@ class ResultsService:
                     continue  # Skip if we can't find source matches
                 
                 # Get the statuses of the two source predictions (for the same user)
-                source_pred_1 = db.query(KnockoutStagePrediction).filter(
-                    KnockoutStagePrediction.template_match_id == source_match_1_id,
-                    KnockoutStagePrediction.user_id == prediction.user_id
-                ).first()
+                source_pred_1 = DBReader.get_knockout_prediction(
+                    db, prediction.user_id, source_match_1_id, is_draft=False
+                )
                 
-                source_pred_2 = db.query(KnockoutStagePrediction).filter(
-                    KnockoutStagePrediction.template_match_id == source_match_2_id,
-                    KnockoutStagePrediction.user_id == prediction.user_id
-                ).first()
+                source_pred_2 = DBReader.get_knockout_prediction(
+                    db, prediction.user_id, source_match_2_id, is_draft=False
+                )
                 
                 if not source_pred_1 or not source_pred_2:
                     continue  # Skip if source predictions don't exist
@@ -914,7 +887,7 @@ class ResultsService:
                 if new_status:
                     PredictionService.set_status(prediction, new_status)
             
-            db.commit()
+            DBUtils.commit(db)
     
     @staticmethod
     def reset_all_user_scores(db: Session) -> Dict[str, Any]:
@@ -926,25 +899,20 @@ class ResultsService:
         
         try:
             # Get all user scores
-            all_scores = db.query(UserScores).all()
+            all_scores = DBReader.get_all_user_scores(db)
             count = 0
             
             for user_scores in all_scores:
-                user_scores.matches_score = 0
-                user_scores.groups_score = 0
-                user_scores.third_place_score = 0
-                user_scores.knockout_score = 0
-                user_scores.penalty = 0
-                user_scores.total_points = 0
+                DBWriter.reset_user_scores(db, user_scores)
                 count += 1
             
             # Reset all prediction points
-            match_pred_count = db.query(MatchPrediction).update({MatchPrediction.points: 0})
-            group_pred_count = db.query(GroupStagePrediction).update({GroupStagePrediction.points: 0})
-            third_place_pred_count = db.query(ThirdPlacePrediction).update({ThirdPlacePrediction.points: 0})
-            knockout_pred_count = db.query(KnockoutStagePrediction).update({KnockoutStagePrediction.points: 0})
+            match_pred_count = DBWriter.reset_match_prediction_points(db)
+            group_pred_count = DBWriter.reset_group_prediction_points(db)
+            third_place_pred_count = DBWriter.reset_third_place_prediction_points(db)
+            knockout_pred_count = DBWriter.reset_knockout_prediction_points(db)
             
-            db.commit()
+            DBUtils.commit(db)
             
             return {
                 "message": f"Successfully reset scores for {count} users and {match_pred_count + group_pred_count + third_place_pred_count + knockout_pred_count} predictions",
@@ -955,7 +923,7 @@ class ResultsService:
                 "knockout_predictions_reset": knockout_pred_count
             }
         except Exception as e:
-            db.rollback()
+            DBUtils.rollback(db)
             raise Exception(f"Error resetting user scores: {str(e)}")
     
     @staticmethod
@@ -996,14 +964,14 @@ class ResultsService:
             return  # Already invalid, stop
         
         # 2. If valid, change to invalid
-        setattr(next_prediction, is_valid_field, False)
-        db.flush()
+        DBWriter.update_knockout_prediction(db, next_prediction, **{is_valid_field: False})
+        DBUtils.flush(db)
         
         # 3. Check if this is the winner in the next prediction
         if next_prediction.winner_team_id == wrong_winner_team_id:
             # 4. If yes: change status to red and call recursively with next prediction
-            next_prediction.status = PredictionStatus.MUST_CHANGE_PREDICT.value
-            db.flush()
+            DBWriter.set_prediction_status(next_prediction, PredictionStatus.MUST_CHANGE_PREDICT.value)
+            DBUtils.flush(db)
             
             # Get the next prediction and position for recursive call
             next_next_prediction, next_next_position = KnockPredRefactorService._find_next_prediction_and_position(
@@ -1017,8 +985,8 @@ class ResultsService:
         else:
             # The winner is not the wrong winner - check if status is green (PREDICTED) and change to yellow (MIGHT_CHANGE_PREDICT)
             if next_prediction.status == PredictionStatus.PREDICTED.value:
-                next_prediction.status = PredictionStatus.MIGHT_CHANGE_PREDICT.value
-                db.flush()
+                DBWriter.set_prediction_status(next_prediction, PredictionStatus.MIGHT_CHANGE_PREDICT.value)
+                DBUtils.flush(db)
     
     @staticmethod
     def _set_predictions_not_editable(db: Session, match_id: int) -> List[KnockoutStagePrediction]:
@@ -1032,14 +1000,12 @@ class ResultsService:
         Returns:
             List of predictions that were updated
         """
-        predictions = db.query(KnockoutStagePrediction).filter(
-            KnockoutStagePrediction.template_match_id == match_id
-        ).all()
+        predictions = DBReader.get_knockout_predictions_by_match(db, match_id)
         
         for pred in predictions:
-            pred.is_editable = False
+            DBWriter.update_knockout_prediction(db, pred, is_editable=False)
         
-        db.flush()
+        DBUtils.flush(db)
         return predictions
     
     @staticmethod
@@ -1064,26 +1030,28 @@ class ResultsService:
         Returns:
             The knockout result object
         """
-        knockout_result = db.query(KnockoutStageResult).filter(
-            KnockoutStageResult.match_id == match_id
-        ).first()
+        knockout_result = DBReader.get_knockout_result(db, match_id)
         
         if knockout_result:
             # Update existing result
-            knockout_result.team_1 = team_1_id
-            knockout_result.team_2 = team_2_id
-            knockout_result.winner_team_id = winner_team_id
-        else:
-            # Create new result
-            knockout_result = KnockoutStageResult(
-                match_id=match_id,
+            DBWriter.update_knockout_result(
+                db,
+                knockout_result,
                 team_1=team_1_id,
                 team_2=team_2_id,
                 winner_team_id=winner_team_id
             )
-            db.add(knockout_result)
+        else:
+            # Create new result
+            knockout_result = DBWriter.create_knockout_result(
+                db,
+                match_id=match_id,
+                team1_id=team_1_id,
+                team2_id=team_2_id,
+                winner_id=winner_team_id
+            )
         
-        db.flush()
+        DBUtils.flush(db)
         return knockout_result
     
     @staticmethod
@@ -1117,7 +1085,7 @@ class ResultsService:
         """
         print(f"Updating knockout result for match {match_id}, team_1_id: {team_1_id}, team_2_id: {team_2_id}, winner_team_id: {winner_team_id}")
         # 1. Verify match exists
-        match = db.query(Match).filter(Match.id == match_id).first()
+        match = DBReader.get_match(db, match_id)
         if not match:
             raise ValueError(f"Match with ID {match_id} not found")
         
@@ -1155,7 +1123,7 @@ class ResultsService:
                         db, next_prediction, position, wrong_winner_team_id
                     )
         
-        db.commit()
+        DBUtils.commit(db)
         
         return {
             "success": True,
@@ -1178,11 +1146,11 @@ class ResultsService:
         
         try:
             # Step 1: Verify we have all required results
-            group_results = db.query(GroupStageResult).all()
+            group_results = DBReader.get_all_group_stage_results(db)
             if len(group_results) != 12:
                 raise ValueError(f"Expected 12 group results, found {len(group_results)}")
             
-            third_place_result = db.query(ThirdPlaceResult).first()
+            third_place_result = DBReader.get_third_place_result(db)
             if not third_place_result:
                 raise ValueError("No third place results found")
             
@@ -1201,15 +1169,13 @@ class ResultsService:
             # Find the groups of the qualifying teams
             third_place_groups = []
             for team_id in qualifying_teams:
-                team = db.query(Team).filter(Team.id == team_id).first()
+                team = DBReader.get_team(db, team_id)
                 if team:
                     third_place_groups.append(team.group_letter)
             
             # Step 3: Find the matching combination
             hash_key = ''.join(sorted(third_place_groups))
-            combination = db.query(ThirdPlaceCombination).filter(
-                ThirdPlaceCombination.hash_key == hash_key
-            ).first()
+            combination = DBReader.get_third_place_combination_by_hash(db, hash_key)
             
             if not combination:
                 raise ValueError(f"No combination found for hash_key: {hash_key}")
@@ -1227,9 +1193,7 @@ class ResultsService:
             }
             
             # Step 5: Get round 32 templates
-            round32_templates = db.query(MatchTemplate).filter(
-                MatchTemplate.stage == 'round32'
-            ).order_by(MatchTemplate.id).all()
+            round32_templates = DBReader.get_match_templates_by_stage_ordered(db, 'round32')
             
             if len(round32_templates) != 16:
                 raise ValueError(f"Expected 16 round32 templates, found {len(round32_templates)}")
@@ -1247,15 +1211,13 @@ class ResultsService:
                         return None
                     
                     group_letter = third_place_source[1]  # 3A -> A
-                    group = db.query(Group).filter(Group.name == group_letter).first()
+                    group = DBReader.get_group_by_name(db, group_letter)
                     
                     if group:
-                        result = db.query(GroupStageResult).filter(
-                            GroupStageResult.group_id == group.id
-                        ).first()
+                        result = DBReader.get_group_stage_result(db, group.id)
                         
                         if result:
-                            return db.query(Team).filter(Team.id == result.third_place).first()
+                            return DBReader.get_team(db, result.third_place)
                     
                     return None
                 else:
@@ -1264,17 +1226,15 @@ class ResultsService:
                         group_letter = team_source[1]  # 1A -> A
                         position = int(team_source[0])  # 1A -> 1
                         
-                        group = db.query(Group).filter(Group.name == group_letter).first()
+                        group = DBReader.get_group_by_name(db, group_letter)
                         if group:
-                            result = db.query(GroupStageResult).filter(
-                                GroupStageResult.group_id == group.id
-                            ).first()
+                            result = DBReader.get_group_stage_result(db, group.id)
                             
                             if result:
                                 if position == 1:
-                                    return db.query(Team).filter(Team.id == result.first_place).first()
+                                    return DBReader.get_team(db, result.first_place)
                                 elif position == 2:
-                                    return db.query(Team).filter(Team.id == result.second_place).first()
+                                    return DBReader.get_team(db, result.second_place)
                     
                     return None
             
@@ -1299,54 +1259,59 @@ class ResultsService:
                 match_date = base_date + timedelta(days=i//2)  # 2 matches per day
                 match_time = datetime.combine(match_date.date(), datetime.min.time().replace(hour=16 + (i % 2) * 3))
                 
-                existing_match = db.query(Match).filter(Match.id == match_id).first()
+                existing_match = DBReader.get_match(db, match_id)
                 if not existing_match:
-                    match = Match(
+                    DBWriter.create_match(
+                        db,
                         id=match_id,
                         stage='round32',
                         home_team_id=home_team.id,
                         away_team_id=away_team.id,
                         status='scheduled',
                         date=match_time,
-                        match_number=template.id,  # Use template.id to link to template
+                        match_number=template.id,
                         home_team_source=template.team_1,
                         away_team_source=template.team_2
                     )
-                    db.add(match)
                     matches_created += 1
                 else:
-                    existing_match.home_team_id = home_team.id
-                    existing_match.away_team_id = away_team.id
-                    existing_match.home_team_source = template.team_1
-                    existing_match.away_team_source = template.team_2
-                    existing_match.status = 'scheduled'
+                    update_kwargs = {
+                        "home_team_id": home_team.id,
+                        "away_team_id": away_team.id,
+                        "home_team_source": template.team_1,
+                        "away_team_source": template.team_2,
+                        "status": "scheduled",
+                    }
                     if not existing_match.date:
-                        existing_match.date = match_time
+                        update_kwargs["date"] = match_time
                     if not existing_match.match_number:
-                        existing_match.match_number = template.id
+                        update_kwargs["match_number"] = template.id
+                    DBWriter.update_match(db, existing_match, **update_kwargs)
                     matches_updated += 1
                 
                 # Create or update KnockoutStageResult record
-                existing_result = db.query(KnockoutStageResult).filter(
-                    KnockoutStageResult.match_id == match_id
-                ).first()
+                existing_result = DBReader.get_knockout_result(db, match_id)
                 
                 if not existing_result:
-                    result = KnockoutStageResult(
+                    DBWriter.create_knockout_result(
+                        db,
                         match_id=match_id,
-                        team_1=home_team.id,
-                        team_2=away_team.id,
-                        winner_team_id=None
+                        team1_id=home_team.id,
+                        team2_id=away_team.id,
+                        winner_id=None
                     )
-                    db.add(result)
                     results_created += 1
                 else:
-                    existing_result.team_1 = home_team.id
-                    existing_result.team_2 = away_team.id
+                    DBWriter.update_knockout_result(
+                        db,
+                        existing_result,
+                        team_1=home_team.id,
+                        team_2=away_team.id
+                    )
                     # Don't reset winner_team_id if it exists
                     results_updated += 1
             
-            db.commit()
+            DBUtils.commit(db)
             
             return {
                 "success": True,
@@ -1360,5 +1325,5 @@ class ResultsService:
             }
             
         except Exception as e:
-            db.rollback()
+            DBUtils.rollback(db)
             raise Exception(f"Error building Round of 32 bracket: {str(e)}")

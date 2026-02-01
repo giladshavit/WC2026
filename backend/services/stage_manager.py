@@ -2,6 +2,7 @@ from enum import Enum
 from sqlalchemy.orm import Session
 from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
 from models.tournament_config import TournamentConfig
+from services.database import DBWriter, DBUtils
 
 class Stage(Enum):
     """Tournament stages"""
@@ -83,20 +84,18 @@ class StageManager:
         StageManager.set_current_stage(Stage.PRE_GROUP_STAGE, db)
         
         # Make all predictions editable
-        db.query(MatchPrediction).update({MatchPrediction.is_editable: True})
-        db.query(GroupStagePrediction).update({GroupStagePrediction.is_editable: True})
-        db.query(ThirdPlacePrediction).update({ThirdPlacePrediction.is_editable: True})
-        db.query(KnockoutStagePrediction).update({KnockoutStagePrediction.is_editable: True})
+        DBWriter.set_match_predictions_editable(db, True)
+        DBWriter.set_group_predictions_editable(db, True)
+        DBWriter.set_third_place_predictions_editable(db, True)
+        DBWriter.set_knockout_predictions_editable(db, True)
         
-        db.commit()
+        DBUtils.commit(db)
         return Stage.PRE_GROUP_STAGE
     
     @staticmethod
     def _block_knockout_predictions_by_stage(db: Session, stage_name: str) -> None:
         """Helper function to block knockout predictions by stage name"""
-        db.query(KnockoutStagePrediction).filter(
-            KnockoutStagePrediction.stage == stage_name
-        ).update({KnockoutStagePrediction.is_editable: False})
+        DBWriter.set_knockout_predictions_editable_by_stage(db, stage_name, False)
     
     @staticmethod
     def _update_prediction_editability(current_stage: Stage, db: Session) -> None:
@@ -117,8 +116,8 @@ class StageManager:
             
         elif current_stage == Stage.GROUP_CYCLE_3:
             # Block group stage and third place predictions
-            db.query(GroupStagePrediction).update({GroupStagePrediction.is_editable: False})
-            db.query(ThirdPlacePrediction).update({ThirdPlacePrediction.is_editable: False})
+            DBWriter.set_group_predictions_editable(db, False)
+            DBWriter.set_third_place_predictions_editable(db, False)
             
         elif current_stage == Stage.PRE_ROUND32:
             # No additional blocking - do nothing
@@ -152,7 +151,7 @@ class StageManager:
             # Block final knockout predictions
             StageManager._block_knockout_predictions_by_stage(db, 'final')
         
-        db.commit()
+        DBUtils.commit(db)
     
     @staticmethod
     def get_penalty_for_edit() -> int:
