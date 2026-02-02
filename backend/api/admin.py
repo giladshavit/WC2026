@@ -857,7 +857,7 @@ def rebuild_knockout_from_predictions(
     """
     try:
         from models.predictions import KnockoutStagePrediction
-        from services.predictions.knockout_prediction_service import KnockoutPredictionService
+        from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
         from services.database import DBReader, DBUtils
         
         # Get all predictions with winners, ordered by stage
@@ -879,7 +879,7 @@ def rebuild_knockout_from_predictions(
                 continue
             
             # Try to create next stage prediction
-            next_prediction = KnockoutPredictionService._create_next_stage_if_needed(
+            next_prediction = KnockPredRefactorService._create_next_stage_if_needed(
                 db, prediction, template, is_draft=False
             )
             

@@ -5,7 +5,7 @@ This module contains specialized services for different types of predictions:
 - MatchPredictionService: Group stage match predictions
 - GroupPredictionService: Group stage standings predictions
 - ThirdPlacePredictionService: Third place qualifying teams predictions
-- KnockoutPredictionService: Knockout stage predictions
+- KnockPredRefactorService: Knockout stage predictions
 
 All services use DBReader/DBWriter/DBUtils for database operations.
 """

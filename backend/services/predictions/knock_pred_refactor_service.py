@@ -13,7 +13,6 @@ from models.team import Team
 class KnockPredRefactorService:
     """
     Refactored knockout prediction service with simplified, cleaner logic.
-    This service will eventually replace the current knockout_prediction_service.
     """
     
     @staticmethod
@@ -86,9 +85,8 @@ class KnockPredRefactorService:
             # Create next stage prediction if needed (before finding it)
             template = DBReader.get_match_template(db, prediction.template_match_id)
             if template:
-                from .knockout_prediction_service import KnockoutPredictionService
                 is_draft = hasattr(prediction, 'knockout_pred_id')
-                KnockoutPredictionService._create_next_stage_if_needed(db, prediction, template, is_draft=is_draft)
+                KnockPredRefactorService._create_next_stage_if_needed(db, prediction, template, is_draft=is_draft)
             
             # Find next prediction and position
             next_prediction, position = KnockPredRefactorService._find_next_prediction_and_position(
@@ -163,6 +161,64 @@ class KnockPredRefactorService:
             db, prediction, "Prediction updated successfully", 
             winner_team_name=winner_team_name, changed=changed
         )
+
+    @staticmethod
+    def _create_next_stage_if_needed(db: Session, prediction, template, is_draft: bool = False) -> Optional[Any]:
+        """
+        Check whether a next-stage prediction is needed and create it if required.
+        Returns: KnockoutStagePrediction or KnockoutStagePredictionDraft or None
+        """
+        if not template.winner_next_knockout_match:
+            return None
+        
+        next_match_id = template.winner_next_knockout_match
+        
+        existing_next_prediction = DBReader.get_knockout_prediction(
+            db, prediction.user_id, next_match_id, is_draft=is_draft
+        )
+        
+        if existing_next_prediction:
+            return existing_next_prediction
+        
+        next_prediction = KnockPredRefactorService._create_next_stage_prediction(
+            db, prediction, next_match_id, is_draft=is_draft
+        )
+        if next_prediction:
+            print(f"Created new next-stage prediction: {next_prediction.id}")
+        return next_prediction
+
+    @staticmethod
+    def _create_next_stage_prediction(db: Session, prediction, next_match_id, is_draft: bool = False) -> Optional[Any]:
+        """
+        Create a new prediction for the next stage in the knockout chain.
+        """
+        result = DBReader.get_knockout_result(db, next_match_id)
+        if not result:
+            print(f"KnockoutStageResult not found for match_id {next_match_id}")
+            return None
+        
+        next_template = DBReader.get_match_template(db, next_match_id)
+        if not next_template:
+            print(f"MatchTemplate not found for match_id {next_match_id}")
+            return None
+        
+        knockout_pred_id = None
+        if is_draft:
+            original_prediction = DBReader.get_knockout_prediction(
+                db, prediction.user_id, next_match_id, is_draft=False
+            )
+            if original_prediction:
+                knockout_pred_id = original_prediction.id
+        
+        new_prediction = DBWriter.create_knockout_prediction(
+            db, prediction.user_id, result.id, next_match_id, next_template.stage,
+            winner_team_id=None, knockout_pred_id=knockout_pred_id, is_draft=is_draft
+        )
+        DBUtils.flush(db)
+        
+        DBWriter.set_prediction_status(new_prediction, PredictionStatus.MUST_CHANGE_PREDICT)
+        
+        return new_prediction
 
     @staticmethod
     def _get_source_match_id(db: Session, match_id: int, is_team1: bool = True) -> Optional[int]:
