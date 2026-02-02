@@ -11,7 +11,7 @@ from database import SessionLocal
 from models.predictions import KnockoutStagePrediction
 from models.matches_template import MatchTemplate
 from services.predictions.knockout_prediction_service import KnockoutPredictionService
-from services.predictions.db_prediction_repository import DBPredRepository
+from services.database import DBReader, DBUtils
 
 user_id = 1
 if len(sys.argv) >= 2 and sys.argv[1].isdigit():
@@ -25,10 +25,9 @@ def create_next_stages_from_predictions():
         print(f"🏆 Creating next stage predictions for user_id={user_id}...")
         
         # Get all predictions with winners, ordered by stage
-        predictions = db.query(KnockoutStagePrediction).filter(
-            KnockoutStagePrediction.user_id == user_id,
-            KnockoutStagePrediction.winner_team_id != None
-        ).order_by(KnockoutStagePrediction.template_match_id).all()
+        predictions = DBReader.get_knockout_predictions_by_user(db, user_id)
+        predictions = [p for p in predictions if p.winner_team_id is not None]
+        predictions.sort(key=lambda p: p.template_match_id)
         
         print(f"Found {len(predictions)} predictions with winners")
         
@@ -36,7 +35,7 @@ def create_next_stages_from_predictions():
         
         for prediction in predictions:
             # Get the template for this prediction
-            template = DBPredRepository.get_match_template(db, prediction.template_match_id)
+            template = DBReader.get_match_template(db, prediction.template_match_id)
             
             if not template:
                 print(f"  ⚠️  Template not found for match_id {prediction.template_match_id}")
@@ -53,14 +52,14 @@ def create_next_stages_from_predictions():
             
             if next_prediction:
                 created_count += 1
-                next_template = DBPredRepository.get_match_template(db, next_prediction.template_match_id)
+                next_template = DBReader.get_match_template(db, next_prediction.template_match_id)
                 print(f"  ✅ Created {next_template.stage} prediction (match_id {next_prediction.template_match_id})")
         
-        db.commit()
+        DBUtils.commit(db)
         print(f"\n✅ Created {created_count} next stage predictions!")
         
     except Exception as e:
-        db.rollback()
+        DBUtils.rollback(db)
         print(f"❌ Error: {e}")
         import traceback
         traceback.print_exc()
