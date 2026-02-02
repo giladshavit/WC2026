@@ -5,153 +5,82 @@ Script to add short_name column to teams table and populate it with 3-letter abb
 
 import sys
 import os
+import unicodedata
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database import get_db
 from models.team import Team
 from sqlalchemy.orm import Session
 
-# Mapping of team names to their 3-letter abbreviations
+def normalize_team_name(name: str) -> str:
+    cleaned = name.strip().replace("Ã§", "c").replace("ç", "c")
+    normalized = unicodedata.normalize("NFKD", cleaned)
+    ascii_name = normalized.encode("ascii", "ignore").decode("ascii")
+    return ascii_name.lower()
+
+
+# Mapping of normalized team names to their 3-letter abbreviations
 TEAM_SHORT_NAMES = {
     # Group A
-    "Germany": "GER",
-    "Scotland": "SCO", 
-    "Hungary": "HUN",
-    "Switzerland": "SUI",
-    
+    "mexico": "MEX",
+    "south africa": "RSA",
+    "south korea": "KOR",
+    "denmark": "DEN",
     # Group B
-    "Spain": "ESP",
-    "Croatia": "CRO",
-    "Italy": "ITA",
-    "Albania": "ALB",
-    
+    "canada": "CAN",
+    "italy": "ITA",
+    "qatar": "QAT",
+    "switzerland": "SUI",
     # Group C
-    "Slovenia": "SVN",
-    "Denmark": "DEN",
-    "Serbia": "SRB",
-    "England": "ENG",
-    
+    "brazil": "BRA",
+    "morocco": "MAR",
+    "haiti": "HAI",
+    "scotland": "SCO",
     # Group D
-    "Poland": "POL",
-    "Netherlands": "NED",
-    "Austria": "AUT",
-    "France": "FRA",
-    
+    "united states": "USA",
+    "paraguay": "PAR",
+    "australia": "AUS",
+    "turkey": "TUR",
     # Group E
-    "Belgium": "BEL",
-    "Slovakia": "SVK",
-    "Romania": "ROU",
-    "Ukraine": "UKR",
-    
+    "germany": "GER",
+    "curacao": "CUW",
+    "ivory coast": "CIV",
+    "ecuador": "ECU",
     # Group F
-    "Turkey": "TUR",
-    "Georgia": "GEO",
-    "Portugal": "POR",
-    "Czech Republic": "CZE",
-    
+    "netherlands": "NED",
+    "japan": "JPN",
+    "sweden": "SWE",
+    "tunisia": "TUN",
     # Group G
-    "Egypt": "EGY",
-    "Ghana": "GHA",
-    "Morocco": "MAR",
-    "Senegal": "SEN",
-    
+    "belgium": "BEL",
+    "egypt": "EGY",
+    "iran": "IRN",
+    "new zealand": "NZL",
     # Group H
-    "Argentina": "ARG",
-    "Brazil": "BRA",
-    "Chile": "CHI",
-    "Colombia": "COL",
-    
+    "spain": "ESP",
+    "cape verde": "CPV",
+    "saudi arabia": "KSA",
+    "uruguay": "URU",
     # Group I
-    "Mexico": "MEX",
-    "United States": "USA",
-    "Canada": "CAN",
-    "Jamaica": "JAM",
-    
+    "france": "FRA",
+    "senegal": "SEN",
+    "bolivia": "BOL",
+    "norway": "NOR",
     # Group J
-    "Japan": "JPN",
-    "South Korea": "KOR",
-    "Australia": "AUS",
-    "Saudi Arabia": "KSA",
-    
+    "argentina": "ARG",
+    "algeria": "ALG",
+    "austria": "AUT",
+    "jordan": "JOR",
     # Group K
-    "Iran": "IRN",
-    "Uzbekistan": "UZB",
-    "Iraq": "IRQ",
-    "Qatar": "QAT",
-    
+    "portugal": "POR",
+    "jamaica": "JAM",
+    "uzbekistan": "UZB",
+    "colombia": "COL",
     # Group L
-    "Ivory Coast": "CIV",
-    "Nigeria": "NGA",
-    "Tunisia": "TUN",
-    "Algeria": "ALG",
-    
-    # Additional teams that might be in the database
-    "Bolivia": "BOL",
-    "Venezuela": "VEN",
-    "Peru": "PER",
-    "Ecuador": "ECU",
-    "Paraguay": "PAR",
-    "Uruguay": "URU",
-    "Sweden": "SWE",
-    "Norway": "NOR",
-    "Finland": "FIN",
-    "Iceland": "ISL",
-    "Wales": "WAL",
-    "Ireland": "IRL",
-    "Northern Ireland": "NIR",
-    "Israel": "ISR",
-    "Palestine": "PLE",
-    "Jordan": "JOR",
-    "Lebanon": "LBN",
-    "Syria": "SYR",
-    "Kuwait": "KUW",
-    "Oman": "OMA",
-    "UAE": "UAE",
-    "Bahrain": "BHR",
-    "Yemen": "YEM",
-    "Afghanistan": "AFG",
-    "India": "IND",
-    "Pakistan": "PAK",
-    "Bangladesh": "BAN",
-    "Sri Lanka": "SRI",
-    "Nepal": "NEP",
-    "Bhutan": "BHU",
-    "Maldives": "MDV",
-    "Myanmar": "MYA",
-    "Thailand": "THA",
-    "Vietnam": "VIE",
-    "Laos": "LAO",
-    "Cambodia": "CAM",
-    "Malaysia": "MAS",
-    "Singapore": "SIN",
-    "Indonesia": "IDN",
-    "Philippines": "PHI",
-    "Brunei": "BRU",
-    "East Timor": "TLS",
-    "Papua New Guinea": "PNG",
-    "Solomon Islands": "SOL",
-    "Vanuatu": "VAN",
-    "New Caledonia": "NCL",
-    "Fiji": "FIJ",
-    "Tahiti": "TAH",
-    "New Zealand": "NZL",
-    "Tonga": "TGA",
-    "Samoa": "SAM",
-    "American Samoa": "ASA",
-    "Cook Islands": "COK",
-    "Tuvalu": "TUV",
-    "Kiribati": "KIR",
-    "Nauru": "NRU",
-    "Marshall Islands": "MHL",
-    "Micronesia": "FSM",
-    "Palau": "PLW",
-    "Guam": "GUM",
-    "Northern Mariana Islands": "MNP",
-    "Marshall Islands": "MHL",
-    "Micronesia": "FSM",
-    "Palau": "PLW",
-    "Guam": "GUM",
-    "Northern Mariana Islands": "MNP"
+    "england": "ENG",
+    "croatia": "CRO",
+    "ghana": "GHA",
+    "panama": "PAN",
 }
 
 def add_short_names():
@@ -160,13 +89,15 @@ def add_short_names():
     
     try:
         # Update each team with its short name
-        for team_name, short_name in TEAM_SHORT_NAMES.items():
-            team = db.query(Team).filter(Team.name == team_name).first()
-            if team:
+        teams = db.query(Team).all()
+        for team in teams:
+            normalized_name = normalize_team_name(team.name)
+            short_name = TEAM_SHORT_NAMES.get(normalized_name)
+            if short_name:
                 team.short_name = short_name
-                print(f"Updated {team_name} -> {short_name}")
+                print(f"Updated {team.name} -> {short_name}")
             else:
-                print(f"Team not found: {team_name}")
+                print(f"Team not found: {team.name}")
         
         # Commit the changes
         db.commit()
