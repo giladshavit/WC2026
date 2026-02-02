@@ -666,8 +666,8 @@ class ResultsService:
         predictions = DBReader.get_knockout_predictions_by_stage(db, 'round32')
         
         for prediction in predictions:
-            from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
-            KnockPredRefactorService._compute_and_set_status(db, prediction, check_reachable=False)
+            from services.predictions.knockout_service import KnockoutService
+            KnockoutService._compute_and_set_status(db, prediction, check_reachable=False)
         
         DBUtils.commit(db)
     
@@ -785,8 +785,8 @@ class ResultsService:
             predictions = DBReader.get_knockout_predictions_by_stage(db, stage_name)
             
             for prediction in predictions:
-                from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
-                KnockPredRefactorService._compute_and_set_status(db, prediction, check_reachable=True)
+                from services.predictions.knockout_service import KnockoutService
+                KnockoutService._compute_and_set_status(db, prediction, check_reachable=True)
             
             DBUtils.commit(db)
     
@@ -943,12 +943,12 @@ class ResultsService:
         ScoringService.update_knockout_scoring_for_all_users(db, knockout_result)
         
         # 5. Process each prediction for invalidation
-        from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
+        from services.predictions.knockout_service import KnockoutService
         for prediction in predictions:
             print(f"Processing prediction: {prediction.id}, winner_team_id: {prediction.winner_team_id}, winner_team_id_from_result: {winner_team_id}")
             if prediction.winner_team_id and prediction.winner_team_id != winner_team_id:
                 wrong_winner_team_id = prediction.winner_team_id
-                next_prediction, position = KnockPredRefactorService._find_next_prediction_and_position(
+                next_prediction, position = KnockoutService._find_next_prediction_and_position(
                     db, prediction
                 )
 
@@ -956,11 +956,11 @@ class ResultsService:
                     team_at_position = next_prediction.team1_id if position == 1 else next_prediction.team2_id
                     if team_at_position == wrong_winner_team_id:
                         if position == 1:
-                            KnockPredRefactorService.set_team(db, next_prediction, team1_id=0)
+                            KnockoutService.set_team(db, next_prediction, team1_id=0)
                         else:
-                            KnockPredRefactorService.set_team(db, next_prediction, team2_id=0)
+                            KnockoutService.set_team(db, next_prediction, team2_id=0)
 
-            KnockPredRefactorService._compute_and_set_status(db, prediction)
+            KnockoutService._compute_and_set_status(db, prediction)
         
         DBUtils.commit(db)
         

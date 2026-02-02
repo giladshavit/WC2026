@@ -71,7 +71,7 @@ def create_knockout_predictions_for_user(user_id: int):
                 team1_id=None,
                 team2_id=None,
                 winner_team_id=None,
-                status="gray",  # Default status
+                status="invalid",  # Default status
                 is_editable=True
             )
             

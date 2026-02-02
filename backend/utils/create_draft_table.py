@@ -26,7 +26,7 @@ def create_draft_table(db_path: str):
             team1_id INTEGER,
             team2_id INTEGER,
             winner_team_id INTEGER,
-            status VARCHAR(20) DEFAULT 'gray',
+            status VARCHAR(20) DEFAULT 'valid',
             knockout_pred_id INTEGER,
             FOREIGN KEY(user_id) REFERENCES users(id),
             FOREIGN KEY(knockout_result_id) REFERENCES knockout_stage_results(id),

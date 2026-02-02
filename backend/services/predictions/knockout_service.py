@@ -11,7 +11,7 @@ from models.predictions import KnockoutStagePrediction
 from models.team import Team
 
 
-class KnockPredRefactorService:
+class KnockoutService:
     """
     Refactored knockout prediction service with simplified, cleaner logic.
     """
@@ -62,24 +62,24 @@ class KnockPredRefactorService:
         if template.stage == "round32":
             return True
 
-        source_match_1_id = KnockPredRefactorService._extract_match_id_from_winner_string(template.team_1)
-        source_match_2_id = KnockPredRefactorService._extract_match_id_from_winner_string(template.team_2)
+        source_match_1_id = KnockoutService._extract_match_id_from_winner_string(template.team_1)
+        source_match_2_id = KnockoutService._extract_match_id_from_winner_string(template.team_2)
 
         return (
-            (source_match_1_id and KnockPredRefactorService._is_winner_reachable_recursive(
+            (source_match_1_id and KnockoutService._is_winner_reachable_recursive(
                 db, source_match_1_id, winner_team_id, visited.copy()
             )) or
-            (source_match_2_id and KnockPredRefactorService._is_winner_reachable_recursive(
+            (source_match_2_id and KnockoutService._is_winner_reachable_recursive(
                 db, source_match_2_id, winner_team_id, visited.copy()
             ))
         )
 
     @staticmethod
     def can_winner_reach_match_via_correct_path(db: Session, prediction) -> bool:
-        winner_team_id = KnockPredRefactorService._normalize_team_id(prediction.winner_team_id)
+        winner_team_id = KnockoutService._normalize_team_id(prediction.winner_team_id)
         if not winner_team_id:
             return False
-        return KnockPredRefactorService._is_winner_reachable_recursive(
+        return KnockoutService._is_winner_reachable_recursive(
             db, prediction.template_match_id, winner_team_id
         )
 
@@ -99,7 +99,7 @@ class KnockPredRefactorService:
         if not template:
             return None
 
-        winner_team_id = KnockPredRefactorService._normalize_team_id(prediction.winner_team_id)
+        winner_team_id = KnockoutService._normalize_team_id(prediction.winner_team_id)
 
         # ═══════════════════════════════════════════
         # POST-RESULT: Match has been played
@@ -140,7 +140,7 @@ class KnockPredRefactorService:
             return status
 
         if check_reachable:
-            if not KnockPredRefactorService.can_winner_reach_match_via_correct_path(db, prediction):
+            if not KnockoutService.can_winner_reach_match_via_correct_path(db, prediction):
                 status = PredictionStatus.UNREACHABLE
                 DBWriter.set_prediction_status(prediction, status.value)
                 return status
@@ -157,7 +157,7 @@ class KnockPredRefactorService:
         winner_team_name: Optional[str] = None
     ) -> Dict[str, Any]:
         old_winner = prediction.winner_team_id
-        resolved_winner = KnockPredRefactorService._normalize_team_id(winner_team_id)
+        resolved_winner = KnockoutService._normalize_team_id(winner_team_id)
         stored_winner = resolved_winner if resolved_winner is not None else 0
 
         update_kwargs: Dict[str, Any] = {"winner_team_id": stored_winner}
@@ -167,19 +167,19 @@ class KnockPredRefactorService:
         DBWriter.update_knockout_prediction(db, prediction, **update_kwargs)
         DBUtils.flush(db)
 
-        KnockPredRefactorService._compute_and_set_status(db, prediction)
+        KnockoutService._compute_and_set_status(db, prediction)
         DBUtils.flush(db)
 
-        next_prediction, position = KnockPredRefactorService._find_next_prediction_and_position(db, prediction)
+        next_prediction, position = KnockoutService._find_next_prediction_and_position(db, prediction)
 
         if next_prediction and position:
             if position == 1:
-                KnockPredRefactorService.set_team(db, next_prediction, team1_id=stored_winner)
+                KnockoutService.set_team(db, next_prediction, team1_id=stored_winner)
             else:
-                KnockPredRefactorService.set_team(db, next_prediction, team2_id=stored_winner)
+                KnockoutService.set_team(db, next_prediction, team2_id=stored_winner)
 
         changed = (old_winner != prediction.winner_team_id)
-        return KnockPredRefactorService._create_success_response(
+        return KnockoutService._create_success_response(
             db, prediction, "Prediction updated successfully",
             winner_team_name=winner_team_name, changed=changed
         )
@@ -206,15 +206,15 @@ class KnockPredRefactorService:
         DBWriter.update_knockout_prediction(db, prediction, **update_kwargs)
         DBUtils.flush(db)
 
-        winner_team_id = KnockPredRefactorService._normalize_team_id(prediction.winner_team_id)
+        winner_team_id = KnockoutService._normalize_team_id(prediction.winner_team_id)
         if winner_team_id:
             current_team1 = prediction.team1_id
             current_team2 = prediction.team2_id
             if winner_team_id not in (current_team1, current_team2):
-                KnockPredRefactorService.set_winner(db, prediction, winner_team_id=None)
+                KnockoutService.set_winner(db, prediction, winner_team_id=None)
                 return
 
-        KnockPredRefactorService._compute_and_set_status(db, prediction)
+        KnockoutService._compute_and_set_status(db, prediction)
         DBUtils.flush(db)
 
     @staticmethod
@@ -229,15 +229,15 @@ class KnockPredRefactorService:
         winner_team_id = winner_team_id if winner_team_id != 0 else None
 
         if winner_team_id is not None:
-            return KnockPredRefactorService.set_winner(
+            return KnockoutService.set_winner(
                 db, prediction, winner_team_id, winner_team_name
             )
 
         if team1_id is not None or team2_id is not None:
             resolved_team1 = team1_id if team1_id != 0 else 0
             resolved_team2 = team2_id if team2_id != 0 else 0
-            KnockPredRefactorService.set_team(db, prediction, resolved_team1, resolved_team2)
-            return KnockPredRefactorService._create_success_response(
+            KnockoutService.set_team(db, prediction, resolved_team1, resolved_team2)
+            return KnockoutService._create_success_response(
                 db, prediction, "Teams updated"
             )
 
@@ -304,7 +304,7 @@ class KnockPredRefactorService:
                 winner_team_id=None,
                 is_editable=True
             )
-            KnockPredRefactorService._compute_and_set_status(db, prediction)
+            KnockoutService._compute_and_set_status(db, prediction)
             created.append(prediction)
 
         DBUtils.flush(db)
@@ -335,7 +335,7 @@ class KnockPredRefactorService:
         
         # For other stages, extract source match ID from team_1 or team_2
         team_source = template.team_1 if is_team1 else template.team_2
-        source_match_id = KnockPredRefactorService._extract_match_id_from_winner_string(team_source)
+        source_match_id = KnockoutService._extract_match_id_from_winner_string(team_source)
         
         return source_match_id if source_match_id else None
 
@@ -371,7 +371,7 @@ class KnockPredRefactorService:
         
         # For other stages, find the source match from the previous stage
         team_source = template.team_1 if is_team1 else template.team_2
-        source_match_id = KnockPredRefactorService._extract_match_id_from_winner_string(team_source)
+        source_match_id = KnockoutService._extract_match_id_from_winner_string(team_source)
         
         if not source_match_id:
             return None  # Can't determine if no source match
@@ -494,11 +494,11 @@ class KnockPredRefactorService:
             item = {}
             
             # Update validity for both teams using the existing logic
-            KnockPredRefactorService._update_team_validity(
+            KnockoutService._update_team_validity(
                 db, prediction, item, prediction.team1_id, True, "team_1", "is_team1_valid", "team1_is_valid",
                 knockout_result, prediction.user_id
             )
-            KnockPredRefactorService._update_team_validity(
+            KnockoutService._update_team_validity(
                 db, prediction, item, prediction.team2_id, False, "team_2", "is_team2_valid", "team2_is_valid",
                 knockout_result, prediction.user_id
             )
@@ -530,7 +530,7 @@ class KnockPredRefactorService:
             is_valid = (result_team_id == team_id)
         else:
             # No result or missing teams - this is a prediction without result, check previous stages
-            is_valid = KnockPredRefactorService._check_team_valid_from_previous_prediction(
+            is_valid = KnockoutService._check_team_valid_from_previous_prediction(
                 db, team_id, prediction.template_match_id, user_id, is_team1=is_team1
             )
         
@@ -559,11 +559,11 @@ class KnockPredRefactorService:
             # Don't check validity since match is decided - keep default True values
         else:
             # Match not finished - update team validity
-            KnockPredRefactorService._update_team_validity(
+            KnockoutService._update_team_validity(
                 db, prediction, item, team1_id, True, "team_1", "is_team1_valid", "team1_is_valid",
                 knockout_result, user_id
             )
-            KnockPredRefactorService._update_team_validity(
+            KnockoutService._update_team_validity(
                 db, prediction, item, team2_id, False, "team_2", "is_team2_valid", "team2_is_valid",
                 knockout_result, user_id
             )
@@ -597,11 +597,11 @@ class KnockPredRefactorService:
         for prediction in predictions:
             # Prepare teams (handle draft mode if needed)
             team1_id, team2_id, winner_team_id, team1, team2, winner_team, current_winner_team = (
-                KnockPredRefactorService._prepare_draft_mode_teams(db, prediction, is_draft)
+                KnockoutService._prepare_draft_mode_teams(db, prediction, is_draft)
             )
 
             # Build base item
-            item = KnockPredRefactorService._build_prediction_item(
+            item = KnockoutService._build_prediction_item(
                 prediction, team1_id, team2_id, winner_team_id, team1, team2, winner_team, current_winner_team
             )
 
@@ -621,7 +621,7 @@ class KnockPredRefactorService:
                 item["is_correct"] = (prediction.winner_team_id == knockout_result.winner_team_id)
 
             # Add additional fields based on is_draft
-            KnockPredRefactorService._add_additional_fields_to_item(item, prediction, is_draft)
+            KnockoutService._add_additional_fields_to_item(item, prediction, is_draft)
 
             result.append(item)
 
@@ -682,7 +682,7 @@ class KnockPredRefactorService:
         )
 
         DBUtils.flush(db)
-        KnockPredRefactorService._compute_and_set_status(db, draft)
+        KnockoutService._compute_and_set_status(db, draft)
         return draft
     
     @staticmethod
@@ -799,7 +799,7 @@ class KnockPredRefactorService:
             )
         
         # Update prediction
-        result = KnockPredRefactorService.update_knockout_prediction(
+        result = KnockoutService.update_knockout_prediction(
             db, prediction, winner_team_id=winner_team_id, 
             winner_team_name=winner_team_name
         )
@@ -874,7 +874,7 @@ class KnockPredRefactorService:
                         continue
                     
                     # Update prediction
-                    result = KnockPredRefactorService.update_knockout_prediction(
+                    result = KnockoutService.update_knockout_prediction(
                         db, prediction, winner_team_id=winner_team_id, 
                         winner_team_name=winner_team_name
                     )
@@ -942,7 +942,7 @@ class KnockPredRefactorService:
         This updates Round of 32 predictions where team2 comes from third-place teams.
         """
         # Build hash key and find combination
-        hash_key = KnockPredRefactorService._create_new_hash_key(db, advancing_team_ids)
+        hash_key = KnockoutService._create_new_hash_key(db, advancing_team_ids)
         
         combination = DBReader.get_third_place_combination_by_hash(db, hash_key)
         if not combination:
@@ -1007,7 +1007,7 @@ class KnockPredRefactorService:
                 continue
 
             # Update using the new refactored service
-            KnockPredRefactorService.update_knockout_prediction(
+            KnockoutService.update_knockout_prediction(
                 db, prediction, team2_id=new_team2_id
             )
         
@@ -1052,7 +1052,7 @@ class KnockPredRefactorService:
             team1_id = prediction.team1_id if prediction.is_team1_valid else 0
             team2_id = prediction.team2_id if prediction.is_team2_valid else 0
             original_winner_team_id = prediction.winner_team_id or 0  # Save original winner before cleaning
-            normalized_status = KnockPredRefactorService._coerce_status(prediction.status)
+            normalized_status = KnockoutService._coerce_status(prediction.status)
 
             # Set current_winner_team_id if status is yellow and winner differs from the draft teams
             current_winner_team_id = 0
@@ -1077,7 +1077,7 @@ class KnockPredRefactorService:
             winner_team_id=winner_team_id,
             is_draft=True,
             knockout_pred_id=prediction.id,
-            status=KnockPredRefactorService._coerce_status(prediction.status) or prediction.status,
+            status=KnockoutService._coerce_status(prediction.status) or prediction.status,
             current_winner_team_id=current_winner_team_id,
         )
 
@@ -1109,7 +1109,7 @@ class KnockPredRefactorService:
                 DBUtils.flush(db)
 
             # Delegate to single-item creator to avoid duplicate logic
-            res = KnockPredRefactorService.create_draft_from_prediction(db, user_id, prediction.id)
+            res = KnockoutService.create_draft_from_prediction(db, user_id, prediction.id)
             if res.get("success"):
                 created += 1
 

@@ -493,8 +493,8 @@ def rebuild_round32_bracket(db: Session = Depends(get_db)):
         
         # Step 4: Update validity for all predictions
         print("🔧 Updating prediction validity...")
-        from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
-        KnockPredRefactorService.update_all_predictions_validity(db)
+        from services.predictions.knockout_service import KnockoutService
+        KnockoutService.update_all_predictions_validity(db)
         db.commit()
         
         return {

@@ -93,8 +93,8 @@ class AuthService:
         
         # Create empty knockout predictions for the new user
         try:
-            from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
-            created_predictions = KnockPredRefactorService.create_user_knockout_predictions(
+            from services.predictions.knockout_service import KnockoutService
+            created_predictions = KnockoutService.create_user_knockout_predictions(
                 db, new_user.id
             )
             DBUtils.commit(db)

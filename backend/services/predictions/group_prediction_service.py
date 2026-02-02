@@ -2,7 +2,7 @@ from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
 from services.database import DBReader, DBWriter, DBUtils
 from .shared import PlacesPredictions
-from .knock_pred_refactor_service import KnockPredRefactorService
+from .knockout_service import KnockoutService
 
 
 class GroupPredictionService:
@@ -178,9 +178,9 @@ class GroupPredictionService:
         # Update knockout prediction teams using new refactored service
         # Determine which team to update (team1 or team2)
         if knockout_prediction.team1_id == old_team:
-            KnockPredRefactorService.update_knockout_prediction(db, knockout_prediction, team1_id=new_team)
+            KnockoutService.update_knockout_prediction(db, knockout_prediction, team1_id=new_team)
         elif knockout_prediction.team2_id == old_team:
-            KnockPredRefactorService.update_knockout_prediction(db, knockout_prediction, team2_id=new_team)
+            KnockoutService.update_knockout_prediction(db, knockout_prediction, team2_id=new_team)
     
     @staticmethod
     def _handle_third_place_change(db: Session, user_id: int, old_third_place: int, 
@@ -207,7 +207,7 @@ class GroupPredictionService:
         )
         if knockout_prediction:
             # Update team2 (since we're looking for team2 position)
-            KnockPredRefactorService.update_knockout_prediction(
+            KnockoutService.update_knockout_prediction(
                 db, knockout_prediction, team2_id=new_team_id
             )
     

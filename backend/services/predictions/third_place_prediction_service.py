@@ -17,8 +17,8 @@ class ThirdPlacePredictionService:
     @staticmethod
     def _update_knockout_predictions_for_third_place(db: Session, user_id: int, advancing_team_ids: List[int]):
         """Update knockout predictions after third place prediction is created/updated"""
-        from .knock_pred_refactor_service import KnockPredRefactorService
-        KnockPredRefactorService.update_knockout_predictions_by_new_third_places_qualified(
+        from .knockout_service import KnockoutService
+        KnockoutService.update_knockout_predictions_by_new_third_places_qualified(
             db, user_id, advancing_team_ids
         )
     
