@@ -47,7 +47,7 @@ export interface BracketMatch {
   winner_team_id?: number;
   winner_team_flag?: string;
   winner_team_name?: string;
-  status?: string; // Status of the prediction: 'predicted', 'might_change_predict', 'must_change_predict'
+  status?: string; // Status of the prediction: 'valid', 'invalid', 'unreachable', 'correct_full', 'correct_partial', 'incorrect', 'pending_result'
   side: 'left' | 'right';
   verticalPosition?: number;
   // Card coordinates - top-left and bottom-right corners

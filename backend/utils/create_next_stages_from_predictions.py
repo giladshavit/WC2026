@@ -8,9 +8,6 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database import SessionLocal
-from models.predictions import KnockoutStagePrediction
-from models.matches_template import MatchTemplate
-from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
 from services.database import DBReader, DBUtils
 
 user_id = 1
@@ -31,7 +28,7 @@ def create_next_stages_from_predictions():
         
         print(f"Found {len(predictions)} predictions with winners")
         
-        created_count = 0
+        missing_count = 0
         
         for prediction in predictions:
             # Get the template for this prediction
@@ -45,18 +42,19 @@ def create_next_stages_from_predictions():
             if not template.winner_next_knockout_match:
                 continue
             
-            # Try to create next stage prediction
-            next_prediction = KnockPredRefactorService._create_next_stage_if_needed(
-                db, prediction, template, is_draft=False
+            # Next stage predictions should already exist
+            next_prediction = DBReader.get_knockout_prediction(
+                db, prediction.user_id, template.winner_next_knockout_match, is_draft=False
             )
-            
             if next_prediction:
-                created_count += 1
                 next_template = DBReader.get_match_template(db, next_prediction.template_match_id)
-                print(f"  ✅ Created {next_template.stage} prediction (match_id {next_prediction.template_match_id})")
+                print(f"  ✅ Found {next_template.stage} prediction (match_id {next_prediction.template_match_id})")
+            else:
+                missing_count += 1
+                print(f"  ⚠️  Missing next-stage prediction for match_id {template.winner_next_knockout_match}")
         
         DBUtils.commit(db)
-        print(f"\n✅ Created {created_count} next stage predictions!")
+        print(f"\n✅ Done. Missing next stage predictions: {missing_count}")
         
     except Exception as e:
         DBUtils.rollback(db)

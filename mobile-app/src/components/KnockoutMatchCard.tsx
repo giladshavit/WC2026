@@ -12,12 +12,17 @@ interface KnockoutMatchCardProps {
 const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, originalWinner }: KnockoutMatchCardProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'must_change_predict':
-        return '#e53e3e'; // red
-      case 'might_change_predict':
-        return '#f6ad55'; // yellow
-      case 'predicted':
-        return '#38a169'; // green
+      case 'invalid':
+      case 'incorrect':
+        return '#F44336'; // red
+      case 'unreachable':
+      case 'correct_partial':
+        return '#FF9800'; // orange
+      case 'correct_full':
+        return '#4CAF50'; // green
+      case 'valid':
+      case 'pending_result':
+        return '#FFFFFF'; // white/default
       default:
         return 'transparent';
     }

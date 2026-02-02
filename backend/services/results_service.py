@@ -8,7 +8,6 @@ from models.matches_template import MatchTemplate
 from models.predictions import KnockoutStagePrediction
 from models.groups import Group
 from .scoring_service import ScoringService
-from .predictions import PredictionService, PredictionStatus
 from services.database import DBReader, DBWriter, DBUtils
 
 
@@ -667,21 +666,8 @@ class ResultsService:
         predictions = DBReader.get_knockout_predictions_by_stage(db, 'round32')
         
         for prediction in predictions:
-            # שלוף את התוצאה האמיתית של המשחק הזה
-            result = DBReader.get_knockout_result(db, prediction.template_match_id)
-            
-            if not result:
-                continue
-            
-            # בדיקה של המנצחת
-            if not ResultsService.is_team_in_result(prediction.winner_team_id, result):
-                PredictionService.set_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT)
-                continue
-            
-            # המנצחת במשחק האמיתי - בודקים את המפסידה
-            predicted_loser = ResultsService.get_predicted_loser(prediction)
-            status = PredictionStatus.PREDICTED if (predicted_loser and ResultsService.is_team_in_result(predicted_loser, result)) else PredictionStatus.MIGHT_CHANGE_PREDICT
-            PredictionService.set_status(prediction, status)
+            from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
+            KnockPredRefactorService._compute_and_set_status(db, prediction, check_reachable=False)
         
         DBUtils.commit(db)
     
@@ -777,60 +763,6 @@ class ResultsService:
         return ResultsService.is_winner_reachable_recursive(db, prediction.template_match_id, prediction.winner_team_id)
     
     @staticmethod
-    def is_prediction_must_change(prediction) -> bool:
-        """
-        Helper function to check if a prediction has MUST_CHANGE_PREDICT status.
-        
-        Args:
-            prediction: The prediction to check
-        
-        Returns:
-            True if status is MUST_CHANGE_PREDICT, False otherwise
-        """
-        try:
-            PS = PredictionStatus
-            return prediction.status and PS(prediction.status) == PS.MUST_CHANGE_PREDICT
-        except (ValueError, AttributeError):
-            return False
-    
-    @staticmethod
-    def determine_status_by_previous_matches(prediction, source_pred_1, source_pred_2, db: Session):
-        """
-        Determines the status based on the status of previous matches.
-        Returns the appropriate PredictionStatus or None if no change needed.
-        """
-        PS = PredictionStatus
-        
-        if not prediction.winner_team_id:
-            return None
-        
-        # Get statuses from source predictions
-        try:
-            status_1 = PS(source_pred_1.status) if source_pred_1.status else None
-            status_2 = PS(source_pred_2.status) if source_pred_2.status else None
-        except ValueError:
-            return None
-        
-        if not status_1 or not status_2:
-            return None
-        
-        # Simplified Logic:
-        # Cases 1+2+4+5: If neither prediction is MUST_CHANGE -> PREDICTED (green)
-        if not ResultsService.is_prediction_must_change(source_pred_1) and \
-           not ResultsService.is_prediction_must_change(source_pred_2):
-            return PS.PREDICTED
-        
-        # Determine which prediction is the winner and which is the loser
-        winner_prediction = source_pred_1 if (source_pred_1.winner_team_id == prediction.winner_team_id) else source_pred_2
-        
-        # If winner prediction is not MUST_CHANGE -> MIGHT_CHANGE (yellow)
-        if not ResultsService.is_prediction_must_change(winner_prediction):
-            return PS.MIGHT_CHANGE_PREDICT
-        
-        # Winner prediction is MUST_CHANGE -> Check if reachable from loser match
-        return PS.MIGHT_CHANGE_PREDICT if ResultsService.is_winner_reachable(db, prediction) else PS.MUST_CHANGE_PREDICT
-    
-    @staticmethod
     def update_knockout_statuses_after_round32(db: Session, stage: str = None):
         """
         Updates knockout prediction statuses for stages after Round of 32.
@@ -842,8 +774,6 @@ class ResultsService:
         
         This implements the complex logic for combining predecessor match statuses.
         """
-        PS = PredictionStatus
-        
         # Determine which stages to update
         if stage:
             stages_to_update = [stage]
@@ -855,37 +785,8 @@ class ResultsService:
             predictions = DBReader.get_knockout_predictions_by_stage(db, stage_name)
             
             for prediction in predictions:
-                # Get the match template
-                template = DBReader.get_match_template(db, prediction.template_match_id)
-                
-                if not template:
-                    continue
-                
-                # Get the two source matches
-                source_match_1_id, source_match_2_id = ResultsService.get_source_match_ids(template)
-                
-                if not source_match_1_id or not source_match_2_id:
-                    continue  # Skip if we can't find source matches
-                
-                # Get the statuses of the two source predictions (for the same user)
-                source_pred_1 = DBReader.get_knockout_prediction(
-                    db, prediction.user_id, source_match_1_id, is_draft=False
-                )
-                
-                source_pred_2 = DBReader.get_knockout_prediction(
-                    db, prediction.user_id, source_match_2_id, is_draft=False
-                )
-                
-                if not source_pred_1 or not source_pred_2:
-                    continue  # Skip if source predictions don't exist
-                
-                # Implement the 9-case logic
-                new_status = ResultsService.determine_status_by_previous_matches(
-                    prediction, source_pred_1, source_pred_2, db
-                )
-                
-                if new_status:
-                    PredictionService.set_status(prediction, new_status)
+                from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
+                KnockPredRefactorService._compute_and_set_status(db, prediction, check_reachable=True)
             
             DBUtils.commit(db)
     
@@ -925,68 +826,6 @@ class ResultsService:
         except Exception as e:
             DBUtils.rollback(db)
             raise Exception(f"Error resetting user scores: {str(e)}")
-    
-    @staticmethod
-    def _invalidate_team_in_next_stage_recursive(
-        db: Session,
-        next_prediction,
-        position: int,
-        wrong_winner_team_id: int
-    ) -> None:
-        """
-        Recursively invalidate a team in the next stage if it's not valid.
-        
-        Args:
-            db: Database session
-            next_prediction: The next prediction (already found)
-            position: Position in next prediction (1 for team1, 2 for team2)
-            wrong_winner_team_id: The team ID that was predicted but is wrong
-        """
-        from .predictions.shared import PredictionStatus
-        from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
-        
-        # Check which team is at the position in next prediction
-        if position == 1:
-            team_at_position = next_prediction.team1_id
-            is_valid_field = 'is_team1_valid'
-        else:  # position == 2
-            team_at_position = next_prediction.team2_id
-            is_valid_field = 'is_team2_valid'
-        
-        # Check if the team at position is the wrong winner - if not, nothing to do
-        if team_at_position != wrong_winner_team_id:
-            return
-        
-        # 1. Check if team is valid - if not, stop
-        is_valid = getattr(next_prediction, is_valid_field, True)
-        
-        if not is_valid:
-            return  # Already invalid, stop
-        
-        # 2. If valid, change to invalid
-        DBWriter.update_knockout_prediction(db, next_prediction, **{is_valid_field: False})
-        DBUtils.flush(db)
-        
-        # 3. Check if this is the winner in the next prediction
-        if next_prediction.winner_team_id == wrong_winner_team_id:
-            # 4. If yes: change status to red and call recursively with next prediction
-            DBWriter.set_prediction_status(next_prediction, PredictionStatus.MUST_CHANGE_PREDICT.value)
-            DBUtils.flush(db)
-            
-            # Get the next prediction and position for recursive call
-            next_next_prediction, next_next_position = KnockPredRefactorService._find_next_prediction_and_position(
-                db, next_prediction
-            )
-            
-            if next_next_prediction and next_next_position:
-                ResultsService._invalidate_team_in_next_stage_recursive(
-                    db, next_next_prediction, next_next_position, wrong_winner_team_id
-                )
-        else:
-            # The winner is not the wrong winner - check if status is green (PREDICTED) and change to yellow (MIGHT_CHANGE_PREDICT)
-            if next_prediction.status == PredictionStatus.PREDICTED.value:
-                DBWriter.set_prediction_status(next_prediction, PredictionStatus.MIGHT_CHANGE_PREDICT.value)
-                DBUtils.flush(db)
     
     @staticmethod
     def _set_predictions_not_editable(db: Session, match_id: int) -> List[KnockoutStagePrediction]:
@@ -1104,24 +943,24 @@ class ResultsService:
         ScoringService.update_knockout_scoring_for_all_users(db, knockout_result)
         
         # 5. Process each prediction for invalidation
+        from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
         for prediction in predictions:
             print(f"Processing prediction: {prediction.id}, winner_team_id: {prediction.winner_team_id}, winner_team_id_from_result: {winner_team_id}")
-            if prediction.winner_team_id != winner_team_id:
-                # Wrong prediction - invalidate team in next stages recursively
-                # The wrong winner is prediction.winner_team_id (the one that was predicted but is wrong)
+            if prediction.winner_team_id and prediction.winner_team_id != winner_team_id:
                 wrong_winner_team_id = prediction.winner_team_id
-                
-                # Get the next prediction and position first
-                from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
-                
                 next_prediction, position = KnockPredRefactorService._find_next_prediction_and_position(
                     db, prediction
                 )
-                
+
                 if next_prediction and position:
-                    ResultsService._invalidate_team_in_next_stage_recursive(
-                        db, next_prediction, position, wrong_winner_team_id
-                    )
+                    team_at_position = next_prediction.team1_id if position == 1 else next_prediction.team2_id
+                    if team_at_position == wrong_winner_team_id:
+                        if position == 1:
+                            KnockPredRefactorService.set_team(db, next_prediction, team1_id=0)
+                        else:
+                            KnockPredRefactorService.set_team(db, next_prediction, team2_id=0)
+
+            KnockPredRefactorService._compute_and_set_status(db, prediction)
         
         DBUtils.commit(db)
         

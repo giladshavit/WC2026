@@ -856,8 +856,6 @@ def rebuild_knockout_from_predictions(
     Creates next stage predictions from existing predictions with winners
     """
     try:
-        from models.predictions import KnockoutStagePrediction
-        from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
         from services.database import DBReader, DBUtils
         
         # Get all predictions with winners, ordered by stage
@@ -865,7 +863,7 @@ def rebuild_knockout_from_predictions(
         predictions = [p for p in predictions if p.winner_team_id is not None]
         predictions.sort(key=lambda p: p.template_match_id)
         
-        created_count = 0
+        missing_count = 0
         
         for prediction in predictions:
             # Get the template for this prediction
@@ -878,20 +876,19 @@ def rebuild_knockout_from_predictions(
             if not template.winner_next_knockout_match:
                 continue
             
-            # Try to create next stage prediction
-            next_prediction = KnockPredRefactorService._create_next_stage_if_needed(
-                db, prediction, template, is_draft=False
+            # Next stage predictions should already exist
+            next_prediction = DBReader.get_knockout_prediction(
+                db, prediction.user_id, template.winner_next_knockout_match, is_draft=False
             )
-            
-            if next_prediction:
-                created_count += 1
+            if not next_prediction:
+                missing_count += 1
         
         DBUtils.commit(db)
         
         return {
             "success": True,
             "message": f"Rebuilt knockout bracket for user {user_id}",
-            "created_predictions": created_count,
+            "missing_predictions": missing_count,
             "processed_predictions": len(predictions)
         }
         

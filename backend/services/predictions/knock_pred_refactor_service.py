@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Set, Tuple
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from datetime import datetime
@@ -30,6 +30,194 @@ class KnockPredRefactorService:
         return None
     
     @staticmethod
+    def _normalize_team_id(team_id: Optional[int]) -> Optional[int]:
+        return None if team_id in (None, 0) else team_id
+
+    @staticmethod
+    def _is_empty_team_id(team_id: Optional[int]) -> bool:
+        return team_id in (None, 0)
+
+    @staticmethod
+    def _is_winner_reachable_recursive(
+        db: Session,
+        match_id: int,
+        winner_team_id: int,
+        visited: Optional[Set[int]] = None
+    ) -> bool:
+        if visited is None:
+            visited = set()
+
+        if match_id in visited:
+            return False
+        visited.add(match_id)
+
+        template = DBReader.get_match_template(db, match_id)
+        if not template:
+            return False
+
+        knockout_result = DBReader.get_knockout_result(db, match_id)
+        if knockout_result and knockout_result.team_1 and knockout_result.team_2:
+            return winner_team_id in {knockout_result.team_1, knockout_result.team_2}
+
+        if template.stage == "round32":
+            return True
+
+        source_match_1_id = KnockPredRefactorService._extract_match_id_from_winner_string(template.team_1)
+        source_match_2_id = KnockPredRefactorService._extract_match_id_from_winner_string(template.team_2)
+
+        return (
+            (source_match_1_id and KnockPredRefactorService._is_winner_reachable_recursive(
+                db, source_match_1_id, winner_team_id, visited.copy()
+            )) or
+            (source_match_2_id and KnockPredRefactorService._is_winner_reachable_recursive(
+                db, source_match_2_id, winner_team_id, visited.copy()
+            ))
+        )
+
+    @staticmethod
+    def can_winner_reach_match_via_correct_path(db: Session, prediction) -> bool:
+        winner_team_id = KnockPredRefactorService._normalize_team_id(prediction.winner_team_id)
+        if not winner_team_id:
+            return False
+        return KnockPredRefactorService._is_winner_reachable_recursive(
+            db, prediction.template_match_id, winner_team_id
+        )
+
+    @staticmethod
+    def _compute_and_set_status(
+        db: Session,
+        prediction,
+        check_reachable: bool = False
+    ) -> Optional[PredictionStatus]:
+        """
+        Compute and set the prediction status based on current state.
+        Returns the status that was set, or None if undetermined.
+        """
+        template = DBReader.get_match_template(db, prediction.template_match_id)
+        result = DBReader.get_knockout_result(db, prediction.template_match_id)
+
+        if not template:
+            return None
+
+        winner_team_id = KnockPredRefactorService._normalize_team_id(prediction.winner_team_id)
+
+        # ═══════════════════════════════════════════
+        # POST-RESULT: Match has been played
+        # ═══════════════════════════════════════════
+        if result and result.winner_team_id:
+            if winner_team_id == result.winner_team_id:
+                status = PredictionStatus.CORRECT_FULL
+                DBWriter.set_prediction_status(prediction, status.value)
+                return status
+
+            if not winner_team_id:
+                status = PredictionStatus.INCORRECT
+                DBWriter.set_prediction_status(prediction, status.value)
+                return status
+
+            winner_team = DBReader.get_team(db, winner_team_id)
+            if winner_team and winner_team.is_eliminated:
+                status = PredictionStatus.INCORRECT
+                DBWriter.set_prediction_status(prediction, status.value)
+                return status
+
+            status = PredictionStatus.PENDING_RESULT
+            DBWriter.set_prediction_status(prediction, status.value)
+            return status
+
+        # ═══════════════════════════════════════════
+        # PRE-RESULT: Match not yet played
+        # ═══════════════════════════════════════════
+        if not winner_team_id:
+            status = PredictionStatus.INVALID
+            DBWriter.set_prediction_status(prediction, status.value)
+            return status
+
+        winner_team = DBReader.get_team(db, winner_team_id)
+        if winner_team and winner_team.is_eliminated:
+            status = PredictionStatus.INVALID
+            DBWriter.set_prediction_status(prediction, status.value)
+            return status
+
+        if check_reachable:
+            if not KnockPredRefactorService.can_winner_reach_match_via_correct_path(db, prediction):
+                status = PredictionStatus.UNREACHABLE
+                DBWriter.set_prediction_status(prediction, status.value)
+                return status
+
+        status = PredictionStatus.VALID
+        DBWriter.set_prediction_status(prediction, status.value)
+        return status
+
+    @staticmethod
+    def set_winner(
+        db: Session,
+        prediction,
+        winner_team_id: Optional[int],
+        winner_team_name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        old_winner = prediction.winner_team_id
+        resolved_winner = KnockPredRefactorService._normalize_team_id(winner_team_id)
+        stored_winner = resolved_winner if resolved_winner is not None else 0
+
+        update_kwargs: Dict[str, Any] = {"winner_team_id": stored_winner}
+        if hasattr(prediction, "updated_at"):
+            update_kwargs["updated_at"] = datetime.utcnow()
+
+        DBWriter.update_knockout_prediction(db, prediction, **update_kwargs)
+        DBUtils.flush(db)
+
+        KnockPredRefactorService._compute_and_set_status(db, prediction)
+        DBUtils.flush(db)
+
+        next_prediction, position = KnockPredRefactorService._find_next_prediction_and_position(db, prediction)
+
+        if next_prediction and position:
+            if position == 1:
+                KnockPredRefactorService.set_team(db, next_prediction, team1_id=stored_winner)
+            else:
+                KnockPredRefactorService.set_team(db, next_prediction, team2_id=stored_winner)
+
+        changed = (old_winner != prediction.winner_team_id)
+        return KnockPredRefactorService._create_success_response(
+            db, prediction, "Prediction updated successfully",
+            winner_team_name=winner_team_name, changed=changed
+        )
+
+    @staticmethod
+    def set_team(
+        db: Session,
+        prediction,
+        team1_id: Optional[int] = None,
+        team2_id: Optional[int] = None
+    ) -> None:
+        update_kwargs: Dict[str, Any] = {}
+        if team1_id is not None:
+            update_kwargs["team1_id"] = team1_id
+        if team2_id is not None:
+            update_kwargs["team2_id"] = team2_id
+
+        if not update_kwargs:
+            return
+
+        if hasattr(prediction, "updated_at"):
+            update_kwargs["updated_at"] = datetime.utcnow()
+
+        DBWriter.update_knockout_prediction(db, prediction, **update_kwargs)
+        DBUtils.flush(db)
+
+        winner_team_id = KnockPredRefactorService._normalize_team_id(prediction.winner_team_id)
+        if winner_team_id:
+            current_team1 = prediction.team1_id
+            current_team2 = prediction.team2_id
+            if winner_team_id not in (current_team1, current_team2):
+                KnockPredRefactorService.set_winner(db, prediction, winner_team_id=None)
+                return
+
+        KnockPredRefactorService._compute_and_set_status(db, prediction)
+        DBUtils.flush(db)
+
+    @staticmethod
     def update_knockout_prediction(
         db: Session,
         prediction,
@@ -38,188 +226,39 @@ class KnockPredRefactorService:
         winner_team_id: Optional[int] = None,
         winner_team_name: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Update a knockout prediction and propagate changes recursively.
-        
-        Algorithm:
-        - Case 1: winner_team_id is not None (teams are None) - update winner
-        - Case 2: team1_id or team2_id is not None (winner is None) - update teams
-        
-        Args:
-            db: Database session
-            prediction: The prediction to update
-            team1_id: Optional team1 to set (None = no change, 0 = clear)
-            team2_id: Optional team2 to set (None = no change, 0 = clear)
-            winner_team_id: Optional winner to set (None = no change, 0 = clear)
-            winner_team_name: Optional winner team name for response
-        
-        Returns:
-            Dict with success response
-        """
-        old_winner = prediction.winner_team_id
-        
-        # Case 1: Update winner (teams are None)
+        winner_team_id = winner_team_id if winner_team_id != 0 else None
+
         if winner_team_id is not None:
-            # Update winner
-            new_winner = winner_team_id
-            resolved_winner = new_winner if new_winner != 0 else None
-            DBWriter.update_knockout_prediction(
-                db,
-                prediction,
-                winner_team_id=resolved_winner,
-                updated_at=datetime.utcnow() if hasattr(prediction, 'updated_at') else None
+            return KnockPredRefactorService.set_winner(
+                db, prediction, winner_team_id, winner_team_name
             )
-            
-            # Determine status based on winner value
-            if new_winner == 0:
-                # Winner is 0 or None -> red status
-                DBWriter.set_prediction_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT.value)
-            else:
-                # Check if winner matches one of the teams in prediction
-                if prediction.team1_id == new_winner or prediction.team2_id == new_winner:
-                    DBWriter.set_prediction_status(prediction, PredictionStatus.PREDICTED.value)  # green
-                else:
-                    DBWriter.set_prediction_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT.value)  # red
-            
-            DBUtils.flush(db)
-            
-            # Create next stage prediction if needed (before finding it)
-            template = DBReader.get_match_template(db, prediction.template_match_id)
-            if template:
-                is_draft = hasattr(prediction, 'knockout_pred_id')
-                KnockPredRefactorService._create_next_stage_if_needed(db, prediction, template, is_draft=is_draft)
-            
-            # Find next prediction and position
-            next_prediction, position = KnockPredRefactorService._find_next_prediction_and_position(
-                db, prediction
+
+        if team1_id is not None or team2_id is not None:
+            resolved_team1 = team1_id if team1_id != 0 else 0
+            resolved_team2 = team2_id if team2_id != 0 else 0
+            KnockPredRefactorService.set_team(db, prediction, resolved_team1, resolved_team2)
+            return KnockPredRefactorService._create_success_response(
+                db, prediction, "Teams updated"
             )
-            
-            # If next prediction doesn't exist and this is a draft, create it
-            if not next_prediction and hasattr(prediction, 'knockout_pred_id'):
-                next_prediction = KnockPredRefactorService._create_next_stage_draft(
-                    db, prediction, new_winner
-                )
-                if next_prediction:
-                    # Get position from template
-                    current_template = DBReader.get_match_template(
-                        db, prediction.template_match_id
-                    )
-                    position = current_template.winner_next_position if current_template else None
-            
-            if next_prediction and position:
-                # Recursively update next stage with team1_id or team2_id based on position
-                # Ignore return value for recursive calls
-                if position == 1:
-                    KnockPredRefactorService.update_knockout_prediction(
-                        db, next_prediction, team1_id=new_winner
-                    )
-                else:  # position == 2
-                    KnockPredRefactorService.update_knockout_prediction(
-                        db, next_prediction, team2_id=new_winner
-                    )
-        
-        # Case 2: Update teams (winner is None)
-        elif team1_id is not None or team2_id is not None:
-            # Update the relevant team(s)
-            resolved_team1 = team1_id if (team1_id is None or team1_id != 0) else None
-            resolved_team2 = team2_id if (team2_id is None or team2_id != 0) else None
-            DBWriter.update_knockout_prediction(
-                db,
-                prediction,
-                team1_id=resolved_team1,
-                team2_id=resolved_team2,
-                updated_at=datetime.utcnow() if hasattr(prediction, 'updated_at') else None
-            )
-            
-            DBUtils.flush(db)
-            
-            # Check current winner - if it matches one of the new teams, mark as yellow
-            if prediction.winner_team_id:
-                new_team1 = prediction.team1_id
-                new_team2 = prediction.team2_id
-                
-                if prediction.winner_team_id == new_team1 or prediction.winner_team_id == new_team2:
-                    # Winner matches one of the teams -> yellow
-                    DBWriter.set_prediction_status(prediction, PredictionStatus.MIGHT_CHANGE_PREDICT.value)
-                else:
-                    # Winner doesn't match -> red, clear winner recursively
-                    DBWriter.set_prediction_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT.value)
-                    # Ignore return value for recursive call
-                    KnockPredRefactorService.update_knockout_prediction(
-                        db, prediction, winner_team_id=0
-                    )
-            else:
-                # No winner set -> red
-                DBWriter.set_prediction_status(prediction, PredictionStatus.MUST_CHANGE_PREDICT.value)
-            
-            DBUtils.flush(db)
-        
-        # Check if prediction changed
-        changed = (old_winner != prediction.winner_team_id) if winner_team_id is not None else True
-        
-        # Return success response
-        return KnockPredRefactorService._create_success_response(
-            db, prediction, "Prediction updated successfully", 
-            winner_team_name=winner_team_name, changed=changed
-        )
+
+        return {"error": "No valid update parameters provided"}
 
     @staticmethod
-    def _create_next_stage_if_needed(db: Session, prediction, template, is_draft: bool = False) -> Optional[Any]:
-        """
-        Check whether a next-stage prediction is needed and create it if required.
-        Returns: KnockoutStagePrediction or KnockoutStagePredictionDraft or None
-        """
-        if not template.winner_next_knockout_match:
+    def _coerce_status(status: Optional[str]) -> Optional[str]:
+        if not status:
             return None
-        
-        next_match_id = template.winner_next_knockout_match
-        
-        existing_next_prediction = DBReader.get_knockout_prediction(
-            db, prediction.user_id, next_match_id, is_draft=is_draft
-        )
-        
-        if existing_next_prediction:
-            return existing_next_prediction
-        
-        next_prediction = KnockPredRefactorService._create_next_stage_prediction(
-            db, prediction, next_match_id, is_draft=is_draft
-        )
-        if next_prediction:
-            print(f"Created new next-stage prediction: {next_prediction.id}")
-        return next_prediction
-
-    @staticmethod
-    def _create_next_stage_prediction(db: Session, prediction, next_match_id, is_draft: bool = False) -> Optional[Any]:
-        """
-        Create a new prediction for the next stage in the knockout chain.
-        """
-        result = DBReader.get_knockout_result(db, next_match_id)
-        if not result:
-            print(f"KnockoutStageResult not found for match_id {next_match_id}")
-            return None
-        
-        next_template = DBReader.get_match_template(db, next_match_id)
-        if not next_template:
-            print(f"MatchTemplate not found for match_id {next_match_id}")
-            return None
-        
-        knockout_pred_id = None
-        if is_draft:
-            original_prediction = DBReader.get_knockout_prediction(
-                db, prediction.user_id, next_match_id, is_draft=False
-            )
-            if original_prediction:
-                knockout_pred_id = original_prediction.id
-        
-        new_prediction = DBWriter.create_knockout_prediction(
-            db, prediction.user_id, result.id, next_match_id, next_template.stage,
-            winner_team_id=None, knockout_pred_id=knockout_pred_id, is_draft=is_draft
-        )
-        DBUtils.flush(db)
-        
-        DBWriter.set_prediction_status(new_prediction, PredictionStatus.MUST_CHANGE_PREDICT)
-        
-        return new_prediction
+        legacy_map = {
+            "predicted": PredictionStatus.VALID.value,
+            "might_change_predict": PredictionStatus.UNREACHABLE.value,
+            "must_change_predict": PredictionStatus.INVALID.value,
+            "gray": PredictionStatus.INVALID.value,
+        }
+        if status in legacy_map:
+            return legacy_map[status]
+        try:
+            return PredictionStatus(status).value
+        except ValueError:
+            return status
 
     @staticmethod
     def create_user_knockout_predictions(db: Session, user_id: int) -> List[KnockoutStagePrediction]:
@@ -263,9 +302,9 @@ class KnockPredRefactorService:
                 team1_id=None,
                 team2_id=None,
                 winner_team_id=None,
-                status="gray",
                 is_editable=True
             )
+            KnockPredRefactorService._compute_and_set_status(db, prediction)
             created.append(prediction)
 
         DBUtils.flush(db)
@@ -640,10 +679,10 @@ class KnockPredRefactorService:
             winner_team_id=None,
             is_draft=True,
             knockout_pred_id=knockout_pred_id,
-            status=PredictionStatus.MUST_CHANGE_PREDICT.value,
         )
 
         DBUtils.flush(db)
+        KnockPredRefactorService._compute_and_set_status(db, draft)
         return draft
     
     @staticmethod
@@ -1013,10 +1052,11 @@ class KnockPredRefactorService:
             team1_id = prediction.team1_id if prediction.is_team1_valid else 0
             team2_id = prediction.team2_id if prediction.is_team2_valid else 0
             original_winner_team_id = prediction.winner_team_id or 0  # Save original winner before cleaning
+            normalized_status = KnockPredRefactorService._coerce_status(prediction.status)
 
             # Set current_winner_team_id if status is yellow and winner differs from the draft teams
             current_winner_team_id = 0
-            if prediction.status == PredictionStatus.MIGHT_CHANGE_PREDICT.value and original_winner_team_id:
+            if normalized_status == PredictionStatus.UNREACHABLE.value and original_winner_team_id:
                 if original_winner_team_id != team1_id and original_winner_team_id != team2_id:
                     current_winner_team_id = original_winner_team_id
 
@@ -1037,7 +1077,7 @@ class KnockPredRefactorService:
             winner_team_id=winner_team_id,
             is_draft=True,
             knockout_pred_id=prediction.id,
-            status=PredictionStatus(prediction.status).value if hasattr(PredictionStatus, 'value') else prediction.status,
+            status=KnockPredRefactorService._coerce_status(prediction.status) or prediction.status,
             current_winner_team_id=current_winner_team_id,
         )
 

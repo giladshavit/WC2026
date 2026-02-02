@@ -2,9 +2,17 @@ from dataclasses import dataclass
 from enum import Enum
 
 class PredictionStatus(Enum):
-    PREDICTED = "predicted"  # User predicted and prediction is valid
-    MIGHT_CHANGE_PREDICT = "might_change_predict"  # Teams changed, user might want to re-evaluate
-    MUST_CHANGE_PREDICT = "must_change_predict"  # Must determine winner because prediction is invalid/missing
+    # ── Pre-result statuses (match not yet played) ──
+    VALID = "valid"  # Normal — winner predicted, reachable
+    INVALID = "invalid"  # No winner selected or eliminated — must choose
+    UNREACHABLE = "unreachable"  # Winner in tournament but via different path
+
+    # ── Post-result statuses (match has been played) ──
+    CORRECT_FULL = "correct_full"  # Correct winner + correct path (100% points)
+    CORRECT_PARTIAL = "correct_partial"  # Correct winner + wrong path (50% points)
+    INCORRECT = "incorrect"  # Wrong winner (0 points)
+
+    PENDING_RESULT = "pending_result"  # Result exists but status not finalized
 
 @dataclass
 class PlacesPredictions:

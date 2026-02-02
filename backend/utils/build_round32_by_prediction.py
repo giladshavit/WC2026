@@ -119,7 +119,7 @@ def build_knockout_bracket():
                             team1_id=home_team.id,
                             team2_id=away_team.id,
                             winner_team_id=None,
-                            status="must_change_predict"  # initial status
+                            status="invalid"  # initial status
                         )
                     else:
                         print(f"  KnockoutStageResult not found for match_id {template.id}")
