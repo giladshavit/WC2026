@@ -7,6 +7,7 @@ from services.database import DBReader, DBWriter, DBUtils
 from .shared import PredictionStatus
 from services.scoring_service import ScoringService
 from models.results import KnockoutStageResult
+from models.predictions import KnockoutStagePrediction
 from models.team import Team
 
 
@@ -219,6 +220,56 @@ class KnockPredRefactorService:
         DBWriter.set_prediction_status(new_prediction, PredictionStatus.MUST_CHANGE_PREDICT)
         
         return new_prediction
+
+    @staticmethod
+    def create_user_knockout_predictions(db: Session, user_id: int) -> List[KnockoutStagePrediction]:
+        """
+        Create 63 empty knockout predictions for a newly registered user.
+        One prediction per knockout MatchTemplate.
+        
+        Args:
+            db: Database session
+            user_id: The newly registered user's ID
+        
+        Returns:
+            List of created KnockoutStagePrediction objects
+        """
+        templates = DBReader.get_all_knockout_templates(db)
+        created: List[KnockoutStagePrediction] = []
+
+        for template in templates:
+            existing_prediction = DBReader.get_knockout_prediction(
+                db, user_id, template.id, is_draft=False
+            )
+            if existing_prediction:
+                continue
+
+            knockout_result_id = template.knockout_result_id
+            if not knockout_result_id:
+                result = DBReader.get_knockout_result(db, template.id)
+                knockout_result_id = result.id if result else None
+
+            if not knockout_result_id:
+                print(f"Warning: No knockout result for template {template.id}")
+                continue
+
+            prediction = DBWriter.create_knockout_prediction(
+                db,
+                user_id,
+                knockout_result_id,
+                template.id,
+                template.stage,
+                is_draft=False,
+                team1_id=None,
+                team2_id=None,
+                winner_team_id=None,
+                status="gray",
+                is_editable=True
+            )
+            created.append(prediction)
+
+        DBUtils.flush(db)
+        return created
 
     @staticmethod
     def _get_source_match_id(db: Session, match_id: int, is_team1: bool = True) -> Optional[int]:

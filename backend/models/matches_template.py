@@ -1,4 +1,5 @@
-from sqlalchemy import Column, String, Integer, DateTime
+from sqlalchemy import Column, String, Integer, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from .base import Base
 
 class MatchTemplate(Base):
@@ -14,6 +15,12 @@ class MatchTemplate(Base):
     winner_next_knockout_match = Column(Integer, nullable=True)  # ID of the next knockout match (only for knockout)
     winner_next_position = Column(Integer, nullable=True)  # 1 or 2 - position in the next match (only for knockout)
     knockout_id = Column(Integer, nullable=True)  # ID of the related knockout prediction
+
+    # Direct link to knockout result (NEW)
+    knockout_result_id = Column(Integer, ForeignKey("knockout_stage_results.id"), nullable=True)
+
+    # Relationship (NEW)
+    knockout_result = relationship("KnockoutStageResult", foreign_keys=[knockout_result_id])
     
     def __repr__(self):
         return f"<MatchTemplate(id={self.id}, stage='{self.stage}', {self.team_1} vs {self.team_2})>"

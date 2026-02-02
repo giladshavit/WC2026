@@ -92,7 +92,16 @@ class AuthService:
         DBUtils.commit(db)
         
         # Create empty knockout predictions for the new user
-        AuthService._create_empty_knockout_predictions(db, new_user.id)
+        try:
+            from services.predictions.knock_pred_refactor_service import KnockPredRefactorService
+            created_predictions = KnockPredRefactorService.create_user_knockout_predictions(
+                db, new_user.id
+            )
+            DBUtils.commit(db)
+            print(f"Created {len(created_predictions)} empty knockout predictions for user {new_user.id}")
+        except Exception as e:
+            DBUtils.rollback(db)
+            print(f"Warning: Failed to create knockout predictions for user {new_user.id}: {e}")
         
         # Create access token
         access_token = AuthService.create_access_token(new_user.id, new_user.username)
