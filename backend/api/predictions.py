@@ -385,20 +385,3 @@ def delete_all_drafts_for_user(
         raise HTTPException(status_code=500, detail=f"Error deleting drafts: {str(e)}")
 
 
-@router.delete("/predictions/knockout/delete-all")
-def delete_all_knockout_predictions_for_user(
-    user_id: int = 1,  # TODO: should come from authentication
-    db: Session = Depends(get_db)
-):
-    """
-י    Delete all knockout predictions and third place predictions (not drafts) for a specific user.
-    """
-    try:
-        from services.predictions import PredictionService
-        result = PredictionService.delete_all_knockout_predictions_for_user(db, user_id)
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        DBUtils.rollback(db)
-        raise HTTPException(status_code=500, detail=f"Error deleting knockout predictions: {str(e)}")

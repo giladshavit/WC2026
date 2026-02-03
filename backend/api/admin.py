@@ -494,7 +494,7 @@ def rebuild_round32_bracket(db: Session = Depends(get_db)):
         # Step 4: Update validity for all predictions
         print("🔧 Updating prediction validity...")
         from services.predictions.knockout_service import KnockoutService
-        KnockoutService.update_all_predictions_validity(db)
+        KnockoutService.recalculate_all_statuses(db)
         db.commit()
         
         return {
@@ -553,17 +553,11 @@ def reset_all_results_and_scores(db: Session = Depends(get_db)):
         if process_result.returncode != 0:
             raise Exception(f"Script failed with return code {process_result.returncode}: {process_result.stderr}")
         
-        # Step 2: Reset validity for all knockout predictions (set to True since no results exist)
-        from models.predictions import KnockoutStagePrediction
-        knockout_predictions = db.query(KnockoutStagePrediction).all()
+        # Step 2: Recalculate knockout statuses using reachable logic
+        from services.predictions.knockout_service import KnockoutService
+        KnockoutService.recalculate_all_statuses(db)
         validity_reset_count = 0
-        for prediction in knockout_predictions:
-            if not prediction.is_team1_valid or not prediction.is_team2_valid:
-                prediction.is_team1_valid = True
-                prediction.is_team2_valid = True
-                validity_reset_count += 1
-        
-        print(f"✅ Reset validity for {validity_reset_count} knockout predictions")
+        print("✅ Recalculated knockout prediction statuses")
         
         # Step 3: Reset all user scores and prediction points
         scores_result = ResultsService.reset_all_user_scores(db)
@@ -768,6 +762,54 @@ def delete_all_knockout_predictions(db: Session = Depends(get_db)):
         
     except Exception as e:
         print(f"❌ Error in delete_all_knockout_predictions: {e}")
+        DBUtils.rollback(db)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.delete("/admin/delete-user-knockout-predictions", response_model=Dict[str, Any])
+def delete_user_knockout_predictions(
+    user_id: int = 1,  # TODO: should come from authentication
+    db: Session = Depends(get_db)
+):
+    """
+    Delete all knockout predictions and third place predictions (not drafts) for a specific user (admin only)
+    """
+    try:
+        from models.predictions import KnockoutStagePrediction, ThirdPlacePrediction
+
+        knockout_pred_count = db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.user_id == user_id
+        ).count()
+        third_place_count = db.query(ThirdPlacePrediction).filter(
+            ThirdPlacePrediction.user_id == user_id
+        ).count()
+
+        if knockout_pred_count == 0 and third_place_count == 0:
+            return {
+                "message": f"No knockout/third place predictions found for user {user_id}",
+                "deleted": False,
+                "knockout_predictions_deleted": 0,
+                "third_place_predictions_deleted": 0,
+                "total_deleted": 0
+            }
+
+        deleted_knockout = db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.user_id == user_id
+        ).delete()
+        deleted_third_place = db.query(ThirdPlacePrediction).filter(
+            ThirdPlacePrediction.user_id == user_id
+        ).delete()
+
+        db.commit()
+
+        return {
+            "message": f"Deleted user {user_id} knockout/third place predictions successfully",
+            "deleted": True,
+            "knockout_predictions_deleted": deleted_knockout,
+            "third_place_predictions_deleted": deleted_third_place,
+            "total_deleted": deleted_knockout + deleted_third_place
+        }
+    except Exception as e:
+        print(f"❌ Error in delete_user_knockout_predictions: {e}")
         DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 

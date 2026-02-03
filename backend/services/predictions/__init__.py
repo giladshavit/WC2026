@@ -1,7 +1,7 @@
 """
-Prediction services module - refactored from single prediction_service.py
+Prediction services module.
 
-This module contains specialized services for different types of predictions:
+Contains specialized services for different types of predictions:
 - MatchPredictionService: Group stage match predictions
 - GroupPredictionService: Group stage standings predictions
 - ThirdPlacePredictionService: Third place qualifying teams predictions
@@ -44,7 +44,7 @@ class PredictionService:
     create_draft_from_prediction = staticmethod(KnockoutService.create_draft_from_prediction)
     create_all_drafts_from_predictions = staticmethod(KnockoutService.create_all_drafts_from_predictions)
     delete_all_drafts_for_user = staticmethod(KnockoutService.delete_all_drafts_for_user)
-    delete_all_knockout_predictions_for_user = staticmethod(KnockoutService.delete_all_knockout_predictions_for_user)
+    # NOTE: delete_all_knockout_predictions_for_user moved to admin.py
     
     # Status management
     set_status = staticmethod(DBWriter.set_prediction_status)
