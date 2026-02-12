@@ -6,6 +6,7 @@ from datetime import datetime
 from services.database import DBReader, DBWriter, DBUtils
 from .shared import PredictionStatus
 from services.scoring_service import ScoringService
+from services.stage_manager import StageManager, Stage
 from models.results import KnockoutStageResult
 from models.predictions import KnockoutStagePrediction
 from models.team import Team
@@ -173,7 +174,9 @@ class KnockoutService:
         DBWriter.update_knockout_prediction(db, prediction, **update_kwargs)
         DBUtils.flush(db)
 
-        KnockoutService._compute_and_set_status(db, prediction)
+        current_stage = StageManager.get_current_stage(db)
+        check_reachable = current_stage.value >= Stage.PRE_ROUND32.value
+        KnockoutService._compute_and_set_status(db, prediction, check_reachable=check_reachable)
         DBUtils.flush(db)
 
         next_prediction, position = KnockoutService._find_next_prediction_and_position(db, prediction)
@@ -220,7 +223,9 @@ class KnockoutService:
                 KnockoutService.set_winner(db, prediction, winner_team_id=None)
                 return
 
-        KnockoutService._compute_and_set_status(db, prediction)
+        current_stage = StageManager.get_current_stage(db)
+        check_reachable = current_stage.value >= Stage.PRE_ROUND32.value
+        KnockoutService._compute_and_set_status(db, prediction, check_reachable=check_reachable)
         DBUtils.flush(db)
 
     # ═══════════════════════════════════════════════════════
@@ -461,7 +466,9 @@ class KnockoutService:
                 winner_team_id=None,
                 is_editable=True
             )
-            KnockoutService._compute_and_set_status(db, prediction)
+            current_stage = StageManager.get_current_stage(db)
+            check_reachable = current_stage.value >= Stage.PRE_ROUND32.value
+            KnockoutService._compute_and_set_status(db, prediction, check_reachable=check_reachable)
             created.append(prediction)
 
         DBUtils.flush(db)
@@ -472,11 +479,13 @@ class KnockoutService:
     # ═══════════════════════════════════════════════════════
 
     @staticmethod
-    def recalculate_all_statuses(db: Session) -> None:
+    def initialize_all_knockout_statuses(db: Session) -> None:
         """
-        Recalculate status for all knockout predictions using reachable logic.
+        Initialize/recalculate status for all knockout predictions using reachable logic.
+        Iterates over all predictions per user, skips post-result statuses (CORRECT_FULL,
+        CORRECT_PARTIAL, INCORRECT), calls _compute_and_set_status with check_reachable=True.
         Called after admin operations that affect the bracket (entering results, rebuilding).
-        Replaces the old update_all_predictions_validity which used is_team1_valid/is_team2_valid.
+        Uses check_reachable=True because this runs only after group results exist.
         """
         predictions = DBReader.get_all_knockout_predictions(db)
         for prediction in predictions:
@@ -491,6 +500,218 @@ class KnockoutService:
         return KnockoutService._is_winner_reachable_recursive(
             db, prediction.template_match_id, winner_team_id
         )
+
+    # ═══════════════════════════════════════════════════════
+    # RESULT PROCESSING (post-match status and scoring)
+    # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def process_knockout_match_result(
+        db: Session,
+        match_id: int,
+        winner_team_id: int,
+        loser_team_id: int
+    ) -> None:
+        """
+        Called from ResultsService after updating result and placing winner in next stage.
+        Handles status updates and scoring for all users.
+        """
+        predictions = DBReader.get_knockout_predictions_by_match(db, match_id)
+        template = DBReader.get_match_template(db, match_id)
+        if not template:
+            return
+        stage = template.stage
+
+        # Mark loser as eliminated (once, before processing predictions)
+        loser_team = DBReader.get_team(db, loser_team_id)
+        if loser_team:
+            DBWriter.update_team_eliminated(db, loser_team, True)
+            DBUtils.flush(db)
+
+        for prediction in predictions:
+            user_id = prediction.user_id
+
+            # Case 0: Empty prediction or INVALID status
+            if not KnockoutService._normalize_team_id(prediction.winner_team_id):
+                KnockoutService._set_prediction_status_and_points(
+                    db, prediction, user_id,
+                    PredictionStatus.INCORRECT.value, 0
+                )
+                continue
+            if prediction.status == PredictionStatus.INVALID.value:
+                KnockoutService._set_prediction_status_and_points(
+                    db, prediction, user_id,
+                    PredictionStatus.INCORRECT.value, 0
+                )
+                continue
+
+            # Part A: Handle winner (CORRECT_FULL or CORRECT_PARTIAL)
+            handled = KnockoutService._handle_winner(
+                db, prediction, user_id, winner_team_id, stage
+            )
+            if handled:
+                continue
+
+            # Part B: Handle loser (INCORRECT)
+            KnockoutService._handle_loser(
+                db, prediction, user_id, match_id, loser_team_id, stage
+            )
+
+        DBUtils.flush(db)
+
+    @staticmethod
+    def _handle_winner(
+        db: Session,
+        prediction,
+        user_id: int,
+        winner_team_id: int,
+        stage: str
+    ) -> bool:
+        """
+        Part A — Handle winner. Returns True if prediction was handled.
+        """
+        # Direct check: did user predict the winner for THIS match?
+        if KnockoutService._normalize_team_id(prediction.winner_team_id) == winner_team_id:
+            points = ScoringService.KNOCKOUT_SCORING.get(stage, {}).get("full", 0)
+            KnockoutService._set_prediction_status_and_points(
+                db, prediction, user_id,
+                PredictionStatus.CORRECT_FULL.value, points
+            )
+            return True
+
+        # Direct prediction was wrong — search same stage for UNREACHABLE with winner
+        same_stage_predictions = DBReader.get_knockout_predictions_by_user(
+            db, user_id, stage=stage, is_draft=False
+        )
+        for other_pred in same_stage_predictions:
+            if other_pred.id == prediction.id:
+                continue
+            if (other_pred.status == PredictionStatus.UNREACHABLE.value and
+                    KnockoutService._normalize_team_id(other_pred.winner_team_id) == winner_team_id):
+                # Current prediction was wrong (for this match), set INCORRECT
+                KnockoutService._set_prediction_status_and_points(
+                    db, prediction, user_id,
+                    PredictionStatus.INCORRECT.value, 0
+                )
+                # Other prediction had correct winner via different path -> CORRECT_PARTIAL
+                points = ScoringService.KNOCKOUT_SCORING.get(stage, {}).get("partial", 0)
+                KnockoutService._set_prediction_status_and_points(
+                    db, other_pred, user_id,
+                    PredictionStatus.CORRECT_PARTIAL.value, points
+                )
+                return True
+
+        return False
+
+    @staticmethod
+    def _handle_loser(
+        db: Session,
+        prediction,
+        user_id: int,
+        match_id: int,
+        loser_team_id: int,
+        stage: str
+    ) -> None:
+        """
+        Part B — Handle loser. Set INCORRECT, find loser in next stages.
+        (Loser is already marked eliminated in process_knockout_match_result.)
+        """
+        # Direct check: did user predict the loser for THIS match?
+        if KnockoutService._normalize_team_id(prediction.winner_team_id) == loser_team_id:
+            KnockoutService._set_prediction_status_and_points(
+                db, prediction, user_id,
+                PredictionStatus.INCORRECT.value, 0
+            )
+            KnockoutService._find_loser_in_next_stages(
+                db, user_id, loser_team_id, match_id
+            )
+            return
+
+        # Direct prediction != loser — current prediction is still wrong (INCORRECT)
+        KnockoutService._set_prediction_status_and_points(
+            db, prediction, user_id,
+            PredictionStatus.INCORRECT.value, 0
+        )
+        # Search same stage for other predictions that predicted the loser
+        same_stage_predictions = DBReader.get_knockout_predictions_by_user(
+            db, user_id, stage=stage, is_draft=False
+        )
+        for other_pred in same_stage_predictions:
+            if other_pred.id == prediction.id:
+                continue
+            if KnockoutService._normalize_team_id(other_pred.winner_team_id) == loser_team_id:
+                KnockoutService._set_prediction_status_and_points(
+                    db, other_pred, user_id,
+                    PredictionStatus.INCORRECT.value, 0
+                )
+                KnockoutService._find_loser_in_next_stages(
+                    db, user_id, loser_team_id, other_pred.template_match_id
+                )
+
+    @staticmethod
+    def _find_loser_in_next_stages(
+        db: Session,
+        user_id: int,
+        loser_team_id: int,
+        source_match_id: int
+    ) -> None:
+        """
+        Recursively walk forward in the prediction chain, looking for the loser.
+        If found as winner → set INVALID, continue recursion.
+        If not found → stop.
+        """
+        prediction = DBReader.get_knockout_prediction(
+            db, user_id, source_match_id, is_draft=False
+        )
+        if not prediction:
+            return
+
+        next_prediction, position = KnockoutService._find_next_prediction_and_position(
+            db, prediction
+        )
+        if not next_prediction:
+            return  # No next stage / reached final
+
+        if KnockoutService._normalize_team_id(next_prediction.winner_team_id) == loser_team_id:
+            KnockoutService._set_prediction_status_and_points(
+                db, next_prediction, user_id,
+                PredictionStatus.INVALID.value, 0
+            )
+            KnockoutService._find_loser_in_next_stages(
+                db, user_id, loser_team_id, next_prediction.template_match_id
+            )
+
+    @staticmethod
+    def _set_prediction_status_and_points(
+        db: Session,
+        prediction,
+        user_id: int,
+        status: str,
+        points: int
+    ) -> None:
+        """Set prediction status and points, update user knockout score."""
+        old_points = prediction.points if prediction.points is not None else 0
+        DBWriter.set_prediction_status(prediction, status)
+        DBWriter.update_knockout_prediction(db, prediction, points=points)
+        DBUtils.flush(db)
+
+        user_scores = DBReader.get_user_scores(db, user_id)
+        if not user_scores:
+            user_scores = DBWriter.create_user_scores(db, user_id)
+        new_knockout_score = (user_scores.knockout_score or 0) - old_points + points
+        new_total_points = (
+            (user_scores.matches_score or 0) +
+            (user_scores.groups_score or 0) +
+            (user_scores.third_place_score or 0) +
+            new_knockout_score -
+            (user_scores.penalty or 0)
+        )
+        DBWriter.update_user_scores(
+            db, user_scores,
+            knockout_score=new_knockout_score,
+            total_points=new_total_points
+        )
+        DBUtils.flush(db)
 
     # ═══════════════════════════════════════════════════════
     # THIRD PLACE Integration
@@ -715,65 +936,20 @@ class KnockoutService:
     ) -> Optional[PredictionStatus]:
         """
         Compute and set the prediction status based on current state.
-        Delegates to specific handlers based on whether match result exists.
+        If status is already post-result (CORRECT_FULL/CORRECT_PARTIAL/INCORRECT), return immediately.
+        Otherwise delegate to _compute_status_pre_result.
         Returns the status that was set, or None if undetermined.
         """
-        template = DBReader.get_match_template(db, prediction.template_match_id)
-        if not template:
-            return None
-
-        result = DBReader.get_knockout_result(db, prediction.template_match_id)
-
-        if result and result.winner_team_id:
-            return KnockoutService._compute_status_post_result(db, prediction, result)
-        else:
-            return KnockoutService._compute_status_pre_result(db, prediction, check_reachable)
-
-    @staticmethod
-    def _compute_status_post_result(
-        db: Session,
-        prediction,
-        result
-    ) -> PredictionStatus:
-        """
-        Compute status when match has been played (result exists with winner).
-        
-        Possible outcomes:
-        - CORRECT_FULL: User predicted the correct winner
-        - INCORRECT: User predicted wrong winner OR winner is eliminated OR no prediction
-        - CORRECT_PARTIAL: Preserved if already set (don't overwrite)
-        - PENDING_RESULT: User predicted a team that hasn't been decided yet in this stage
-        """
-        winner_team_id = KnockoutService._normalize_team_id(prediction.winner_team_id)
-
-        # Case 1: User predicted correctly
-        if winner_team_id == result.winner_team_id:
-            status = PredictionStatus.CORRECT_FULL
-            DBWriter.set_prediction_status(prediction, status.value)
-            return status
-
-        # Case 2: User didn't predict anyone
-        if not winner_team_id:
-            status = PredictionStatus.INCORRECT
-            DBWriter.set_prediction_status(prediction, status.value)
-            return status
-
-        # Case 3: User's predicted team is eliminated
-        winner_team = DBReader.get_team(db, winner_team_id)
-        if winner_team and winner_team.is_eliminated:
-            status = PredictionStatus.INCORRECT
-            DBWriter.set_prediction_status(prediction, status.value)
-            return status
-
-        # Case 4: User predicted a team that's still in tournament but didn't win THIS match
         current_status = prediction.status
-        if current_status == PredictionStatus.CORRECT_PARTIAL.value:
-            return PredictionStatus.CORRECT_PARTIAL
+        post_result_statuses = {
+            PredictionStatus.CORRECT_FULL.value,
+            PredictionStatus.CORRECT_PARTIAL.value,
+            PredictionStatus.INCORRECT.value,
+        }
+        if current_status in post_result_statuses:
+            return None  # Don't touch post-result statuses
 
-        # Case 5: Team still active, waiting for their match in this stage
-        status = PredictionStatus.PENDING_RESULT
-        DBWriter.set_prediction_status(prediction, status.value)
-        return status
+        return KnockoutService._compute_status_pre_result(db, prediction, check_reachable)
 
     @staticmethod
     def _compute_status_pre_result(
