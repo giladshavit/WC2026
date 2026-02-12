@@ -46,6 +46,15 @@ class ScoringService:
         "semi": 30,       # חצי גמר - 30 נקודות למנצח נכון
         "final": 40       # גמר - 40 נקודות למנצח נכון
     }
+
+    # Full (correct path) vs partial (correct winner, wrong path) points per stage
+    KNOCKOUT_SCORING = {
+        "round32": {"full": 5, "partial": 2},
+        "round16": {"full": 10, "partial": 5},
+        "quarter": {"full": 15, "partial": 7},
+        "semi": {"full": 20, "partial": 10},
+        "final": {"full": 25, "partial": 12},
+    }
     
     @staticmethod
     def is_correct_winner(prediction: MatchPrediction, result: MatchResult) -> bool:
@@ -426,18 +435,16 @@ class ScoringService:
     def calculate_knockout_prediction_points(prediction: KnockoutStagePrediction, result: KnockoutStageResult, stage: str) -> int:
         """
         Calculate points for a knockout stage prediction.
-        Points are awarded based on correct winner prediction and stage.
+        Points are awarded based on prediction status: CORRECT_FULL, CORRECT_PARTIAL, or 0.
         """
-        # Get the points for this stage
-        stage_points = ScoringService.KNOCKOUT_SCORING_RULES.get(stage, 0)
-        
-        # Calculate points based on correct winner
-        if prediction.winner_team_id == result.winner_team_id:
-            # Correct winner prediction
-            return stage_points
-        else:
-            # Wrong prediction
-            return 0
+        stage_scoring = ScoringService.KNOCKOUT_SCORING.get(stage, {"full": 0, "partial": 0})
+        status = getattr(prediction, "status", None) or ""
+
+        if status == "correct_full":
+            return stage_scoring.get("full", 0)
+        if status == "correct_partial":
+            return stage_scoring.get("partial", 0)
+        return 0
     
     @staticmethod
     def update_knockout_scoring_for_all_users(db: Session, knockout_result: KnockoutStageResult) -> Dict[str, Any]:

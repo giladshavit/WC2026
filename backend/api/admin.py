@@ -494,7 +494,7 @@ def rebuild_round32_bracket(db: Session = Depends(get_db)):
         # Step 4: Update validity for all predictions
         print("🔧 Updating prediction validity...")
         from services.predictions.knockout_service import KnockoutService
-        KnockoutService.recalculate_all_statuses(db)
+        KnockoutService.initialize_all_knockout_statuses(db)
         db.commit()
         
         return {
@@ -555,7 +555,7 @@ def reset_all_results_and_scores(db: Session = Depends(get_db)):
         
         # Step 2: Recalculate knockout statuses using reachable logic
         from services.predictions.knockout_service import KnockoutService
-        KnockoutService.recalculate_all_statuses(db)
+        KnockoutService.initialize_all_knockout_statuses(db)
         validity_reset_count = 0
         print("✅ Recalculated knockout prediction statuses")
         

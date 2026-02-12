@@ -592,9 +592,15 @@ class ResultsService:
             DBUtils.refresh(db, knockout_result)
             print(f"Updated KnockoutStageResult for match {match_id} with winner {winner_team_id}")
             
-            # Update scoring for knockout stage predictions
-            ScoringService.update_knockout_scoring_for_all_users(db, knockout_result)
-            
+            # Process predictions (status + scoring) via KnockoutService
+            team_1_id = knockout_result.team_1
+            team_2_id = knockout_result.team_2
+            if team_1_id and team_2_id:
+                from services.predictions.knockout_service import KnockoutService
+                loser_team_id = team_2_id if winner_team_id == team_1_id else team_1_id
+                KnockoutService.process_knockout_match_result(
+                    db, match_id, winner_team_id, loser_team_id
+                )
             
             # Create or update the next knockout match
             ResultsService._create_or_update_next_knockout_stage(db, match_id, winner_team_id)
@@ -696,99 +702,14 @@ class ResultsService:
         return source_match_1_id, source_match_2_id
     
     @staticmethod
-    def is_winner_reachable_recursive(db: Session, match_id: int, winner_team_id: int, visited: set = None) -> bool:
-        """
-        Recursively checks if a winner team can reach a specific match.
-        
-        Args:
-            db: Database session
-            match_id: The target match ID to check if winner can reach
-            winner_team_id: The team ID to check reachability for
-            visited: Set of visited match IDs to prevent infinite loops
-        
-        Returns:
-            True if the winner team can reach this match, False otherwise
-        """
-        if visited is None:
-            visited = set()
-        
-        # Prevent infinite loops
-        if match_id in visited:
-            return False
-        visited.add(match_id)
-        
-        # Get the template for this match
-        template = DBReader.get_match_template(db, match_id)
-        if not template:
-            return False
-        
-        # Check if this match has actual results with teams
-        knockout_result = DBReader.get_knockout_result(db, match_id)
-        
-        if knockout_result and knockout_result.team_1 and knockout_result.team_2:
-            # Match has actual teams assigned - check if winner is one of them
-            if winner_team_id in {knockout_result.team_1, knockout_result.team_2}:
-                return True
-            else:
-                return False
-        
-        # Check if this is the first knockout stage (Round of 32) - base case
-        if template.stage == 'round32':
-            return True
-        
-        # Get the two source matches
-        source_match_1_id, source_match_2_id = ResultsService.get_source_match_ids(template)
-        
-        # Recursively check if winner can reach from either source match
-        # Using OR with early return - if first is True, won't check second
-        return (source_match_1_id and ResultsService.is_winner_reachable_recursive(db, source_match_1_id, winner_team_id, visited.copy())) or \
-               (source_match_2_id and ResultsService.is_winner_reachable_recursive(db, source_match_2_id, winner_team_id, visited.copy()))
-    
-    @staticmethod
-    def is_winner_reachable(db: Session, prediction) -> bool:
-        """
-        Checks if the predicted winner can reach the current match based on actual results.
-        This is the main entry point for checking reachability.
-        
-        Args:
-            db: Database session
-            prediction: The knockout prediction to check
-        
-        Returns:
-            True if the predicted winner can reach this match, False otherwise
-        """
-        if not prediction.winner_team_id:
-            return False
-        
-        return ResultsService.is_winner_reachable_recursive(db, prediction.template_match_id, prediction.winner_team_id)
-    
-    @staticmethod
     def update_knockout_statuses_after_round32(db: Session, stage: str = None):
         """
         Updates knockout prediction statuses for stages after Round of 32.
-        
-        Args:
-            db: Database session
-            stage: Optional stage to update (e.g., 'round16', 'quarter', 'semi', 'final')
-                  If None, updates all stages after round32
-        
-        This implements the complex logic for combining predecessor match statuses.
+        Delegates to KnockoutService.initialize_all_knockout_statuses.
         """
-        # Determine which stages to update
-        if stage:
-            stages_to_update = [stage]
-        else:
-            stages_to_update = ['round16', 'quarter', 'semi', 'final']
-        
-        for stage_name in stages_to_update:
-            # Get all predictions for this stage
-            predictions = DBReader.get_knockout_predictions_by_stage(db, stage_name)
-            
-            for prediction in predictions:
-                from services.predictions.knockout_service import KnockoutService
-                KnockoutService._compute_and_set_status(db, prediction, check_reachable=True)
-            
-            DBUtils.commit(db)
+        from services.predictions.knockout_service import KnockoutService
+        KnockoutService.initialize_all_knockout_statuses(db)
+        DBUtils.commit(db)
     
     @staticmethod
     def reset_all_user_scores(db: Session) -> Dict[str, Any]:
@@ -938,12 +859,15 @@ class ResultsService:
         
         # 3.5. Update the next knockout stage with the winner
         ResultsService._create_or_update_next_knockout_stage(db, match_id, winner_team_id)
-        
-        # 4. Process all predictions and award points (via ScoringService)
-        ScoringService.update_knockout_scoring_for_all_users(db, knockout_result)
+
+        # 4. Process all predictions: status updates and scoring (replaces ScoringService)
+        from services.predictions.knockout_service import KnockoutService
+        loser_team_id = team_2_id if winner_team_id == team_1_id else team_1_id
+        KnockoutService.process_knockout_match_result(
+            db, match_id, winner_team_id, loser_team_id
+        )
         
         # 5. Process each prediction for invalidation
-        from services.predictions.knockout_service import KnockoutService
         for prediction in predictions:
             print(f"Processing prediction: {prediction.id}, winner_team_id: {prediction.winner_team_id}, winner_team_id_from_result: {winner_team_id}")
             if prediction.winner_team_id and prediction.winner_team_id != winner_team_id:
