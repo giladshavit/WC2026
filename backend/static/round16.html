@@ -103,10 +103,6 @@
             border: 5px solid #ffd43b !important; /* צהוב */
         }
 
-        .match-card.status-pending_result {
-            border: 5px solid #adb5bd !important; /* אפור */
-        }
-
         .match-header {
             text-align: center;
             margin-bottom: 15px;
@@ -216,11 +212,6 @@
         .status-indicator.correct_partial {
             background: #ffd43b;
             color: #333;
-        }
-
-        .status-indicator.pending_result {
-            background: #adb5bd;
-            color: white;
         }
 
         .loading {
@@ -495,8 +486,6 @@
                     return '½ ניחוש חלקי';
                 case 'incorrect':
                     return '✗ ניחוש שגוי';
-                case 'pending_result':
-                    return '⏳ ממתין';
                 default:
                     return '';
             }

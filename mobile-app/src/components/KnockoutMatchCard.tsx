@@ -21,7 +21,6 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, 
       case 'correct_full':
         return '#4CAF50'; // green
       case 'valid':
-      case 'pending_result':
         return '#FFFFFF'; // white/default
       default:
         return 'transparent';

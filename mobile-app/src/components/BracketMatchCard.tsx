@@ -43,7 +43,6 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
       case 'correct_full':
         return '#4CAF50'; // green
       case 'valid':
-      case 'pending_result':
         return '#FFFFFF'; // white/default
       default:
         return '#e2e8f0'; // default gray

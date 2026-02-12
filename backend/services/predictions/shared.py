@@ -12,8 +12,6 @@ class PredictionStatus(Enum):
     CORRECT_PARTIAL = "correct_partial"  # Correct winner + wrong path (50% points)
     INCORRECT = "incorrect"  # Wrong winner (0 points)
 
-    PENDING_RESULT = "pending_result"  # Result exists but status not finalized
-
 @dataclass
 class PlacesPredictions:
     first_place: int
