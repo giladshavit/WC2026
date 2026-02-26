@@ -30,7 +30,7 @@ class PredictionService:
     create_or_update_batch_predictions = staticmethod(MatchPredictionService.create_or_update_batch_predictions)
     
     # Group predictions
-    create_or_update_group_prediction = staticmethod(GroupPredictionService.create_or_update_group_prediction)
+    update_group_prediction_places = staticmethod(GroupPredictionService.update_group_prediction_places)
     get_group_predictions = staticmethod(GroupPredictionService.get_group_predictions)
     create_or_update_batch_group_predictions = staticmethod(GroupPredictionService.create_or_update_batch_group_predictions)
     

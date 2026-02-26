@@ -9,17 +9,18 @@ class GroupPredictionService:
     """Service for group prediction operations"""
     
     @staticmethod
-    def create_or_update_group_prediction(db: Session, user_id: int, group_id: int, 
-                                         places: PlacesPredictions) -> Dict[str, Any]:
-        """
-        Create or update a group prediction
-        """
+    def update_group_prediction_places(db: Session, user_id: int, group_id: int,
+                                       places: PlacesPredictions) -> Dict[str, Any]:
+        """Update a group prediction. Prediction must already exist (created at registration)."""
         existing_prediction = DBReader.get_group_prediction(db, user_id, group_id)
-        
-        if existing_prediction:
-            return GroupPredictionService._update_group_prediction(db, existing_prediction, places, user_id)
-        else:
-            return GroupPredictionService._create_new_group_prediction(db, places, group_id, user_id)
+
+        if not existing_prediction:
+            raise ValueError(
+                f"Group prediction not found for user {user_id}, group {group_id}. "
+                "Was it created at registration?"
+            )
+
+        return GroupPredictionService._update_group_prediction(db, existing_prediction, places, user_id)
     
     @staticmethod
     def _calculate_places_changes(existing_prediction, places: PlacesPredictions) -> int:
@@ -43,19 +44,17 @@ class GroupPredictionService:
         }
     
     @staticmethod
-    def _handle_place_changes(db: Session, user_id: int, group_id: int, 
+    def _handle_place_changes(db: Session, user_id: int, group_id: int,
                              old_places: Dict[str, int], new_places: PlacesPredictions):
         """Handle changes in 1st and 2nd places (affects knockout predictions)"""
         if old_places["first_place"] != new_places.first_place:
             GroupPredictionService._handle_first_second_place_change(
-                db, user_id, group_id, 1, 
-                old_places["first_place"], new_places.first_place
+                db, user_id, group_id, 1, new_places.first_place
             )
-        
+
         if old_places["second_place"] != new_places.second_place:
             GroupPredictionService._handle_first_second_place_change(
-                db, user_id, group_id, 2, 
-                old_places["second_place"], new_places.second_place
+                db, user_id, group_id, 2, new_places.second_place
             )
     
     @staticmethod
@@ -110,77 +109,56 @@ class GroupPredictionService:
         )
     
     @staticmethod
-    def _create_new_group_prediction(db: Session, places: PlacesPredictions, group_id: int, user_id: int) -> Dict[str, Any]:
-        """Create a new group prediction"""
-        new_prediction = DBWriter.create_group_prediction(
-            db, user_id, group_id, 
-            places.first_place, places.second_place, 
-            places.third_place, places.fourth_place
-        )
-        DBUtils.commit(db)
-        
-        # If this is a new prediction, delete existing third place predictions
-        DBWriter.delete_third_place_predictions_by_user(db, user_id)
-        DBUtils.commit(db)
-        
-        return {
-            "id": new_prediction.id,
-            "group_id": group_id,
-            "first_place": places.first_place,
-            "second_place": places.second_place,
-            "third_place": places.third_place,
-            "fourth_place": places.fourth_place,
-            "updated": False,
-            "changes": 3  # יצירה חדשה = 3 שינויים
-        }
-    
-    @staticmethod
-    def _get_match_id_from_group_template(db: Session, group_id: int, position: int) -> Optional[int]:
-        """Get match_id from group template based on position (1 or 2)"""
-        group = DBReader.get_group(db, group_id)
-        if not group:
-            return None
-        
-        group_template = DBReader.get_group_template_by_name(db, group.name)
-        if not group_template:
-            return None
-        
-        if position == 1:
-            return group_template.first_place_match_id
-        elif position == 2:
-            return group_template.second_place_match_id
-        
-        return None
-    
-    @staticmethod
-    def _handle_first_second_place_change(db: Session, user_id: int, group_id: int, position: int, 
-                                         old_team: int, new_team: int):
+    def create_user_group_predictions(db: Session, user_id: int) -> int:
         """
-        Handle a change in 1st or 2nd place - updates knockout predictions
-        
-        Args:
-            db: Session
-            user_id: user ID
-            group_id: group ID
-            position: 1 or 2 (first or second place)
-            old_team: old team ID
-            new_team: new team ID
+        Create empty group stage predictions for all 12 groups for a newly registered user.
+        Skips groups that already have a prediction (idempotent).
+        Returns number of predictions created.
         """
-        match_id = GroupPredictionService._get_match_id_from_group_template(db, group_id, position)
-        if not match_id:
+        groups = DBReader.get_groups_ordered(db)
+        created = 0
+
+        for group in groups:
+            existing = DBReader.get_group_prediction(db, user_id, group.id)
+            if existing:
+                continue
+
+            DBWriter.create_group_prediction(
+                db,
+                user_id=user_id,
+                group_id=group.id,
+                first=None,
+                second=None,
+                third=None,
+                fourth=None,
+            )
+            created += 1
+
+        DBUtils.flush(db)
+        return created
+
+    @staticmethod
+    def _handle_first_second_place_change(
+        db: Session, user_id: int, group_id: int, position: int, new_team: int
+    ):
+        """
+        Handle a change in 1st or 2nd place - updates the correct slot in the knockout prediction.
+        Uses GroupTemplate to determine exactly which match and team slot (1 or 2) to update.
+        """
+        result = DBReader.get_match_and_slot_from_group_template(db, group_id, position)
+        if not result:
             return
-        
-        # Find relevant knockout prediction
+
+        match_id, team_slot = result
+
         knockout_prediction = DBReader.get_knockout_prediction(db, user_id, match_id, is_draft=False)
         if not knockout_prediction:
             return
-        
-        # Update knockout prediction teams using new refactored service
-        # Determine which team to update (team1 or team2)
-        if knockout_prediction.team1_id == old_team:
-            KnockoutService.update_knockout_prediction(db, knockout_prediction, team1_id=new_team)
-        elif knockout_prediction.team2_id == old_team:
-            KnockoutService.update_knockout_prediction(db, knockout_prediction, team2_id=new_team)
+
+        if team_slot == 1:
+            KnockoutService.set_team(db, knockout_prediction, team1_id=new_team)
+        else:
+            KnockoutService.set_team(db, knockout_prediction, team2_id=new_team)
     
     @staticmethod
     def _handle_third_place_change(db: Session, user_id: int, old_third_place: int, 
@@ -212,7 +190,22 @@ class GroupPredictionService:
             )
     
     @staticmethod
-    def _update_third_place_predictions(db: Session, user_id: int, old_third_place: int, 
+    def _is_third_place_predicted(prediction) -> bool:
+        """Returns True if all 8 team slots are filled (none are None)."""
+        team_ids = [
+            prediction.first_team_qualifying,
+            prediction.second_team_qualifying,
+            prediction.third_team_qualifying,
+            prediction.fourth_team_qualifying,
+            prediction.fifth_team_qualifying,
+            prediction.sixth_team_qualifying,
+            prediction.seventh_team_qualifying,
+            prediction.eighth_team_qualifying,
+        ]
+        return all(t is not None for t in team_ids)
+
+    @staticmethod
+    def _update_third_place_predictions(db: Session, user_id: int, old_third_place: int,
                                         new_third_place: int, group_name: str):
         """
         Update third-place predictions and mark the group as changed
@@ -220,10 +213,13 @@ class GroupPredictionService:
         third_place_prediction = DBReader.get_third_place_prediction(db, user_id)
         if not third_place_prediction:
             return
-        
+
+        if not GroupPredictionService._is_third_place_predicted(third_place_prediction):
+            return  # User hasn't completed their third-place prediction yet, don't auto-update
+
         # Replace the team in third place prediction
         team_replaced = GroupPredictionService._replace_team_in_third_place_prediction(
-            third_place_prediction, old_third_place, new_third_place
+            db, third_place_prediction, old_third_place, new_third_place
         )
         
         if team_replaced:
@@ -239,7 +235,7 @@ class GroupPredictionService:
         DBUtils.commit(db)
     
     @staticmethod
-    def _replace_team_in_third_place_prediction(prediction, old_team_id: int, new_team_id: int) -> bool:
+    def _replace_team_in_third_place_prediction(db: Session, prediction, old_team_id: int, new_team_id: int) -> bool:
         """
         Find and replace a team in third place prediction
         Returns True if team was found and replaced, False otherwise
@@ -380,8 +376,8 @@ class GroupPredictionService:
         fourth_place = prediction_data.get("fourth_place")
         
         try:
-            result = GroupPredictionService.create_or_update_group_prediction(
-                db, user_id, group_id, 
+            result = GroupPredictionService.update_group_prediction_places(
+                db, user_id, group_id,
                 PlacesPredictions(first_place, second_place, third_place, fourth_place)
             )
             

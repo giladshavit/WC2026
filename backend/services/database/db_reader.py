@@ -3,7 +3,7 @@ DBReader: All READ (SELECT) operations from database.
 This is the ONLY place where db.query() should appear for reads.
 No service should call db.query() directly — always go through DBReader.
 """
-from typing import List, Optional, Sequence, Dict
+from typing import List, Optional, Sequence, Dict, Tuple
 from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
 
@@ -113,6 +113,36 @@ class DBReader:
     @staticmethod
     def get_group_template_by_name(db: Session, group_name: str) -> Optional[GroupTemplate]:
         return db.query(GroupTemplate).filter(GroupTemplate.group_name == group_name).first()
+
+    @staticmethod
+    def get_match_and_slot_from_group_template(
+        db: Session, group_id: int, position: int
+    ) -> Optional[Tuple[int, int]]:
+        """
+        Get (match_id, team_slot) for a group's qualifier in the knockout round.
+
+        Args:
+            group_id: the group's DB id
+            position: 1 (first place) or 2 (second place)
+
+        Returns:
+            Tuple of (match_id, team_slot) where team_slot is 1 or 2,
+            or None if group or template not found.
+        """
+        group = db.query(Group).filter(Group.id == group_id).first()
+        if not group:
+            return None
+
+        template = db.query(GroupTemplate).filter(GroupTemplate.group_name == group.name).first()
+        if not template:
+            return None
+
+        if position == 1:
+            return (template.first_place_match_id, template.first_place_team_slot)
+        elif position == 2:
+            return (template.second_place_match_id, template.second_place_team_slot)
+
+        return None
 
     # ═══════════════════════════════════════════════════════
     # MATCHES & TEMPLATES
