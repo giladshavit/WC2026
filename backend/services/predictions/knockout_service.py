@@ -104,6 +104,7 @@ class KnockoutService:
             HTTPException: If prediction not found, not editable, or invalid input
         """
         # Get prediction
+        print(f"DEBUG: prediction_id={prediction_id}, is_draft={is_draft}")
         prediction = DBReader.get_knockout_prediction_by_id(db, prediction_id, is_draft=is_draft)
         if not prediction:
             raise HTTPException(status_code=404, detail="Knockout prediction not found")
@@ -134,8 +135,9 @@ class KnockoutService:
         
         # Update prediction
         result = KnockoutService.update_knockout_prediction(
-            db, prediction, winner_team_id=winner_team_id, 
-            winner_team_name=winner_team_name
+            db, prediction, winner_team_id=winner_team_id,
+            winner_team_name=winner_team_name,
+            is_draft=is_draft
         )
         
         # Commit changes
@@ -150,19 +152,23 @@ class KnockoutService:
         team1_id: Optional[int] = None,
         team2_id: Optional[int] = None,
         winner_team_id: Optional[int] = None,
-        winner_team_name: Optional[str] = None
+        winner_team_name: Optional[str] = None,
+        is_draft: bool = False,
     ) -> Dict[str, Any]:
         winner_team_id = winner_team_id if winner_team_id != 0 else None
 
         if winner_team_id is not None:
-            return KnockoutService.set_winner(
-                db, prediction, winner_team_id, winner_team_name
+            result = KnockoutService.set_winner(
+                db, prediction, winner_team_id, winner_team_name, is_draft=is_draft
             )
+            return result
 
         if team1_id is not None or team2_id is not None:
             resolved_team1 = team1_id if team1_id != 0 else 0
             resolved_team2 = team2_id if team2_id != 0 else 0
-            KnockoutService.set_team(db, prediction, resolved_team1, resolved_team2)
+            KnockoutService.set_team(
+                db, prediction, resolved_team1, resolved_team2, is_draft=is_draft
+            )
             return KnockoutService._create_success_response(
                 db, prediction, "Teams updated"
             )
@@ -170,13 +176,16 @@ class KnockoutService:
         return {"error": "No valid update parameters provided"}
 
     @staticmethod
-    def set_winner(
+    def _persist_winner(
         db: Session,
         prediction,
         winner_team_id: Optional[int],
-        winner_team_name: Optional[str] = None
-    ) -> Dict[str, Any]:
-        old_winner = prediction.winner_team_id
+        is_draft: bool = False,
+    ) -> int:
+        """
+        Persist winner_team_id to DB and set draft modified flags if needed.
+        Returns stored_winner (normalized int, 0 if None).
+        """
         resolved_winner = KnockoutService._normalize_team_id(winner_team_id)
         stored_winner = resolved_winner if resolved_winner is not None else 0
 
@@ -187,18 +196,73 @@ class KnockoutService:
         DBWriter.update_knockout_prediction(db, prediction, **update_kwargs)
         DBUtils.flush(db)
 
-        current_stage = StageManager.get_current_stage(db)
-        check_reachable = current_stage.value >= Stage.PRE_ROUND32.value
+        if is_draft:
+            knockout_result = getattr(prediction, "knockout_result", None)
+            both_teams_qualified = (
+                knockout_result and knockout_result.team_1 and knockout_result.team_2
+            )
+            DBWriter.set_draft_modified_flags(
+                db,
+                prediction,
+                is_winner_modified=True,
+                is_team1_modified=True if both_teams_qualified else None,
+                is_team2_modified=True if both_teams_qualified else None,
+            )
+
+        return stored_winner
+
+    @staticmethod
+    def _compute_winner_status(
+        db: Session,
+        prediction,
+        is_draft: bool = False,
+    ) -> None:
+        """
+        Compute and set prediction status after winner update.
+        In draft mode, also re-checks reachability and overrides to UNREACHABLE if needed.
+        """
+        check_reachable = KnockoutService._should_check_reachable(db, is_draft=is_draft)
         KnockoutService._compute_and_set_status(db, prediction, check_reachable=check_reachable)
         DBUtils.flush(db)
 
-        next_prediction, position = KnockoutService._find_next_prediction_and_position(db, prediction)
+        if is_draft:
+            is_reachable = KnockoutService.can_winner_reach_match_via_correct_path(
+                db, prediction
+            )
+            if not is_reachable:
+                DBWriter.update_knockout_prediction(
+                    db, prediction, status=KnockoutPredictionStatus.UNREACHABLE.value
+                )
+                DBUtils.flush(db)
 
+    @staticmethod
+    def set_winner(
+        db: Session,
+        prediction,
+        winner_team_id: Optional[int],
+        winner_team_name: Optional[str] = None,
+        is_draft: bool = False,
+    ) -> Dict[str, Any]:
+        old_winner = prediction.winner_team_id
+
+        stored_winner = KnockoutService._persist_winner(
+            db, prediction, winner_team_id, is_draft
+        )
+        KnockoutService._compute_winner_status(db, prediction, is_draft)
+
+        next_prediction, position = KnockoutService._find_next_prediction_and_position(
+            db, prediction
+        )
         if next_prediction and position:
+            is_next_draft = hasattr(next_prediction, "knockout_pred_id")
             if position == 1:
-                KnockoutService.set_team(db, next_prediction, team1_id=stored_winner)
+                KnockoutService.set_team(
+                    db, next_prediction, team1_id=stored_winner, is_draft=is_next_draft
+                )
             else:
-                KnockoutService.set_team(db, next_prediction, team2_id=stored_winner)
+                KnockoutService.set_team(
+                    db, next_prediction, team2_id=stored_winner, is_draft=is_next_draft
+                )
 
         changed = (old_winner != prediction.winner_team_id)
         return KnockoutService._create_success_response(
@@ -211,7 +275,8 @@ class KnockoutService:
         db: Session,
         prediction,
         team1_id: Optional[int] = None,
-        team2_id: Optional[int] = None
+        team2_id: Optional[int] = None,
+        is_draft: bool = False,
     ) -> None:
         update_kwargs: Dict[str, Any] = {}
         if team1_id is not None:
@@ -226,6 +291,14 @@ class KnockoutService:
             update_kwargs["updated_at"] = datetime.utcnow()
 
         DBWriter.update_knockout_prediction(db, prediction, **update_kwargs)
+        if is_draft:
+            DBWriter.set_draft_modified_flags(
+                db,
+                prediction,
+                is_team1_modified=True if team1_id is not None else None,
+                is_team2_modified=True if team2_id is not None else None,
+            )
+
         DBUtils.flush(db)
 
         winner_team_id = KnockoutService._normalize_team_id(prediction.winner_team_id)
@@ -233,13 +306,13 @@ class KnockoutService:
             current_team1 = prediction.team1_id
             current_team2 = prediction.team2_id
             if winner_team_id not in (current_team1, current_team2):
-                KnockoutService.set_winner(db, prediction, winner_team_id=None)
+                KnockoutService.set_winner(db, prediction, winner_team_id=None, is_draft=is_draft)
                 return
 
-        current_stage = StageManager.get_current_stage(db)
-        check_reachable = current_stage.value >= Stage.PRE_ROUND32.value
+        check_reachable = KnockoutService._should_check_reachable(db, is_draft=is_draft)
         KnockoutService._compute_and_set_status(db, prediction, check_reachable=check_reachable)
         DBUtils.flush(db)
+
 
     # ═══════════════════════════════════════════════════════
     # UPDATE Operations - Batch
@@ -386,6 +459,9 @@ class KnockoutService:
             is_draft=True,
             knockout_pred_id=prediction.id,
             status=draft_fields.status,
+            is_team1_modified=False,
+            is_team2_modified=False,
+            is_winner_modified=False,
         )
 
         DBUtils.commit(db)
@@ -438,18 +514,8 @@ class KnockoutService:
     @staticmethod
     def count_draft_changes(db: Session, user_id: int) -> Dict[str, Any]:
         """
-        Count how many draft predictions have a different winner than the original.
-        Used for: displaying expected penalty in UI, and during commit.
-
-        A change is counted ONLY when:
-          - draft.winner_team_id != original.winner_team_id
-          - AND draft.winner_team_id is not None/0
-
-        Why the second condition? When cascade clears a winner in a later stage
-        (sets it to None because the team was removed), that's not a user action —
-        the user didn't actively change that prediction. No penalty for that.
-
-        Normalize: treat 0 and None as equivalent (both mean no winner).
+        Count how many draft predictions the user explicitly modified.
+        Uses is_winner_modified flag — tracks user intent, not just value differences.
         """
         drafts = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=True)
 
@@ -459,17 +525,7 @@ class KnockoutService:
         changes_count = 0
 
         for draft in drafts:
-            original = DBReader.get_knockout_prediction_by_id(db, draft.knockout_pred_id, is_draft=False)
-            if not original:
-                continue
-
-            # Normalize: 0 and None both mean "no winner"
-            draft_winner = draft.winner_team_id if draft.winner_team_id else None
-            original_winner = original.winner_team_id if original.winner_team_id else None
-
-            # Count as change only if different AND draft has an actual winner
-            # (cascade clearing a winner to None is not a user change)
-            if draft_winner != original_winner and draft_winner is not None:
+            if getattr(draft, "is_winner_modified", False):
                 changes_count += 1
 
         stage = StageManager.get_current_stage(db)
@@ -484,15 +540,24 @@ class KnockoutService:
     @staticmethod
     def _copy_draft_to_prediction(db: Session, draft, original) -> None:
         """
-        Copy all relevant fields from draft to original prediction.
-        Simple "stupid copy" — the draft already has correct data from cascade.
-        Uses direct assignment to support None values (e.g. cascade-cleared winners).
+        Smart copy: only copy fields that the user explicitly modified in the draft.
+        Uses is_team1_modified, is_team2_modified, is_winner_modified flags.
+        Fields with flag=False are left untouched in the original prediction.
+        Status is always copied — draft status is always up to date.
         """
-        original.team1_id = draft.team1_id
-        original.team2_id = draft.team2_id
-        original.winner_team_id = draft.winner_team_id
+        # Always copy status — draft status is always up to date
         original.status = draft.status
-        db.flush()
+
+        if getattr(draft, "is_team1_modified", False):
+            original.team1_id = draft.team1_id
+
+        if getattr(draft, "is_team2_modified", False):
+            original.team2_id = draft.team2_id
+
+        if getattr(draft, "is_winner_modified", False):
+            original.winner_team_id = draft.winner_team_id
+
+        DBUtils.flush(db)
 
     @staticmethod
     def commit_drafts(db: Session, user_id: int) -> Dict[str, Any]:
@@ -525,6 +590,7 @@ class KnockoutService:
         # Copy each draft to its original prediction
         for draft in drafts:
             original = DBReader.get_knockout_prediction_by_id(db, draft.knockout_pred_id, is_draft=False)
+            print(f"DEBUG commit: draft.id={draft.id}, is_winner_modified={draft.is_winner_modified}, draft.winner={draft.winner_team_id}, original.winner={original.winner_team_id if original else 'NOT FOUND'}")
             if not original:
                 continue
             KnockoutService._copy_draft_to_prediction(db, draft, original)
@@ -1095,48 +1161,22 @@ class KnockoutService:
             is_editable=True,
         )
 
-    @staticmethod
-    def _resolve_draft_teams(db: Session, prediction) -> Tuple[int, int, int, int]:
-        """
-        DEPRECATED: Use _build_draft_fields() instead. Will be removed in future cleanup.
-
-        Resolve team IDs for a draft based on prediction and result data.
-        Priority: result teams first, then prediction teams (cleaned by validity).
-        
-        Returns: (team1_id, team2_id, winner_team_id, current_winner_team_id)
-        """
-        # Do not recompute validity in draft creation; validity computed in get_knockout_predictions
-        knockout_result = prediction.knockout_result if hasattr(prediction, 'knockout_result') else None
-        
-        if knockout_result and knockout_result.team_1 and knockout_result.team_2:
-            # Result exists - use result teams
-            team1_id = knockout_result.team_1
-            team2_id = knockout_result.team_2
-            # Winner: prefer result winner if exists; otherwise keep user's winner
-            winner_team_id = knockout_result.winner_team_id if getattr(knockout_result, 'winner_team_id', None) else prediction.winner_team_id
-            # If result exists, don't set current_winner_team_id (don't show winner flag)
-            current_winner_team_id = 0
-        else:
-            # No result - check validity and clean invalid teams using is_team1_valid/is_team2_valid fields
-            team1_id = prediction.team1_id if prediction.is_team1_valid else 0
-            team2_id = prediction.team2_id if prediction.is_team2_valid else 0
-            original_winner_team_id = prediction.winner_team_id or 0  # Save original winner before cleaning
-            normalized_status = KnockoutService._coerce_status(prediction.status)
-
-            # Set current_winner_team_id if status is yellow and winner differs from the draft teams
-            current_winner_team_id = 0
-            if normalized_status == KnockoutPredictionStatus.UNREACHABLE.value and original_winner_team_id:
-                if original_winner_team_id != team1_id and original_winner_team_id != team2_id:
-                    current_winner_team_id = original_winner_team_id
-
-            # Winner in draft: keep original winner only if it matches one of the remaining teams, else 0
-            winner_team_id = original_winner_team_id if original_winner_team_id in (team1_id, team2_id) else 0
-        
-        return team1_id, team2_id, winner_team_id, current_winner_team_id
-
     # ═══════════════════════════════════════════════════════
     # PRIVATE - Status & Validity
     # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def _should_check_reachable(db: Session, is_draft: bool = False) -> bool:
+        """
+        Determine if reachability should be checked when computing status.
+        True if: global stage >= PRE_ROUND32, OR (in draft mode) any knockout results exist.
+        """
+        current_stage = StageManager.get_current_stage(db)
+        if current_stage.value >= Stage.PRE_ROUND32.value:
+            return True
+        if is_draft:
+            return DBReader.any_knockout_results_exist(db)
+        return False
 
     @staticmethod
     def _compute_and_set_status(

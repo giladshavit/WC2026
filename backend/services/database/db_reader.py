@@ -402,6 +402,14 @@ class DBReader:
     def get_all_knockout_results(db: Session) -> List[KnockoutStageResult]:
         return db.query(KnockoutStageResult).all()
 
+    @staticmethod
+    def any_knockout_results_exist(db: Session) -> bool:
+        """Return True if any knockout stage result has both team_1 and team_2 populated."""
+        return db.query(KnockoutStageResult).filter(
+            KnockoutStageResult.team_1.isnot(None),
+            KnockoutStageResult.team_2.isnot(None),
+        ).first() is not None
+
     # ═══════════════════════════════════════════════════════
     # LEAGUES
     # ═══════════════════════════════════════════════════════
