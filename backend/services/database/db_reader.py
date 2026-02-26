@@ -3,8 +3,8 @@ DBReader: All READ (SELECT) operations from database.
 This is the ONLY place where db.query() should appear for reads.
 No service should call db.query() directly — always go through DBReader.
 """
-from typing import List, Optional, Sequence
-from sqlalchemy import and_, desc
+from typing import List, Optional, Sequence, Dict
+from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
 
 from models.team import Team
@@ -29,6 +29,7 @@ from models.results import (
 )
 from models.third_place_combinations import ThirdPlaceCombination
 from models.tournament_config import TournamentConfig
+from models.statistics import ThirdPlaceGroupCounts
 from models.league import League, LeagueMembership
 
 
@@ -295,6 +296,25 @@ class DBReader:
         ).all()
 
     @staticmethod
+    def count_knockout_exact_winners(db: Session, template_match_id: int, winner_team_id: int) -> int:
+        """Count users who predicted the correct winner in this specific match."""
+        return db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.template_match_id == template_match_id,
+            KnockoutStagePrediction.winner_team_id == winner_team_id,
+        ).count()
+
+    @staticmethod
+    def count_knockout_winner_in_stage_excluding_match(
+        db: Session, stage: str, winner_team_id: int, exclude_match_id: int
+    ) -> int:
+        """Count distinct users who predicted a specific winner in a stage, excluding one match."""
+        return db.query(KnockoutStagePrediction.user_id).filter(
+            KnockoutStagePrediction.stage == stage,
+            KnockoutStagePrediction.winner_team_id == winner_team_id,
+            KnockoutStagePrediction.template_match_id != exclude_match_id,
+        ).distinct().count()
+
+    @staticmethod
     def get_all_knockout_predictions(db: Session) -> List[KnockoutStagePrediction]:
         return db.query(KnockoutStagePrediction).all()
 
@@ -436,3 +456,83 @@ class DBReader:
     @staticmethod
     def get_tournament_config(db: Session) -> Optional[TournamentConfig]:
         return db.query(TournamentConfig).first()
+
+    # ═══════════════════════════════════════════════════════
+    # STATISTICS - User profile
+    # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def count_match_predictions_by_status(db: Session, user_id: int) -> Dict[str, int]:
+        """Count user's match predictions grouped by status. Returns dict like {'exact': 5, 'correct_outcome': 10, ...}"""
+        rows = (
+            db.query(MatchPrediction.status, func.count(MatchPrediction.id))
+            .filter(MatchPrediction.user_id == user_id)
+            .group_by(MatchPrediction.status)
+            .all()
+        )
+        return {str(status or 'pending'): count for status, count in rows}
+
+    @staticmethod
+    def count_knockout_predictions_by_status(db: Session, user_id: int) -> Dict[str, int]:
+        """Count user's knockout predictions grouped by status."""
+        rows = (
+            db.query(KnockoutStagePrediction.status, func.count(KnockoutStagePrediction.id))
+            .filter(KnockoutStagePrediction.user_id == user_id)
+            .group_by(KnockoutStagePrediction.status)
+            .all()
+        )
+        return {str(status or 'valid'): count for status, count in rows}
+
+    @staticmethod
+    def count_group_position_correct(db: Session, user_id: int) -> Dict[str, int]:
+        """Count how many times user got each position right across all judged groups."""
+        predictions = (
+            db.query(GroupStagePrediction)
+            .filter(
+                GroupStagePrediction.user_id == user_id,
+                GroupStagePrediction.correct_positions_count.isnot(None)
+            )
+            .all()
+        )
+        counts = {"first": 0, "second": 0, "third": 0, "fourth": 0}
+        for p in predictions:
+            if p.first_correct:
+                counts["first"] += 1
+            if p.second_correct:
+                counts["second"] += 1
+            if p.third_correct:
+                counts["third"] += 1
+            if p.fourth_correct:
+                counts["fourth"] += 1
+        return counts
+
+    @staticmethod
+    def count_group_accuracy_distribution(db: Session, user_id: int) -> Dict[int, int]:
+        """Count how many groups got 0/1/2/3/4 positions right. Returns {0: N, 1: N, ...}"""
+        rows = (
+            db.query(
+                GroupStagePrediction.correct_positions_count,
+                func.count(GroupStagePrediction.id)
+            )
+            .filter(
+                GroupStagePrediction.user_id == user_id,
+                GroupStagePrediction.correct_positions_count.isnot(None)
+            )
+            .group_by(GroupStagePrediction.correct_positions_count)
+            .all()
+        )
+        dist = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+        for count_val, num in rows:
+            if count_val in dist:
+                dist[count_val] = num
+        return dist
+
+    @staticmethod
+    def get_third_place_group_counts(db: Session) -> ThirdPlaceGroupCounts:
+        """Get the singleton row. Creates it if missing."""
+        row = db.query(ThirdPlaceGroupCounts).first()
+        if not row:
+            row = ThirdPlaceGroupCounts()
+            db.add(row)
+            db.flush()
+        return row

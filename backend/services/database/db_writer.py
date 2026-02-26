@@ -28,6 +28,7 @@ from models.results import (
 )
 from models.league import League, LeagueMembership
 from models.tournament_config import TournamentConfig
+from models.statistics import ThirdPlaceGroupCounts
 
 
 class DBWriter:
@@ -178,6 +179,13 @@ class DBWriter:
         return prediction
 
     @staticmethod
+    def update_match_prediction_status(db: Session, prediction: MatchPrediction, status: str) -> MatchPrediction:
+        """Set the status field on a match prediction."""
+        prediction.status = status
+        db.flush()
+        return prediction
+
+    @staticmethod
     def reset_match_prediction_points(db: Session) -> int:
         return db.query(MatchPrediction).update({MatchPrediction.points: 0})
 
@@ -209,6 +217,25 @@ class DBWriter:
         for key, value in kwargs.items():
             if hasattr(prediction, key) and value is not None:
                 setattr(prediction, key, value)
+        db.flush()
+        return prediction
+
+    @staticmethod
+    def update_group_prediction_accuracy(
+        db: Session,
+        prediction: GroupStagePrediction,
+        first_correct: bool,
+        second_correct: bool,
+        third_correct: bool,
+        fourth_correct: bool,
+        correct_positions_count: int
+    ) -> GroupStagePrediction:
+        """Set all accuracy fields on a group prediction."""
+        prediction.first_correct = first_correct
+        prediction.second_correct = second_correct
+        prediction.third_correct = third_correct
+        prediction.fourth_correct = fourth_correct
+        prediction.correct_positions_count = correct_positions_count
         db.flush()
         return prediction
 
@@ -292,6 +319,13 @@ class DBWriter:
         return prediction
 
     @staticmethod
+    def update_third_place_correct_groups(db: Session, prediction: ThirdPlacePrediction, correct_groups_count: int) -> ThirdPlacePrediction:
+        """Set the correct_groups_count field on a third place prediction."""
+        prediction.correct_groups_count = correct_groups_count
+        db.flush()
+        return prediction
+
+    @staticmethod
     def delete_third_place_predictions_by_user(db: Session, user_id: int) -> int:
         count = db.query(ThirdPlacePrediction).filter(
             ThirdPlacePrediction.user_id == user_id
@@ -306,6 +340,24 @@ class DBWriter:
     @staticmethod
     def set_third_place_predictions_editable(db: Session, is_editable: bool) -> int:
         return db.query(ThirdPlacePrediction).update({ThirdPlacePrediction.is_editable: is_editable})
+
+    @staticmethod
+    def increment_third_place_group_count(db: Session, row: ThirdPlaceGroupCounts, group_letter: str) -> None:
+        """Increment counter for a group letter (A-L)."""
+        field = f"group_{group_letter.lower()}"
+        if hasattr(row, field):
+            current = getattr(row, field) or 0
+            setattr(row, field, current + 1)
+            db.flush()
+
+    @staticmethod
+    def decrement_third_place_group_count(db: Session, row: ThirdPlaceGroupCounts, group_letter: str) -> None:
+        """Decrement counter for a group letter (A-L). Won't go below 0."""
+        field = f"group_{group_letter.lower()}"
+        if hasattr(row, field):
+            current = getattr(row, field) or 0
+            setattr(row, field, max(0, current - 1))
+            db.flush()
 
     # ═══════════════════════════════════════════════════════
     # PREDICTIONS - Knockout

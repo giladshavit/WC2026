@@ -1,5 +1,6 @@
 # This file makes the models directory a Python package
 
+from services.predictions.enums import MatchPredictionStatus
 from .third_place_combinations import ThirdPlaceCombination
 from .column_mapping import ColumnMapping
 from .results import GroupStageResult, ThirdPlaceResult, KnockoutStageResult
@@ -12,8 +13,10 @@ from .team import Team
 from .user import User
 from .user_scores import UserScores
 from .league import League, LeagueMembership
+from .statistics import ThirdPlaceGroupCounts
 
 __all__ = [
+    'MatchPredictionStatus',
     'ThirdPlaceCombination',
     'ColumnMapping',
     'GroupStageResult', 
@@ -32,5 +35,6 @@ __all__ = [
     'User',
     'UserScores',
     'League',
+    'ThirdPlaceGroupCounts',
     'LeagueMembership'
 ]
