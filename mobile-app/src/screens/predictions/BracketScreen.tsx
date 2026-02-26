@@ -44,6 +44,8 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [canEditDrafts, setCanEditDrafts] = useState<boolean>(true);
+  const [penaltyInfo, setPenaltyInfo] = useState<{changes_count: number, penalty_per_change: number, total_penalty: number} | null>(null);
   
   // Get current user ID
   const { getCurrentUserId } = useAuth();
@@ -314,6 +316,17 @@ export default function BracketScreen({}: BracketScreenProps) {
     ];
   };
 
+  const refreshPenaltyCount = async () => {
+    try {
+      const userId = getCurrentUserId();
+      if (!userId || !editMode) return;
+      const result = await apiService.getDraftChangesCount(userId);
+      setPenaltyInfo(result);
+    } catch (error) {
+      console.error('Error refreshing penalty count:', error);
+    }
+  };
+
   const fetchPredictions = async (isRefresh = false) => {
     try {
       if (isRefresh) {
@@ -332,6 +345,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       // Fetch all knockout predictions (use draft if in edit mode)
       const allPredictions = await apiService.getKnockoutPredictions(userId, undefined, editMode);
       setPredictions(allPredictions.predictions);
+      setCanEditDrafts(allPredictions.can_edit_drafts ?? true);
       
       // Organize into bracket structure
       const { organized, calculateCardCoordinates } = organizeBracketMatches(allPredictions.predictions);
@@ -354,12 +368,20 @@ export default function BracketScreen({}: BracketScreenProps) {
   // Fetch data when component mounts or comes into focus, or when edit mode changes
   useFocusEffect(
     React.useCallback(() => {
-      fetchPredictions();
+      fetchPredictions().then(() => {
+        if (editMode) {
+          refreshPenaltyCount();
+        }
+      });
     }, [editMode])
   );
 
   const handleEditModeToggle = async () => {
     if (!editMode) {
+      if (!canEditDrafts) {
+        Alert.alert('לא ניתן לערוך', 'לא ניתן לערוך ניחושים בזמן שלב נוקאאוט פעיל');
+        return;
+      }
       // Entering edit mode - create all drafts
       try {
         const userId = getCurrentUserId();
@@ -371,7 +393,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         setLoading(true);
         await apiService.createAllDrafts(userId);
         setEditMode(true);
-        // fetchPredictions will be called automatically by useFocusEffect when editMode changes
+        // fetchPredictions and refreshPenaltyCount will be called by useFocusEffect when editMode changes
       } catch (error) {
         console.error('Error creating drafts:', error);
         Alert.alert('שגיאה', 'לא ניתן להיכנס למצב עריכה. נסה שוב.');
@@ -390,6 +412,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         setLoading(true);
         await apiService.deleteAllDrafts(userId);
         setEditMode(false);
+        setPenaltyInfo(null);
         // fetchPredictions will be called automatically by useFocusEffect when editMode changes
       } catch (error) {
         console.error('Error deleting drafts:', error);
@@ -397,6 +420,92 @@ export default function BracketScreen({}: BracketScreenProps) {
       } finally {
         setLoading(false);
       }
+    }
+  };
+
+  const handleResetDrafts = async () => {
+    Alert.alert(
+      'איפוס ניחושים',
+      'האם לאפס את כל השינויים ולחזור למצב המקורי?',
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'אפס',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const userId = getCurrentUserId();
+              if (!userId) return;
+              setLoading(true);
+              await apiService.resetDrafts(userId);
+              await fetchPredictions();
+              setPenaltyInfo({ changes_count: 0, penalty_per_change: 0, total_penalty: 0 });
+            } catch (error) {
+              console.error('Error resetting drafts:', error);
+              Alert.alert('שגיאה', 'לא ניתן לאפס. נסה שוב.');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const executeCommit = async (userId: number) => {
+    try {
+      setLoading(true);
+      const result = await apiService.commitDrafts(userId);
+
+      setEditMode(false);
+      setPenaltyInfo(null);
+
+      // Show success
+      let message = `${result.changes_count} שינויים נשמרו בהצלחה.`;
+      if (result.penalty_applied > 0) {
+        message += `\nהופחתו ${result.penalty_applied} נקודות עונש.`;
+      }
+      Alert.alert('נשמר', message);
+    } catch (error) {
+      console.error('Error committing drafts:', error);
+      Alert.alert('שגיאה', 'השמירה נכשלה. נסה שוב.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSavePress = async () => {
+    try {
+      const userId = getCurrentUserId();
+      if (!userId) return;
+
+      // Get fresh count before confirming
+      const countResult = await apiService.getDraftChangesCount(userId);
+
+      if (countResult.changes_count === 0) {
+        Alert.alert('אין שינויים', 'לא בוצעו שינויים בניחושים.');
+        return;
+      }
+
+      // Show confirmation with penalty info
+      Alert.alert(
+        'שמירת שינויים',
+        `האם לשמור ${countResult.changes_count} שינויים?\n\nעונש: ${countResult.total_penalty} נקודות\n(${countResult.changes_count} שינויים × ${countResult.penalty_per_change} נקודות לשינוי)`,
+        [
+          {
+            text: 'ביטול',
+            style: 'cancel',
+          },
+          {
+            text: 'שמור',
+            style: 'destructive',
+            onPress: () => executeCommit(userId),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error in save press:', error);
+      Alert.alert('שגיאה', 'לא ניתן לבצע שמירה. נסה שוב.');
     }
   };
 
@@ -701,9 +810,9 @@ export default function BracketScreen({}: BracketScreenProps) {
       {/* Buttons Container - Centered */}
       <View style={styles.buttonsContainer}>
         <TouchableOpacity 
-          style={[styles.editButton, editMode && styles.editButtonActive]}
+          style={[styles.editButton, editMode && styles.editButtonActive, (!editMode && !canEditDrafts) && { opacity: 0.4 }]}
           onPress={handleEditModeToggle}
-          disabled={loading}
+          disabled={loading || (!editMode && !canEditDrafts)}
         >
           <Text style={styles.editButtonText}>
             {editMode ? '✏️ יציאה מעריכה' : '✏️ עריכה'}
@@ -720,6 +829,23 @@ export default function BracketScreen({}: BracketScreenProps) {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {editMode && penaltyInfo && penaltyInfo.changes_count > 0 && (
+        <View style={{
+          backgroundColor: '#FFF3CD',
+          padding: 8,
+          borderRadius: 8,
+          marginHorizontal: 16,
+          marginBottom: 8,
+          flexDirection: 'row',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          <Text style={{ color: '#856404', fontSize: 14, fontWeight: '600' }}>
+            {`עונש צפוי: ${penaltyInfo.total_penalty} נקודות (${penaltyInfo.changes_count} שינויים)`}
+          </Text>
+        </View>
+      )}
 
       <ScrollView
         horizontal
@@ -740,6 +866,46 @@ export default function BracketScreen({}: BracketScreenProps) {
         {/* All bracket columns */}
         {renderBracketColumns()}
       </ScrollView>
+
+      {editMode && (
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          backgroundColor: '#f8f9fa',
+          borderTopWidth: 1,
+          borderTopColor: '#dee2e6',
+        }}>
+          <TouchableOpacity
+            onPress={handleResetDrafts}
+            style={{
+              flex: 1,
+              marginRight: 8,
+              paddingVertical: 12,
+              borderRadius: 8,
+              backgroundColor: '#6c757d',
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>אפס</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleSavePress}
+            style={{
+              flex: 1,
+              marginLeft: 8,
+              paddingVertical: 12,
+              borderRadius: 8,
+              backgroundColor: '#28a745',
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>שמור</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Bracket Container for Screenshot */}
       <View ref={bracketRef} style={styles.bracketContainer} collapsable={false}>
@@ -992,6 +1158,7 @@ export default function BracketScreen({}: BracketScreenProps) {
                   calculateCardCoordinates(spacing);
                   setOrganizedBracket(organized);
                   
+                  await refreshPenaltyCount();
                   console.log('✅ Updated bracket with fresh data from server');
                 } catch (error) {
                   console.error('❌ Error updating bracket with fresh data:', error);
