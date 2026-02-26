@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Optional, Dict, Any, List, Set, Tuple
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
@@ -10,6 +11,16 @@ from services.stage_manager import StageManager, Stage
 from models.results import KnockoutStageResult
 from models.predictions import KnockoutStagePrediction
 from models.team import Team
+
+
+@dataclass
+class DraftFields:
+    """Field values for creating a draft from a prediction."""
+    team1_id: Optional[int]
+    team2_id: Optional[int]
+    winner_team_id: Optional[int]
+    status: Optional[str]
+    is_editable: bool
 
 
 class KnockoutService:
@@ -58,9 +69,11 @@ class KnockoutService:
             user_scores = DBReader.get_user_scores(db, user_id)
             knockout_score = user_scores.knockout_score if user_scores else None
 
+        stage = StageManager.get_current_stage(db)
         return {
             "predictions": result,
             "knockout_score": knockout_score,
+            "can_edit_drafts": stage.can_create_knockout_drafts(),
         }
 
     # ═══════════════════════════════════════════════════════
@@ -359,24 +372,20 @@ class KnockoutService:
 
         KnockoutService._delete_existing_draft_if_any(db, user_id, prediction.template_match_id)
 
-        team1_id, team2_id, winner_team_id, current_winner_team_id = (
-            KnockoutService._resolve_draft_teams(db, prediction)
-        )
+        draft_fields = KnockoutService._build_draft_fields(db, prediction)
 
-        # Create draft copy
         draft = DBWriter.create_knockout_prediction(
             db,
             user_id=user_id,
             knockout_result_id=prediction.knockout_result_id or 0,
             template_match_id=prediction.template_match_id,
             stage=prediction.stage,
-            team1_id=team1_id,
-            team2_id=team2_id,
-            winner_team_id=winner_team_id,
+            team1_id=draft_fields.team1_id,
+            team2_id=draft_fields.team2_id,
+            winner_team_id=draft_fields.winner_team_id,
             is_draft=True,
             knockout_pred_id=prediction.id,
-            status=KnockoutService._coerce_status(prediction.status) or prediction.status,
-            current_winner_team_id=current_winner_team_id,
+            status=draft_fields.status,
         )
 
         DBUtils.commit(db)
@@ -393,8 +402,16 @@ class KnockoutService:
         Simple copy: use result teams (and winner if present), otherwise copy prediction data.
         Status is copied as-is from the original prediction.
         """
-        predictions = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
+        # Pre-check: can we create drafts right now?
+        can_create, reason = StageManager.can_create_knockout_drafts(db)
+        if not can_create:
+            return {"success": False, "message": reason, "created": 0}
 
+        # Clean slate - delete existing drafts before creating new ones
+        KnockoutService.delete_all_drafts_for_user(db, user_id)
+
+        # Create drafts for all predictions (keep existing loop logic)
+        predictions = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
         created = 0
         for prediction in predictions:
             result = KnockoutService.create_draft_from_prediction(db, user_id, prediction.id)
@@ -417,6 +434,131 @@ class KnockoutService:
             deleted += 1
         DBUtils.commit(db)
         return {"success": True, "deleted": deleted}
+
+    @staticmethod
+    def count_draft_changes(db: Session, user_id: int) -> Dict[str, Any]:
+        """
+        Count how many draft predictions have a different winner than the original.
+        Used for: displaying expected penalty in UI, and during commit.
+
+        A change is counted ONLY when:
+          - draft.winner_team_id != original.winner_team_id
+          - AND draft.winner_team_id is not None/0
+
+        Why the second condition? When cascade clears a winner in a later stage
+        (sets it to None because the team was removed), that's not a user action —
+        the user didn't actively change that prediction. No penalty for that.
+
+        Normalize: treat 0 and None as equivalent (both mean no winner).
+        """
+        drafts = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=True)
+
+        if not drafts:
+            return {"changes_count": 0, "penalty_per_change": 0, "total_penalty": 0}
+
+        changes_count = 0
+
+        for draft in drafts:
+            original = DBReader.get_knockout_prediction_by_id(db, draft.knockout_pred_id, is_draft=False)
+            if not original:
+                continue
+
+            # Normalize: 0 and None both mean "no winner"
+            draft_winner = draft.winner_team_id if draft.winner_team_id else None
+            original_winner = original.winner_team_id if original.winner_team_id else None
+
+            # Count as change only if different AND draft has an actual winner
+            # (cascade clearing a winner to None is not a user change)
+            if draft_winner != original_winner and draft_winner is not None:
+                changes_count += 1
+
+        stage = StageManager.get_current_stage(db)
+        penalty_per_change = stage.get_penalty_for()
+
+        return {
+            "changes_count": changes_count,
+            "penalty_per_change": penalty_per_change,
+            "total_penalty": changes_count * penalty_per_change,
+        }
+
+    @staticmethod
+    def _copy_draft_to_prediction(db: Session, draft, original) -> None:
+        """
+        Copy all relevant fields from draft to original prediction.
+        Simple "stupid copy" — the draft already has correct data from cascade.
+        Uses direct assignment to support None values (e.g. cascade-cleared winners).
+        """
+        original.team1_id = draft.team1_id
+        original.team2_id = draft.team2_id
+        original.winner_team_id = draft.winner_team_id
+        original.status = draft.status
+        db.flush()
+
+    @staticmethod
+    def commit_drafts(db: Session, user_id: int) -> Dict[str, Any]:
+        """
+        Commit all user drafts to their real predictions.
+
+        1. Copy each draft's fields to its original prediction (stupid copy)
+        2. Count changes using count_draft_changes
+        3. Apply penalty based on change count
+        4. Delete all drafts
+
+        No cascade needed — the drafts already have correct data from editing.
+        No sorting needed — it's just a field copy.
+        """
+        # Pre-check
+        can_create, reason = StageManager.can_create_knockout_drafts(db)
+        if not can_create:
+            return {"success": False, "message": reason}
+
+        # Get all drafts
+        drafts = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=True)
+
+        if not drafts:
+            return {"success": True, "message": "No drafts to commit", "changes_count": 0, "penalty_applied": 0}
+
+        # Count changes BEFORE copying (compare draft vs original)
+        count_result = KnockoutService.count_draft_changes(db, user_id)
+        changes_count = count_result["changes_count"]
+
+        # Copy each draft to its original prediction
+        for draft in drafts:
+            original = DBReader.get_knockout_prediction_by_id(db, draft.knockout_pred_id, is_draft=False)
+            if not original:
+                continue
+            KnockoutService._copy_draft_to_prediction(db, draft, original)
+
+        DBUtils.flush(db)
+
+        # Apply penalty
+        penalty_applied = 0
+        if changes_count > 0:
+            penalty_applied = ScoringService.apply_prediction_penalty(db, user_id, changes_count)
+
+        # Delete all drafts
+        KnockoutService.delete_all_drafts_for_user(db, user_id)
+
+        DBUtils.commit(db)
+
+        return {
+            "success": True,
+            "changes_count": changes_count,
+            "penalty_applied": penalty_applied,
+        }
+
+    @staticmethod
+    def reset_drafts(db: Session, user_id: int) -> Dict[str, Any]:
+        """
+        Reset all drafts by deleting and recreating from current predictions.
+        """
+        KnockoutService.delete_all_drafts_for_user(db, user_id)
+        result = KnockoutService.create_all_drafts_from_predictions(db, user_id)
+        return {
+            "success": result.get("success", False),
+            "message": "Drafts reset",
+            "created": result.get("created", 0),
+        }
 
     # ═══════════════════════════════════════════════════════
     # SETUP (User Registration)
@@ -888,8 +1030,76 @@ class KnockoutService:
             DBUtils.flush(db)
 
     @staticmethod
+    def _nullify_if_eliminated(db: Session, team_id: Optional[int]) -> Optional[int]:
+        """Return None if team is eliminated or doesn't exist, otherwise return team_id."""
+        if not team_id:
+            return None
+        team = DBReader.get_team(db, team_id)
+        if not team or team.is_eliminated:
+            return None
+        return team_id
+
+    @staticmethod
+    def _build_draft_fields(db: Session, prediction) -> DraftFields:
+        """
+        Build field values for a new draft based on prediction + knockout result.
+
+        3 cases:
+          A: Result with winner    -> teams+winner from result, NOT editable
+          B: Result with teams only -> teams from result, winner from prediction, editable
+          C: No result             -> everything from prediction (null if eliminated), editable
+
+        Status is always copied from prediction.
+        """
+        knockout_result = None
+        if prediction.knockout_result_id:
+            knockout_result = DBReader.get_knockout_result_by_id(db, prediction.knockout_result_id)
+
+        has_result_teams = (
+            knockout_result
+            and knockout_result.team_1
+            and knockout_result.team_2
+        )
+        has_result_winner = (
+            has_result_teams
+            and knockout_result.winner_team_id
+        )
+        status = prediction.status
+
+        # Case A: result is complete (has winner)
+        if has_result_winner:
+            return DraftFields(
+                team1_id=knockout_result.team_1,
+                team2_id=knockout_result.team_2,
+                winner_team_id=knockout_result.winner_team_id,
+                status=status,
+                is_editable=False,
+            )
+
+        # Case B: result has teams but no winner yet
+        if has_result_teams:
+            return DraftFields(
+                team1_id=knockout_result.team_1,
+                team2_id=knockout_result.team_2,
+                winner_team_id=KnockoutService._nullify_if_eliminated(db, prediction.winner_team_id),
+                status=status,
+                is_editable=True,
+            )
+
+        # Case C: no result at all - simple copy, nullify eliminated
+        return DraftFields(
+            team1_id=KnockoutService._nullify_if_eliminated(db, prediction.team1_id),
+            team2_id=KnockoutService._nullify_if_eliminated(db, prediction.team2_id),
+            winner_team_id=KnockoutService._nullify_if_eliminated(db, prediction.winner_team_id),
+            status=status,
+            is_editable=True,
+        )
+
+    @staticmethod
     def _resolve_draft_teams(db: Session, prediction) -> Tuple[int, int, int, int]:
         """
+        DEPRECATED: Use _build_draft_fields() instead. Will be removed in future cleanup.
+
         Resolve team IDs for a draft based on prediction and result data.
         Priority: result teams first, then prediction teams (cleaned by validity).
         

@@ -44,6 +44,10 @@ class PredictionService:
     create_draft_from_prediction = staticmethod(KnockoutService.create_draft_from_prediction)
     create_all_drafts_from_predictions = staticmethod(KnockoutService.create_all_drafts_from_predictions)
     delete_all_drafts_for_user = staticmethod(KnockoutService.delete_all_drafts_for_user)
+    count_draft_changes = staticmethod(KnockoutService.count_draft_changes)
+    commit_drafts = staticmethod(KnockoutService.commit_drafts)
+    reset_drafts = staticmethod(KnockoutService.reset_drafts)
+    _copy_draft_to_prediction = staticmethod(KnockoutService._copy_draft_to_prediction)
     # NOTE: delete_all_knockout_predictions_for_user moved to admin.py
     
     # Status management

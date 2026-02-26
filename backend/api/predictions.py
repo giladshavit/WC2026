@@ -290,6 +290,55 @@ async def update_batch_knockout_predictions(
     return result
 
 
+@router.get("/predictions/knockout/draft-changes-count")
+def get_draft_changes_count(
+    user_id: int = 1,
+    db: Session = Depends(get_db)
+):
+    """Count how many draft predictions differ from originals. Returns change count + penalty."""
+    try:
+        result = PredictionService.count_draft_changes(db, user_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error counting changes: {str(e)}")
+
+
+@router.post("/predictions/knockout/commit-drafts")
+def commit_drafts(
+    user_id: int = 1,
+    db: Session = Depends(get_db)
+):
+    """Commit all drafts to real predictions with penalty."""
+    try:
+        result = PredictionService.commit_drafts(db, user_id)
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("message", "Cannot commit"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        DBUtils.rollback(db)
+        raise HTTPException(status_code=500, detail=f"Error committing drafts: {str(e)}")
+
+
+@router.post("/predictions/knockout/reset-drafts")
+def reset_drafts(
+    user_id: int = 1,
+    db: Session = Depends(get_db)
+):
+    """Reset all drafts - delete and recreate from current predictions."""
+    try:
+        result = PredictionService.reset_drafts(db, user_id)
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("message", "Cannot reset"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        DBUtils.rollback(db)
+        raise HTTPException(status_code=500, detail=f"Error resetting drafts: {str(e)}")
+
+
 @router.put("/predictions/knockout/{prediction_id}")
 def update_knockout_prediction_winner(
     prediction_id: int,
@@ -357,6 +406,8 @@ def create_all_drafts_from_predictions(
     """
     try:
         result = PredictionService.create_all_drafts_from_predictions(db, user_id)
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("message", "Cannot create drafts"))
         return result
     except HTTPException:
         raise
