@@ -44,8 +44,8 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
   
-  // Check if user is admin (for now, check by username - you can change this logic)
-  const isAdmin = user?.username === 'admin' || user?.username === 'gilad';
+  // Check if user is admin (user 1 is always admin, or by username)
+  const isAdmin = user?.user_id === 1 || user?.username === 'admin' || user?.username === 'gilad';
 
   return (
     <SafeAreaView style={styles.safeArea}>
