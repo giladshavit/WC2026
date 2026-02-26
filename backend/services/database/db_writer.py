@@ -389,6 +389,23 @@ class DBWriter:
         return prediction
 
     @staticmethod
+    def set_draft_modified_flags(
+        db: Session,
+        draft,
+        is_team1_modified: Optional[bool] = None,
+        is_team2_modified: Optional[bool] = None,
+        is_winner_modified: Optional[bool] = None,
+    ) -> None:
+        """Set modified tracking flags on a draft prediction."""
+        if is_team1_modified is not None:
+            draft.is_team1_modified = is_team1_modified
+        if is_team2_modified is not None:
+            draft.is_team2_modified = is_team2_modified
+        if is_winner_modified is not None:
+            draft.is_winner_modified = is_winner_modified
+        db.flush()
+
+    @staticmethod
     def delete_knockout_prediction(db: Session, prediction) -> None:
         db.delete(prediction)
         db.flush()

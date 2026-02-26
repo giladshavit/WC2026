@@ -134,7 +134,12 @@ class KnockoutStagePredictionDraft(Base):
     is_team1_valid = Column(Boolean, default=True, nullable=False)  # Whether team1 is valid (can reach this match)
     is_team2_valid = Column(Boolean, default=True, nullable=False)  # Whether team2 is valid (can reach this match)
     knockout_pred_id = Column(Integer, ForeignKey("knockout_stage_predictions.id"), nullable=True)  # Link to original prediction
-    
+
+    # Modified flags: True = user explicitly changed this field in the draft
+    is_team1_modified = Column(Boolean, default=False, nullable=False)
+    is_team2_modified = Column(Boolean, default=False, nullable=False)
+    is_winner_modified = Column(Boolean, default=False, nullable=False)
+
     # Relationships
     user = relationship("User")
     knockout_result = relationship("KnockoutStageResult")
