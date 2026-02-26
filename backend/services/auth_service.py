@@ -102,7 +102,27 @@ class AuthService:
         except Exception as e:
             DBUtils.rollback(db)
             print(f"Warning: Failed to create knockout predictions for user {new_user.id}: {e}")
-        
+
+        # Create empty group predictions for the new user
+        try:
+            from services.predictions.group_prediction_service import GroupPredictionService
+            created_groups = GroupPredictionService.create_user_group_predictions(db, new_user.id)
+            DBUtils.commit(db)
+            print(f"Created {created_groups} empty group predictions for user {new_user.id}")
+        except Exception as e:
+            DBUtils.rollback(db)
+            print(f"Warning: Failed to create group predictions for user {new_user.id}: {e}")
+
+        # Create empty third place prediction for the new user
+        try:
+            from services.predictions.third_place_prediction_service import ThirdPlacePredictionService
+            created_third = ThirdPlacePredictionService.create_user_third_place_prediction(db, new_user.id)
+            DBUtils.commit(db)
+            print(f"Created third place prediction for user {new_user.id}: {created_third}")
+        except Exception as e:
+            DBUtils.rollback(db)
+            print(f"Warning: Failed to create third place prediction for user {new_user.id}: {e}")
+
         # Create access token
         access_token = AuthService.create_access_token(new_user.id, new_user.username)
         

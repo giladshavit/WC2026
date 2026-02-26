@@ -198,7 +198,8 @@ class DBWriter:
     # ═══════════════════════════════════════════════════════
     @staticmethod
     def create_group_prediction(db: Session, user_id: int, group_id: int,
-                                first: int, second: int, third: int, fourth: int) -> GroupStagePrediction:
+                                first: Optional[int], second: Optional[int],
+                                third: Optional[int], fourth: Optional[int]) -> GroupStagePrediction:
         prediction = GroupStagePrediction(
             user_id=user_id,
             group_id=group_id,
@@ -259,7 +260,7 @@ class DBWriter:
     # PREDICTIONS - Third Place
     # ═══════════════════════════════════════════════════════
     @staticmethod
-    def create_third_place_prediction(db: Session, user_id: int, team_ids: List[int]) -> ThirdPlacePrediction:
+    def create_third_place_prediction(db: Session, user_id: int, team_ids: List[Optional[int]]) -> ThirdPlacePrediction:
         prediction = ThirdPlacePrediction(
             user_id=user_id,
             first_team_qualifying=team_ids[0],

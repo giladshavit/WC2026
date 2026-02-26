@@ -174,7 +174,27 @@ class ThirdPlacePredictionService:
             return ThirdPlacePredictionService._create_new_third_place_prediction(
                 db, user_id, advancing_team_ids
             )
-    
+
+    @staticmethod
+    def create_user_third_place_prediction(db: Session, user_id: int) -> bool:
+        """
+        Create one empty third-place prediction for a newly registered user.
+        All 8 team slots are set to None (unset).
+        Skips creation if prediction already exists (idempotent).
+        Returns True if created, False if already existed.
+        """
+        existing = DBReader.get_third_place_prediction(db, user_id)
+        if existing:
+            return False
+
+        DBWriter.create_third_place_prediction(
+            db,
+            user_id=user_id,
+            team_ids=[None, None, None, None, None, None, None, None],
+        )
+        DBUtils.flush(db)
+        return True
+
     @staticmethod
     def _calculate_third_place_changes(old_prediction, new_prediction_teams: List[int], db: Session) -> int:
         """

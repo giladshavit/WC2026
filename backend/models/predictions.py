@@ -31,10 +31,10 @@ class GroupStagePrediction(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
-    first_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    second_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    third_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    fourth_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    first_place = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    second_place = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    third_place = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    fourth_place = Column(Integer, ForeignKey("teams.id"), nullable=True)
     points = Column(Integer, default=0, nullable=False)  # Points awarded for this group prediction
     is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
 
@@ -62,14 +62,14 @@ class ThirdPlacePrediction(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    first_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    second_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    third_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    fourth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    fifth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    sixth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    seventh_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    eighth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    first_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    second_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    third_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    fourth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    fifth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    sixth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    seventh_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    eighth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=True)
     changed_groups = Column(String(50), nullable=True)  # JSON string like "A,B,C" for groups with changed 3rd place
     points = Column(Integer, default=0, nullable=False)  # Points awarded for this third place prediction
     is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
