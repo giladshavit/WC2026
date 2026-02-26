@@ -1,0 +1,138 @@
+from typing import Dict, Any, List
+from collections import Counter
+from sqlalchemy.orm import Session
+
+from services.database import DBReader
+
+
+class KnockoutStatisticsService:
+    """On-the-fly knockout stage statistics. Read-only."""
+
+    # ═══════════════════════════════════════════════════════
+    # PUBLIC
+    # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def get_knockout_match_statistics(db: Session, template_match_id: int) -> Dict[str, Any]:
+        """Server decides pre/post based on result existence."""
+        predictions = DBReader.get_knockout_predictions_by_match(db, template_match_id)
+        if not predictions:
+            return {"template_match_id": template_match_id, "total_predictions": 0}
+
+        result = DBReader.get_knockout_result(db, template_match_id)
+
+        if result and result.winner_team_id:
+            return KnockoutStatisticsService._post_result_stats(
+                db, template_match_id, predictions, result
+            )
+        else:
+            return KnockoutStatisticsService._pre_result_stats(
+                db, template_match_id, predictions
+            )
+
+    # ═══════════════════════════════════════════════════════
+    # PRIVATE - Pre/Post
+    # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def _pre_result_stats(db, template_match_id, predictions) -> Dict[str, Any]:
+        total = len(predictions)
+        return {
+            "template_match_id": template_match_id,
+            "has_result": False,
+            "total_predictions": total,
+            "top_matchups": KnockoutStatisticsService._calc_top_matchups(db, predictions, total),
+        }
+
+    @staticmethod
+    def _post_result_stats(db, template_match_id, predictions, result) -> Dict[str, Any]:
+        total = len(predictions)
+        winner_id = result.winner_team_id
+        stage = predictions[0].stage
+
+        exact = DBReader.count_knockout_exact_winners(db, template_match_id, winner_id)
+        partial = DBReader.count_knockout_winner_in_stage_excluding_match(
+            db, stage, winner_id, template_match_id
+        )
+        matchup = KnockoutStatisticsService._count_correct_matchups(predictions, result)
+
+        return {
+            "template_match_id": template_match_id,
+            "has_result": True,
+            "total_predictions": total,
+            "exact_winner_pct": KnockoutStatisticsService._pct(exact, total),
+            "partial_winner_pct": KnockoutStatisticsService._pct(partial, total),
+            "correct_matchup_pct": KnockoutStatisticsService._pct(matchup, total),
+        }
+
+    # ═══════════════════════════════════════════════════════
+    # PRIVATE - Post Helpers
+    # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def _count_correct_matchups(predictions, result) -> int:
+        """Users who predicted both teams (regardless of order or winner)."""
+        if not result.team_1 or not result.team_2:
+            return 0
+        actual_pair = frozenset([result.team_1, result.team_2])
+        return sum(
+            1 for p in predictions
+            if p.team1_id and p.team2_id
+            and frozenset([p.team1_id, p.team2_id]) == actual_pair
+        )
+
+    # ═══════════════════════════════════════════════════════
+    # PRIVATE - Pre Helpers
+    # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def _calc_top_matchups(db, predictions, total: int, top_n: int = 3) -> List[Dict[str, Any]]:
+        """Top N matchups (unordered) with winner distribution per matchup."""
+        matchup_counts, matchup_winners = KnockoutStatisticsService._aggregate_matchups(predictions)
+        top_pairs = matchup_counts.most_common(top_n)
+        return [
+            KnockoutStatisticsService._build_matchup_entry(db, pair, count, matchup_winners, total)
+            for pair, count in top_pairs
+        ]
+
+    @staticmethod
+    def _aggregate_matchups(predictions):
+        """Count matchups and track winner picks per matchup."""
+        counts: Counter = Counter()
+        winners: Dict = {}
+
+        for p in predictions:
+            if not p.team1_id or not p.team2_id:
+                continue
+            pair = frozenset([p.team1_id, p.team2_id])
+            counts[pair] += 1
+            if pair not in winners:
+                winners[pair] = Counter()
+            if p.winner_team_id:
+                winners[pair][p.winner_team_id] += 1
+
+        return counts, winners
+
+    @staticmethod
+    def _build_matchup_entry(db, pair, count, matchup_winners, total) -> Dict[str, Any]:
+        """Build a single matchup entry for the response."""
+        team_ids = list(pair)
+        team_a = DBReader.get_team(db, team_ids[0])
+        team_b = DBReader.get_team(db, team_ids[1])
+        winners = matchup_winners.get(pair, Counter())
+
+        return {
+            "team_a": {"id": team_ids[0], "name": team_a.name if team_a else "Unknown"},
+            "team_b": {"id": team_ids[1], "name": team_b.name if team_b else "Unknown"},
+            "matchup_pct": KnockoutStatisticsService._pct(count, total),
+            "team_a_winner_pct": KnockoutStatisticsService._pct(winners.get(team_ids[0], 0), count),
+            "team_b_winner_pct": KnockoutStatisticsService._pct(winners.get(team_ids[1], 0), count),
+        }
+
+    # ═══════════════════════════════════════════════════════
+    # PRIVATE - Shared
+    # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def _pct(count: int, total: int) -> float:
+        return round(count / total * 100, 1) if total else 0

@@ -1,0 +1,115 @@
+from typing import Dict, Any
+from sqlalchemy.orm import Session
+
+from services.database import DBReader
+from services.predictions.enums import MatchPredictionStatus, KnockoutPredictionStatus
+
+
+class UserProfileStatisticsService:
+    """Aggregates user scoring profile across all prediction types."""
+
+    @staticmethod
+    def get_user_full_profile(db: Session, user_id: int) -> Dict[str, Any]:
+        """
+        Single endpoint: complete scoring profile for StatisticsScreen.
+        Returns matches stats, groups per-group breakdown, knockout status counts.
+        """
+        user_scores = DBReader.get_user_scores(db, user_id)
+        if not user_scores:
+            return {"error": "User scores not found"}
+
+        return {
+            "user_id": user_id,
+            "total_points": user_scores.total_points,
+            "penalty": user_scores.penalty,
+
+            "matches": UserProfileStatisticsService._get_matches_profile(db, user_id, user_scores),
+            "groups": UserProfileStatisticsService._get_groups_profile(db, user_id, user_scores),
+            "knockout": UserProfileStatisticsService._get_knockout_profile(db, user_id, user_scores),
+        }
+
+    # ═══════════════════════════════════════════════════════
+    # MATCHES
+    # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def _get_matches_profile(db: Session, user_id: int, user_scores) -> Dict[str, Any]:
+        """Match stats from GROUP BY on MatchPrediction.status."""
+        status_counts = DBReader.count_match_predictions_by_status(db, user_id)
+
+        exact = status_counts.get(MatchPredictionStatus.EXACT.value, 0)
+        correct_outcome = status_counts.get(MatchPredictionStatus.CORRECT_OUTCOME.value, 0)
+        wrong = status_counts.get(MatchPredictionStatus.WRONG.value, 0)
+        pending = status_counts.get(MatchPredictionStatus.PENDING.value, 0)
+
+        return {
+            "score": user_scores.matches_score,
+            "exact": exact,
+            "correct_outcome": correct_outcome,
+            "wrong": wrong,
+            "pending": pending,
+            "total_judged": exact + correct_outcome + wrong,
+        }
+
+    # ═══════════════════════════════════════════════════════
+    # GROUPS
+    # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def _get_groups_profile(db: Session, user_id: int, user_scores) -> Dict[str, Any]:
+        """
+        Groups profile with:
+        - Total score
+        - Per-group list (12 items): group_name, points, correct_positions_count
+        - Per-position totals via DBReader
+        - Accuracy distribution (how many groups got 0/1/2/3/4 correct)
+        """
+        predictions = DBReader.get_group_predictions_by_user(db, user_id)
+
+        per_group = []
+        for p in predictions:
+            group = DBReader.get_group(db, p.group_id)
+            per_group.append({
+                "group_id": p.group_id,
+                "group_name": group.name if group else f"Group {p.group_id}",
+                "points": p.points or 0,
+                "correct_positions_count": p.correct_positions_count,
+            })
+
+        per_group.sort(key=lambda x: (-x["points"], -(x["correct_positions_count"] or 0), x["group_name"]))
+
+        position_totals = DBReader.count_group_position_correct(db, user_id)
+
+        judged = [p for p in per_group if p["correct_positions_count"] is not None]
+        judged_count = len(judged)
+
+        accuracy_dist = DBReader.count_group_accuracy_distribution(db, user_id)
+        accuracy_distribution = {str(k): v for k, v in accuracy_dist.items()}
+
+        return {
+            "score": user_scores.groups_score,
+            "total_groups": len(predictions),
+            "judged_groups": judged_count,
+            "per_group": per_group,
+            "position_totals": position_totals,
+            "accuracy_distribution": accuracy_distribution,
+        }
+
+    # ═══════════════════════════════════════════════════════
+    # KNOCKOUT
+    # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def _get_knockout_profile(db: Session, user_id: int, user_scores) -> Dict[str, Any]:
+        """Knockout stats from GROUP BY on status."""
+        status_counts = DBReader.count_knockout_predictions_by_status(db, user_id)
+
+        return {
+            "score": user_scores.knockout_score,
+            "correct_full": status_counts.get(KnockoutPredictionStatus.CORRECT_FULL.value, 0),
+            "correct_partial": status_counts.get(KnockoutPredictionStatus.CORRECT_PARTIAL.value, 0),
+            "incorrect": status_counts.get(KnockoutPredictionStatus.INCORRECT.value, 0),
+            "valid": status_counts.get(KnockoutPredictionStatus.VALID.value, 0),
+            "invalid": status_counts.get(KnockoutPredictionStatus.INVALID.value, 0),
+            "unreachable": status_counts.get(KnockoutPredictionStatus.UNREACHABLE.value, 0),
+        }
