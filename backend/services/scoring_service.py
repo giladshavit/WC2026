@@ -1,6 +1,7 @@
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+from services.predictions.enums import MatchPredictionStatus, KnockoutPredictionStatus
 from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction
 from models.predictions import KnockoutStagePrediction
 from models.results import KnockoutStageResult
@@ -55,7 +56,48 @@ class ScoringService:
         "semi": {"full": 20, "partial": 10},
         "final": {"full": 25, "partial": 12},
     }
-    
+
+    MATCH_STATUS_POINTS = {
+        MatchPredictionStatus.EXACT: 3,
+        MatchPredictionStatus.CORRECT_OUTCOME: 1,
+        MatchPredictionStatus.WRONG: 0,
+        MatchPredictionStatus.PENDING: 0,
+    }
+
+    @staticmethod
+    def _apply_score_delta(db: Session, user_id: int, score_field: str, delta: int) -> None:
+        """
+        Apply a points delta to a specific score field and total_points on UserScores.
+        Handles get-or-create of UserScores. Skips if delta is 0.
+        """
+        if delta == 0:
+            return
+        user_scores = DBReader.get_user_scores(db, user_id)
+        if not user_scores:
+            user_scores = DBWriter.create_user_scores(db, user_id)
+        new_field_value = (getattr(user_scores, score_field) or 0) + delta
+        new_total = (user_scores.total_points or 0) + delta
+        DBWriter.update_user_scores(
+            db, user_scores,
+            **{score_field: new_field_value, 'total_points': new_total}
+        )
+
+    @staticmethod
+    def _determine_match_status(prediction: MatchPrediction, result: MatchResult) -> MatchPredictionStatus:
+        """Determine prediction status based on result. Returns enum member."""
+        if not result:
+            return MatchPredictionStatus.PENDING
+        if ScoringService.is_exact_scores(prediction, result):
+            return MatchPredictionStatus.EXACT
+        if ScoringService.is_correct_winner(prediction, result):
+            return MatchPredictionStatus.CORRECT_OUTCOME
+        return MatchPredictionStatus.WRONG
+
+    @staticmethod
+    def match_status_to_points(status: MatchPredictionStatus) -> int:
+        """Convert match status enum to points. Pure function, no DB access."""
+        return ScoringService.MATCH_STATUS_POINTS.get(status, 0)
+
     @staticmethod
     def is_correct_winner(prediction: MatchPrediction, result: MatchResult) -> bool:
         """
@@ -96,32 +138,17 @@ class ScoringService:
     
     @staticmethod
     def calculate_match_prediction_points(
-        prediction: MatchPrediction, 
+        prediction: MatchPrediction,
         result: MatchResult
-    ) -> int:
-        """
-        Calculate points for a match prediction based on the actual result.
-        
-        Args:
-            prediction: MatchPrediction object
-            result: MatchResult object
-            
-        Returns:
-            int: Points awarded for this prediction
-        """
+    ) -> tuple[int, str]:
+        """LEGACY - kept for backward compat. Main flow uses _determine_match_status + match_status_to_points."""
         if not result:
-            return 0
-            
-        # First check: is the winning team correct?
+            return 0, MatchPredictionStatus.PENDING.value
         if not ScoringService.is_correct_winner(prediction, result):
-            return ScoringService.MATCH_PREDICTION_RULES['wrong']
-        
-        # Second check: is the exact score correct?
+            return ScoringService.MATCH_PREDICTION_RULES['wrong'], MatchPredictionStatus.WRONG.value
         if ScoringService.is_exact_scores(prediction, result):
-            return ScoringService.MATCH_PREDICTION_RULES['exact_score']
-        
-        # Winner is correct but score is wrong
-        return ScoringService.MATCH_PREDICTION_RULES['correct_winner']
+            return ScoringService.MATCH_PREDICTION_RULES['exact_score'], MatchPredictionStatus.EXACT.value
+        return ScoringService.MATCH_PREDICTION_RULES['correct_winner'], MatchPredictionStatus.CORRECT_OUTCOME.value
     
     @staticmethod
     def get_leaderboard(db: Session, limit: int = 50) -> List[Dict[str, Any]]:
@@ -150,53 +177,26 @@ class ScoringService:
     
     @staticmethod
     def update_match_scoring_for_all_users(db: Session, result: MatchResult) -> Dict[str, Any]:
-        """
-        Update scoring for all users who predicted a specific match.
-        This is called when a match result is updated.
-        
-        Args:
-            db: Database session
-            result: MatchResult object that was just updated
-            
-        Returns:
-            Dict with summary of the operation
-        """
-        # Get all users who predicted this match
         predictions = DBReader.get_match_predictions_by_match(db, result.match_id)
-        
+
         updated_users = set()
         for prediction in predictions:
-            # Calculate new points for this prediction
-            new_points = ScoringService.calculate_match_prediction_points(prediction, result)
-            
-            # Update prediction points
             old_points = prediction.points if prediction.points is not None else 0
+
+            # Step 1: Determine and save status
+            status = ScoringService._determine_match_status(prediction, result)
+            DBWriter.update_match_prediction_status(db, prediction, status.value)
+
+            # Step 2: Points from status (pure)
+            new_points = ScoringService.match_status_to_points(status)
             DBWriter.update_match_prediction(db, prediction, points=new_points)
-            
-            # Update user scores in user_scores table
-            user_scores = DBReader.get_user_scores(db, prediction.user_id)
-            if not user_scores:
-                user_scores = DBWriter.create_user_scores(db, prediction.user_id)
-            
-            # Update matches score and total points
-            new_matches_score = (user_scores.matches_score or 0) - old_points + new_points
-            new_total_points = (
-                new_matches_score +
-                (user_scores.groups_score or 0) +
-                (user_scores.third_place_score or 0) +
-                (user_scores.knockout_score or 0) -
-                (user_scores.penalty or 0)
-            )
-            DBWriter.update_user_scores(
-                db,
-                user_scores,
-                matches_score=new_matches_score,
-                total_points=new_total_points
-            )
+
+            # Step 3: Delta update on UserScores (single line!)
+            ScoringService._apply_score_delta(db, prediction.user_id, 'matches_score', new_points - old_points)
+
             updated_users.add(prediction.user_id)
-        
+
         DBUtils.commit(db)
-        
         return {
             "message": f"Updated scoring for {len(updated_users)} users",
             "updated_users": len(updated_users),
@@ -204,85 +204,71 @@ class ScoringService:
         }
     
     @staticmethod
-    def calculate_group_prediction_points(prediction: GroupStagePrediction, result: GroupStageResult) -> int:
+    def calculate_group_prediction_points(prediction: GroupStagePrediction, result: GroupStageResult) -> Tuple[int, dict]:
         """
-        Calculate points for a group stage prediction based on the actual result.
-        
-        Args:
-            prediction: GroupStagePrediction object
-            result: GroupStageResult object
-            
-        Returns:
-            int: Total points awarded for this group prediction
+        Calculate points for a group prediction.
+        Returns: (total_points, accuracy_info)
+        accuracy_info = {
+            'first_correct': bool, 'second_correct': bool,
+            'third_correct': bool, 'fourth_correct': bool,
+            'correct_positions_count': int
+        }
         """
         if not prediction or not result:
-            return 0
-        
+            return 0, {}
+
         total_points = 0
-        
-        # Check each position
-        prediction_positions = [
-            (prediction.first_place, result.first_place, 'first_place'),
-            (prediction.second_place, result.second_place, 'second_place'),
-            (prediction.third_place, result.third_place, 'third_place'),
-            (prediction.fourth_place, result.fourth_place, 'fourth_place')
+        correct_count = 0
+        accuracy = {}
+
+        positions = [
+            ('first_place', 'first_correct', ScoringService.GROUP_PREDICTION_RULES['first_place']),
+            ('second_place', 'second_correct', ScoringService.GROUP_PREDICTION_RULES['second_place']),
+            ('third_place', 'third_correct', ScoringService.GROUP_PREDICTION_RULES['third_place']),
+            ('fourth_place', 'fourth_correct', ScoringService.GROUP_PREDICTION_RULES['fourth_place']),
         ]
-        
-        for pred_team, actual_team, position in prediction_positions:
-            if pred_team == actual_team:
-                total_points += ScoringService.GROUP_PREDICTION_RULES[position]
-        
-        return total_points
+
+        for pred_field, bool_key, points in positions:
+            is_correct = getattr(prediction, pred_field) == getattr(result, pred_field)
+            accuracy[bool_key] = is_correct
+            if is_correct:
+                total_points += points
+                correct_count += 1
+
+        accuracy['correct_positions_count'] = correct_count
+        return total_points, accuracy
     
     @staticmethod
     def update_group_scoring_for_all_users(db: Session, result: GroupStageResult) -> Dict[str, Any]:
-        """
-        Update scoring for all users who predicted a specific group.
-        This is called when a group result is updated.
-        
-        Args:
-            db: Database session
-            result: GroupStageResult object that was just updated
-            
-        Returns:
-            Dict with summary of the operation
-        """
-        # Get all users who predicted this group
         predictions = DBReader.get_group_predictions_by_group(db, result.group_id)
-        
+
         updated_users = set()
         for prediction in predictions:
-            # Calculate new points for this prediction
-            new_points = ScoringService.calculate_group_prediction_points(prediction, result)
-            
-            # Update prediction points
             old_points = prediction.points if prediction.points is not None else 0
+
+            # Step 1: Calculate points + accuracy
+            new_points, accuracy = ScoringService.calculate_group_prediction_points(prediction, result)
+
+            # Step 2: Save accuracy fields via DBWriter
+            if accuracy:
+                DBWriter.update_group_prediction_accuracy(
+                    db, prediction,
+                    first_correct=accuracy['first_correct'],
+                    second_correct=accuracy['second_correct'],
+                    third_correct=accuracy['third_correct'],
+                    fourth_correct=accuracy['fourth_correct'],
+                    correct_positions_count=accuracy['correct_positions_count'],
+                )
+
+            # Step 3: Save points
             DBWriter.update_group_prediction(db, prediction, points=new_points)
-            
-            # Update user scores in user_scores table
-            user_scores = DBReader.get_user_scores(db, prediction.user_id)
-            if not user_scores:
-                user_scores = DBWriter.create_user_scores(db, prediction.user_id)
-            
-            # Update groups score and total points
-            new_groups_score = (user_scores.groups_score or 0) - old_points + new_points
-            new_total_points = (
-                (user_scores.matches_score or 0) +
-                new_groups_score +
-                (user_scores.third_place_score or 0) +
-                (user_scores.knockout_score or 0) -
-                (user_scores.penalty or 0)
-            )
-            DBWriter.update_user_scores(
-                db,
-                user_scores,
-                groups_score=new_groups_score,
-                total_points=new_total_points
-            )
+
+            # Step 4: Delta update on UserScores (single line!)
+            ScoringService._apply_score_delta(db, prediction.user_id, 'groups_score', new_points - old_points)
+
             updated_users.add(prediction.user_id)
-        
+
         DBUtils.commit(db)
-        
         return {
             "message": f"Updated group scoring for {len(updated_users)} users",
             "updated_users": len(updated_users),
@@ -290,79 +276,45 @@ class ScoringService:
         }
     
     @staticmethod
+    def _count_correct_third_place_groups(prediction: ThirdPlacePrediction, result: ThirdPlaceResult, db: Session) -> int:
+        """Count how many groups overlap between prediction and result."""
+        pred_fields = [
+            'first_team_qualifying', 'second_team_qualifying',
+            'third_team_qualifying', 'fourth_team_qualifying',
+            'fifth_team_qualifying', 'sixth_team_qualifying',
+            'seventh_team_qualifying', 'eighth_team_qualifying',
+        ]
+
+        def _get_groups(obj) -> set:
+            groups = set()
+            for field in pred_fields:
+                team_id = getattr(obj, field, None)
+                if team_id:
+                    group = DBReader.get_team_group_letter(db, team_id)
+                    if group:
+                        groups.add(group)
+            return groups
+
+        return len(_get_groups(prediction).intersection(_get_groups(result)))
+
+    @staticmethod
+    def calculate_third_place_prediction_points_from_count(correct_groups_count: int) -> int:
+        """Pure function: correct groups count → points. No DB access."""
+        minimum = ScoringService.THIRD_PLACE_RULES['minimum_groups_for_points']
+        bonus_per = ScoringService.THIRD_PLACE_RULES['bonus_per_extra_group']
+
+        if correct_groups_count <= minimum:
+            return 0
+        return (correct_groups_count - minimum) * bonus_per
+
+    @staticmethod
     def calculate_third_place_prediction_points(prediction: ThirdPlacePrediction, result: ThirdPlaceResult, db: Session) -> int:
-        """
-        Calculate points for a third place prediction based on group accuracy.
-        
-        Scoring logic:
-        - Get list of groups from user's prediction
-        - Get list of groups from actual results
-        - Find common groups (correct predictions)
-        - Award 5 points for each group beyond the first 4 correct groups
-        
-        Args:
-            prediction: ThirdPlacePrediction object
-            result: ThirdPlaceResult object
-            db: Database session for team lookups
-            
-        Returns:
-            int: Total points awarded for this third place prediction
-        """
+        """LEGACY - kept for backward compat."""
         if not prediction or not result:
             return 0
-        
-        # Get all teams from prediction
-        prediction_teams = [
-            prediction.first_team_qualifying,
-            prediction.second_team_qualifying,
-            prediction.third_team_qualifying,
-            prediction.fourth_team_qualifying,
-            prediction.fifth_team_qualifying,
-            prediction.sixth_team_qualifying,
-            prediction.seventh_team_qualifying,
-            prediction.eighth_team_qualifying
-        ]
-        
-        # Get all teams from actual results
-        result_teams = [
-            result.first_team_qualifying,
-            result.second_team_qualifying,
-            result.third_team_qualifying,
-            result.fourth_team_qualifying,
-            result.fifth_team_qualifying,
-            result.sixth_team_qualifying,
-            result.seventh_team_qualifying,
-            result.eighth_team_qualifying
-        ]
-        
-        # Get group names for prediction teams
-        prediction_groups = set()
-        for team_id in prediction_teams:
-            group_name = ScoringService.get_team_group_name(team_id, db)
-            if group_name:
-                prediction_groups.add(group_name)
-        
-        # Get group names for result teams
-        result_groups = set()
-        for team_id in result_teams:
-            group_name = ScoringService.get_team_group_name(team_id, db)
-            if group_name:
-                result_groups.add(group_name)
-        
-        # Find common groups (correct predictions)
-        common_groups = prediction_groups.intersection(result_groups)
-        correct_count = len(common_groups)
-        
-        # Calculate points: bonus points for each correct group beyond the minimum
-        minimum_groups = ScoringService.THIRD_PLACE_RULES['minimum_groups_for_points']
-        bonus_per_group = ScoringService.THIRD_PLACE_RULES['bonus_per_extra_group']
-        
-        if correct_count <= minimum_groups:
-            return 0
-        else:
-            bonus_groups = correct_count - minimum_groups
-            return bonus_groups * bonus_per_group
-    
+        correct_count = ScoringService._count_correct_third_place_groups(prediction, result, db)
+        return ScoringService.calculate_third_place_prediction_points_from_count(correct_count)
+
     @staticmethod
     def get_team_group_name(team_id: int, db: Session) -> Optional[str]:
         """
@@ -379,53 +331,26 @@ class ScoringService:
     
     @staticmethod
     def update_third_place_scoring_for_all_users(db: Session, result: ThirdPlaceResult) -> Dict[str, Any]:
-        """
-        Update scoring for all users who predicted third place qualifying teams.
-        This is called when third place results are updated.
-        
-        Args:
-            db: Database session
-            result: ThirdPlaceResult object that was just updated
-            
-        Returns:
-            Dict with summary of the operation
-        """
-        # Get all users who predicted third place qualifying teams
         predictions = DBReader.get_all_third_place_predictions(db)
-        
+
         updated_users = set()
         for prediction in predictions:
-            # Calculate new points for this prediction
-            new_points = ScoringService.calculate_third_place_prediction_points(prediction, result, db)
-            
-            # Update prediction points
             old_points = prediction.points if prediction.points is not None else 0
+
+            # Step 1: Count correct groups and save to prediction
+            correct_count = ScoringService._count_correct_third_place_groups(prediction, result, db)
+            DBWriter.update_third_place_correct_groups(db, prediction, correct_count)
+
+            # Step 2: Points from count (pure)
+            new_points = ScoringService.calculate_third_place_prediction_points_from_count(correct_count)
             DBWriter.update_third_place_prediction_fields(db, prediction, points=new_points)
-            
-            # Update user scores in user_scores table
-            user_scores = DBReader.get_user_scores(db, prediction.user_id)
-            if not user_scores:
-                user_scores = DBWriter.create_user_scores(db, prediction.user_id)
-            
-            # Update third place score and total points
-            new_third_place_score = (user_scores.third_place_score or 0) - old_points + new_points
-            new_total_points = (
-                (user_scores.matches_score or 0) +
-                (user_scores.groups_score or 0) +
-                new_third_place_score +
-                (user_scores.knockout_score or 0) -
-                (user_scores.penalty or 0)
-            )
-            DBWriter.update_user_scores(
-                db,
-                user_scores,
-                third_place_score=new_third_place_score,
-                total_points=new_total_points
-            )
+
+            # Step 3: Delta update on UserScores (single line!)
+            ScoringService._apply_score_delta(db, prediction.user_id, 'third_place_score', new_points - old_points)
+
             updated_users.add(prediction.user_id)
-        
+
         DBUtils.commit(db)
-        
         return {
             "message": f"Updated third place scoring for {len(updated_users)} users",
             "updated_users": len(updated_users)
@@ -440,9 +365,9 @@ class ScoringService:
         stage_scoring = ScoringService.KNOCKOUT_SCORING.get(stage, {"full": 0, "partial": 0})
         status = getattr(prediction, "status", None) or ""
 
-        if status == "correct_full":
+        if status == KnockoutPredictionStatus.CORRECT_FULL.value:
             return stage_scoring.get("full", 0)
-        if status == "correct_partial":
+        if status == KnockoutPredictionStatus.CORRECT_PARTIAL.value:
             return stage_scoring.get("partial", 0)
         return 0
     
@@ -462,33 +387,12 @@ class ScoringService:
         
         updated_users = set()
         for prediction in predictions:
-            # Save old points before updating
             old_points = prediction.points if prediction.points else 0
-            
-            # Calculate new points using the helper function
+
             new_points = ScoringService.calculate_knockout_prediction_points(prediction, knockout_result, match.stage)
             DBWriter.update_knockout_prediction(db, prediction, points=new_points)
-            
-            # Update user scores in user_scores table
-            user_scores = DBReader.get_user_scores(db, prediction.user_id)
-            if not user_scores:
-                user_scores = DBWriter.create_user_scores(db, prediction.user_id)
-            
-            # Update knockout score and total points
-            new_knockout_score = (user_scores.knockout_score or 0) - old_points + new_points
-            new_total_points = (
-                (user_scores.matches_score or 0) +
-                (user_scores.groups_score or 0) +
-                (user_scores.third_place_score or 0) +
-                new_knockout_score -
-                (user_scores.penalty or 0)
-            )
-            DBWriter.update_user_scores(
-                db,
-                user_scores,
-                knockout_score=new_knockout_score,
-                total_points=new_total_points
-            )
+
+            ScoringService._apply_score_delta(db, prediction.user_id, 'knockout_score', new_points - old_points)
             updated_users.add(prediction.user_id)
         
         DBUtils.commit(db)

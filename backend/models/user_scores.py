@@ -15,6 +15,13 @@ class UserScores(Base):
     third_place_score = Column(Integer, default=0)
     knockout_score = Column(Integer, default=0)
     
+    # Match prediction accuracy counters
+    # DEPRECATED - replaced by GROUP BY on MatchPrediction.status (Prompt 13)
+    # matches_exact_count = Column(Integer, default=0)
+    # matches_correct_count = Column(Integer, default=0)
+    # matches_wrong_count = Column(Integer, default=0)
+    matches_total_judged = Column(Integer, default=0)
+    
     # Penalty points
     penalty = Column(Integer, default=0)
     

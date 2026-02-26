@@ -6,7 +6,24 @@ from services.scoring_service import ScoringService
 
 class ThirdPlacePredictionService:
     """Service for third place prediction operations"""
-    
+
+    @staticmethod
+    def _update_group_counts_on_prediction_change(db: Session, old_groups: set, new_groups: set) -> None:
+        """Update the ThirdPlaceGroupCounts singleton when a prediction changes."""
+        removed = old_groups - new_groups
+        added = new_groups - old_groups
+
+        if not removed and not added:
+            return
+
+        row = DBReader.get_third_place_group_counts(db)
+
+        for group in removed:
+            DBWriter.decrement_third_place_group_count(db, row, group)
+
+        for group in added:
+            DBWriter.increment_third_place_group_count(db, row, group)
+
     @staticmethod
     def _validate_advancing_team_ids(advancing_team_ids: List[int]) -> Optional[Dict[str, str]]:
         """Validate that exactly 8 team IDs are provided"""
@@ -23,13 +40,18 @@ class ThirdPlacePredictionService:
         )
     
     @staticmethod
-    def _update_existing_third_place_prediction(db: Session, user_id: int, existing_prediction, 
+    def _update_existing_third_place_prediction(db: Session, user_id: int, existing_prediction,
                                                advancing_team_ids: List[int]) -> Dict[str, Any]:
         """Update an existing third place prediction"""
         changes = ThirdPlacePredictionService._calculate_third_place_changes(
             existing_prediction, advancing_team_ids, db
         )
-        
+
+        old_teams = ThirdPlacePredictionService._extract_advancing_team_ids(existing_prediction)
+        old_groups = ThirdPlacePredictionService._get_team_groups(old_teams, db)
+        new_groups = ThirdPlacePredictionService._get_team_groups(advancing_team_ids, db)
+        ThirdPlacePredictionService._update_group_counts_on_prediction_change(db, old_groups, new_groups)
+
         DBWriter.update_third_place_prediction(db, existing_prediction, advancing_team_ids)
         DBWriter.update_third_place_prediction_changed_groups(db, existing_prediction, None)
         DBUtils.commit(db)
@@ -106,9 +128,13 @@ class ThirdPlacePredictionService:
             # Don't raise exception - third place prediction creation should succeed even if this fails
     
     @staticmethod
-    def _create_new_third_place_prediction(db: Session, user_id: int, 
+    def _create_new_third_place_prediction(db: Session, user_id: int,
                                           advancing_team_ids: List[int]) -> Dict[str, Any]:
         """Create a new third place prediction"""
+        old_groups = set()
+        new_groups = ThirdPlacePredictionService._get_team_groups(advancing_team_ids, db)
+        ThirdPlacePredictionService._update_group_counts_on_prediction_change(db, old_groups, new_groups)
+
         new_prediction = DBWriter.create_third_place_prediction(
             db, user_id, advancing_team_ids
         )

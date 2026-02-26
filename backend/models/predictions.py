@@ -14,6 +14,8 @@ class MatchPrediction(Base):
     away_score = Column(Integer, nullable=True)
     predicted_winner = Column(Integer, ForeignKey("teams.id"), nullable=True)  # NULL for draw
     points = Column(Integer, default=0, nullable=False)  # Points awarded for this prediction
+    # Values from MatchPredictionStatus enum: 'pending', 'exact', 'correct_outcome', 'wrong'
+    status = Column(String(20), nullable=True, default='pending')
     is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -35,6 +37,14 @@ class GroupStagePrediction(Base):
     fourth_place = Column(Integer, ForeignKey("teams.id"), nullable=False)
     points = Column(Integer, default=0, nullable=False)  # Points awarded for this group prediction
     is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
+
+    # How many positions (0-4) user got right. None = not yet judged
+    correct_positions_count = Column(Integer, nullable=True, default=None)
+    # Per-position correctness for fast querying
+    first_correct = Column(Boolean, nullable=True, default=None)
+    second_correct = Column(Boolean, nullable=True, default=None)
+    third_correct = Column(Boolean, nullable=True, default=None)
+    fourth_correct = Column(Boolean, nullable=True, default=None)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -63,6 +73,9 @@ class ThirdPlacePrediction(Base):
     changed_groups = Column(String(50), nullable=True)  # JSON string like "A,B,C" for groups with changed 3rd place
     points = Column(Integer, default=0, nullable=False)  # Points awarded for this third place prediction
     is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
+
+    # How many groups (0-8) user got right. None = not yet judged
+    correct_groups_count = Column(Integer, nullable=True, default=None)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -15,7 +15,8 @@ from .group_prediction_service import GroupPredictionService
 from .third_place_prediction_service import ThirdPlacePredictionService
 from .knockout_service import KnockoutService
 from services.database import DBWriter
-from .shared import PredictionStatus, PlacesPredictions
+from .shared import PlacesPredictions
+from .enums import KnockoutPredictionStatus
 
 # Backward compatibility - create a unified interface
 class PredictionService:
@@ -59,7 +60,7 @@ __all__ = [
     'GroupPredictionService',
     'ThirdPlacePredictionService',
     'KnockoutService',
-    'PredictionStatus',
+    'KnockoutPredictionStatus',
     'PlacesPredictions',
 ]
 

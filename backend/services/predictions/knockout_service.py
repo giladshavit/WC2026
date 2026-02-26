@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from datetime import datetime
 
 from services.database import DBReader, DBWriter, DBUtils
-from .shared import PredictionStatus
+from .enums import KnockoutPredictionStatus
 from services.scoring_service import ScoringService
 from services.stage_manager import StageManager, Stage
 from models.results import KnockoutStageResult
@@ -677,13 +677,13 @@ class KnockoutService:
             if not KnockoutService._normalize_team_id(prediction.winner_team_id):
                 KnockoutService._set_prediction_status_and_points(
                     db, prediction, user_id,
-                    PredictionStatus.INCORRECT.value, 0
+                    KnockoutPredictionStatus.INCORRECT.value, 0
                 )
                 continue
-            if prediction.status == PredictionStatus.INVALID.value:
+            if prediction.status == KnockoutPredictionStatus.INVALID.value:
                 KnockoutService._set_prediction_status_and_points(
                     db, prediction, user_id,
-                    PredictionStatus.INCORRECT.value, 0
+                    KnockoutPredictionStatus.INCORRECT.value, 0
                 )
                 continue
 
@@ -717,7 +717,7 @@ class KnockoutService:
             points = ScoringService.KNOCKOUT_SCORING.get(stage, {}).get("full", 0)
             KnockoutService._set_prediction_status_and_points(
                 db, prediction, user_id,
-                PredictionStatus.CORRECT_FULL.value, points
+                KnockoutPredictionStatus.CORRECT_FULL.value, points
             )
             return True
 
@@ -728,18 +728,18 @@ class KnockoutService:
         for other_pred in same_stage_predictions:
             if other_pred.id == prediction.id:
                 continue
-            if (other_pred.status == PredictionStatus.UNREACHABLE.value and
+            if (other_pred.status == KnockoutPredictionStatus.UNREACHABLE.value and
                     KnockoutService._normalize_team_id(other_pred.winner_team_id) == winner_team_id):
                 # Current prediction was wrong (for this match), set INCORRECT
                 KnockoutService._set_prediction_status_and_points(
                     db, prediction, user_id,
-                    PredictionStatus.INCORRECT.value, 0
+                    KnockoutPredictionStatus.INCORRECT.value, 0
                 )
                 # Other prediction had correct winner via different path -> CORRECT_PARTIAL
                 points = ScoringService.KNOCKOUT_SCORING.get(stage, {}).get("partial", 0)
                 KnockoutService._set_prediction_status_and_points(
                     db, other_pred, user_id,
-                    PredictionStatus.CORRECT_PARTIAL.value, points
+                    KnockoutPredictionStatus.CORRECT_PARTIAL.value, points
                 )
                 return True
 
@@ -762,7 +762,7 @@ class KnockoutService:
         if KnockoutService._normalize_team_id(prediction.winner_team_id) == loser_team_id:
             KnockoutService._set_prediction_status_and_points(
                 db, prediction, user_id,
-                PredictionStatus.INCORRECT.value, 0
+                KnockoutPredictionStatus.INCORRECT.value, 0
             )
             KnockoutService._find_loser_in_next_stages(
                 db, user_id, loser_team_id, match_id
@@ -772,7 +772,7 @@ class KnockoutService:
         # Direct prediction != loser — current prediction is still wrong (INCORRECT)
         KnockoutService._set_prediction_status_and_points(
             db, prediction, user_id,
-            PredictionStatus.INCORRECT.value, 0
+            KnockoutPredictionStatus.INCORRECT.value, 0
         )
         # Search same stage for other predictions that predicted the loser
         same_stage_predictions = DBReader.get_knockout_predictions_by_user(
@@ -784,7 +784,7 @@ class KnockoutService:
             if KnockoutService._normalize_team_id(other_pred.winner_team_id) == loser_team_id:
                 KnockoutService._set_prediction_status_and_points(
                     db, other_pred, user_id,
-                    PredictionStatus.INCORRECT.value, 0
+                    KnockoutPredictionStatus.INCORRECT.value, 0
                 )
                 KnockoutService._find_loser_in_next_stages(
                     db, user_id, loser_team_id, other_pred.template_match_id
@@ -817,7 +817,7 @@ class KnockoutService:
         if KnockoutService._normalize_team_id(next_prediction.winner_team_id) == loser_team_id:
             KnockoutService._set_prediction_status_and_points(
                 db, next_prediction, user_id,
-                PredictionStatus.INVALID.value, 0
+                KnockoutPredictionStatus.INVALID.value, 0
             )
             KnockoutService._find_loser_in_next_stages(
                 db, user_id, loser_team_id, next_prediction.template_match_id
@@ -1125,7 +1125,7 @@ class KnockoutService:
 
             # Set current_winner_team_id if status is yellow and winner differs from the draft teams
             current_winner_team_id = 0
-            if normalized_status == PredictionStatus.UNREACHABLE.value and original_winner_team_id:
+            if normalized_status == KnockoutPredictionStatus.UNREACHABLE.value and original_winner_team_id:
                 if original_winner_team_id != team1_id and original_winner_team_id != team2_id:
                     current_winner_team_id = original_winner_team_id
 
@@ -1143,7 +1143,7 @@ class KnockoutService:
         db: Session,
         prediction,
         check_reachable: bool = False
-    ) -> Optional[PredictionStatus]:
+    ) -> Optional[KnockoutPredictionStatus]:
         """
         Compute and set the prediction status based on current state.
         If status is already post-result (CORRECT_FULL/CORRECT_PARTIAL/INCORRECT), return immediately.
@@ -1152,9 +1152,9 @@ class KnockoutService:
         """
         current_status = prediction.status
         post_result_statuses = {
-            PredictionStatus.CORRECT_FULL.value,
-            PredictionStatus.CORRECT_PARTIAL.value,
-            PredictionStatus.INCORRECT.value,
+            KnockoutPredictionStatus.CORRECT_FULL.value,
+            KnockoutPredictionStatus.CORRECT_PARTIAL.value,
+            KnockoutPredictionStatus.INCORRECT.value,
         }
         if current_status in post_result_statuses:
             return None  # Don't touch post-result statuses
@@ -1166,7 +1166,7 @@ class KnockoutService:
         db: Session,
         prediction,
         check_reachable: bool
-    ) -> PredictionStatus:
+    ) -> KnockoutPredictionStatus:
         """
         Compute status when match has NOT been played yet (no result).
         
@@ -1179,26 +1179,26 @@ class KnockoutService:
 
         # Case 1: No prediction yet
         if not winner_team_id:
-            status = PredictionStatus.INVALID
+            status = KnockoutPredictionStatus.INVALID
             DBWriter.set_prediction_status(prediction, status.value)
             return status
 
         # Case 2: Predicted team is eliminated
         winner_team = DBReader.get_team(db, winner_team_id)
         if winner_team and winner_team.is_eliminated:
-            status = PredictionStatus.INVALID
+            status = KnockoutPredictionStatus.INVALID
             DBWriter.set_prediction_status(prediction, status.value)
             return status
 
         # Case 3: Check reachability if requested
         if check_reachable:
             if not KnockoutService.can_winner_reach_match_via_correct_path(db, prediction):
-                status = PredictionStatus.UNREACHABLE
+                status = KnockoutPredictionStatus.UNREACHABLE
                 DBWriter.set_prediction_status(prediction, status.value)
                 return status
 
         # Case 4: Valid prediction
-        status = PredictionStatus.VALID
+        status = KnockoutPredictionStatus.VALID
         DBWriter.set_prediction_status(prediction, status.value)
         return status
 
@@ -1207,15 +1207,15 @@ class KnockoutService:
         if not status:
             return None
         legacy_map = {
-            "predicted": PredictionStatus.VALID.value,
-            "might_change_predict": PredictionStatus.UNREACHABLE.value,
-            "must_change_predict": PredictionStatus.INVALID.value,
-            "gray": PredictionStatus.INVALID.value,
+            "predicted": KnockoutPredictionStatus.VALID.value,
+            "might_change_predict": KnockoutPredictionStatus.UNREACHABLE.value,
+            "must_change_predict": KnockoutPredictionStatus.INVALID.value,
+            "gray": KnockoutPredictionStatus.INVALID.value,
         }
         if status in legacy_map:
             return legacy_map[status]
         try:
-            return PredictionStatus(status).value
+            return KnockoutPredictionStatus(status).value
         except ValueError:
             return status
 
