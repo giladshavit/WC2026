@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { BracketMatch } from '../utils/bracketCalculator';
+import KnockoutStatsModal from './KnockoutStatsModal';
 
 interface BracketMatchCardProps {
   match: BracketMatch;
@@ -9,6 +10,8 @@ interface BracketMatchCardProps {
 }
 
 export default function BracketMatchCard({ match, onPress, onLayout }: BracketMatchCardProps) {
+  const [showStats, setShowStats] = useState(false);
+
   const isTeam1Winner = match.winner_team_id === match.team1_id;
   const isTeam2Winner = match.winner_team_id === match.team2_id;
   const isFinal = match.stage === 'final';
@@ -141,6 +144,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
   };
 
   return (
+    <View style={styles.wrapper}>
     <TouchableOpacity 
       style={[
         styles.container, 
@@ -205,9 +209,25 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
           )}
         </View>
       )}
-      
-      {/* Removed match ID to save space */}
     </TouchableOpacity>
+
+    <TouchableOpacity
+      onPress={(e) => {
+        e.stopPropagation();
+        setShowStats(true);
+      }}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      style={styles.statsButton}
+    >
+      <Text style={styles.statsButtonText}>📊</Text>
+    </TouchableOpacity>
+
+    <KnockoutStatsModal
+      visible={showStats}
+      templateMatchId={match.id}
+      onClose={() => setShowStats(false)}
+    />
+    </View>
   );
 }
 
@@ -379,5 +399,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 1,
     elevation: 2,
+  },
+  wrapper: {
+    position: 'relative',
+  },
+  statsButton: {
+    position: 'absolute',
+    bottom: 2,
+    left: 2,
+    zIndex: 10,
+  },
+  statsButtonText: {
+    fontSize: 12,
   },
 });

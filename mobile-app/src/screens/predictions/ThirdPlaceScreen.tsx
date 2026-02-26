@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import ThirdPlaceStatsModal from '../../components/ThirdPlaceStatsModal';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Image, Dimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -22,6 +23,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const [isEditable, setIsEditable] = useState(true);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [counterHeight, setCounterHeight] = useState(0);
+  const [showStats, setShowStats] = useState(false);
 
   const insets = useSafeAreaInsets();
 
@@ -370,6 +372,13 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
             {hasResult ? `Correct: ${correctCount}/8` : `Selected: ${selectedTeams.size}/8`}
           </Text>
           <View style={styles.headerRight}>
+            <TouchableOpacity
+              onPress={() => setShowStats(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ marginRight: 8 }}
+            >
+              <Text style={{ fontSize: 18 }}>📊</Text>
+            </TouchableOpacity>
             {thirdPlaceScore !== null && (
               <View style={styles.totalScoreContainer}>
                 <Text style={styles.totalScore}>{thirdPlaceScore} pts</Text>
@@ -388,6 +397,11 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         refreshing={refreshing}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
+      />
+
+      <ThirdPlaceStatsModal
+        visible={showStats}
+        onClose={() => setShowStats(false)}
       />
     </View>
   );
@@ -427,7 +441,9 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     flex: 1,
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   totalScoreContainer: {
     backgroundColor: '#48bb78',

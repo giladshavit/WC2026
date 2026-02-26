@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Animated } from 'react-native';
+import MatchStatsModal from './MatchStatsModal';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Match } from '../services/api';
 
@@ -95,6 +96,7 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
   const [awayFocused, setAwayFocused] = React.useState(false);
   const homeInputRef = React.useRef<RNTextInput | null>(null);
   const awayInputRef = React.useRef<RNTextInput | null>(null);
+  const [showStats, setShowStats] = React.useState(false);
   const originalScoreRef = React.useRef<Record<ScoreField, string | null>>({
     home: null,
     away: null,
@@ -381,6 +383,24 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
         {/* Actual result - below score inputs */}
         <ActualResultDisplay actualResult={match.actual_result} />
       
+      {/* Stats button - bottom left */}
+      <TouchableOpacity
+        style={styles.statsButton}
+        onPress={() => setShowStats(true)}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Text style={styles.statsIcon}>📊</Text>
+      </TouchableOpacity>
+
+      {/* Stats Modal */}
+      <MatchStatsModal
+        visible={showStats}
+        matchId={match.id}
+        homeTeamName={match.home_team?.name || ''}
+        awayTeamName={match.away_team?.name || ''}
+        onClose={() => setShowStats(false)}
+      />
+
       {/* Points - bottom right */}
       <PointsDisplay 
         userPrediction={match.user_prediction}
@@ -579,6 +599,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#1976D2',
+  },
+  // Stats button - bottom left
+  statsButton: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    padding: 4,
+    borderRadius: 8,
+  },
+  statsIcon: {
+    fontSize: 14,
   },
   // Points display styles - bottom right
   pointsContainer: {

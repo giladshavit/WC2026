@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import GroupStatsModal from './GroupStatsModal';
 import { GroupPrediction } from '../services/api';
 
 interface GroupCardProps {
@@ -53,11 +54,20 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
   const hasResult = group.result !== null && group.result !== undefined;
   const isEditable = group.is_editable && !hasResult;
 
+  const [showStats, setShowStats] = useState(false);
+
   return (
     <View style={[styles.container, { backgroundColor: getGroupBackgroundColor() }, hasPendingChanges && styles.containerPending, isIncomplete && styles.containerIncomplete]}>
       {/* Group Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft} />
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            onPress={() => setShowStats(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={{ fontSize: 16 }}>📊</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.groupName}>Group {group.group_name}</Text>
         <View style={styles.headerRight}>
           {hasResult && (
@@ -149,6 +159,14 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
           );
         })}
       </View>
+
+      <GroupStatsModal
+        visible={showStats}
+        groupId={group.group_id}
+        groupName={group.group_name}
+        teams={group.teams}
+        onClose={() => setShowStats(false)}
+      />
     </View>
   );
 }

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { KnockoutPrediction } from '../services/api';
+import KnockoutStatsModal from './KnockoutStatsModal';
 
 interface KnockoutMatchCardProps {
   prediction: KnockoutPrediction;
@@ -10,6 +11,8 @@ interface KnockoutMatchCardProps {
 }
 
 const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, originalWinner }: KnockoutMatchCardProps) => {
+  const [showStats, setShowStats] = useState(false);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'invalid':
@@ -143,6 +146,23 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, 
           </Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity
+        onPress={(e) => {
+          e.stopPropagation();
+          setShowStats(true);
+        }}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={styles.statsButton}
+      >
+        <Text style={styles.statsButtonText}>📊</Text>
+      </TouchableOpacity>
+
+      <KnockoutStatsModal
+        visible={showStats}
+        templateMatchId={prediction.template_match_id}
+        onClose={() => setShowStats(false)}
+      />
     </View>
   );
 });
@@ -281,6 +301,14 @@ const styles = StyleSheet.create({
   eliminatedText: {
     textDecorationLine: 'line-through', // Strike-through for eliminated teams
     textDecorationColor: '#e53e3e', // Red strike-through for better visibility
+  },
+  statsButton: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+  },
+  statsButtonText: {
+    fontSize: 14,
   },
 });
 
