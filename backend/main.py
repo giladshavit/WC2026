@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 
 from api import predictions, admin, auth, leagues
 from api import scoring, config
+from api.statistics import router as statistics_router
 from database import engine
 from models import base, user, team, matches as match_models, predictions as prediction_models
 from models import groups as group_models
@@ -30,6 +31,7 @@ app.include_router(predictions.router, prefix="/api", tags=["predictions"])
 app.include_router(admin.router, prefix="/api", tags=["admin"])
 app.include_router(scoring.router, prefix="/api/scoring", tags=["scoring"])
 app.include_router(config.router, prefix="/api/app", tags=["app"])
+app.include_router(statistics_router, prefix="/api", tags=["statistics"])
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
