@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Tuple
 from sqlalchemy.orm import Session
 from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
 from models.tournament_config import TournamentConfig
@@ -36,6 +37,31 @@ class Stage(Enum):
             Stage.FINAL: 11
         }
         return penalty_map.get(self, 0)
+
+    def is_knockout_active(self) -> bool:
+        """Returns True for stages where knockout matches are actively being played."""
+        return self in (Stage.ROUND32, Stage.ROUND16, Stage.QUARTER, Stage.SEMI, Stage.FINAL)
+
+    def is_between_knockout_stages(self) -> bool:
+        """Returns True when not in active knockout stage."""
+        return not self.is_knockout_active()
+
+    def is_group_stage(self) -> bool:
+        """Returns True for group cycle stages."""
+        return self in (Stage.GROUP_CYCLE_1, Stage.GROUP_CYCLE_2, Stage.GROUP_CYCLE_3)
+
+    def is_pre_tournament(self) -> bool:
+        """Returns True only for pre-tournament stage."""
+        return self == Stage.PRE_GROUP_STAGE
+
+    def can_create_knockout_drafts(self) -> bool:
+        """Returns True when knockout drafts can be created."""
+        return not self.is_knockout_active()
+
+    def can_edit_knockout_predictions_directly(self) -> bool:
+        """Returns True only for PRE_GROUP_STAGE. Once tournament starts, knockout predictions can only be changed via draft system."""
+        return self == Stage.PRE_GROUP_STAGE
+
 
 class StageManager:
     """Tournament stage management and penalty system"""
@@ -100,7 +126,12 @@ class StageManager:
     @staticmethod
     def _update_prediction_editability(current_stage: Stage, db: Session) -> None:
         """Update is_editable field for all predictions based on current stage"""
-        
+
+        # Knockout predictions: only directly editable at PRE_GROUP_STAGE
+        # After tournament starts, all changes must go through the draft system
+        if current_stage != Stage.PRE_GROUP_STAGE:
+            DBWriter.set_knockout_predictions_editable(db, False)
+
         # Switch case for each stage
         if current_stage == Stage.PRE_GROUP_STAGE:
             # All predictions editable - do nothing
@@ -158,3 +189,11 @@ class StageManager:
         """Get penalty for editing at current stage"""
         current_stage = StageManager.get_current_stage()
         return current_stage.get_penalty_for()
+
+    @staticmethod
+    def can_create_knockout_drafts(db: Session) -> Tuple[bool, str]:
+        """Check if knockout drafts can be created right now."""
+        stage = StageManager.get_current_stage(db)
+        if stage.can_create_knockout_drafts():
+            return (True, "OK")
+        return (False, f"Cannot create drafts during active knockout stage: {stage.name}")
