@@ -43,6 +43,8 @@ class GroupStagePrediction(Base):
     third_place = Column(Integer, ForeignKey("teams.id"), nullable=True)
     fourth_place = Column(Integer, ForeignKey("teams.id"), nullable=True)
     points = Column(Integer, default=0, nullable=False)  # Points awarded for this group prediction
+    penalty_points = Column(Integer, default=0, nullable=False)
+    changes_count = Column(Integer, default=0, nullable=False)
     is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
 
     # How many positions (0-4) user got right. None = not yet judged
@@ -79,6 +81,8 @@ class ThirdPlacePrediction(Base):
     eighth_team_qualifying = Column(Integer, ForeignKey("teams.id"), nullable=True)
     changed_groups = Column(String(50), nullable=True)  # JSON string like "A,B,C" for groups with changed 3rd place
     points = Column(Integer, default=0, nullable=False)  # Points awarded for this third place prediction
+    penalty_points = Column(Integer, default=0, nullable=False)
+    changes_count = Column(Integer, default=0, nullable=False)
     is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
 
     # How many groups (0-8) user got right. None = not yet judged
@@ -113,6 +117,8 @@ class KnockoutStagePrediction(Base):
     is_team1_valid = Column(Boolean, default=True, nullable=False)  # Whether team1 is valid (can reach this match)
     is_team2_valid = Column(Boolean, default=True, nullable=False)  # Whether team2 is valid (can reach this match)
     points = Column(Integer, default=0, nullable=False)  # Points earned for this prediction
+    penalty_points = Column(Integer, default=0, nullable=False)
+    changes_count = Column(Integer, default=0, nullable=False)
     is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

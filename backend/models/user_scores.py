@@ -22,8 +22,11 @@ class UserScores(Base):
     # matches_wrong_count = Column(Integer, default=0)
     matches_total_judged = Column(Integer, default=0)
     
-    # Penalty points
+    # Penalty points (penalty = total sum of groups + third_place + knockout)
     penalty = Column(Integer, default=0)
+    groups_penalty = Column(Integer, default=0, nullable=False)
+    third_place_penalty = Column(Integer, default=0, nullable=False)
+    knockout_penalty = Column(Integer, default=0, nullable=False)
     
     # Total points (sum of all scores above minus penalty)
     total_points = Column(Integer, default=0)

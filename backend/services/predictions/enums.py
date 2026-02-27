@@ -1,6 +1,12 @@
 from enum import Enum
 
 
+class PredictionType(str, Enum):
+    GROUPS = "groups"
+    THIRD_PLACE = "third_place"
+    KNOCKOUT = "knockout"
+
+
 class MatchPredictionStatus(Enum):
     """Status of a match prediction after result is entered."""
     PENDING = "pending"              # No result yet
