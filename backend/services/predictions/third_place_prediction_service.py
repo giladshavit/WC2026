@@ -2,6 +2,7 @@ from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
 from services.database import DBReader, DBWriter, DBUtils
 from services.scoring_service import ScoringService
+from .enums import PredictionType
 
 
 class ThirdPlacePredictionService:
@@ -58,8 +59,10 @@ class ThirdPlacePredictionService:
         
         ThirdPlacePredictionService._update_knockout_predictions_for_third_place(db, user_id, advancing_team_ids)
         
-        penalty_points = ScoringService.apply_prediction_penalty(db, user_id, changes) if changes > 0 else 0
-        
+        penalty_points = ScoringService.record_prediction_penalty(
+            db, user_id, existing_prediction.id, PredictionType.THIRD_PLACE, changes
+        ) if changes > 0 else 0
+
         return {
             "id": existing_prediction.id,
             "advancing_team_ids": advancing_team_ids,

@@ -4,6 +4,7 @@ Every method that modifies database state lives here.
 Methods call db.flush() to get IDs but do NOT call db.commit().
 Commit responsibility belongs to the service layer via DBUtils.commit().
 """
+import logging
 from typing import Optional, List, Dict, Any, Sequence, Union
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -29,7 +30,7 @@ from models.results import (
 from models.league import League, LeagueMembership
 from models.tournament_config import TournamentConfig
 from models.statistics import ThirdPlaceGroupCounts
-from services.predictions.enums import MatchPredictionStatus
+from services.predictions.enums import MatchPredictionStatus, PredictionType
 
 
 class DBWriter:
@@ -197,6 +198,42 @@ class DBWriter:
     @staticmethod
     def set_match_predictions_editable(db: Session, is_editable: bool) -> int:
         return db.query(MatchPrediction).update({MatchPrediction.is_editable: is_editable})
+
+    @staticmethod
+    def add_prediction_penalty(
+        db: Session,
+        prediction_id: int,
+        prediction_type: PredictionType,
+        penalty_delta: int,
+        changes_delta: int,
+    ) -> None:
+        """
+        Update penalty_points and changes_count on a specific prediction row.
+        Routes to the correct table based on prediction_type.
+        Uses direct ORM query - no service imports allowed here.
+        """
+        if prediction_type == PredictionType.GROUPS:
+            model = GroupStagePrediction
+        elif prediction_type == PredictionType.THIRD_PLACE:
+            model = ThirdPlacePrediction
+        elif prediction_type == PredictionType.KNOCKOUT:
+            model = KnockoutStagePrediction
+        else:
+            logging.warning("add_prediction_penalty: unknown prediction_type=%s", prediction_type)
+            return
+
+        prediction = db.query(model).filter(model.id == prediction_id).first()
+        if not prediction:
+            logging.warning(
+                "add_prediction_penalty: prediction not found id=%s type=%s",
+                prediction_id,
+                prediction_type.value,
+            )
+            return
+
+        prediction.penalty_points = (prediction.penalty_points or 0) + penalty_delta
+        prediction.changes_count = (prediction.changes_count or 0) + changes_delta
+        db.flush()
 
     # ═══════════════════════════════════════════════════════
     # PREDICTIONS - Group

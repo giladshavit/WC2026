@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from datetime import datetime
 
 from services.database import DBReader, DBWriter, DBUtils
-from .enums import KnockoutPredictionStatus
+from .enums import KnockoutPredictionStatus, PredictionType
 from services.scoring_service import ScoringService
 from services.stage_manager import StageManager, Stage
 from models.results import KnockoutStageResult
@@ -345,7 +345,8 @@ class KnockoutService:
             updated_predictions = []
             errors = []
             total_changes = 0
-            
+            penalty_points = 0
+
             for prediction_data in predictions_data:
                 prediction_id = None
                 try:
@@ -394,7 +395,10 @@ class KnockoutService:
                         updated_predictions.append(result)
                         if result.get("changed", False):
                             total_changes += 1
-                    
+                            penalty_points += ScoringService.record_prediction_penalty(
+                                db, user_id, prediction_id, PredictionType.KNOCKOUT, n_changes=1
+                            )
+
                 except HTTPException as e:
                     pred_id_str = str(prediction_id) if prediction_id else "unknown"
                     errors.append(f"HTTP Error updating prediction {pred_id_str}: {e.detail}")
@@ -404,12 +408,7 @@ class KnockoutService:
             
             # Commit all changes
             DBUtils.commit(db)
-            
-            # Apply penalty if there were changes
-            penalty_points = 0
-            if total_changes > 0:
-                penalty_points = ScoringService.apply_prediction_penalty(db, user_id, total_changes)
-            
+
             # Count how many predictions actually changed
             changed_predictions = sum(1 for pred in updated_predictions if pred.get("changed", False))
             

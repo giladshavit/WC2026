@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from services.predictions.enums import MatchPredictionStatus, KnockoutPredictionStatus
+from services.predictions.enums import MatchPredictionStatus, KnockoutPredictionStatus, PredictionType
 from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction
 from models.predictions import KnockoutStagePrediction
 from models.results import KnockoutStageResult
@@ -471,6 +471,59 @@ class ScoringService:
             "new_total_points": new_total_points
         }
     
+    @staticmethod
+    def record_prediction_penalty(
+        db: Session,
+        user_id: int,
+        prediction_id: int,
+        prediction_type: PredictionType,
+        n_changes: int,
+    ) -> int:
+        """
+        Calculate and record penalty for a specific prediction change.
+
+        1. Calculate penalty via calculate_penalty_points
+        2. Update prediction row (penalty_points, changes_count)
+        3. Update category penalty in UserScores
+        4. Update total penalty and total_points via apply_penalty_to_user
+        """
+        current_stage = StageManager.get_current_stage(db)
+        penalty = ScoringService.calculate_penalty_points(n_changes, current_stage)
+
+        if penalty == 0:
+            return 0
+
+        # Update the specific prediction
+        DBWriter.add_prediction_penalty(
+            db,
+            prediction_id=prediction_id,
+            prediction_type=prediction_type,
+            penalty_delta=penalty,
+            changes_delta=n_changes,
+        )
+
+        # Update category penalty in UserScores
+        category_field = {
+            PredictionType.GROUPS: "groups_penalty",
+            PredictionType.THIRD_PLACE: "third_place_penalty",
+            PredictionType.KNOCKOUT: "knockout_penalty",
+        }[prediction_type]
+
+        user_scores = DBReader.get_user_scores(db, user_id)
+        if not user_scores:
+            user_scores = DBWriter.create_user_scores(db, user_id)
+
+        DBWriter.update_user_scores(
+            db,
+            user_scores,
+            **{category_field: (getattr(user_scores, category_field) or 0) + penalty},
+        )
+
+        # Update total penalty and total_points
+        ScoringService.apply_penalty_to_user(db, user_id, penalty)
+
+        return penalty
+
     @staticmethod
     def apply_prediction_penalty(db: Session, user_id: int, total_changes: int) -> int:
         """

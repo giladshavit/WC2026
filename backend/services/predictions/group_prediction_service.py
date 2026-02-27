@@ -395,30 +395,35 @@ class GroupPredictionService:
         Create or update multiple group predictions
         """
         from services.scoring_service import ScoringService
-        
+        from .enums import PredictionType
+
         try:
             saved_predictions = []
             errors = []
             total_changes = 0
-            
+            penalty_points = 0
+
             for prediction_data in predictions_data:
                 validation_result = GroupPredictionService._validate_batch_prediction_data(prediction_data)
                 if validation_result:
                     errors.append(validation_result)
                     continue
-                
+
                 save_result = GroupPredictionService._save_single_batch_prediction(
                     db, user_id, prediction_data
                 )
-                
+
                 if save_result["error"]:
                     errors.append(save_result["error"])
                 else:
-                    saved_predictions.append(save_result["result"])
-                    total_changes += save_result["result"].get("changes", 0)
-            
-            # Apply penalty if there were changes
-            penalty_points = ScoringService.apply_prediction_penalty(db, user_id, total_changes) if total_changes > 0 else 0
+                    result = save_result["result"]
+                    saved_predictions.append(result)
+                    changes = result.get("changes", 0)
+                    total_changes += changes
+                    if changes > 0:
+                        penalty_points += ScoringService.record_prediction_penalty(
+                            db, user_id, result["id"], PredictionType.GROUPS, changes
+                        )
             
             # If all predictions failed, return error
             if len(errors) > 0 and len(saved_predictions) == 0:
