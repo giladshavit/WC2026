@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,26 +7,38 @@ import {
   RefreshControl,
   TouchableOpacity,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { apiService, LeagueStanding, LeagueStandingsResponse } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import * as Clipboard from 'expo-clipboard';
+
+type SortKey = 'total' | 'matches' | 'groups' | 'knockout' | 'penalty';
 
 interface RouteParams {
   leagueId: string | number;
+}
+
+// Extended standing with optional penalty (API may not return it yet)
+interface StandingWithPenalty extends LeagueStanding {
+  penalty?: number;
 }
 
 export default function LeagueDetailsScreen() {
   const route = useRoute();
   const navigation = useNavigation();
   const { leagueId } = route.params as RouteParams;
-  
+  const { getCurrentUserId } = useAuth();
+
   const [standingsData, setStandingsData] = useState<LeagueStandingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [sortBy, setSortBy] = useState<SortKey>('total');
 
   const isGlobalLeague = leagueId === 'global';
+  const currentUserId = getCurrentUserId();
 
   const fetchStandings = async () => {
     try {
@@ -64,51 +76,106 @@ export default function LeagueDetailsScreen() {
     }
   };
 
-  const renderStandingItem = ({ item, index }: { item: LeagueStanding; index: number }) => {
+  const sortedStandings = useMemo(() => {
+    if (!standingsData?.standings) return [];
+    const standings = [...standingsData.standings] as StandingWithPenalty[];
+    const penalty = (s: StandingWithPenalty) => s.penalty ?? 0;
+    const groupsPlusThird = (s: StandingWithPenalty) =>
+      (s.groups_points ?? 0) + (s.third_place_points ?? 0);
+
+    standings.sort((a, b) => {
+      switch (sortBy) {
+        case 'total':
+          return (b.total_points ?? 0) - (a.total_points ?? 0);
+        case 'matches':
+          return (b.matches_points ?? 0) - (a.matches_points ?? 0);
+        case 'groups':
+          return groupsPlusThird(b) - groupsPlusThird(a);
+        case 'knockout':
+          return (b.knockout_points ?? 0) - (a.knockout_points ?? 0);
+        case 'penalty':
+          return penalty(a) - penalty(b);
+        default:
+          return 0;
+      }
+    });
+    return standings;
+  }, [standingsData?.standings, sortBy]);
+
+  const truncateName = (name: string, maxLen: number = 14) =>
+    name.length > maxLen ? `${name.slice(0, maxLen - 1)}…` : name;
+
+  const renderTableRow = ({ item, index }: { item: StandingWithPenalty; index: number }) => {
     const isTopThree = index < 3;
-    const rankColor = index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : index === 2 ? '#CD7F32' : '#666';
-    
+    const rankDisplay = isTopThree ? ['🥇', '🥈', '🥉'][index] : (index + 1).toString();
+    const isCurrentUser = currentUserId !== null && item.user_id === currentUserId;
+    const penaltyVal = item.penalty ?? 0;
+    const groupsPlusThird = (item.groups_points ?? 0) + (item.third_place_points ?? 0);
+    const rowBg =
+      isCurrentUser
+        ? '#e8f4fd'
+        : isTopThree
+          ? index === 0
+            ? '#fffef5'
+            : index === 1
+              ? '#f8f8f8'
+              : '#fff9f0'
+          : index % 2 === 0
+            ? '#fff'
+            : '#f9f9f9';
+
     return (
-      <View style={[styles.standingItem, isTopThree && styles.topThreeItem]}>
-        <View style={styles.rankContainer}>
-          <Text style={[styles.rank, { color: rankColor }]}>
-            {isTopThree ? ['🥇', '🥈', '🥉'][index] : item.rank}
+      <View style={[styles.tableRow, { backgroundColor: rowBg }]}>
+        <View style={styles.colRank}>
+          <Text style={[styles.cellText, styles.cellCenter, isCurrentUser && styles.cellBold]}>
+            {rankDisplay}
           </Text>
         </View>
-        
-        <View style={styles.userInfo}>
-          <Text style={styles.userName}>{item.name}</Text>
-          <Text style={styles.username}>@{item.username}</Text>
+        <View style={styles.colName}>
+          <Text
+            style={[styles.cellText, styles.cellLeft, isCurrentUser && styles.cellBold]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {truncateName(item.name)}
+          </Text>
         </View>
-        
-        <View style={styles.pointsContainer}>
-          <Text style={styles.totalPoints}>{item.total_points}</Text>
-          <Text style={styles.pointsLabel}>pts</Text>
+        <View style={styles.colNum}>
+          <Text style={[styles.cellText, styles.cellCenter]}>{item.matches_points ?? 0}</Text>
+        </View>
+        <View style={styles.colNum}>
+          <Text style={[styles.cellText, styles.cellCenter]}>{groupsPlusThird}</Text>
+        </View>
+        <View style={styles.colNum}>
+          <Text style={[styles.cellText, styles.cellCenter]}>{item.knockout_points ?? 0}</Text>
+        </View>
+        <View style={styles.colNum}>
+          <Text
+            style={[
+              styles.cellText,
+              styles.cellCenter,
+              penaltyVal > 0 && styles.cellPenalty,
+            ]}
+          >
+            {penaltyVal > 0 ? penaltyVal : '—'}
+          </Text>
+        </View>
+        <View style={styles.colTotal}>
+          <Text style={[styles.cellTotal, styles.cellCenter, isCurrentUser && styles.cellBold]}>
+            {item.total_points ?? 0}
+          </Text>
         </View>
       </View>
     );
   };
 
-  const renderPointsBreakdown = ({ item }: { item: LeagueStanding }) => (
-    <View style={styles.breakdownContainer}>
-      <View style={styles.breakdownRow}>
-        <Text style={styles.breakdownLabel}>Matches:</Text>
-        <Text style={styles.breakdownValue}>{item.matches_points}</Text>
-      </View>
-      <View style={styles.breakdownRow}>
-        <Text style={styles.breakdownLabel}>Groups:</Text>
-        <Text style={styles.breakdownValue}>{item.groups_points}</Text>
-      </View>
-      <View style={styles.breakdownRow}>
-        <Text style={styles.breakdownLabel}>3rd Place:</Text>
-        <Text style={styles.breakdownValue}>{item.third_place_points}</Text>
-      </View>
-      <View style={styles.breakdownRow}>
-        <Text style={styles.breakdownLabel}>Knockout:</Text>
-        <Text style={styles.breakdownValue}>{item.knockout_points}</Text>
-      </View>
-    </View>
-  );
+  const sortButtons: { key: SortKey; label: string }[] = [
+    { key: 'total', label: 'Total' },
+    { key: 'matches', label: 'Matches' },
+    { key: 'groups', label: 'Groups' },
+    { key: 'knockout', label: 'Knockout' },
+    { key: 'penalty', label: 'Penalty' },
+  ];
 
   if (loading) {
     return (
@@ -171,21 +238,55 @@ export default function LeagueDetailsScreen() {
         </View>
       )}
 
-      <FlatList
-        data={standingsData.standings}
-        keyExtractor={(item) => item.user_id.toString()}
-        renderItem={renderStandingItem}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={() => (
-          <View style={styles.listHeader}>
-            <Text style={styles.standingsTitle}>Standings</Text>
-          </View>
-        )}
-      />
+      <View style={styles.tableWrapper}>
+        <View style={styles.sortRowContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.sortRow}
+            contentContainerStyle={styles.sortRowContent}
+          >
+            {sortButtons.map(({ key, label }) => (
+              <TouchableOpacity
+                key={key}
+                style={[styles.sortButton, sortBy === key && styles.sortButtonActive]}
+                onPress={() => setSortBy(key)}
+              >
+                <Text
+                  style={[
+                    styles.sortButtonText,
+                    sortBy === key && styles.sortButtonTextActive,
+                  ]}
+                >
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.tableHeader}>
+          <View style={styles.colRank}><Text style={[styles.headerCell, styles.cellCenter]}>#</Text></View>
+          <View style={styles.colName}><Text style={[styles.headerCell, styles.cellLeft]}>Player</Text></View>
+          <View style={styles.colNum}><Text style={[styles.headerCell, styles.cellCenter]}>⚽</Text></View>
+          <View style={styles.colNum}><Text style={[styles.headerCell, styles.cellCenter]}>🏠</Text></View>
+          <View style={styles.colNum}><Text style={[styles.headerCell, styles.cellCenter]}>🏆</Text></View>
+          <View style={styles.colNum}><Text style={[styles.headerCell, styles.cellCenter]}>⚠️</Text></View>
+          <View style={styles.colTotal}><Text style={[styles.headerCell, styles.cellCenter]}>Pts</Text></View>
+        </View>
+
+        <FlatList
+          data={sortedStandings}
+          keyExtractor={(item) => item.user_id.toString()}
+          renderItem={renderTableRow}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          style={styles.tableBody}
+          contentContainerStyle={styles.tableBodyContent}
+          showsVerticalScrollIndicator={true}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -198,12 +299,12 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#fff',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   backButton: {
-    marginBottom: 8,
+    marginBottom: 2,
   },
   backButtonText: {
     fontSize: 16,
@@ -214,23 +315,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
   },
   description: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 1,
   },
   leagueInfo: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    padding: 16,
+    marginTop: 6,
+    borderRadius: 8,
+    padding: 8,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -244,15 +345,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 2,
   },
   infoLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
     fontWeight: '500',
   },
   infoValue: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#333',
     fontWeight: '600',
   },
@@ -260,106 +361,133 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f0f0f0',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   inviteCode: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#007AFF',
     fontFamily: 'monospace',
-    marginRight: 8,
+    marginRight: 6,
   },
   copyText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
   },
-  listContainer: {
-    padding: 16,
-  },
-  listHeader: {
-    marginBottom: 16,
-  },
-  standingsTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  standingItem: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  topThreeItem: {
-    borderWidth: 2,
-    borderColor: '#FFD700',
-  },
-  rankContainer: {
-    width: 40,
-    alignItems: 'center',
-  },
-  rank: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  userInfo: {
+  tableWrapper: {
     flex: 1,
-    marginLeft: 12,
+    paddingHorizontal: 16,
+    paddingTop: 4,
   },
-  userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+  sortRowContainer: {
+    backgroundColor: '#f0f0f0',
+    padding: 8,
+    minHeight: 44,
+    justifyContent: 'center',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
-  username: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
+  sortRow: {
+    flexGrow: 0,
   },
-  pointsContainer: {
+  sortRowContent: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  totalPoints: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#007AFF',
+  sortButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 0,
+    height: 28,
+    justifyContent: 'center',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2c3e50',
+    backgroundColor: 'transparent',
+    marginRight: 8,
   },
-  pointsLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
+  sortButtonActive: {
+    backgroundColor: '#2c3e50',
+    borderColor: '#2c3e50',
   },
-  breakdownContainer: {
-    backgroundColor: '#f8f8f8',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 8,
+  sortButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#2c3e50',
   },
-  breakdownRow: {
+  sortButtonTextActive: {
+    color: '#fff',
+  },
+  tableHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    alignItems: 'center',
+    height: 40,
+    backgroundColor: '#2c3e50',
+    paddingHorizontal: 8,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
   },
-  breakdownLabel: {
-    fontSize: 12,
-    color: '#666',
+  headerCell: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#fff',
   },
-  breakdownValue: {
+  tableBody: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#e0e0e0',
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  tableBodyContent: {
+    paddingBottom: 16,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 40,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  colRank: {
+    width: 32,
+  },
+  colName: {
+    flex: 1,
+    minWidth: 60,
+  },
+  colNum: {
+    width: 28,
+  },
+  colTotal: {
+    width: 38,
+  },
+  cellText: {
     fontSize: 12,
     color: '#333',
-    fontWeight: '500',
+  },
+  cellTotal: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
+  cellCenter: {
+    textAlign: 'center',
+  },
+  cellLeft: {
+    textAlign: 'left',
+  },
+  cellBold: {
+    fontWeight: 'bold',
+  },
+  cellPenalty: {
+    color: '#D32F2F',
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
