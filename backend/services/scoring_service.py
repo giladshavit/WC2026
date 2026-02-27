@@ -140,15 +140,15 @@ class ScoringService:
     def calculate_match_prediction_points(
         prediction: MatchPrediction,
         result: MatchResult
-    ) -> tuple[int, str]:
+    ) -> tuple[int, MatchPredictionStatus]:
         """LEGACY - kept for backward compat. Main flow uses _determine_match_status + match_status_to_points."""
         if not result:
-            return 0, MatchPredictionStatus.PENDING.value
+            return 0, MatchPredictionStatus.PENDING
         if not ScoringService.is_correct_winner(prediction, result):
-            return ScoringService.MATCH_PREDICTION_RULES['wrong'], MatchPredictionStatus.WRONG.value
+            return ScoringService.MATCH_PREDICTION_RULES['wrong'], MatchPredictionStatus.WRONG
         if ScoringService.is_exact_scores(prediction, result):
-            return ScoringService.MATCH_PREDICTION_RULES['exact_score'], MatchPredictionStatus.EXACT.value
-        return ScoringService.MATCH_PREDICTION_RULES['correct_winner'], MatchPredictionStatus.CORRECT_OUTCOME.value
+            return ScoringService.MATCH_PREDICTION_RULES['exact_score'], MatchPredictionStatus.EXACT
+        return ScoringService.MATCH_PREDICTION_RULES['correct_winner'], MatchPredictionStatus.CORRECT_OUTCOME
     
     @staticmethod
     def get_leaderboard(db: Session, limit: int = 50) -> List[Dict[str, Any]]:
@@ -185,7 +185,7 @@ class ScoringService:
 
             # Step 1: Determine and save status
             status = ScoringService._determine_match_status(prediction, result)
-            DBWriter.update_match_prediction_status(db, prediction, status.value)
+            DBWriter.update_match_prediction_status(db, prediction, status)
 
             # Step 2: Points from status (pure)
             new_points = ScoringService.match_status_to_points(status)

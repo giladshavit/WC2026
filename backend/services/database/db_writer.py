@@ -4,7 +4,7 @@ Every method that modifies database state lives here.
 Methods call db.flush() to get IDs but do NOT call db.commit().
 Commit responsibility belongs to the service layer via DBUtils.commit().
 """
-from typing import Optional, List, Dict, Any, Sequence
+from typing import Optional, List, Dict, Any, Sequence, Union
 from datetime import datetime
 from sqlalchemy.orm import Session
 
@@ -29,6 +29,7 @@ from models.results import (
 from models.league import League, LeagueMembership
 from models.tournament_config import TournamentConfig
 from models.statistics import ThirdPlaceGroupCounts
+from services.predictions.enums import MatchPredictionStatus
 
 
 class DBWriter:
@@ -179,7 +180,11 @@ class DBWriter:
         return prediction
 
     @staticmethod
-    def update_match_prediction_status(db: Session, prediction: MatchPrediction, status: str) -> MatchPrediction:
+    def update_match_prediction_status(
+        db: Session,
+        prediction: MatchPrediction,
+        status: Union[str, MatchPredictionStatus],
+    ) -> MatchPrediction:
         """Set the status field on a match prediction."""
         prediction.status = status
         db.flush()

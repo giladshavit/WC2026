@@ -508,7 +508,10 @@ class DBReader:
             .group_by(MatchPrediction.status)
             .all()
         )
-        return {str(status or 'pending'): count for status, count in rows}
+        return {
+            (status.value if status else "pending"): count
+            for status, count in rows
+        }
 
     @staticmethod
     def count_knockout_predictions_by_status(db: Session, user_id: int) -> Dict[str, int]:
