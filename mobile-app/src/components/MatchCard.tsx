@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Animated } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import MatchStatsModal from './MatchStatsModal';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Match } from '../services/api';
@@ -13,19 +14,29 @@ interface MatchCardProps {
   onInputFocus?: (matchId: number) => void;
 }
 
-// Component for status indicator
 const MatchStatusIndicator = ({ status }: { status: string }) => {
-  if (status === 'live_editable' || status === 'live_locked') {
-    return (
-      <View style={styles.statusContainer}>
-        <View style={styles.liveIndicator}>
-          <Text style={styles.liveText}>● לייב</Text>
-        </View>
-      </View>
+  const dotOpacity = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    if (status !== 'live_editable' && status !== 'live_locked') return;
+    const blink = Animated.loop(
+      Animated.sequence([
+        Animated.timing(dotOpacity, { toValue: 0.1, duration: 800, useNativeDriver: true }),
+        Animated.timing(dotOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
     );
-  }
-  
-  return null;
+    blink.start();
+    return () => blink.stop();
+  }, [status]);
+
+  if (status !== 'live_editable' && status !== 'live_locked') return null;
+
+  return (
+    <View style={styles.liveContainer}>
+      <Animated.View style={[styles.liveDot, { opacity: dotOpacity }]} />
+      <Text style={styles.liveText}>LIVE</Text>
+    </View>
+  );
 };
 
 // Component for actual result display (below score inputs)
@@ -42,16 +53,30 @@ const ActualResultDisplay = ({ actualResult }: { actualResult: any }) => {
 };
 
 // Component for points display (bottom right)
-const PointsDisplay = ({ userPrediction, actualResult }: { userPrediction: any; actualResult: any }) => {
+const PointsDisplay = ({ userPrediction, actualResult }: {
+  userPrediction: any;
+  actualResult: any;
+}) => {
   if (!actualResult) return null;
-  
-  // If there's no prediction, show 0 points
+
   const points = userPrediction?.points ?? 0;
-  
-  const isZeroPoints = points === 0;
-  
+  const status = userPrediction?.status;
+
+  const getBackgroundColor = () => {
+    switch (status) {
+      case 'exact':
+        return '#16a34a'; // green
+      case 'correct_outcome':
+        return '#f97316'; // orange
+      case 'wrong':
+        return '#ef4444'; // red
+      default:
+        return '#94a3b8'; // gray fallback
+    }
+  };
+
   return (
-    <View style={[styles.pointsContainer, isZeroPoints && styles.pointsContainerZero]}>
+    <View style={[styles.pointsContainer, { backgroundColor: getBackgroundColor() }]}>
       <Text style={styles.pointsText}>{points} pts</Text>
     </View>
   );
@@ -228,12 +253,11 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('he-IL', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${day}.${month}  ·  ${hours}:${minutes}`;
   };
 
   const getStageText = (stage: string) => {
@@ -389,7 +413,7 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
         onPress={() => setShowStats(true)}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Text style={styles.statsIcon}>📊</Text>
+        <Ionicons name="stats-chart" size={16} color="#ffffff" />
       </TouchableOpacity>
 
       {/* Stats Modal */}
@@ -412,7 +436,7 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#ffffff', // White background
+    backgroundColor: '#fafafa',
     marginHorizontal: 16,
     marginVertical: 8,
     paddingVertical: 18,
@@ -431,9 +455,9 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb', // Light gray border
   },
   containerPending: {
-    borderColor: '#f6ad55',
-    borderWidth: 2,
-    backgroundColor: '#fff9e6', // Light yellow background for pending
+    borderColor: '#fbbf24',
+    borderWidth: 1.5,
+    backgroundColor: '#fffbeb',
   },
   header: {
     flexDirection: 'row',
@@ -479,6 +503,9 @@ const styles = StyleSheet.create({
   teamFlagWrapper: {
     height: 40,
     justifyContent: 'center',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
+    padding: 4,
   },
   teamFlagLarge: {
     width: 56,
@@ -531,14 +558,15 @@ const styles = StyleSheet.create({
   },
   scoreBoxEditable: {
     borderWidth: 2,
-    borderColor: '#2563eb',
+    borderColor: '#16a34a',
   },
   scoreBoxLocked: {
     borderWidth: 2,
     borderColor: '#a0aec0',
   },
   scoreBoxFocused: {
-    borderColor: '#1f2937',
+    borderColor: '#15803d',
+    borderWidth: 2.5,
   },
   scoreInput: {
     borderWidth: 0,
@@ -573,22 +601,28 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   scoreSeparatorEditable: {
-    color: '#1f2937',
+    color: '#374151',
   },
   scoreSeparatorLocked: {
     color: '#a0aec0',
   },
   // Status indicator styles
-  statusContainer: {
+  liveContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 5,
   },
-  liveIndicator: {
-    // No background
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#ef4444',
   },
   liveText: {
-    color: '#FF0000',
+    color: '#ef4444',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   // Actual result display styles
   actualResultContainer: {
@@ -603,35 +637,26 @@ const styles = StyleSheet.create({
   // Stats button - bottom left
   statsButton: {
     position: 'absolute',
-    bottom: 4,
-    left: 4,
-    padding: 4,
-    borderRadius: 8,
-  },
-  statsIcon: {
-    fontSize: 14,
+    bottom: 8,
+    left: 8,
+    backgroundColor: '#16a34a',
+    borderRadius: 6,
+    padding: 5,
   },
   // Points display styles - bottom right
   pointsContainer: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#4CAF50',
-    paddingLeft: 0,
-    paddingRight: 0,
-    paddingTop: 4,
-    paddingBottom: 4,
-    borderTopLeftRadius: 12,
-    borderBottomRightRadius: 12, // Match card border radius
-  },
-  pointsContainerZero: {
-    backgroundColor: '#FF9800', // Orange background for 0 points
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderTopLeftRadius: 10,
+    borderBottomRightRadius: 14,
   },
   pointsText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    paddingHorizontal: 8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   // Cursor styles
   cursorContainer: {
