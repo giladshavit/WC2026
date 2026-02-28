@@ -1,5 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import * as React from 'react';
+import { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface SplashScreenProps {
   onAnimationComplete: () => void;
@@ -53,12 +55,12 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
   });
 
   return (
-    <View style={styles.container}>
-      {/* רקע גרדיאנט מדומה עם View */}
-      <View style={styles.gradientOverlay1} />
-      <View style={styles.gradientOverlay2} />
-      
-      {/* אלמנטים דקורטיביים */}
+    <LinearGradient
+      colors={['#166534', '#16a34a', '#22c55e']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={styles.container}
+    >
       <View style={styles.decorativeCircle1} />
       <View style={styles.decorativeCircle2} />
       <View style={styles.decorativeCircle3} />
@@ -73,23 +75,19 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
         ]}
       >
         <View style={styles.textContainer}>
-          <Text style={styles.text}>Predict</Text>
-          <Animated.Text
-            style={[
-              styles.text,
-              styles.letterO,
-              {
-                transform: [{ translateY: letterOTranslateY }],
-                opacity: letterOOpacity,
-              },
-            ]}
+          <Text style={styles.text}>PREDICTO</Text>
+          <Animated.View
+            style={{
+              transform: [{ translateY: letterOTranslateY }],
+              opacity: letterOOpacity,
+            }}
           >
-            O
-          </Animated.Text>
+            <Text style={styles.footballEmoji}>⚽</Text>
+          </Animated.View>
         </View>
         <Text style={styles.tagline}>World Cup 2026 Predictions</Text>
       </Animated.View>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -99,25 +97,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    backgroundColor: '#22c55e', // ירוק בהיר
-  },
-  gradientOverlay1: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '50%',
-    backgroundColor: '#16a34a',
-    opacity: 0.6,
-  },
-  gradientOverlay2: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '50%',
-    backgroundColor: '#4ade80',
-    opacity: 0.4,
   },
   decorativeCircle1: {
     position: 'absolute',
@@ -149,6 +128,8 @@ const styles = StyleSheet.create({
   contentContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    width: '100%',
+    marginBottom: 60,
   },
   textContainer: {
     flexDirection: 'row',
@@ -157,16 +138,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   text: {
-    fontSize: 72,
-    fontWeight: 'bold',
+    fontSize: 52,
+    fontWeight: '800',
     color: '#ffffff',
-    letterSpacing: 3,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 4,
+    letterSpacing: 2,
+    lineHeight: 62,
   },
-  letterO: {
-    marginHorizontal: 4,
+  footballEmoji: {
+    fontSize: 46,
+    lineHeight: 62,
+    marginLeft: -46,
   },
   tagline: {
     fontSize: 18,
