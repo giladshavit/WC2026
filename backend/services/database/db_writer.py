@@ -173,6 +173,28 @@ class DBWriter:
         return prediction
 
     @staticmethod
+    def bulk_create_match_predictions(db: Session, user_id: int, match_ids: List[int]) -> None:
+        """
+        Bulk-insert empty MatchPrediction rows for the given match_ids.
+        home_score=None, away_score=None, predicted_winner=None.
+        Caller must ensure idempotency (e.g. check existence before calling).
+        """
+        if not match_ids:
+            return
+        rows = [
+            {
+                "user_id": user_id,
+                "match_id": match_id,
+                "home_score": None,
+                "away_score": None,
+                "predicted_winner": None,
+            }
+            for match_id in match_ids
+        ]
+        db.bulk_insert_mappings(MatchPrediction, rows)
+        db.flush()
+
+    @staticmethod
     def update_match_prediction(db: Session, prediction: MatchPrediction, **kwargs) -> MatchPrediction:
         for key, value in kwargs.items():
             if hasattr(prediction, key) and value is not None:

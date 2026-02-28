@@ -724,11 +724,31 @@ def delete_all_predictions(db: Session = Depends(get_db)):
             "knockout_predictions_deleted": deleted_knockout,
             "total_deleted": total_deleted
         }
-        
     except Exception as e:
         print(f"❌ Error in delete_all_predictions: {e}")
         DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/admin/backfill-match-predictions", response_model=Dict[str, Any])
+def backfill_match_predictions(db: Session = Depends(get_db)):
+    """
+    One-time migration: create missing MatchPrediction rows for existing users.
+    Creates empty predictions (home_score=None, away_score=None) for all group-stage
+    matches for users who don't have them. Idempotent.
+    """
+    try:
+        from utils.backfill_missing_match_predictions import backfill_missing_match_predictions
+        result = backfill_missing_match_predictions(db)
+        return {
+            "message": "Backfill completed",
+            "users_processed": result["users_processed"],
+            "total_created": result["total_created"],
+        }
+    except Exception as e:
+        DBUtils.rollback(db)
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.delete("/admin/delete-all-knockout-predictions", response_model=Dict[str, Any])
 def delete_all_knockout_predictions(db: Session = Depends(get_db)):

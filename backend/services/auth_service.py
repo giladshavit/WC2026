@@ -123,6 +123,16 @@ class AuthService:
             DBUtils.rollback(db)
             print(f"Warning: Failed to create third place prediction for user {new_user.id}: {e}")
 
+        # Create empty match predictions for all group-stage matches
+        try:
+            from services.predictions.match_prediction_service import MatchPredictionService
+            created_match_preds = MatchPredictionService.create_user_match_predictions(db, new_user.id)
+            DBUtils.commit(db)
+            print(f"Created {created_match_preds} empty match predictions for user {new_user.id}")
+        except Exception as e:
+            DBUtils.rollback(db)
+            print(f"Warning: Failed to create match predictions for user {new_user.id}: {e}")
+
         # Create access token
         access_token = AuthService.create_access_token(new_user.id, new_user.username)
         

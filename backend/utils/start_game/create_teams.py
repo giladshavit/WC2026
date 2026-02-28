@@ -35,9 +35,10 @@ def create_teams():
         try:
             response = requests.get(google_sheet_url)
             response.raise_for_status()
-            
-            # קורא את ה-CSV
-            df = pd.read_csv(StringIO(response.text))
+            response.encoding = 'utf-8'
+
+            # קורא את ה-CSV (explicit UTF-8 to avoid Curaçao -> CuraÃ§ao)
+            df = pd.read_csv(StringIO(response.text), encoding='utf-8')
             print(f"נקראו {len(df)} שורות מהגוגל שיטס")
             print(f"עמודות: {list(df.columns)}")
             

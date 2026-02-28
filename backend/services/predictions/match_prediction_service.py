@@ -13,6 +13,31 @@ class MatchPredictionService:
     """Service for match prediction operations"""
 
     # ========================================
+    # create_user_match_predictions (new user init)
+    # ========================================
+    @staticmethod
+    def create_user_match_predictions(db: Session, user_id: int) -> int:
+        """
+        Create empty MatchPrediction rows for all group-stage matches for a new user.
+        Idempotent: skips matches that already have a prediction.
+        Uses DBWriter for all writes.
+        Returns number of predictions created.
+        """
+        group_matches = DBReader.get_matches_by_stage(db, "group")
+        match_ids_to_create: List[int] = []
+
+        for match in group_matches:
+            existing = DBReader.get_match_prediction(db, user_id, match.id)
+            if existing is None:
+                match_ids_to_create.append(match.id)
+
+        if not match_ids_to_create:
+            return 0
+
+        DBWriter.bulk_create_match_predictions(db, user_id, match_ids_to_create)
+        return len(match_ids_to_create)
+
+    # ========================================
     # get "/predictions/matches"
     # ========================================
     @staticmethod

@@ -1,44 +1,30 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Match, apiService, MatchesResponse } from '../../services/api';
 import MatchCard from '../../components/MatchCard';
-import { useTournament } from '../../contexts/TournamentContext';
-import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
 import { useAuth } from '../../contexts/AuthContext';
+
+const DEBOUNCE_MS = 800;
 
 export default function MatchesScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [pendingChanges, setPendingChanges] = useState<Map<number, {homeScore: number | null, awayScore: number | null}>>(new Map());
-  const [saving, setSaving] = useState(false);
   const [matchesScore, setMatchesScore] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const hasAutoScrolledRef = useRef(false);
-  
-  // Get tournament context data
-  const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
-  
-  // Get penalty confirmation hook
-  const { showPenaltyConfirmation } = usePenaltyConfirmation();
-  
-  // Get current user ID
+  const debounceTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+
   const { getCurrentUserId } = useAuth();
 
-  // Determine if there are any incomplete (null) scores among pending changes
-  const hasIncompletePending = Array.from(pendingChanges.values()).some(
-    (s) => s.homeScore === null || s.awayScore === null
-  );
-  const canSave = pendingChanges.size > 0 && !hasIncompletePending && !saving;
-
-  const fetchMatches = async () => {
+  const fetchMatches = useCallback(async () => {
     try {
       const userId = getCurrentUserId();
       if (!userId) {
         Alert.alert('Error', 'User not authenticated');
         return;
       }
-      
+
       const data: MatchesResponse = await apiService.getMatches(userId);
       setMatches(data.matches);
       setMatchesScore(data.matches_score);
@@ -49,31 +35,33 @@ export default function MatchesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [getCurrentUserId]);
 
   useEffect(() => {
     fetchMatches();
+  }, [fetchMatches]);
+
+  // Clear debounce timers on unmount
+  useEffect(() => {
+    return () => {
+      debounceTimersRef.current.forEach((timer) => clearTimeout(timer));
+      debounceTimersRef.current.clear();
+    };
   }, []);
 
   // Scroll to first match without result when matches are loaded
   useEffect(() => {
-    if (hasAutoScrolledRef.current) {
-      return;
-    }
+    if (hasAutoScrolledRef.current) return;
 
     if (!loading && matches.length > 0 && flatListRef.current) {
-      // Find first match without result
-      const firstMatchWithoutResult = matches.findIndex(
-        match => !match.actual_result
-      );
-      
+      const firstMatchWithoutResult = matches.findIndex((match) => !match.actual_result);
+
       if (firstMatchWithoutResult !== -1) {
-        // Wait a bit for the layout to complete
         setTimeout(() => {
           flatListRef.current?.scrollToIndex({
             index: firstMatchWithoutResult,
             animated: true,
-            viewPosition: 0, // Scroll to top of the viewport
+            viewPosition: 0,
           });
           hasAutoScrolledRef.current = true;
         }, 100);
@@ -83,94 +71,68 @@ export default function MatchesScreen() {
     }
   }, [loading, matches]);
 
-  const handleScoreChange = useCallback((matchId: number, homeScore: number | null, awayScore: number | null) => {
-    setPendingChanges(prev => {
-      const newChanges = new Map(prev);
-      newChanges.set(matchId, { homeScore, awayScore });
-      return newChanges;
-    });
-  }, []);
+  const saveMatch = useCallback(
+    async (matchId: number, homeScore: number, awayScore: number) => {
+      const userId = getCurrentUserId();
+      if (!userId) return;
+
+      const match = matches.find((m) => m.id === matchId);
+      if (!match) return;
+
+      const doSave = async () => {
+        try {
+          await apiService.updateBatchMatchPredictions(userId, [
+            { match_id: matchId, home_score: homeScore, away_score: awayScore },
+          ]);
+          await fetchMatches();
+        } catch (error) {
+          console.error('Error saving prediction:', error);
+          Alert.alert('Error', 'Could not save prediction. Please try again.');
+        }
+      };
+
+      if (match.status === 'live_editable') {
+        Alert.alert(
+          'Penalty Warning',
+          'This match is currently live. Editing your prediction will result in a 1-point penalty. Do you want to continue?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Continue', onPress: () => doSave() },
+          ]
+        );
+      } else {
+        await doSave();
+      }
+    },
+    [matches, getCurrentUserId, fetchMatches]
+  );
+
+  const handleScoreChange = useCallback(
+    (matchId: number, homeScore: number | null, awayScore: number | null) => {
+      const existingTimer = debounceTimersRef.current.get(matchId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        debounceTimersRef.current.delete(matchId);
+      }
+
+      if (homeScore !== null && awayScore !== null) {
+        const timer = setTimeout(() => {
+          debounceTimersRef.current.delete(matchId);
+          saveMatch(matchId, homeScore, awayScore);
+        }, DEBOUNCE_MS);
+        debounceTimersRef.current.set(matchId, timer);
+      }
+    },
+    [saveMatch]
+  );
 
   const handleRefresh = () => {
     setRefreshing(true);
     fetchMatches();
   };
 
-
-  const performSave = async () => {
-    setSaving(true);
-    try {
-      const predictions = Array.from(pendingChanges.entries()).map(([matchId, scores]) => ({
-        match_id: matchId,
-        home_score: scores.homeScore,
-        away_score: scores.awayScore,
-      }));
-
-      const userId = getCurrentUserId();
-      if (!userId) {
-        Alert.alert('Error', 'User not authenticated');
-        return;
-      }
-      
-      const result = await apiService.updateBatchMatchPredictions(userId, predictions);
-      console.log('Save result:', result);
-      
-      Alert.alert('Success', 'All predictions saved successfully!');
-      
-      // Clear pending changes immediately
-      setPendingChanges(new Map());
-
-      // Dismiss the keyboard since we are done editing
-      Keyboard.dismiss();
-      
-      // Wait 2 seconds for the server to process the updates and force refresh
-      setTimeout(() => {
-        console.log('Refreshing matches after save...');
-        fetchMatches();
-      }, 2000);
-      
-    } catch (error) {
-      console.error('Error saving predictions:', error);
-      Alert.alert('Error', 'Could not save predictions. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSaveAll = async () => {
-    if (pendingChanges.size === 0) {
-      Alert.alert('Message', 'No changes to save');
-      return;
-    }
-
-    if (hasIncompletePending) {
-      Alert.alert('Missing Value', 'Cannot save prediction when one of the scores is empty. Fill in both scores.');
-      return;
-    }
-
-    // Check if any of the pending changes are for matches with LIVE_EDITABLE status
-    const hasLiveEditableMatches = Array.from(pendingChanges.keys()).some(matchId => {
-      const match = matches.find(m => m.id === matchId);
-      return match && match.status === 'live_editable';
-    });
-
-    if (hasLiveEditableMatches) {
-      Alert.alert(
-        'Penalty Warning',
-        'Some matches are currently live. Editing these predictions will result in a 1-point penalty per match. Do you want to continue?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Continue', onPress: performSave }
-        ]
-      );
-    } else {
-      // No live matches, save directly
-      performSave();
-    }
-  };
-
   const handleMatchFocus = useCallback((matchId: number) => {
-    const index = matches.findIndex(match => match.id === matchId);
+    const index = matches.findIndex((match) => match.id === matchId);
     if (index >= 0) {
       try {
         flatListRef.current?.scrollToIndex({
@@ -188,26 +150,13 @@ export default function MatchesScreen() {
     }
   }, [matches]);
 
-  const renderMatch = ({ item }: { item: Match }) => {
-    const pendingChange = pendingChanges.get(item.id);
-    const matchWithPendingChanges = pendingChange ? {
-      ...item,
-      user_prediction: {
-        ...item.user_prediction,
-        home_score: pendingChange.homeScore,
-        away_score: pendingChange.awayScore,
-      }
-    } : item;
-    
-    return (
-      <MatchCard 
-        match={matchWithPendingChanges} 
-        onScoreChange={handleScoreChange}
-        hasPendingChanges={!!pendingChange}
-        onInputFocus={handleMatchFocus}
-      />
-    );
-  };
+  const renderMatch = ({ item }: { item: Match }) => (
+    <MatchCard
+      match={item}
+      onScoreChange={handleScoreChange}
+      onInputFocus={handleMatchFocus}
+    />
+  );
 
   if (loading) {
     return (
@@ -239,44 +188,32 @@ export default function MatchesScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
     >
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
-          onPress={handleSaveAll}
-          disabled={!canSave}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.saveButtonText}>
-            {saving ? 'Saving...' : 'Save'}
-          </Text>
-        </TouchableOpacity>
-
-        {matchesScore !== null && (
-          <View style={styles.pointsBadge}>
-            <Text style={styles.pointsText}>{matchesScore} pts</Text>
-          </View>
-        )}
+      <View style={styles.container}>
+        <View style={styles.header}>
+          {matchesScore !== null && (
+            <View style={styles.pointsBadge}>
+              <Text style={styles.pointsText}>{matchesScore} pts</Text>
+            </View>
+          )}
+        </View>
+        <FlatList
+          ref={flatListRef}
+          data={matches}
+          renderItem={renderMatch}
+          keyExtractor={(item) => item.id.toString()}
+          onRefresh={handleRefresh}
+          refreshing={refreshing}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContainer}
+          keyboardShouldPersistTaps="handled"
+          onScrollToIndexFailed={(info) => {
+            const wait = new Promise((resolve) => setTimeout(resolve, 500));
+            wait.then(() => {
+              flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
+            });
+          }}
+        />
       </View>
-      <FlatList
-        ref={flatListRef}
-        data={matches}
-        renderItem={renderMatch}
-        keyExtractor={(item) => item.id.toString()}
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContainer}
-        keyboardShouldPersistTaps="handled"
-        onScrollToIndexFailed={(info) => {
-          // Fallback if scroll fails
-          const wait = new Promise(resolve => setTimeout(resolve, 500));
-          wait.then(() => {
-            flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
-          });
-        }}
-      />
-    </View>
     </KeyboardAvoidingView>
   );
 }
@@ -291,29 +228,13 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
-  },
-  saveButton: {
-    backgroundColor: '#16a34a',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 8,
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#e2e8f0',
-  },
-  saveButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
   },
   pointsBadge: {
     backgroundColor: '#f0fdf4',
@@ -361,4 +282,3 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
 });
-

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,39 @@ import {
   Alert,
   SafeAreaView,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../contexts/AuthContext';
+import { apiService } from '../services/api';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, getCurrentUserId } = useAuth();
+  const [totalPoints, setTotalPoints] = useState<number>(user?.total_points ?? 0);
+  const [pointsLoading, setPointsLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchPoints = async () => {
+        const userId = getCurrentUserId();
+        if (!userId) {
+          setPointsLoading(false);
+          return;
+        }
+        try {
+          setPointsLoading(true);
+          const data = await apiService.getUserFullProfile(userId);
+          setTotalPoints(data.total_points);
+        } catch (error) {
+          console.error('Error fetching profile:', error);
+        } finally {
+          setPointsLoading(false);
+        }
+      };
+      fetchPoints();
+    }, [getCurrentUserId])
+  );
 
   const handleLogout = () => {
     Alert.alert(
@@ -47,7 +74,11 @@ export default function ProfileScreen() {
 
         {/* Points card */}
         <View style={styles.pointsCard}>
-          <Text style={styles.pointsValue}>{user?.total_points ?? 0}</Text>
+          {pointsLoading ? (
+            <ActivityIndicator size="small" color="#16a34a" style={styles.pointsLoader} />
+          ) : (
+            <Text style={styles.pointsValue}>{totalPoints}</Text>
+          )}
           <Text style={styles.pointsLabel}>Total Points</Text>
         </View>
 
@@ -131,6 +162,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 4,
+  },
+  pointsLoader: {
+    marginBottom: 2,
   },
   pointsValue: {
     fontSize: 42,

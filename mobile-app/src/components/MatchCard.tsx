@@ -40,17 +40,14 @@ const MatchStatusIndicator = ({ status }: { status: string }) => {
 };
 
 // Component for actual result display (below score inputs)
-const ActualResultDisplay = ({ actualResult }: { actualResult: any }) => {
-  if (!actualResult) return null;
-  
-  return (
-    <View style={styles.actualResultContainer}>
-      <Text style={styles.actualResultScore}>
-        {actualResult.home_score} - {actualResult.away_score}
-      </Text>
-    </View>
-  );
-};
+// Always rendered so all cards have identical height; shows " " when no result
+const ActualResultDisplay = ({ actualResult }: { actualResult: any }) => (
+  <View style={styles.actualResultContainer}>
+    <Text style={styles.actualResultScore}>
+      {actualResult ? `${actualResult.home_score} - ${actualResult.away_score}` : ' '}
+    </Text>
+  </View>
+);
 
 // Component for points display (bottom right)
 const PointsDisplay = ({ userPrediction, actualResult }: {
@@ -296,7 +293,11 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     const name = field === 'home' ? homeName : awayName;
     return (
       <View style={styles.teamNameWrapper}>
-        <Text style={styles.teamName} numberOfLines={2}>
+        <Text
+          style={[styles.teamName, field === 'home' && styles.teamNameHome]}
+          numberOfLines={field === 'home' ? 1 : 2}
+          ellipsizeMode="tail"
+        >
           {name}
         </Text>
       </View>
@@ -406,7 +407,7 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
 
         {/* Actual result - below score inputs */}
         <ActualResultDisplay actualResult={match.actual_result} />
-      
+
       {/* Stats button - bottom left */}
       <TouchableOpacity
         style={styles.statsButton}
@@ -426,7 +427,7 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
       />
 
       {/* Points - bottom right */}
-      <PointsDisplay 
+      <PointsDisplay
         userPrediction={match.user_prediction}
         actualResult={match.actual_result}
       />
@@ -523,11 +524,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 0,
   },
+  teamNameHome: {
+    marginBottom: 0,
+  },
   namesRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 0,
     gap: 14,
   },
   scoreSpacer: {

@@ -80,6 +80,10 @@ class DBReader:
         return db.query(User).filter(User.username == username).first()
 
     @staticmethod
+    def get_all_users(db: Session) -> List[User]:
+        return db.query(User).all()
+
+    @staticmethod
     def get_users_ordered_by_points(db: Session, limit: int) -> List[User]:
         return db.query(User).order_by(User.total_points.desc()).limit(limit).all()
 
