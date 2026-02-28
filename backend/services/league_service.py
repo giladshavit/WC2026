@@ -162,7 +162,8 @@ class LeagueService:
                     "matches_points": matches_points,
                     "groups_points": groups_points,
                     "third_place_points": third_place_points,
-                    "knockout_points": knockout_points
+                    "knockout_points": knockout_points,
+                    "penalty": scores.penalty if scores else 0
                 })
             
             return result
@@ -208,6 +209,7 @@ class LeagueService:
                     "groups_points": groups_points,
                     "third_place_points": third_place_points,
                     "knockout_points": knockout_points,
+                    "penalty": scores.penalty if scores else 0,
                     "joined_at": membership.joined_at.isoformat()
                 })
             
