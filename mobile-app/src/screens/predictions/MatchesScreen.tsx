@@ -241,23 +241,22 @@ export default function MatchesScreen() {
     >
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity
-            style={[styles.saveButton, (!canSave) && styles.saveButtonDisabled]}
-            onPress={handleSaveAll}
-            disabled={!canSave}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save'}</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.headerRight}>
-          {matchesScore !== null && (
-            <View style={styles.pointsContainer}>
-              <Text style={styles.totalPoints}>{matchesScore} pts</Text>
-            </View>
-          )}
-        </View>
+        <TouchableOpacity
+          style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
+          onPress={handleSaveAll}
+          disabled={!canSave}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.saveButtonText}>
+            {saving ? 'Saving...' : 'Save'}
+          </Text>
+        </TouchableOpacity>
+
+        {matchesScore !== null && (
+          <View style={styles.pointsBadge}>
+            <Text style={styles.pointsText}>{matchesScore} pts</Text>
+          </View>
+        )}
       </View>
       <FlatList
         ref={flatListRef}
@@ -288,59 +287,52 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#d4edda',
+    backgroundColor: '#f1f5f9',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#d4edda',
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
-  headerLeft: {
-    flex: 1,
-    alignItems: 'flex-start',
-  },
-  headerRight: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  pointsContainer: {
-    backgroundColor: '#48bb78',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginRight: 4,
-  },
-  totalPoints: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
   saveButton: {
-    backgroundColor: '#48bb78',
-    paddingHorizontal: 16,
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 8,
-    minWidth: 90,
+    minWidth: 80,
     alignItems: 'center',
   },
   saveButtonDisabled: {
-    backgroundColor: '#cbd5f5',
+    backgroundColor: '#e2e8f0',
   },
   saveButtonText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
+  },
+  pointsBadge: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  pointsText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#16a34a',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#d4edda',
+    backgroundColor: '#f1f5f9',
   },
   loadingText: {
     marginTop: 16,
@@ -351,7 +343,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#d4edda',
+    backgroundColor: '#f1f5f9',
     padding: 20,
   },
   emptyText: {
