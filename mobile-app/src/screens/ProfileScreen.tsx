@@ -6,7 +6,9 @@ import {
   StyleSheet,
   Alert,
   SafeAreaView,
+  ScrollView,
 } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function ProfileScreen() {
@@ -18,10 +20,10 @@ export default function ProfileScreen() {
       'האם אתה בטוח שברצונך להתנתק?',
       [
         { text: 'ביטול', style: 'cancel' },
-        { 
-          text: 'התנתק', 
+        {
+          text: 'התנתק',
           style: 'destructive',
-          onPress: logout 
+          onPress: logout,
         },
       ]
     );
@@ -29,42 +31,49 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.profileSection}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {user?.name?.charAt(0).toUpperCase() || '?'}
-            </Text>
-          </View>
-          
-          <Text style={styles.name}>{user?.name || 'משתמש'}</Text>
-          <Text style={styles.username}>@{user?.username || 'username'}</Text>
-          
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{user?.total_points || 0}</Text>
-              <Text style={styles.statLabel}>נקודות</Text>
+      <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+        {/* Green header with avatar */}
+        <View style={styles.header}>
+          <View style={styles.avatarContainer}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {user?.name?.charAt(0).toUpperCase() ?? '?'}
+              </Text>
             </View>
           </View>
+          <Text style={styles.name}>{user?.name ?? '—'}</Text>
+          <Text style={styles.username}>@{user?.username ?? '—'}</Text>
         </View>
 
-        <View style={styles.actionsSection}>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutButtonText}>התנתק</Text>
-          </TouchableOpacity>
+        {/* Points card */}
+        <View style={styles.pointsCard}>
+          <Text style={styles.pointsValue}>{user?.total_points ?? 0}</Text>
+          <Text style={styles.pointsLabel}>Total Points</Text>
         </View>
 
-        <View style={styles.infoSection}>
-          <Text style={styles.infoText}>
-            נרשם: {user?.created_at ? new Date(user.created_at).toLocaleDateString('he-IL') : 'לא ידוע'}
-          </Text>
-          {user?.last_login && (
-            <Text style={styles.infoText}>
-              התחברות אחרונה: {new Date(user.last_login).toLocaleDateString('he-IL')}
+        {/* Info rows */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <Ionicons name="calendar-outline" size={18} color="#16a34a" />
+            <Text style={styles.infoLabel}>Member since</Text>
+            <Text style={styles.infoValue}>
+              {user?.created_at
+                ? new Date(user.created_at).toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })
+                : '—'}
             </Text>
-          )}
+          </View>
         </View>
-      </View>
+
+        {/* Logout button */}
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={18} color="#ef4444" />
+          <Text style={styles.logoutText}>Sign Out</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -72,100 +81,121 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f1f5f9',
   },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  profileSection: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
+  header: {
+    backgroundColor: '#16a34a',
+    paddingTop: 24,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
     alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+  },
+  avatarContainer: {
+    marginBottom: 12,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#667eea',
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
   },
   avatarText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#ffffff',
     marginBottom: 4,
   },
   username: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 20,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  statItem: {
-    alignItems: 'center',
-    marginHorizontal: 20,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#667eea',
-  },
-  statLabel: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    color: 'rgba(255,255,255,0.75)',
+    fontWeight: '500',
   },
-  actionsSection: {
-    marginBottom: 20,
-  },
-  logoutButton: {
-    backgroundColor: '#ff4444',
-    borderRadius: 8,
-    paddingVertical: 16,
+  pointsCard: {
+    backgroundColor: '#ffffff',
+    marginHorizontal: 20,
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 24,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  logoutButtonText: {
-    color: '#fff',
-    fontSize: 18,
+  pointsValue: {
+    fontSize: 42,
+    fontWeight: '800',
+    color: '#16a34a',
+    marginBottom: 2,
+  },
+  pointsLabel: {
+    fontSize: 13,
+    color: '#94a3b8',
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  infoCard: {
+    backgroundColor: '#ffffff',
+    marginHorizontal: 20,
+    marginTop: 16,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 12,
+  },
+  infoLabel: {
+    flex: 1,
+    fontSize: 15,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 15,
+    color: '#1e293b',
     fontWeight: '600',
   },
-  infoSection: {
-    backgroundColor: '#fff',
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 32,
+    paddingVertical: 14,
     borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#fecaca',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  infoText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+  logoutText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#ef4444',
   },
 });
