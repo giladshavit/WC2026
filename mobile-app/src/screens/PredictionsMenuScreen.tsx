@@ -1,5 +1,12 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+} from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -9,22 +16,26 @@ type NavigationProp = StackNavigationProp<MainStackParamList, 'PredictionsMenu'>
 
 const options: Array<{
   title: string;
-  emoji: string;
+  subtitle: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
   navigateTo: keyof MainStackParamList;
 }> = [
   {
     title: 'Match Predictions',
-    emoji: '⚽',
+    subtitle: 'Predict scores for every match',
+    icon: 'football-outline',
     navigateTo: 'MatchPredictions',
   },
   {
     title: 'Route Predictions',
-    emoji: '🗺️',
+    subtitle: 'Groups, 3rd place & knockout bracket',
+    icon: 'git-branch-outline',
     navigateTo: 'RoutePredictions',
   },
   {
-    title: 'Show Full Bracket',
-    emoji: '🏆',
+    title: 'Full Bracket',
+    subtitle: 'View your complete tournament bracket',
+    icon: 'grid-outline',
     navigateTo: 'Bracket',
   },
 ];
@@ -33,110 +44,80 @@ export default function PredictionsMenuScreen() {
   const navigation = useNavigation<NavigationProp>();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <Text style={styles.heading}>My Predictions</Text>
-        <Text style={styles.subheading}>Choose how you want to manage your predictions</Text>
-
-        <View style={styles.buttonsContainer}>
-          {options.map((option, index) => (
-            <TouchableOpacity
-              key={option.title}
-              style={[
-                styles.circleButton,
-                index === 2 && styles.lastButton, // Center the last button
-              ]}
-              onPress={() => navigation.navigate(option.navigateTo)}
-              activeOpacity={0.85}
-            >
-              <View style={styles.emojiContainer}>
-                <Text style={styles.emoji}>{option.emoji}</Text>
-              </View>
-              <Text style={styles.title}>{option.title}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {options.map((option) => (
+          <TouchableOpacity
+            key={option.title}
+            style={styles.card}
+            onPress={() => navigation.navigate(option.navigateTo)}
+            activeOpacity={0.75}
+          >
+            <View style={styles.iconContainer}>
+              <Ionicons name={option.icon} size={28} color="#16a34a" />
+            </View>
+            <View style={styles.cardText}>
+              <Text style={styles.cardTitle}>{option.title}</Text>
+              <Text style={styles.cardSubtitle}>{option.subtitle}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 24,
-  },
-  heading: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1a202c',
-    marginBottom: 8,
-    textAlign: 'center',
-    width: '100%',
-  },
-  subheading: {
-    fontSize: 16,
-    color: '#64748b',
-    marginBottom: 48,
-    textAlign: 'center',
-    width: '100%',
-    fontWeight: '400',
-  },
-  buttonsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    width: '100%',
-  },
-  circleButton: {
-    width: '45%',
-    aspectRatio: 1,
-    borderRadius: 999,
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    padding: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-    marginHorizontal: '2.5%',
-    marginBottom: 20,
-  },
-  lastButton: {
-    // Center the third button
-    marginLeft: '27.5%',
-    marginRight: '27.5%',
-  },
-  emojiContainer: {
-    marginBottom: 12,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
     backgroundColor: '#f1f5f9',
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    gap: 12,
+  },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 28,
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  iconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: '#f0fdf4',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emoji: {
-    fontSize: 36,
+  cardText: {
+    flex: 1,
   },
-  title: {
-    fontSize: 15,
+  cardTitle: {
+    fontSize: 16,
     fontWeight: '600',
     color: '#1e293b',
-    textAlign: 'center',
-    lineHeight: 20,
+    marginBottom: 3,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    color: '#94a3b8',
+    fontWeight: '400',
   },
 });
-
-
