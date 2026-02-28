@@ -30,7 +30,7 @@ export default function AdminNavigator() {
           fontWeight: 'bold',
           fontSize: 20,
         },
-        headerBackTitleVisible: false,
+        headerBackButtonDisplayMode: 'minimal',
       }}
     >
       <Stack.Screen

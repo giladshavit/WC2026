@@ -30,13 +30,16 @@ export default function MainNavigator() {
       screenOptions={{
         headerStyle: {
           backgroundColor: '#16a34a',
+          shadowOpacity: 0,
+          elevation: 0,
+          borderBottomWidth: 0,
         },
         headerTintColor: '#fff',
         headerTitleStyle: {
           fontWeight: 'bold',
           fontSize: 20,
         },
-        headerBackTitleVisible: false,
+        headerBackButtonDisplayMode: 'minimal',
       }}
     >
       <Stack.Screen
