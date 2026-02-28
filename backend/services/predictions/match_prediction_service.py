@@ -72,6 +72,7 @@ class MatchPredictionService:
                 "predicted_winner": prediction.predicted_winner if prediction else None,
                 "points": prediction.points if prediction else None,
                 "is_editable": prediction.is_editable if prediction else None,
+                "status": prediction.status.value if prediction and prediction.status else None,
             },
             "can_edit": match.is_editable,
         }
