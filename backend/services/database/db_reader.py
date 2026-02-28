@@ -363,6 +363,20 @@ class DBReader:
             KnockoutStagePredictionDraft.user_id == user_id
         ).all()
 
+    @staticmethod
+    def get_draft_modified_flags(db: Session, draft) -> dict:
+        """Returns which fields the user explicitly modified in this draft."""
+        return {
+            "is_team1_modified": bool(getattr(draft, "is_team1_modified", False)),
+            "is_team2_modified": bool(getattr(draft, "is_team2_modified", False)),
+            "is_winner_modified": bool(getattr(draft, "is_winner_modified", False)),
+        }
+
+    @staticmethod
+    def is_draft_winner_modified(db: Session, draft) -> bool:
+        """Returns True if the user explicitly changed the winner in this draft."""
+        return bool(getattr(draft, "is_winner_modified", False))
+
     # ═══════════════════════════════════════════════════════
     # RESULTS
     # ═══════════════════════════════════════════════════════

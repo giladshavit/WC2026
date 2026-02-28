@@ -544,19 +544,15 @@ class KnockoutService:
         Fields with flag=False are left untouched in the original prediction.
         Status is always copied — draft status is always up to date.
         """
-        # Always copy status — draft status is always up to date
-        original.status = draft.status
-
-        if getattr(draft, "is_team1_modified", False):
-            original.team1_id = draft.team1_id
-
-        if getattr(draft, "is_team2_modified", False):
-            original.team2_id = draft.team2_id
-
-        if getattr(draft, "is_winner_modified", False):
-            original.winner_team_id = draft.winner_team_id
-
-        DBUtils.flush(db)
+        flags = DBReader.get_draft_modified_flags(db, draft)
+        update_kwargs = {"status": draft.status}
+        if flags["is_team1_modified"]:
+            update_kwargs["team1_id"] = draft.team1_id
+        if flags["is_team2_modified"]:
+            update_kwargs["team2_id"] = draft.team2_id
+        if flags["is_winner_modified"]:
+            update_kwargs["winner_team_id"] = draft.winner_team_id
+        DBWriter.update_knockout_prediction(db, original, **update_kwargs)
 
     @staticmethod
     def commit_drafts(db: Session, user_id: int) -> Dict[str, Any]:
@@ -580,26 +576,26 @@ class KnockoutService:
         drafts = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=True)
 
         if not drafts:
-            return {"success": True, "message": "No drafts to commit", "changes_count": 0, "penalty_applied": 0}
+            return {"success": True, "message": "No drafts to commit", "changes_count": 0, "penalty_points": 0, "penalty_applied": 0}
 
-        # Count changes BEFORE copying (compare draft vs original)
-        count_result = KnockoutService.count_draft_changes(db, user_id)
-        changes_count = count_result["changes_count"]
+        penalty_points = 0
+        changes_count = 0
 
         # Copy each draft to its original prediction
         for draft in drafts:
             original = DBReader.get_knockout_prediction_by_id(db, draft.knockout_pred_id, is_draft=False)
-            print(f"DEBUG commit: draft.id={draft.id}, is_winner_modified={draft.is_winner_modified}, draft.winner={draft.winner_team_id}, original.winner={original.winner_team_id if original else 'NOT FOUND'}")
             if not original:
                 continue
+
+            if DBReader.is_draft_winner_modified(db, draft):
+                changes_count += 1
+                penalty_points += ScoringService.record_prediction_penalty(
+                    db, user_id, original.id, PredictionType.KNOCKOUT, n_changes=1
+                )
+
             KnockoutService._copy_draft_to_prediction(db, draft, original)
 
         DBUtils.flush(db)
-
-        # Apply penalty
-        penalty_applied = 0
-        if changes_count > 0:
-            penalty_applied = ScoringService.apply_prediction_penalty(db, user_id, changes_count)
 
         # Delete all drafts
         KnockoutService.delete_all_drafts_for_user(db, user_id)
@@ -609,7 +605,8 @@ class KnockoutService:
         return {
             "success": True,
             "changes_count": changes_count,
-            "penalty_applied": penalty_applied,
+            "penalty_points": penalty_points,
+            "penalty_applied": penalty_points,
         }
 
     @staticmethod
