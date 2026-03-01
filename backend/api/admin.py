@@ -12,6 +12,7 @@ from services.stage_manager import StageManager, Stage
 from services.database import DBUtils
 from models.groups import Group
 from models.matches import Match, MatchStatus
+from models.team import Team
 from database import get_db
 
 router = APIRouter()
@@ -631,7 +632,14 @@ def delete_all_results_only(db: Session = Depends(get_db)):
         if process_result.returncode != 0:
             raise Exception(f"Script failed with return code {process_result.returncode}: {process_result.stderr}")
         
-        # Step 2: Reset validity for all knockout predictions (set to True since no results exist)
+        # Step 2: Reset is_eliminated for all teams (no results = no eliminations)
+        eliminated_teams = db.query(Team).filter(Team.is_eliminated == True).all()
+        teams_reset_count = len(eliminated_teams)
+        for team in eliminated_teams:
+            team.is_eliminated = False
+        print(f"✅ Reset is_eliminated for {teams_reset_count} teams")
+        
+        # Step 3: Reset validity for all knockout predictions (set to True since no results exist)
         from models.predictions import KnockoutStagePrediction
         knockout_predictions = db.query(KnockoutStagePrediction).all()
         validity_reset_count = 0
@@ -643,10 +651,10 @@ def delete_all_results_only(db: Session = Depends(get_db)):
         
         print(f"✅ Reset validity for {validity_reset_count} knockout predictions")
         
-        # Step 3: Reset all user scores and prediction points
+        # Step 4: Reset all user scores and prediction points
         scores_result = ResultsService.reset_all_user_scores(db)
         
-        # Step 4: Reset match statuses to scheduled
+        # Step 5: Reset match statuses to scheduled
         matches = db.query(Match).all()
         match_count = 0
         for match in matches:
@@ -659,6 +667,7 @@ def delete_all_results_only(db: Session = Depends(get_db)):
         return {
             "message": "All results deleted and scores reset successfully",
             "results_deleted": True,
+            "teams_eliminated_reset": teams_reset_count,
             "knockout_validity_reset": validity_reset_count,
             "users_reset": scores_result["users_reset"],
             "match_predictions_reset": scores_result["match_predictions_reset"],
