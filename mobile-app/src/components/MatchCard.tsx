@@ -440,7 +440,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafafa',
     marginHorizontal: 16,
     marginVertical: 8,
-    paddingVertical: 18,
+    paddingTop: 12,
+    paddingBottom: 18,
     paddingHorizontal: 20,
     borderRadius: 16,
     shadowColor: '#000',
@@ -464,7 +465,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 14,
   },
   stageContainer: {
     flex: 1,
@@ -641,11 +642,14 @@ const styles = StyleSheet.create({
   // Stats button - bottom left
   statsButton: {
     position: 'absolute',
-    bottom: 8,
-    left: 8,
-    backgroundColor: '#16a34a',
-    borderRadius: 6,
-    padding: 5,
+    bottom: 4,
+    left: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#0284c7',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   // Points display styles - bottom right
   pointsContainer: {
