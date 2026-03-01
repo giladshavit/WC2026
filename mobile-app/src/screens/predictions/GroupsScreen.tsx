@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, BackHandler } from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GroupPrediction, apiService, GroupsResponse } from '../../services/api';
 import GroupCard from '../../components/GroupCard';
@@ -12,6 +13,7 @@ export default function GroupsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
   const [incompleteGroups, setIncompleteGroups] = useState<number[]>([]);
   const [groupsScore, setGroupsScore] = useState<number | null>(null);
   const [pendingChanges, setPendingChanges] = useState<Map<number, {
@@ -23,12 +25,66 @@ export default function GroupsScreen() {
 
   // Get tournament context data
   const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
-  
+
+  const isPreTournament = currentStage === 'PRE_GROUP_STAGE';
+  const isGroupEditable = currentStage === 'PRE_GROUP_STAGE' ||
+    currentStage === 'GROUP_CYCLE_1' ||
+    currentStage === 'GROUP_CYCLE_2';
+
   // Get penalty confirmation hook
   const { showPenaltyConfirmation } = usePenaltyConfirmation();
   
   // Get current user ID
   const { getCurrentUserId } = useAuth();
+  const navigation = useNavigation();
+
+  // Intercept back navigation when there are unsaved changes (not in PRE_GROUP_STAGE)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (isPreTournament || pendingChanges.size === 0) return;
+      e.preventDefault();
+      const action = e.data.action;
+      Alert.alert(
+        'Unsaved Changes',
+        'You have unsaved predictions. What would you like to do?',
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => {} },
+          { text: 'Discard', style: 'destructive', onPress: () => navigation.dispatch(action) },
+          { text: 'Save & Exit', onPress: async () => {
+            await performSave();
+            navigation.dispatch(action);
+          }},
+        ]
+      );
+    });
+    return unsubscribe;
+  }, [navigation, isPreTournament, pendingChanges.size]);
+
+  // Android hardware back button
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (!isPreTournament && pendingChanges.size > 0) {
+          Alert.alert(
+            'Unsaved Changes',
+            'You have unsaved predictions. What would you like to do?',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => {} },
+              { text: 'Discard', style: 'destructive', onPress: () => navigation.goBack() },
+              { text: 'Save & Exit', onPress: async () => {
+                await performSave();
+                navigation.goBack();
+              }},
+            ]
+          );
+          return true;
+        }
+        return false;
+      };
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [isPreTournament, pendingChanges.size])
+  );
 
   // Calculate number of changes in groups (positions 1-3 only)
   const calculateGroupChanges = () => {
@@ -126,6 +182,73 @@ export default function GroupsScreen() {
     setPendingChanges(new Map());
     setIncompleteGroups([]);
     fetchGroups();
+  };
+
+  const autoSaveGroup = async (
+    groupId: number,
+    positions: { first_place: number | null; second_place: number | null; third_place: number | null; fourth_place: number | null }
+  ) => {
+    if (!isPreTournament) return;
+    const { first_place, second_place, third_place, fourth_place } = positions;
+    if (first_place === null || second_place === null || third_place === null || fourth_place === null) return;
+
+    const userId = getCurrentUserId();
+    if (!userId) return;
+
+    setAutoSaving(true);
+    try {
+      await apiService.updateBatchGroupPredictions(userId, [{
+        group_id: groupId,
+        first_place,
+        second_place,
+        third_place,
+        fourth_place,
+      }]);
+
+      setPendingChanges(prev => {
+        const next = new Map(prev);
+        next.delete(groupId);
+        return next;
+      });
+
+      setGroups(prevGroups => {
+        return prevGroups.map(group => {
+          if (group.group_id === groupId) {
+            const sortedTeams = [...group.teams].sort((a, b) => {
+              let posA = 5, posB = 5;
+              if (a.id === first_place) posA = 1;
+              else if (a.id === second_place) posA = 2;
+              else if (a.id === third_place) posA = 3;
+              else if (a.id === fourth_place) posA = 4;
+              if (b.id === first_place) posB = 1;
+              else if (b.id === second_place) posB = 2;
+              else if (b.id === third_place) posB = 3;
+              else if (b.id === fourth_place) posB = 4;
+              return posA - posB;
+            });
+            return {
+              ...group,
+              teams: sortedTeams,
+              first_place,
+              second_place,
+              third_place,
+              fourth_place,
+            };
+          }
+          return group;
+        });
+      });
+
+      await AsyncStorage.setItem('earlyStageUpdated', JSON.stringify({
+        stage: 'groups',
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('Error auto-saving group:', error);
+      Alert.alert('Error', 'Could not save, please try again.');
+    } finally {
+      setAutoSaving(false);
+    }
   };
 
   const performSave = async () => {
@@ -397,6 +520,18 @@ export default function GroupsScreen() {
 
       // Save to pending changes
       newChanges.set(groupId, positions);
+
+      if (isPreTournament) {
+        const allFilled =
+          positions.first_place !== null &&
+          positions.second_place !== null &&
+          positions.third_place !== null &&
+          positions.fourth_place !== null;
+        if (allFilled) {
+          autoSaveGroup(groupId, positions);
+        }
+      }
+
       return newChanges;
     });
   };
@@ -430,16 +565,21 @@ export default function GroupsScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity
-            style={[styles.saveButton, (!hasChanges || saving) && styles.saveButtonDisabled]}
-            onPress={handleSave}
-            disabled={!hasChanges || saving}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.saveButtonText}>
-              {saving ? 'Saving...' : 'Save'}
-            </Text>
-          </TouchableOpacity>
+          {isGroupEditable && !isPreTournament && (
+            <TouchableOpacity
+              style={[styles.saveButton, (!hasChanges || saving) && styles.saveButtonDisabled]}
+              onPress={handleSave}
+              disabled={!hasChanges || saving}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.saveButtonText}>
+                {saving ? 'Saving...' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {isPreTournament && autoSaving && (
+            <Text style={styles.autoSaveText}>Saving...</Text>
+          )}
         </View>
         <View style={styles.headerRight}>
           {groupsScore !== null && (
@@ -486,7 +626,7 @@ export default function GroupsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d4edda',
+    backgroundColor: '#f0fdf4',
   },
   header: {
     flexDirection: 'row',
@@ -494,7 +634,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#d4edda',
+    backgroundColor: '#f0fdf4',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
@@ -534,11 +674,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
+  autoSaveText: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#d4edda',
+    backgroundColor: '#f0fdf4',
   },
   loadingText: {
     marginTop: 16,
@@ -549,7 +693,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#d4edda',
+    backgroundColor: '#f0fdf4',
     padding: 20,
   },
   emptyText: {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import GroupStatsModal from './GroupStatsModal';
 import { GroupPrediction } from '../services/api';
 
@@ -53,6 +54,7 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
   // Check if group has result - if yes, it's not editable
   const hasResult = group.result !== null && group.result !== undefined;
   const isEditable = group.is_editable && !hasResult;
+  const isLocked = !isEditable && !hasResult;
 
   const [showStats, setShowStats] = useState(false);
 
@@ -61,12 +63,20 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
       {/* Group Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity
-            onPress={() => setShowStats(true)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text style={{ fontSize: 16 }}>📊</Text>
-          </TouchableOpacity>
+          <View style={styles.headerLeftRow}>
+            <TouchableOpacity
+              onPress={() => setShowStats(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.statsIconButton}
+            >
+              <Ionicons name="stats-chart" size={18} color="#ffffff" />
+            </TouchableOpacity>
+            {isLocked && (
+              <View style={styles.lockIconWrapper}>
+                <Ionicons name="lock-closed" size={14} color="#9ca3af" />
+              </View>
+            )}
+          </View>
         </View>
         <Text style={styles.groupName}>Group {group.group_name}</Text>
         <View style={styles.headerRight}>
@@ -94,30 +104,16 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
           
           if (hasResult && isCorrect !== null) {
             if (isCorrect) {
-              // Correct prediction - green
               badgeStyle = styles.positionBadgeCorrect;
             } else {
-              // Wrong prediction - red
               badgeStyle = styles.positionBadgeWrong;
             }
           } else if (!hasResult && position !== null) {
-            // No result yet - use different colors to distinguish qualification status
-            switch (position) {
-              case 1:
-              case 2:
-                // Places 1-2: Qualified automatically (same color)
-                badgeStyle = styles.positionBadgeQualified;
-                break;
-              case 3:
-                // Place 3: Waiting for qualification
-                badgeStyle = styles.positionBadgeWaiting;
-                break;
-              case 4:
-                // Place 4: Eliminated
-                badgeStyle = styles.positionBadgeEliminated;
-                break;
-              default:
-                badgeStyle = styles.positionBadge;
+            // No result yet: 1-3 green, 4 gray
+            if (position <= 3) {
+              badgeStyle = styles.positionBadgeActive;
+            } else {
+              badgeStyle = styles.positionBadgeEliminated;
             }
           }
           
@@ -133,16 +129,18 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
           return (
             <TouchableOpacity
               key={team.id}
-              style={styles.teamRow}
+              style={[styles.teamRow, isLocked && styles.teamRowLocked]}
               onPress={() => isEditable && onTeamPress(group.group_id, team.id)}
               activeOpacity={isEditable ? 0.7 : 1}
               disabled={!isEditable}
             >
               {/* Position Badge - always show (with placeholder or number) */}
-              <View style={badgeStyle}>
-                <Text style={badgeTextStyle}>
-                  {position !== null ? position : ''}
-                </Text>
+              <View style={{ opacity: isLocked ? 0.6 : 1 }}>
+                <View style={badgeStyle}>
+                  <Text style={badgeTextStyle}>
+                    {position !== null ? position : (!isEditable ? '-' : '')}
+                  </Text>
+                </View>
               </View>
 
               {/* Team Flag */}
@@ -212,10 +210,27 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flex: 1,
+    alignItems: 'flex-start',
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  lockIconWrapper: {
+    padding: 4,
+    marginLeft: 6,
   },
   headerRight: {
     flex: 1,
     alignItems: 'flex-end',
+  },
+  statsIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#0284c7',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   groupName: {
     fontSize: 16,
@@ -250,6 +265,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     backgroundColor: '#ffffff', // White background for team rows
   },
+  teamRowLocked: {
+    backgroundColor: '#f5f5f5',
+  },
   positionBadge: {
     width: 28,
     height: 28,
@@ -267,28 +285,11 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
-  positionBadgeQualified: {
+  positionBadgeActive: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#2563eb', // Deeper blue for places 1-2 (qualified automatically)
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  positionBadgeWaiting: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#f59e0b', // Orange/amber for place 3 (waiting for qualification)
+    backgroundColor: '#0284c7', // Blue for places 1-3 (pre-result)
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#1f2937', // Dark gray/black for place 4 (eliminated)
+    backgroundColor: '#6b7280', // Gray for place 4
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -339,7 +340,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#f56565', // Red for wrong
+    backgroundColor: '#ef4444', // Red for wrong
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -363,8 +364,8 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   positionTextPlaceholder: {
-    color: '#a0aec0',
-    fontSize: 16,
+    color: '#94a3b8',
+    fontSize: 13,
   },
   flag: {
     width: 28,
