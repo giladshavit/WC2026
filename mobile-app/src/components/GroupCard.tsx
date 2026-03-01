@@ -59,7 +59,7 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
   const [showStats, setShowStats] = useState(false);
 
   return (
-    <View style={[styles.container, { backgroundColor: getGroupBackgroundColor() }, hasPendingChanges && styles.containerPending, isIncomplete && styles.containerIncomplete]}>
+    <View style={[styles.container, { backgroundColor: getGroupBackgroundColor() }, !hasPendingChanges && !isIncomplete && styles.containerDefault, hasPendingChanges && styles.containerPending, isIncomplete && styles.containerIncomplete]}>
       {/* Group Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -175,8 +175,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 8, // Spacing between groups
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0', // Light gray border
+    borderWidth: 2,
+    borderColor: 'transparent', // Variants override with visible color
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -187,14 +187,15 @@ const styles = StyleSheet.create({
     elevation: 6,
     flex: 1,
   },
+  containerDefault: {
+    borderColor: '#e2e8f0', // Light gray border for default state
+  },
   containerPending: {
     borderColor: '#f6ad55',
-    borderWidth: 2,
     backgroundColor: '#fff9e6', // Light yellow background for pending
   },
   containerIncomplete: {
     borderColor: '#f6ad55',
-    borderWidth: 2,
     backgroundColor: '#fff9e6', // Light yellow background for incomplete
   },
   header: {
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
   statsIconButton: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: 16,
     backgroundColor: '#0284c7',
     justifyContent: 'center',
     alignItems: 'center',
