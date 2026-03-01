@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, BackHandler } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useIsFocused } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GroupPrediction, apiService, GroupsResponse } from '../../services/api';
 import GroupCard from '../../components/GroupCard';
 import { useTournament } from '../../contexts/TournamentContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
+import { PenaltyConfirmationModal, UnsavedChangesModal } from '../../components/CustomModals';
 
 export default function GroupsScreen() {
   const [groups, setGroups] = useState<GroupPrediction[]>([]);
@@ -22,6 +22,9 @@ export default function GroupsScreen() {
     third_place: number | null;
     fourth_place: number | null;
   }>>(new Map());
+  const [penaltyModalVisible, setPenaltyModalVisible] = useState(false);
+  const [exitModalVisible, setExitModalVisible] = useState(false);
+  const [pendingNavAction, setPendingNavAction] = useState<any>(null);
 
   // Get tournament context data
   const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
@@ -31,52 +34,29 @@ export default function GroupsScreen() {
     currentStage === 'GROUP_CYCLE_1' ||
     currentStage === 'GROUP_CYCLE_2';
 
-  // Get penalty confirmation hook
-  const { showPenaltyConfirmation } = usePenaltyConfirmation();
-  
   // Get current user ID
   const { getCurrentUserId } = useAuth();
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
 
   // Intercept back navigation when there are unsaved changes (not in PRE_GROUP_STAGE)
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      if (isPreTournament || pendingChanges.size === 0) return;
+      if (!isFocused || isPreTournament || pendingChanges.size === 0) return;
       e.preventDefault();
-      const action = e.data.action;
-      Alert.alert(
-        'Unsaved Changes',
-        'You have unsaved predictions. What would you like to do?',
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => {} },
-          { text: 'Discard', style: 'destructive', onPress: () => navigation.dispatch(action) },
-          { text: 'Save & Exit', onPress: async () => {
-            await performSave();
-            navigation.dispatch(action);
-          }},
-        ]
-      );
+      setPendingNavAction(e.data.action);
+      setExitModalVisible(true);
     });
     return unsubscribe;
-  }, [navigation, isPreTournament, pendingChanges.size]);
+  }, [navigation, isPreTournament, pendingChanges.size, isFocused]);
 
   // Android hardware back button
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
         if (!isPreTournament && pendingChanges.size > 0) {
-          Alert.alert(
-            'Unsaved Changes',
-            'You have unsaved predictions. What would you like to do?',
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => {} },
-              { text: 'Discard', style: 'destructive', onPress: () => navigation.goBack() },
-              { text: 'Save & Exit', onPress: async () => {
-                await performSave();
-                navigation.goBack();
-              }},
-            ]
-          );
+          setPendingNavAction(null);
+          setExitModalVisible(true);
           return true;
         }
         return false;
@@ -443,14 +423,11 @@ export default function GroupsScreen() {
 
   const handleSave = async () => {
     const numberOfChanges = calculateGroupChanges();
-    
     if (numberOfChanges === 0) {
       Alert.alert('No Changes', 'No predictions to save');
       return;
     }
-
-    // Use the generic penalty confirmation hook
-    showPenaltyConfirmation(performSave, numberOfChanges);
+    setPenaltyModalVisible(true);
   };
 
   const handleTeamPress = (groupId: number, teamId: number) => {
@@ -618,6 +595,32 @@ export default function GroupsScreen() {
         showsVerticalScrollIndicator={false}
         numColumns={1}
         contentContainerStyle={styles.listContainer}
+      />
+
+      <PenaltyConfirmationModal
+        visible={penaltyModalVisible}
+        penaltyPoints={calculateGroupChanges() * (penaltyPerChange ?? 0)}
+        onConfirm={() => {
+          setPenaltyModalVisible(false);
+          performSave();
+        }}
+        onCancel={() => setPenaltyModalVisible(false)}
+      />
+
+      <UnsavedChangesModal
+        visible={exitModalVisible}
+        onDiscard={() => {
+          setExitModalVisible(false);
+          if (pendingNavAction) {
+            navigation.dispatch(pendingNavAction);
+          } else {
+            navigation.goBack();
+          }
+        }}
+        onStay={() => {
+          setExitModalVisible(false);
+          setPendingNavAction(null);
+        }}
       />
     </View>
   );
