@@ -824,70 +824,50 @@ class ResultsService:
     ) -> Dict[str, Any]:
         """
         Update or create a knockout stage result and process all predictions.
-        
+
         This function:
         1. Sets match is_editable to False
         2. Updates/creates knockout result
-        3. Processes all predictions:
-           - Compares winner with prediction
-           - Awards points if correct (via ScoringService)
-           - If wrong, recursively invalidates teams in next stages
-        
+        3. Updates next knockout stage with winner (KnockoutStageResult)
+        4. Processes all predictions (status + scoring) via KnockoutService
+
         Args:
             db: Database session
             match_id: The match template ID
             team_1_id: Team 1 ID
             team_2_id: Team 2 ID
             winner_team_id: Winner team ID
-            
+
         Returns:
             Dict with success message
         """
         print(f"Updating knockout result for match {match_id}, team_1_id: {team_1_id}, team_2_id: {team_2_id}, winner_team_id: {winner_team_id}")
+
         # 1. Verify match exists
         match = DBReader.get_match(db, match_id)
         if not match:
             raise ValueError(f"Match with ID {match_id} not found")
-        
-        # 2. Set is_editable to False for all predictions and get them
-        predictions = ResultsService._set_predictions_not_editable(db, match_id)
-        
+
+        # 2. Set is_editable to False for all predictions
+        ResultsService._set_predictions_not_editable(db, match_id)
+
         # 3. Update or create knockout result
-        knockout_result = ResultsService._create_or_update_knockout_result(
+        ResultsService._create_or_update_knockout_result(
             db, match_id, team_1_id, team_2_id, winner_team_id
         )
-        
-        # 3.5. Update the next knockout stage with the winner
+
+        # 4. Update the next knockout stage with the winner (updates KnockoutStageResult)
         ResultsService._create_or_update_next_knockout_stage(db, match_id, winner_team_id)
 
-        # 4. Process all predictions: status updates and scoring (replaces ScoringService)
-        from services.predictions.knockout_service import KnockoutService
+        # 5. Process all predictions — status updates and scoring
         loser_team_id = team_2_id if winner_team_id == team_1_id else team_1_id
+        from services.predictions.knockout_service import KnockoutService
         KnockoutService.process_knockout_match_result(
             db, match_id, winner_team_id, loser_team_id
         )
-        
-        # 5. Process each prediction for invalidation
-        for prediction in predictions:
-            print(f"Processing prediction: {prediction.id}, winner_team_id: {prediction.winner_team_id}, winner_team_id_from_result: {winner_team_id}")
-            if prediction.winner_team_id and prediction.winner_team_id != winner_team_id:
-                wrong_winner_team_id = prediction.winner_team_id
-                next_prediction, position = KnockoutService._find_next_prediction_and_position(
-                    db, prediction
-                )
 
-                if next_prediction and position:
-                    team_at_position = next_prediction.team1_id if position == 1 else next_prediction.team2_id
-                    if team_at_position == wrong_winner_team_id:
-                        if position == 1:
-                            KnockoutService.set_team(db, next_prediction, team1_id=0)
-                        else:
-                            KnockoutService.set_team(db, next_prediction, team2_id=0)
-
-            KnockoutService._compute_and_set_status(db, prediction)
-        
         DBUtils.commit(db)
-        
+
         return {
             "success": True,
             "message": "Knockout result updated successfully",

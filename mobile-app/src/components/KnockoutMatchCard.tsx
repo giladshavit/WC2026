@@ -10,9 +10,10 @@ interface KnockoutMatchCardProps {
   originalWinner?: number;
   isTouched?: boolean;
   isPreTournament?: boolean;
+  isLocked?: boolean;
 }
 
-const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner, isTouched, isPreTournament }: KnockoutMatchCardProps) => {
+const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner, isTouched, isPreTournament, isLocked }: KnockoutMatchCardProps) => {
   const [showStats, setShowStats] = useState(false);
 
   const isTBD = (name?: string | null) => !name || name === 'TBD' || name.trim() === '';
@@ -36,8 +37,8 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
   // In all other stages: always show status
   const showStatusIndicator = isPreTournament ? !!isTouched : true;
 
-  const isInvalid = statusUpper === 'INVALID' && showStatusIndicator;
-  const isUnreachable = statusUpper === 'UNREACHABLE' && showStatusIndicator;
+  const isInvalid = statusUpper === 'INVALID' && showStatusIndicator && !isLocked;
+  const isUnreachable = statusUpper === 'UNREACHABLE' && showStatusIndicator && !isLocked;
 
   const showScoreBadge = showStatusIndicator && (
     statusUpper === 'CORRECT_FULL' ||
@@ -46,9 +47,9 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
   );
 
   const scoreBadgeColor =
-    statusUpper === 'CORRECT_FULL' ? '#16a34a' :
-    statusUpper === 'CORRECT_PARTIAL' ? '#f97316' :
-    '#ef4444';
+    statusUpper === 'CORRECT_FULL' ? '#16a34a' :    // green
+    statusUpper === 'CORRECT_PARTIAL' ? '#f97316' : // orange
+    '#ef4444';                                       // red
 
   const hasResult = showScoreBadge;
   const team1Invalid = hasResult ? false : (prediction.team1_is_valid === false);
@@ -57,31 +58,33 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
   const team1Eliminated = prediction.team1_is_eliminated === true;
   const team2Eliminated = prediction.team2_is_eliminated === true;
 
+  const cardBackground = '#ffffff';
+
+  const team1Bg = isTeam1Winner ? '#bbf7d0' : '#ffffff';
+  const team2Bg = isTeam2Winner ? '#bbf7d0' : '#ffffff';
+  const team1TextColor = isTeam1Winner ? '#16a34a' : '#374151';
+  const team2TextColor = isTeam2Winner ? '#16a34a' : '#374151';
+
   const renderTeamHalf = (
     teamId: number,
     isTBD: boolean,
     flag: string | null | undefined,
     name: string | null | undefined,
-    isWinner: boolean,
     isInvalid: boolean,
     isEliminated: boolean,
-    isLeft: boolean
+    isLeft: boolean,
+    halfBg: string,
+    textColor: string
   ) => {
-    const isPendingOrSaved = isWinner && !isTBD;
-    return (
-      <TouchableOpacity
-        style={[
-          styles.teamHalf,
-          isPendingOrSaved && styles.teamHalfSelected,
-          isLeft && styles.teamHalfLeft,
-          isEliminated && styles.teamHalfEliminated,
-        ]}
-        onPress={() => handleTeamPress(teamId)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.teamHalfContent}>
+    const halfStyle = [
+      styles.teamHalf,
+      isLeft && styles.teamHalfLeft,
+      { backgroundColor: halfBg },
+    ];
+    const content = (
+      <View style={styles.teamHalfContent}>
           {!isTBD && flag ? (
-            <Image source={{ uri: flag }} style={styles.teamFlag} />
+            <Image source={{ uri: flag }} style={[styles.teamFlag, isEliminated && { opacity: 1 }]} />
           ) : (
             <View style={styles.tbdContent}>
               <Ionicons name="help-circle-outline" size={36} color="#cbd5e1" />
@@ -92,10 +95,13 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
             <Text
               style={[
                 styles.teamName,
-                isPendingOrSaved && styles.teamNameSelected,
-                !isPendingOrSaved && styles.teamNameDefault,
                 isInvalid && styles.teamNameInvalid,
                 isEliminated && styles.teamNameEliminated,
+                {
+                  color: textColor,
+                  fontWeight: textColor === '#16a34a' ? '700' as const : '500' as const,
+                  ...(isEliminated && { opacity: 1, textDecorationLine: 'line-through' as const }),
+                },
               ]}
               numberOfLines={2}
               adjustsFontSizeToFit
@@ -105,6 +111,12 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
             </Text>
           )}
         </View>
+    );
+    return isLocked ? (
+      <View style={halfStyle}>{content}</View>
+    ) : (
+      <TouchableOpacity style={halfStyle} onPress={() => handleTeamPress(teamId)} activeOpacity={0.7}>
+        {content}
       </TouchableOpacity>
     );
   };
@@ -112,7 +124,11 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
   return (
     <View style={[
       styles.matchCard,
-      (isTeam1Winner || isTeam2Winner) && styles.matchCardSelected,
+      {
+        backgroundColor: cardBackground,
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+      },
     ]}>
       {showScoreBadge ? (
         <View style={[styles.scoreBadge, { backgroundColor: scoreBadgeColor }]}>
@@ -120,8 +136,12 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
             {prediction.points !== undefined ? prediction.points : '?'}
           </Text>
         </View>
-      ) : (isInvalid || isUnreachable) ? (
-        <View style={[styles.invalidIndicator, isUnreachable && styles.unreachableIndicator]}>
+      ) : isUnreachable ? (
+        <View style={[styles.warningIconTopRight, styles.invalidIndicator, styles.unreachableIndicator]}>
+          <Ionicons name="alert-circle-outline" size={22} color="#ca8a04" />
+        </View>
+      ) : isInvalid ? (
+        <View style={[styles.warningIconTopRight, styles.invalidIndicator]}>
           <Ionicons name="warning-outline" size={12} color="#ffffff" style={{ marginTop: 1 }} />
         </View>
       ) : null}
@@ -145,20 +165,22 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
           team1IsTBD,
           prediction.team1_flag,
           prediction.team1_name,
-          isTeam1Winner,
           team1Invalid,
           team1Eliminated,
-          true
+          true,
+          team1Bg,
+          team1TextColor
         )}
         {renderTeamHalf(
           prediction.team2_id,
           team2IsTBD,
           prediction.team2_flag,
           prediction.team2_name,
-          isTeam2Winner,
           team2Invalid,
           team2Eliminated,
-          false
+          false,
+          team2Bg,
+          team2TextColor
         )}
       </View>
 
@@ -250,14 +272,13 @@ const styles = StyleSheet.create({
   teamNameEliminated: {
     textDecorationLine: 'line-through',
   },
-  teamHalfEliminated: {
-    opacity: 0.35,
-  },
-  invalidIndicator: {
+  warningIconTopRight: {
     position: 'absolute',
-    top: 8,
+    bottom: 8,
     right: 8,
     zIndex: 10,
+  },
+  invalidIndicator: {
     backgroundColor: '#ef4444',
     borderRadius: 11,
     width: 22,
@@ -267,7 +288,10 @@ const styles = StyleSheet.create({
     paddingBottom: 1,
   },
   unreachableIndicator: {
-    backgroundColor: '#f97316',
+    backgroundColor: '#fef3c7',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   scoreBadge: {
     position: 'absolute',

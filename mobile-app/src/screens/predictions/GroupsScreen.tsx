@@ -34,6 +34,9 @@ export default function GroupsScreen() {
     currentStage === 'PRE_GROUP_STAGE' ||
     currentStage === 'GROUP_CYCLE_1' ||
     currentStage === 'GROUP_CYCLE_2';
+  const isActiveGroupCycle =
+    currentStage === 'GROUP_CYCLE_1' ||
+    currentStage === 'GROUP_CYCLE_2';
 
   // Get current user ID
   const { getCurrentUserId } = useAuth();
@@ -525,7 +528,7 @@ export default function GroupsScreen() {
   }
 
   const hasChanges = calculateGroupChanges() > 0;
-  const showSaveButton = isGroupEditable && hasChanges;
+  const showSaveButton = isActiveGroupCycle;
   const hasAnyGroupResult = groups.some(
     g => g.result !== null && g.result !== undefined
   );

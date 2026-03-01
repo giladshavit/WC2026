@@ -19,6 +19,31 @@ const STAGES = [
   { key: 'final', name: 'Final' },
 ];
 
+const ACTIVE_KNOCKOUT_STAGES = ['ROUND32', 'ROUND16', 'QUARTER', 'SEMI', 'FINAL'];
+
+const STAGE_VALUES: Record<string, number> = {
+  PRE_GROUP_STAGE: 0,
+  GROUP_CYCLE_1: 1,
+  GROUP_CYCLE_2: 2,
+  GROUP_CYCLE_3: 3,
+  PRE_ROUND32: 4,
+  ROUND32: 5,
+  PRE_ROUND16: 6,
+  ROUND16: 7,
+  PRE_QUARTER: 8,
+  QUARTER: 9,
+  SEMI: 10,
+  FINAL: 11,
+};
+
+const STAGE_KEY_TO_VALUE: Record<string, number> = {
+  round32: 5,
+  round16: 7,
+  quarter: 9,
+  semi: 10,
+  final: 11,
+};
+
 const computeIsStageVisible = (
   stageKey: string,
   predsByStage: Record<string, KnockoutPrediction[]>,
@@ -42,8 +67,19 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const navigation = useNavigation();
   const { getCurrentUserId } = useAuth();
   const { currentStage } = useTournament();
-  const isEditable = currentStage === 'PRE_GROUP_STAGE';
   const isPreTournament = currentStage === 'PRE_GROUP_STAGE';
+
+  const isStageKeyEditable = useCallback((stageKey: string): boolean => {
+    if (!currentStage) return false;
+    const stageUpper = currentStage.toUpperCase();
+
+    if (ACTIVE_KNOCKOUT_STAGES.includes(stageUpper)) return false;
+
+    const currentValue = STAGE_VALUES[stageUpper] ?? 0;
+    const predStageValue = STAGE_KEY_TO_VALUE[stageKey] ?? 0;
+
+    return predStageValue > currentValue;
+  }, [currentStage]);
 
   const [showBracketPrompt, setShowBracketPrompt] = useState(false);
   const [showReadOnlyPrompt, setShowReadOnlyPrompt] = useState(false);
@@ -66,6 +102,18 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollPositionRef = useRef<number>(0);
   const pendingScrollYRef = useRef<number | null>(null);
+  const stageSectionYRef = useRef<Record<string, number>>({});
+  const hasAutoScrolledRef = useRef(false);
+
+  const getRelevantStageKey = useCallback((): string => {
+    const stageUpper = (currentStage || '').toUpperCase();
+    if (['PRE_ROUND32', 'ROUND32'].includes(stageUpper)) return 'round32';
+    if (['PRE_ROUND16', 'ROUND16'].includes(stageUpper)) return 'round16';
+    if (['PRE_QUARTER', 'QUARTER'].includes(stageUpper)) return 'quarter';
+    if (stageUpper === 'SEMI') return 'semi';
+    if (stageUpper === 'FINAL') return 'final';
+    return 'round32';
+  }, [currentStage]);
 
   useLayoutEffect(() => {
     if (pendingScrollYRef.current !== null && pendingScrollYRef.current > 0) {
@@ -144,8 +192,18 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
       console.error('Error fetching knockout predictions:', error);
     } finally {
       setLoading(false);
+      if (!hasAutoScrolledRef.current) {
+        hasAutoScrolledRef.current = true;
+        setTimeout(() => {
+          const targetKey = getRelevantStageKey();
+          const targetY = stageSectionYRef.current[targetKey];
+          if (targetY !== undefined && targetY > 0) {
+            scrollViewRef.current?.scrollTo({ y: targetY, animated: false });
+          }
+        }, 100);
+      }
     }
-  }, [getCurrentUserId]);
+  }, [getCurrentUserId, getRelevantStageKey]);
 
   useEffect(() => {
     fetchAllStages();
@@ -198,10 +256,10 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     prediction: KnockoutPrediction,
     teamId: number
   ) => {
-    if (!isEditable) {
-      setShowReadOnlyPrompt(true);
-      return;
-    }
+    if (!isStageKeyEditable(prediction.stage)) return;
+    setShowReadOnlyPrompt(true);
+    return;
+
     const isTBD = (name?: string | null) => !name || name === 'TBD' || name.trim() === '';
     if (teamId === prediction.team1_id && isTBD(prediction.team1_name)) return;
     if (teamId === prediction.team2_id && isTBD(prediction.team2_name)) return;
@@ -251,18 +309,22 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         return reverted;
       });
     }
-  }, [isEditable, originalWinners, getCurrentUserId, fetchAllStages, hasEverPredictedFinal]);
+  }, [isStageKeyEditable, originalWinners, getCurrentUserId, fetchAllStages, hasEverPredictedFinal]);
 
-  const renderMatch = useCallback((prediction: KnockoutPrediction) => (
-    <KnockoutMatchCard
-      key={prediction.id}
-      prediction={prediction}
-      onTeamPress={(teamId) => handleTeamPress(prediction, teamId)}
-      originalWinner={originalWinners[prediction.id]}
-      isTouched={touchedPredictions.has(prediction.id)}
-      isPreTournament={isPreTournament}
-    />
-  ), [originalWinners, handleTeamPress, touchedPredictions, isPreTournament]);
+  const renderMatch = useCallback((prediction: KnockoutPrediction, stageKey: string) => {
+    const locked = !isStageKeyEditable(stageKey);
+    return (
+      <KnockoutMatchCard
+        key={prediction.id}
+        prediction={prediction}
+        onTeamPress={(teamId) => handleTeamPress(prediction, teamId)}
+        originalWinner={originalWinners[prediction.id]}
+        isTouched={touchedPredictions.has(prediction.id)}
+        isPreTournament={isPreTournament}
+        isLocked={locked}
+      />
+    );
+  }, [originalWinners, handleTeamPress, touchedPredictions, isPreTournament, isStageKeyEditable]);
 
   const hasAnyResult = Object.values(predictionsByStage).flat().some(
     p => p.is_correct !== null && p.is_correct !== undefined
@@ -280,8 +342,13 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     </View>
   );
 
-  const renderLockedPlaceholder = (stageName: string) => (
-    <View key={`locked-${stageName}`}>
+  const renderLockedPlaceholder = (stageName: string, stageKey: string) => (
+    <View
+      key={`locked-${stageName}`}
+      onLayout={(e) => {
+        stageSectionYRef.current[stageKey] = e.nativeEvent.layout.y;
+      }}
+    >
       {renderSectionHeader(stageName, false, true)}
       <View style={styles.lockedPlaceholder}>
         <View style={styles.lockedIconBadge}>
@@ -301,15 +368,21 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     }
 
     if (!isStageVisible(stageKey) && isNextLockedStage(stageKey)) {
-      return renderLockedPlaceholder(stageName);
+      return renderLockedPlaceholder(stageName, stageKey);
     }
 
     const predictions = predictionsByStage[stageKey] || [];
     const isFirst = stageKey === 'round32';
     return (
-      <View style={styles.sectionWrapper} key={stageKey}>
+      <View
+        style={styles.sectionWrapper}
+        key={stageKey}
+        onLayout={(e) => {
+          stageSectionYRef.current[stageKey] = e.nativeEvent.layout.y;
+        }}
+      >
         {renderSectionHeader(stageName, isFirst)}
-        {predictions.map(p => renderMatch(p))}
+        {predictions.map(p => renderMatch(p, stageKey))}
       </View>
     );
   };

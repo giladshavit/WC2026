@@ -50,11 +50,11 @@ class ScoringService:
 
     # Full (correct path) vs partial (correct winner, wrong path) points per stage
     KNOCKOUT_SCORING = {
-        "round32": {"full": 5, "partial": 2},
-        "round16": {"full": 10, "partial": 5},
-        "quarter": {"full": 15, "partial": 7},
-        "semi": {"full": 20, "partial": 10},
-        "final": {"full": 25, "partial": 12},
+        "round32": {"full": 10, "partial": 5},
+        "round16": {"full": 15, "partial": 7},
+        "quarter": {"full": 20, "partial": 10},
+        "semi": {"full": 30, "partial": 15},
+        "final": {"full": 40, "partial": 20},
     }
 
     MATCH_STATUS_POINTS = {
