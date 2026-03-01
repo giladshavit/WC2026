@@ -38,12 +38,13 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
 
   const isPreTournament = currentStage === 'PRE_GROUP_STAGE';
+  const isThirdPlaceEditable =
+    currentStage === 'GROUP_CYCLE_1' ||
+    currentStage === 'GROUP_CYCLE_2';
   const isThirdPlaceManualSave =
     currentStage === 'GROUP_CYCLE_1' ||
     currentStage === 'GROUP_CYCLE_2';
-  const isThirdPlaceLocked =
-    !isPreTournament &&
-    !isThirdPlaceManualSave;
+  const isThirdPlaceLocked = !isThirdPlaceEditable && !isPreTournament;
   
   // Get current user ID
   const { getCurrentUserId } = useAuth();
@@ -66,10 +67,14 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   }, [selectedTeams, teams]);
 
   const originallySelectedCount = teams.filter(t => t.is_selected).length;
-  const hasUnsavedChanges = isThirdPlaceManualSave && (
-    calculateThirdPlaceChanges > 0 ||
-    selectedTeams.size !== originallySelectedCount
-  );
+  const hasChanges =
+    selectedTeams.size === 8 &&
+    (calculateThirdPlaceChanges > 0 || selectedTeams.size !== originallySelectedCount);
+  const hasUnsavedChanges = isThirdPlaceManualSave && hasChanges;
+  const showSaveButton = isThirdPlaceEditable && hasChanges;
+  const showPoints =
+    thirdPlaceScore !== null &&
+    thirdPlaceResult !== null;
 
   // Calculate dynamic height based on actual measured heights
   const getCardHeight = () => {
@@ -214,6 +219,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   };
 
   const handleTeamPress = (teamId: number) => {
+    if (!isThirdPlaceEditable && !isPreTournament) return;
     if (!isEditable || isThirdPlaceLocked) return;
 
     hasStartedEditing.current = true;
@@ -288,6 +294,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   };
 
   const handleSave = async () => {
+    if (!isThirdPlaceEditable) return;
     if (calculateThirdPlaceChanges === 0) {
       Alert.alert('No Changes', 'No changes to save');
       return;
@@ -336,7 +343,9 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       >
         {/* Flag in center */}
         {item.flag_url && (
-          <Image source={{ uri: item.flag_url }} style={styles.teamFlag} />
+          <View style={styles.teamFlagWrapper}>
+            <Image source={{ uri: item.flag_url }} style={styles.teamFlag} />
+          </View>
         )}
         
         {/* Team name below flag */}
@@ -415,23 +424,15 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
       >
         <View style={styles.headerTop}>
-          {/* Left: Save button or empty spacer */}
+          {/* Left: Stats button */}
           <View style={styles.headerLeft}>
-            {isThirdPlaceManualSave && (
-              <TouchableOpacity
-                style={[
-                  styles.saveButton,
-                  (calculateThirdPlaceChanges === 0 || saving || selectedTeams.size !== 8) && styles.saveButtonDisabled
-                ]}
-                onPress={handleSave}
-                disabled={calculateThirdPlaceChanges === 0 || saving || selectedTeams.size !== 8}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.saveButtonText}>
-                  {saving ? 'Saving...' : 'Save'}
-                </Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              onPress={() => setShowStats(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.statsButton}
+            >
+              <Ionicons name="stats-chart" size={22} color="#ffffff" />
+            </TouchableOpacity>
           </View>
 
           {/* Center: Counter badge - absolutely positioned */}
@@ -443,19 +444,25 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
             </View>
           </View>
 
-          {/* Right: Stats button + Score */}
+          {/* Right: Points badge or Save button or empty */}
           <View style={styles.headerRight}>
-            <TouchableOpacity
-              onPress={() => setShowStats(true)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={styles.statsButton}
-            >
-              <Ionicons name="stats-chart" size={22} color="#ffffff" />
-            </TouchableOpacity>
-            {thirdPlaceScore !== null && (
-              <View style={styles.totalScoreContainer}>
-                <Text style={styles.totalScore}>{thirdPlaceScore} pts</Text>
+            {showPoints ? (
+              <View style={styles.pointsContainer}>
+                <Text style={styles.totalPoints}>{thirdPlaceScore} pts</Text>
               </View>
+            ) : showSaveButton ? (
+              <TouchableOpacity
+                style={[styles.saveButton, (saving || selectedTeams.size !== 8) && styles.saveButtonDisabled]}
+                onPress={handleSave}
+                disabled={saving || selectedTeams.size !== 8}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.saveButtonText}>
+                  {saving ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={{ minWidth: 90 }} />
             )}
           </View>
         </View>
@@ -570,6 +577,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
+  pointsContainer: {
+    backgroundColor: '#48bb78',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  totalPoints: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
   saveButton: {
     backgroundColor: '#48bb78',
     paddingHorizontal: 16,
@@ -595,7 +613,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    marginLeft: 8,
+  },
+  headerRightSpacer: {
+    minWidth: 90,
   },
   subtitle: {
     fontSize: 16,
@@ -655,12 +676,19 @@ const styles = StyleSheet.create({
     borderColor: '#16a34a',
     borderWidth: 2,
   },
+  teamFlagWrapper: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 6,
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+  },
   teamFlag: {
     width: 40,
     height: 28,
     borderRadius: 4,
-    marginTop: 12, // Fixed distance from top
-    marginBottom: 8, // Reduced distance between flag and team name
   },
   teamName: {
     fontSize: 14,

@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+     marginBottom: 14,
   },
   stageContainer: {
     flex: 1,
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
   teamFlagWrapper: {
     height: 40,
     justifyContent: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#f8fafc',
     borderRadius: 10,
     padding: 4,
   },

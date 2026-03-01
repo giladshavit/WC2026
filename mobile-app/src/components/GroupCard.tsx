@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 8,
     marginBottom: 4,
-    backgroundColor: '#ffffff', // White background for team rows
+    backgroundColor: '#f8fafc', // Light gray so white flags don't bleed
   },
   teamRowLocked: {
     backgroundColor: '#f5f5f5',

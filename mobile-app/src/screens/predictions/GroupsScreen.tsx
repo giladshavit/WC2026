@@ -30,7 +30,8 @@ export default function GroupsScreen() {
   const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
 
   const isPreTournament = currentStage === 'PRE_GROUP_STAGE';
-  const isGroupEditable = currentStage === 'PRE_GROUP_STAGE' ||
+  const isGroupEditable =
+    currentStage === 'PRE_GROUP_STAGE' ||
     currentStage === 'GROUP_CYCLE_1' ||
     currentStage === 'GROUP_CYCLE_2';
 
@@ -66,33 +67,23 @@ export default function GroupsScreen() {
     }, [isPreTournament, pendingChanges.size])
   );
 
-  // Calculate number of changes in groups (positions 1-3 only)
   const calculateGroupChanges = () => {
     let totalChanges = 0;
-    
+
     pendingChanges.forEach((positions, groupId) => {
       const group = groups.find(g => g.group_id === groupId);
       if (!group) return;
-      
-      // Get original positions (1-3 only)
-      const originalPositions = {
-        first_place: group.first_place,
-        second_place: group.second_place,
-        third_place: group.third_place,
-      };
-      
-      // Count changes in positions 1-3
-      if (positions.first_place !== null && positions.first_place !== originalPositions.first_place) {
-        totalChanges++;
-      }
-      if (positions.second_place !== null && positions.second_place !== originalPositions.second_place) {
-        totalChanges++;
-      }
-      if (positions.third_place !== null && positions.third_place !== originalPositions.third_place) {
-        totalChanges++;
-      }
+
+      // Count ONLY positions 1-3 (position 4 has no point impact)
+      if (positions.first_place !== null &&
+          positions.first_place !== group.first_place) totalChanges++;
+      if (positions.second_place !== null &&
+          positions.second_place !== group.second_place) totalChanges++;
+      if (positions.third_place !== null &&
+          positions.third_place !== group.third_place) totalChanges++;
+      // fourth_place intentionally excluded
     });
-    
+
     return totalChanges;
   };
 
@@ -422,6 +413,7 @@ export default function GroupsScreen() {
   };
 
   const handleSave = async () => {
+    if (!isGroupEditable) return;
     const numberOfChanges = calculateGroupChanges();
     if (numberOfChanges === 0) {
       Alert.alert('No Changes', 'No predictions to save');
@@ -431,6 +423,7 @@ export default function GroupsScreen() {
   };
 
   const handleTeamPress = (groupId: number, teamId: number) => {
+    if (!isGroupEditable) return;
     setPendingChanges(prevChanges => {
       const newChanges = new Map(prevChanges);
       
@@ -531,41 +524,40 @@ export default function GroupsScreen() {
     );
   }
 
-  // Check if there are any savable pending changes (3 or 4 positions filled)
-  const hasChanges = Array.from(pendingChanges.values()).some(positions => {
-    const positionsArray = [positions.first_place, positions.second_place, positions.third_place, positions.fourth_place];
-    const filledCount = positionsArray.filter(p => p !== null).length;
-    return filledCount >= 3; // Allow save if 3 or 4 positions are filled (4th will be auto-completed)
-  });
+  const hasChanges = calculateGroupChanges() > 0;
+  const showSaveButton = isGroupEditable && hasChanges;
+  const hasAnyGroupResult = groups.some(
+    g => g.result !== null && g.result !== undefined
+  );
+  const showPoints = hasAnyGroupResult && groupsScore !== null;
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          {isGroupEditable && !isPreTournament && (
-            <TouchableOpacity
-              style={[styles.saveButton, (!hasChanges || saving) && styles.saveButtonDisabled]}
-              onPress={handleSave}
-              disabled={!hasChanges || saving}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.saveButtonText}>
-                {saving ? 'Saving...' : 'Save'}
-              </Text>
-            </TouchableOpacity>
-          )}
-          {isPreTournament && autoSaving && (
-            <Text style={styles.autoSaveText}>Saving...</Text>
-          )}
+      {(showSaveButton || showPoints) && (
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            {showSaveButton && (
+              <TouchableOpacity
+                style={[styles.saveButton, (!hasChanges || saving || autoSaving) && styles.saveButtonDisabled]}
+                onPress={handleSave}
+                disabled={!hasChanges || saving || autoSaving}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.saveButtonText}>
+                  {(saving || autoSaving) ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={styles.headerRight}>
+            {showPoints && (
+              <View style={styles.pointsContainer}>
+                <Text style={styles.totalPoints}>{groupsScore} pts</Text>
+              </View>
+            )}
+          </View>
         </View>
-        <View style={styles.headerRight}>
-          {groupsScore !== null && (
-            <View style={styles.pointsContainer}>
-              <Text style={styles.totalPoints}>{groupsScore} pts</Text>
-            </View>
-          )}
-        </View>
-      </View>
+      )}
       <FlatList
         data={groups}
         renderItem={({ item }) => {

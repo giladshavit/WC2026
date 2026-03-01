@@ -1,151 +1,130 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { KnockoutPrediction } from '../services/api';
 import KnockoutStatsModal from './KnockoutStatsModal';
 
 interface KnockoutMatchCardProps {
   prediction: KnockoutPrediction;
   onTeamPress: (teamId: number) => void;
-  pendingWinner?: number; // team1_id or team2_id from pending changes
-  originalWinner?: number; // team1_id or team2_id from original selection
+  originalWinner?: number;
+  isTouched?: boolean;
+  isPreTournament?: boolean;
 }
 
-const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, originalWinner }: KnockoutMatchCardProps) => {
+const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner, isTouched, isPreTournament }: KnockoutMatchCardProps) => {
   const [showStats, setShowStats] = useState(false);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'invalid':
-      case 'incorrect':
-        return '#F44336'; // red
-      case 'unreachable':
-      case 'correct_partial':
-        return '#FF9800'; // orange
-      case 'correct_full':
-        return '#4CAF50'; // green
-      case 'valid':
-        return '#FFFFFF'; // white/default
-      default:
-        return 'transparent';
-    }
-  };
-
-  // Check if there's a pending winner, otherwise use the saved winner
   const isTBD = (name?: string | null) => !name || name === 'TBD' || name.trim() === '';
   const team1IsTBD = isTBD(prediction.team1_name);
   const team2IsTBD = isTBD(prediction.team2_name);
-  const currentWinner = pendingWinner || prediction.winner_team_id;
-  
-  // לוגיקה חדשה לזיהוי סוג הבחירה
-  const isJustSaved = originalWinner === -1; // Special flag for "just saved"
-  const isBackToOriginal = originalWinner && originalWinner !== -1 && currentWinner === originalWinner;
-  const isNewChange = pendingWinner && pendingWinner !== originalWinner;
-  
-  // Suppress winner highlight if the winner refers to a TBD team
+  const currentWinner = originalWinner || prediction.winner_team_id;
+
   const isTeam1Winner = !team1IsTBD && currentWinner === prediction.team1_id;
   const isTeam2Winner = !team2IsTBD && currentWinner === prediction.team2_id;
 
   const handleTeamPress = (teamId: number) => {
-    // Ignore presses on TBD teams
     if ((teamId === prediction.team1_id && team1IsTBD) || (teamId === prediction.team2_id && team2IsTBD)) {
       return;
     }
     onTeamPress(teamId);
   };
 
-  // Use green border if there's a pending change, otherwise use status color
-  const borderColor = pendingWinner ? '#10b981' : getStatusColor(prediction.status);
-  
-  // Check if match is finished (has is_correct field)
-  const matchFinished = prediction.is_correct !== undefined && prediction.is_correct !== null;
-  const isCorrect = prediction.is_correct === true;
-  
-  // Get validity flags (only if match not finished)
-  // Invalid teams should be shown in gray (not red, not strikethrough)
-  // Mark as invalid if explicitly false (regardless of status)
-  const team1Invalid = matchFinished ? false : (prediction.team1_is_valid === false);
-  const team2Invalid = matchFinished ? false : (prediction.team2_is_valid === false);
-  
-  // Get elimination status
+  const statusUpper = prediction.status?.toUpperCase();
+
+  // In PRE_GROUP_STAGE: only show warning if user touched this prediction
+  // In all other stages: always show status
+  const showStatusIndicator = isPreTournament ? !!isTouched : true;
+
+  const isInvalid = statusUpper === 'INVALID' && showStatusIndicator;
+  const isUnreachable = statusUpper === 'UNREACHABLE' && showStatusIndicator;
+
+  const showScoreBadge = showStatusIndicator && (
+    statusUpper === 'CORRECT_FULL' ||
+    statusUpper === 'CORRECT_PARTIAL' ||
+    statusUpper === 'INCORRECT'
+  );
+
+  const scoreBadgeColor =
+    statusUpper === 'CORRECT_FULL' ? '#16a34a' :
+    statusUpper === 'CORRECT_PARTIAL' ? '#f97316' :
+    '#ef4444';
+
+  const hasResult = showScoreBadge;
+  const team1Invalid = hasResult ? false : (prediction.team1_is_valid === false);
+  const team2Invalid = hasResult ? false : (prediction.team2_is_valid === false);
+
   const team1Eliminated = prediction.team1_is_eliminated === true;
   const team2Eliminated = prediction.team2_is_eliminated === true;
-  
+
+  const renderTeamHalf = (
+    teamId: number,
+    isTBD: boolean,
+    flag: string | null | undefined,
+    name: string | null | undefined,
+    isWinner: boolean,
+    isInvalid: boolean,
+    isEliminated: boolean,
+    isLeft: boolean
+  ) => {
+    const isPendingOrSaved = isWinner && !isTBD;
+    return (
+      <TouchableOpacity
+        style={[
+          styles.teamHalf,
+          isPendingOrSaved && styles.teamHalfSelected,
+          isLeft && styles.teamHalfLeft,
+          isEliminated && styles.teamHalfEliminated,
+        ]}
+        onPress={() => handleTeamPress(teamId)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.teamHalfContent}>
+          {!isTBD && flag ? (
+            <Image source={{ uri: flag }} style={styles.teamFlag} />
+          ) : (
+            <View style={styles.tbdContent}>
+              <Ionicons name="help-circle-outline" size={36} color="#cbd5e1" />
+              <Text style={styles.tbdLabel}>TBD</Text>
+            </View>
+          )}
+          {!isTBD && (
+            <Text
+              style={[
+                styles.teamName,
+                isPendingOrSaved && styles.teamNameSelected,
+                !isPendingOrSaved && styles.teamNameDefault,
+                isInvalid && styles.teamNameInvalid,
+                isEliminated && styles.teamNameEliminated,
+              ]}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {name || ''}
+            </Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
-    <View style={[styles.matchCard, { borderColor }]}>
-      {matchFinished && (
-        <View style={styles.correctnessIndicator}>
-          <Text style={[styles.correctnessSymbol, isCorrect ? styles.correctSymbol : styles.incorrectSymbol]}>
-            {isCorrect ? '✓' : '✗'}
+    <View style={[
+      styles.matchCard,
+      (isTeam1Winner || isTeam2Winner) && styles.matchCardSelected,
+    ]}>
+      {showScoreBadge ? (
+        <View style={[styles.scoreBadge, { backgroundColor: scoreBadgeColor }]}>
+          <Text style={styles.scoreBadgeText}>
+            {prediction.points !== undefined ? prediction.points : '?'}
           </Text>
         </View>
-      )}
-      <View style={styles.teamContainer}>
-        <TouchableOpacity 
-          style={[
-            styles.teamButton,
-            isTeam1Winner && styles.winnerButton,
-            pendingWinner === prediction.team1_id && styles.pendingWinnerButton,
-            (isBackToOriginal && currentWinner === prediction.team1_id) ? styles.originalWinnerButton : 
-            (isJustSaved && currentWinner === prediction.team1_id) ? styles.justSavedButton : null
-          ]}
-          onPress={() => handleTeamPress(prediction.team1_id)}
-          activeOpacity={0.7}
-        >
-          {!team1IsTBD && prediction.team1_flag && (
-            <Image source={{ uri: prediction.team1_flag }} style={styles.teamFlag} />
-          )}
-          <Text 
-            style={[
-              styles.teamName,
-              team1IsTBD && styles.tbdText,
-              isTeam1Winner && styles.winnerText,
-              // Apply invalid style (gray) if invalid - applies to both winner and non-winner
-              team1Invalid && styles.invalidText,
-              // Add strike-through if eliminated - applies to both winner and non-winner
-              team1Eliminated && styles.eliminatedText,
-            ]}
-            numberOfLines={2}
-            adjustsFontSizeToFit={true}
-            minimumFontScale={0.7}
-          >
-            {team1IsTBD ? '?' : (prediction.team1_name || '')}
-          </Text>
-        </TouchableOpacity>
-        
-        <Text style={styles.vs}>vs</Text>
-        
-        <TouchableOpacity 
-          style={[
-            styles.teamButton,
-            isTeam2Winner && styles.winnerButton,
-            pendingWinner === prediction.team2_id && styles.pendingWinnerButton,
-            (isBackToOriginal && currentWinner === prediction.team2_id) ? styles.originalWinnerButton : 
-            (isJustSaved && currentWinner === prediction.team2_id) ? styles.justSavedButton : null
-          ]}
-          onPress={() => handleTeamPress(prediction.team2_id)}
-          activeOpacity={0.7}
-        >
-          {!team2IsTBD && prediction.team2_flag && (
-            <Image source={{ uri: prediction.team2_flag }} style={styles.teamFlag} />
-          )}
-          <Text 
-            style={[
-              styles.teamName,
-              team2IsTBD && styles.tbdText,
-              isTeam2Winner && styles.winnerText,
-              // Apply invalid style (gray) if invalid - applies to both winner and non-winner
-              team2Invalid && styles.invalidText,
-              // Add strike-through if eliminated - applies to both winner and non-winner
-              team2Eliminated && styles.eliminatedText,
-            ]}
-            numberOfLines={2}
-            adjustsFontSizeToFit={true}
-            minimumFontScale={0.7}
-          >
-            {team2IsTBD ? '?' : (prediction.team2_name || '')}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      ) : (isInvalid || isUnreachable) ? (
+        <View style={[styles.invalidIndicator, isUnreachable && styles.unreachableIndicator]}>
+          <Ionicons name="warning-outline" size={12} color="#ffffff" style={{ marginTop: 1 }} />
+        </View>
+      ) : null}
 
       <TouchableOpacity
         onPress={(e) => {
@@ -155,8 +134,33 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, 
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         style={styles.statsButton}
       >
-        <Text style={styles.statsButtonText}>📊</Text>
+        <View style={styles.statsButtonInner}>
+          <Ionicons name="stats-chart" size={11} color="#ffffff" />
+        </View>
       </TouchableOpacity>
+
+      <View style={styles.halvesRow}>
+        {renderTeamHalf(
+          prediction.team1_id,
+          team1IsTBD,
+          prediction.team1_flag,
+          prediction.team1_name,
+          isTeam1Winner,
+          team1Invalid,
+          team1Eliminated,
+          true
+        )}
+        {renderTeamHalf(
+          prediction.team2_id,
+          team2IsTBD,
+          prediction.team2_flag,
+          prediction.team2_name,
+          isTeam2Winner,
+          team2Invalid,
+          team2Eliminated,
+          false
+        )}
+      </View>
 
       <KnockoutStatsModal
         visible={showStats}
@@ -169,146 +173,136 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, pendingWinner, 
 
 const styles = StyleSheet.create({
   matchCard: {
-    backgroundColor: '#ffffff', // White background to contrast with green screen background
-    borderRadius: 20, // More rounded corners for the card
-    padding: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginHorizontal: 12,
     marginBottom: 12,
-    marginHorizontal: 8,
-    marginTop: 8,
-    borderWidth: 2.5, 
-    borderColor: '#e2e8f0', // Light gray border
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 6,
-    height: 120,
-    width: '96%',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  teamContainer: {
+  matchCardSelected: {
+    borderColor: '#475569',
+  },
+  halvesRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flex: 1,
-  },
-  teamButton: {
-    width: 120,
     height: 90,
+    alignItems: 'stretch',
+  },
+  teamHalf: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
-    borderRadius: 18, // More rounded corners
-    borderWidth: 1.5,
-    borderColor: '#9ca3af', // Gray border for unselected teams (changed from green)
-    backgroundColor: '#f3f4f6', // Light gray background for team buttons
-    marginHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 0,
+    backgroundColor: '#f8fafc',
+  },
+  teamHalfSelected: {
+    backgroundColor: '#dcfce7',
+  },
+  teamHalfLeft: {
+    borderRightWidth: 1,
+    borderRightColor: '#e9ecef',
+  },
+  teamHalfContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    width: '100%',
   },
   teamFlag: {
-    width: 42, // Slightly reduced from 48
-    height: 32, // Slightly reduced from 36
+    width: 44,
+    height: 32,
     borderRadius: 6,
     marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+  },
+  tbdContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tbdLabel: {
+    fontSize: 11,
+    color: '#cbd5e1',
+    fontWeight: '600',
+    marginTop: 4,
+    letterSpacing: 0.5,
   },
   teamName: {
-    fontSize: 15, // 10 * 1.5 - Increased font size
-    fontWeight: '600',
-    fontFamily: 'System',
-    letterSpacing: 0.3,
-    color: '#2d3748',
+    fontSize: 13,
     textAlign: 'center',
-    textAlignVertical: 'center',
-    overflow: 'hidden',
   },
-  tbdText: {
-    color: '#111827', // near-black
-    fontWeight: '900', // very bold
-    fontSize: 40, // Increased for bigger card
-    fontFamily: 'System',
-    letterSpacing: 1,
-    textAlign: 'center',
-    textAlignVertical: 'center',
+  teamNameDefault: {
+    color: '#374151',
+    fontWeight: '500',
   },
-  vs: {
-    fontSize: 21, // 14 * 1.5 - Increased font size
-    fontFamily: 'System',
-    letterSpacing: 0.5,
-    color: '#718096',
-    marginHorizontal: 8,
-    fontWeight: 'bold',
+  teamNameSelected: {
+    color: '#15803d',
+    fontWeight: '700',
   },
-  winnerButton: {
-    backgroundColor: '#c6f6d5', // Brighter green background for winner
-    borderColor: '#48bb78', // Green border for winner
-    borderWidth: 2,
+  teamNameInvalid: {
+    color: '#9ca3af',
   },
-  winnerText: {
-    color: '#38a169', // Green text for winner
-    fontWeight: '700', // Bolder text for winner
+  teamNameEliminated: {
+    textDecorationLine: 'line-through',
   },
-  pendingWinnerButton: {
-    backgroundColor: '#c6f6d5', // Brighter green background for pending winner
-    borderColor: '#48bb78', // Green border for pending winner
-    borderWidth: 2,
+  teamHalfEliminated: {
+    opacity: 0.35,
   },
-  originalWinnerButton: {
-    backgroundColor: '#dbeafe', // Light blue background for original choice
-    borderColor: '#3b82f6', // Blue border for original choice
-  },
-  justSavedButton: {
-    backgroundColor: '#dbeafe', // Light blue background for just saved
-    borderColor: '#3b82f6', // Blue border for just saved
-  },
-  correctnessIndicator: {
+  invalidIndicator: {
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
     zIndex: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
+    backgroundColor: '#ef4444',
+    borderRadius: 11,
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 1,
   },
-  correctnessSymbol: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  unreachableIndicator: {
+    backgroundColor: '#f97316',
   },
-  correctSymbol: {
-    color: '#38a169', // Green for correct
+  scoreBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 10,
+    borderRadius: 10,
+    minWidth: 28,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
   },
-  incorrectSymbol: {
-    color: '#e53e3e', // Red for incorrect
-  },
-  invalidText: {
-    color: '#9ca3af', // Lighter gray text for invalid team (position not good)
-  },
-  eliminatedText: {
-    textDecorationLine: 'line-through', // Strike-through for eliminated teams
-    textDecorationColor: '#e53e3e', // Red strike-through for better visibility
+  scoreBadgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   statsButton: {
     position: 'absolute',
-    bottom: 4,
-    left: 4,
+    top: 8,
+    left: 8,
+    zIndex: 10,
   },
-  statsButtonText: {
-    fontSize: 14,
+  statsButtonRight: {
+    left: undefined,
+    right: 8,
+  },
+  statsButtonInner: {
+    backgroundColor: '#0284c7',
+    borderRadius: 11,
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

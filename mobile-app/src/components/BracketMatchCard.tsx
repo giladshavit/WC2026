@@ -96,11 +96,13 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
           {team1Name}
         </Text>
         {match.team1_flag ? (
-          <Image 
-            source={{ uri: match.team1_flag }} 
-            style={styles.finalFlag}
-            resizeMode="contain"
-          />
+          <View style={styles.finalFlagWrapper}>
+            <Image 
+              source={{ uri: match.team1_flag }} 
+              style={styles.finalFlag}
+              resizeMode="contain"
+            />
+          </View>
         ) : null}
         
         {/* VS */}
@@ -108,11 +110,13 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
         
         {/* Team 2 */}
         {match.team2_flag ? (
-          <Image 
-            source={{ uri: match.team2_flag }} 
-            style={styles.finalFlag}
-            resizeMode="contain"
-          />
+          <View style={styles.finalFlagWrapper}>
+            <Image 
+              source={{ uri: match.team2_flag }} 
+              style={styles.finalFlag}
+              resizeMode="contain"
+            />
+          </View>
         ) : null}
         <Text style={[
           styles.finalTeamName, 
@@ -246,6 +250,7 @@ const styles = StyleSheet.create({
     marginVertical: 0.5,
     minWidth: 70,
     justifyContent: 'flex-start', // Align to left instead of center
+    backgroundColor: '#f8fafc',
   },
   flag: {
     width: 18, // 12 * 1.5
@@ -301,10 +306,17 @@ const styles = StyleSheet.create({
     color: '#059669', // Green for winner
     fontWeight: '900',
   },
+  finalFlagWrapper: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 4,
+    padding: 4,
+    marginVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   finalFlag: {
     width: 36,
     height: 24,
-    marginVertical: 12, // גדול יותר מהסמלים
     borderWidth: 0.5,
     borderColor: '#d1d5db',
     borderRadius: 2,
