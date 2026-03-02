@@ -84,7 +84,7 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
     const content = (
       <View style={styles.teamHalfContent}>
           {!isTBD && flag ? (
-            <Image source={{ uri: flag }} style={[styles.teamFlag, isEliminated && { opacity: 1 }]} />
+            <Image source={{ uri: flag }} style={[styles.teamFlag, isEliminated && { opacity: 0.5 }]} />
           ) : (
             <View style={styles.tbdContent}>
               <Ionicons name="help-circle-outline" size={36} color="#cbd5e1" />
@@ -100,7 +100,7 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
                 {
                   color: textColor,
                   fontWeight: textColor === '#16a34a' ? '700' as const : '500' as const,
-                  ...(isEliminated && { opacity: 1, textDecorationLine: 'line-through' as const }),
+                  ...(isEliminated && { opacity: 0.5, textDecorationLine: 'line-through' as const }),
                 },
               ]}
               numberOfLines={2}
