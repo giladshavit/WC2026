@@ -38,7 +38,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
     const s = status?.toLowerCase();
     switch (s) {
       case 'valid':
-        return '#e2e8f0';
+        return '#cbd5e1';
       case 'invalid':
         return '#ef4444';
       case 'unreachable':
@@ -47,7 +47,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
       case 'correct_partial':
       case 'incorrect':
       default:
-        return '#e2e8f0';
+        return '#cbd5e1';
     }
   };
 
@@ -156,7 +156,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
         {/* Winner or placeholder ABOVE the card */}
         {match.winner_team_id ? (
           <View style={styles.winnerBanner}>
-            <Text style={styles.winnerLabel}>Winner</Text>
+            <Text style={styles.winnerLabel}>WINNER</Text>
             <View style={styles.winnerTeamRow}>
               {resolvedWinnerFlag ? (
                 <Image
@@ -170,12 +170,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             </View>
           </View>
         ) : (
-          <View style={styles.winnerPlaceholder}>
-            <Text style={styles.winnerPlaceholderLabel}>Winner</Text>
-            <View style={styles.winnerPlaceholderBox}>
-              <Text style={styles.winnerPlaceholderQuestion}>?</Text>
-            </View>
-          </View>
+          <View style={styles.winnerPlaceholder} />
         )}
 
         {/* Trophy image between winner and card */}
@@ -210,29 +205,29 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
 
   return (
     <View style={styles.wrapper}>
-      <TouchableOpacity
-        style={[
-          styles.container,
-          {
-            borderColor,
-            shadowColor: borderColor,
-            shadowOffset: { width: 0, height: 3 },
-            shadowOpacity: borderColor === '#e2e8f0' ? 0.15 : 0.5,
-            shadowRadius: borderColor === '#e2e8f0' ? 6 : 10,
-            elevation: borderColor === '#e2e8f0' ? 6 : 10,
-          },
-        ]}
-        onPress={() => {
-          console.log(`🔥 BracketMatchCard onPress called for match ${match.id}`);
-          onPress?.(match);
-        }}
-        onLayout={(event) => {
-          const { x, y, width, height } = event.nativeEvent.layout;
-          onLayout?.(match.id, { x, y, width, height });
-        }}
-        activeOpacity={0.7}
-      >
-        <View style={styles.matchContainer}>
+      <View style={[
+        styles.shadowWrapper,
+        {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: borderColor === '#cbd5e1' ? 0.3 : 0.5,
+          shadowRadius: borderColor === '#cbd5e1' ? 4 : 12,
+          elevation: borderColor === '#cbd5e1' ? 5 : 12,
+        }
+      ]}>
+        <TouchableOpacity
+          style={[styles.container, { borderColor }]}
+          onPress={() => {
+            console.log(`🔥 BracketMatchCard onPress called for match ${match.id}`);
+            onPress?.(match);
+          }}
+          onLayout={(event) => {
+            const { x, y, width, height } = event.nativeEvent.layout;
+            onLayout?.(match.id, { x, y, width, height });
+          }}
+          activeOpacity={0.7}
+        >
+          <View style={styles.matchContainer}>
           {renderTeamHalf(
             match.team1_name,
             match.team1_flag,
@@ -258,7 +253,8 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             </Text>
           </View>
         )}
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -267,17 +263,21 @@ const styles = StyleSheet.create({
   wrapper: {
     position: 'relative',
   },
-  container: {
-    backgroundColor: '#fff',
+  shadowWrapper: {
     borderRadius: 20,
-    overflow: 'hidden',
+    backgroundColor: '#fafafa',
     marginVertical: 1,
     marginHorizontal: 1,
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
+    alignSelf: 'center',
+  },
+  container: {
+    backgroundColor: '#fafafa',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 2.5,
+    borderColor: '#cbd5e1',
     width: 100,
     height: 68,
-    alignSelf: 'center',
   },
   matchContainer: {
     flex: 1,
@@ -425,12 +425,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   trophyWrapper: {
-    height: 96,
+    height: 110,
     width: 80,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f8fafc',
-    marginBottom: 6,
+    marginBottom: 12,
+    marginTop: 8,
   },
   trophyImage: {
     width: 72,
@@ -440,8 +441,7 @@ const styles = StyleSheet.create({
     height: 80,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    marginBottom: 2,
-    overflow: 'hidden',
+    marginBottom: 8,
   },
   winnerLabel: {
     fontSize: 15,
@@ -475,31 +475,6 @@ const styles = StyleSheet.create({
   },
   winnerPlaceholder: {
     height: 80,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginBottom: 2,
-  },
-  winnerPlaceholderLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#9ca3af',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  winnerPlaceholderBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: '#d1d5db',
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  winnerPlaceholderQuestion: {
-    fontSize: 18,
-    color: '#d1d5db',
-    fontWeight: '300',
+    marginBottom: 8,
   },
 });
