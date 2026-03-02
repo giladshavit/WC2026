@@ -2,8 +2,7 @@ import React from 'react';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import GroupsScreen from '../screens/predictions/GroupsScreen';
-import ThirdPlaceScreen from '../screens/predictions/ThirdPlaceScreen';
+import GroupsContainerScreen from '../screens/predictions/GroupsContainerScreen';
 import KnockoutScreen from '../screens/predictions/KnockoutScreen';
 
 const Tab = createMaterialTopTabNavigator();
@@ -45,21 +44,8 @@ export default function PredictionsTopTabs() {
         },
       }}
     >
-      <Tab.Screen 
-        name="Groups" 
-        component={GroupsScreen}
-        options={{ title: 'Groups' }}
-      />
-      <Tab.Screen 
-        name="ThirdPlace" 
-        component={ThirdPlaceScreen}
-        options={{ title: '3rd Place' }}
-      />
-      <Tab.Screen 
-        name="Knockout" 
-        component={KnockoutScreen}
-        options={{ title: 'Knockout' }}
-      />
+      <Tab.Screen name="Groups" component={GroupsContainerScreen} options={{ title: 'Group Stage' }} />
+      <Tab.Screen name="Knockout" component={KnockoutScreen} options={{ title: 'Knockout Stage' }} />
     </Tab.Navigator>
   );
 }
