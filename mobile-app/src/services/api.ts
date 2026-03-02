@@ -34,6 +34,7 @@ export interface GroupsResponse {
 export interface KnockoutResponse {
   predictions: KnockoutPrediction[];
   knockout_score: number | null;
+  can_edit_drafts?: boolean;
 }
 
 export interface AppConfig {

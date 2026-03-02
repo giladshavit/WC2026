@@ -48,6 +48,7 @@ export interface BracketMatch {
   winner_team_flag?: string;
   winner_team_name?: string;
   status?: string; // Status of the prediction: 'valid', 'invalid', 'unreachable', 'correct_full', 'correct_partial', 'incorrect'
+  points?: number | null; // Points awarded for this prediction (when match has result)
   side: 'left' | 'right';
   verticalPosition?: number;
   // Card coordinates - top-left and bottom-right corners
@@ -165,7 +166,8 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       winner_team_id: prediction.winner_team_id,
       winner_team_flag: prediction.winner_team_flag,
       winner_team_name: prediction.winner_team_name,
-      status: prediction.status, // Add status from prediction
+      status: prediction.status,
+      points: prediction.points,
       side,
       // Validation fields
       is_correct: prediction.is_correct,
