@@ -9,6 +9,7 @@ import {
   Dimensions,
   SafeAreaView,
 } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { BracketMatch } from '../utils/bracketCalculator';
 
 interface MatchEditModalProps {
@@ -18,42 +19,29 @@ interface MatchEditModalProps {
   onSave: (matchId: number, winnerId: number) => void;
 }
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get('window');
+
+const STAGE_STYLES: Record<string, { bg: string; text: string }> = {
+  round32: { bg: '#eff6ff', text: '#3b82f6' },
+  round16: { bg: '#f5f3ff', text: '#7c3aed' },
+  quarter: { bg: '#fffbeb', text: '#d97706' },
+  semi: { bg: '#fff1f2', text: '#e11d48' },
+  final: { bg: '#fefce8', text: '#ca8a04' },
+};
 
 export default function MatchEditModal({ visible, match, onClose, onSave }: MatchEditModalProps) {
   const [selectedWinner, setSelectedWinner] = useState<number | null>(null);
   const [hasChanged, setHasChanged] = useState(false);
 
-  // Smart team name display logic
   const getTeamNameDisplayProps = (teamName: string) => {
     const nameLength = teamName.length;
-    const hasMultipleWords = teamName.includes(' ');
-    
-    // Short names (≤12 characters): Always stay on one line with normal font
     if (nameLength <= 12) {
-      return {
-        numberOfLines: 1,
-        adjustsFontSizeToFit: true,
-        minimumFontScale: 0.9, // Allow slight shrinking
-        fontSize: 16
-      };
+      return { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.9, fontSize: 16 };
     }
-    
-    // Medium names (13-20 characters): Allow 2 lines with good font size
     if (nameLength <= 20) {
-      return {
-        numberOfLines: 2,
-        adjustsFontSizeToFit: false,
-        fontSize: 15
-      };
+      return { numberOfLines: 2, adjustsFontSizeToFit: false, fontSize: 15 };
     }
-    
-    // Long names (>20 characters) or names with many words: Allow 2 lines with smaller font
-    return {
-      numberOfLines: 2,
-      adjustsFontSizeToFit: false,
-      fontSize: 13
-    };
+    return { numberOfLines: 2, adjustsFontSizeToFit: false, fontSize: 13 };
   };
 
   useEffect(() => {
@@ -65,7 +53,6 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
 
   if (!match) return null;
 
-  // Get display props for both teams
   const team1DisplayProps = getTeamNameDisplayProps(match.team1_name || 'TBD');
   const team2DisplayProps = getTeamNameDisplayProps(match.team2_name || 'TBD');
 
@@ -77,7 +64,6 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
   const handleUpdate = () => {
     if (selectedWinner && hasChanged) {
       onSave(match.id, selectedWinner);
-      // Don't call onClose() here - let the parent component handle it
     }
   };
 
@@ -86,129 +72,139 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
   const isTeam1Selected = selectedWinner === match.team1_id && !isTeam1TBD;
   const isTeam2Selected = selectedWinner === match.team2_id && !isTeam2TBD;
 
+  const stageKey = match.stage?.toLowerCase?.() || 'round32';
+  const stageStyle = STAGE_STYLES[stageKey] || STAGE_STYLES.round32;
+
   return (
     <Modal
       visible={visible}
       transparent={true}
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
         <SafeAreaView style={styles.container}>
-          <View style={styles.modal}>
+          <View style={[styles.modal, { overflow: 'hidden' }]}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Edit Match</Text>
+              <Text style={styles.title}>Pick a Winner</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Text style={styles.closeText}>✕</Text>
+                <Ionicons name="close" size={20} color="rgba(255,255,255,0.9)" />
               </TouchableOpacity>
             </View>
 
-            {/* Match Info */}
-            <View style={styles.matchContainer}>
-              <Text style={styles.matchStage}>{match.stage.toUpperCase()}</Text>
-              <Text style={styles.matchId}>Match #{match.id}</Text>
-            </View>
-
-            {/* Teams */}
-            <View style={styles.teamsContainer}>
-              {/* Team 1 */}
-              <TouchableOpacity
-                style={[
-                  styles.teamCard,
-                  isTeam1Selected && styles.selectedCard,
-                  !match.team1_id && styles.disabledCard
-                ]}
-                onPress={() => match.team1_id && handleTeamSelection(match.team1_id)}
-                disabled={!match.team1_id}
-              >
-                <View style={styles.teamContent}>
-                  {match.team1_flag && (
-                    <Image 
-                      source={{ uri: match.team1_flag }} 
-                      style={styles.flag}
-                      resizeMode="contain"
-                    />
-                  )}
-                  <Text 
-                    style={[
-                      styles.teamName,
-                      isTeam1Selected && styles.selectedText,
-                      !match.team1_id && styles.disabledText,
-                      { fontSize: team1DisplayProps.fontSize }
-                    ]}
-                    numberOfLines={team1DisplayProps.numberOfLines}
-                    adjustsFontSizeToFit={team1DisplayProps.adjustsFontSizeToFit}
-                    minimumFontScale={team1DisplayProps.minimumFontScale || 0.8}
-                  >
-                    {match.team1_name || 'TBD'}
+            {/* Content */}
+            <View style={styles.content}>
+              {/* Stage Badge */}
+              <View style={styles.matchContainer}>
+                <View style={[styles.stageBadge, { backgroundColor: stageStyle.bg, borderColor: stageStyle.text }]}>
+                  <Text style={[styles.stageText, { color: stageStyle.text }]}>
+                    {match.stage?.toUpperCase?.() || 'ROUND32'}
                   </Text>
-                  {isTeam1Selected && (
-                    <Text style={styles.winnerBadge}>✓</Text>
-                  )}
                 </View>
-              </TouchableOpacity>
-
-              {/* VS */}
-              <View style={styles.vsContainer}>
-                <Text style={styles.vsText}>VS</Text>
               </View>
 
-              {/* Team 2 */}
-              <TouchableOpacity
-                style={[
-                  styles.teamCard,
-                  isTeam2Selected && styles.selectedCard,
-                  !match.team2_id && styles.disabledCard
-                ]}
-                onPress={() => match.team2_id && handleTeamSelection(match.team2_id)}
-                disabled={!match.team2_id}
-              >
-                <View style={styles.teamContent}>
-                  {match.team2_flag && (
-                    <Image 
-                      source={{ uri: match.team2_flag }} 
-                      style={styles.flag}
-                      resizeMode="contain"
-                    />
-                  )}
-                  <Text 
-                    style={[
-                      styles.teamName,
-                      isTeam2Selected && styles.selectedText,
-                      !match.team2_id && styles.disabledText,
-                      { fontSize: team2DisplayProps.fontSize }
-                    ]}
-                    numberOfLines={team2DisplayProps.numberOfLines}
-                    adjustsFontSizeToFit={team2DisplayProps.adjustsFontSizeToFit}
-                    minimumFontScale={team2DisplayProps.minimumFontScale || 0.8}
-                  >
-                    {match.team2_name || 'TBD'}
-                  </Text>
-                  {isTeam2Selected && (
-                    <Text style={styles.winnerBadge}>✓</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-            </View>
+              {/* Teams */}
+              <View style={styles.teamsContainer}>
+                {/* Team 1 */}
+                <TouchableOpacity
+                  style={[
+                    styles.teamCard,
+                    isTeam1Selected && styles.selectedCard,
+                    !match.team1_id && styles.disabledCard
+                  ]}
+                  onPress={() => match.team1_id && handleTeamSelection(match.team1_id)}
+                  disabled={!match.team1_id}
+                >
+                  <View style={styles.teamContent}>
+                    {match.team1_flag && (
+                      <Image
+                        source={{ uri: match.team1_flag }}
+                        style={styles.flag}
+                        resizeMode="contain"
+                      />
+                    )}
+                    <Text
+                      style={[
+                        styles.teamName,
+                        isTeam1Selected && styles.selectedText,
+                        !match.team1_id && styles.disabledText,
+                        { fontSize: team1DisplayProps.fontSize }
+                      ]}
+                      numberOfLines={team1DisplayProps.numberOfLines}
+                      adjustsFontSizeToFit={team1DisplayProps.adjustsFontSizeToFit}
+                      minimumFontScale={team1DisplayProps.minimumFontScale || 0.8}
+                    >
+                      {match.team1_name || 'TBD'}
+                    </Text>
+                  </View>
+                  <View style={styles.checkPlaceholder}>
+                    {isTeam1Selected && (
+                      <Ionicons name="checkmark-circle" size={22} color="#16a34a" />
+                    )}
+                  </View>
+                </TouchableOpacity>
 
-            {/* Update Button - Always visible for consistent height */}
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.updateButton,
-                  !hasChanged && styles.disabledButton
-                ]}
-                onPress={handleUpdate}
-                disabled={!hasChanged}
-              >
-                <Text style={[
-                  styles.updateButtonText,
-                  !hasChanged && styles.disabledButtonText
-                ]}>
-                  עדכן
-                </Text>
-              </TouchableOpacity>
+                {/* VS */}
+                <View style={styles.vsContainer}>
+                  <Text style={styles.vsText}>VS</Text>
+                </View>
+
+                {/* Team 2 */}
+                <TouchableOpacity
+                  style={[
+                    styles.teamCard,
+                    isTeam2Selected && styles.selectedCard,
+                    !match.team2_id && styles.disabledCard
+                  ]}
+                  onPress={() => match.team2_id && handleTeamSelection(match.team2_id)}
+                  disabled={!match.team2_id}
+                >
+                  <View style={styles.teamContent}>
+                    {match.team2_flag && (
+                      <Image
+                        source={{ uri: match.team2_flag }}
+                        style={styles.flag}
+                        resizeMode="contain"
+                      />
+                    )}
+                    <Text
+                      style={[
+                        styles.teamName,
+                        isTeam2Selected && styles.selectedText,
+                        !match.team2_id && styles.disabledText,
+                        { fontSize: team2DisplayProps.fontSize }
+                      ]}
+                      numberOfLines={team2DisplayProps.numberOfLines}
+                      adjustsFontSizeToFit={team2DisplayProps.adjustsFontSizeToFit}
+                      minimumFontScale={team2DisplayProps.minimumFontScale || 0.8}
+                    >
+                      {match.team2_name || 'TBD'}
+                    </Text>
+                  </View>
+                  <View style={styles.checkPlaceholder}>
+                    {isTeam2Selected && (
+                      <Ionicons name="checkmark-circle" size={22} color="#16a34a" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={[styles.updateButton, !hasChanged && styles.disabledButton]}
+                  onPress={handleUpdate}
+                  disabled={!hasChanged}
+                  activeOpacity={hasChanged ? 0.8 : 1}
+                >
+                  <Text style={[styles.updateButtonText, !hasChanged && styles.disabledButtonText]}>
+                    {hasChanged ? 'Confirm Winner' : 'Select a Winner'}
+                  </Text>
+                  {hasChanged && (
+                    <Ionicons name="arrow-forward" size={18} color="#ffffff" style={styles.buttonArrow} />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </SafeAreaView>
@@ -231,9 +227,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   modal: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: '#f8fafc',
+    borderRadius: 20,
     width: screenWidth * 0.9,
     maxWidth: 400,
     shadowColor: '#000',
@@ -244,41 +239,50 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
     marginBottom: 20,
+    position: 'relative',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.3,
+    textAlign: 'center',
   },
   closeButton: {
+    position: 'absolute',
+    right: 16,
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: 'rgba(0,0,0,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  closeText: {
-    fontSize: 18,
-    color: '#6b7280',
-    fontWeight: 'bold',
+  content: {
+    padding: 24,
   },
   matchContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginTop: -30,
+    marginBottom: 16,
   },
-  matchStage: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginBottom: 4,
+  stageBadge: {
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
   },
-  matchId: {
+  stageText: {
     fontSize: 14,
-    color: '#9ca3af',
+    fontWeight: '600',
   },
   teamsContainer: {
     flexDirection: 'row',
@@ -288,24 +292,24 @@ const styles = StyleSheet.create({
   },
   teamCard: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 8,
-    marginHorizontal: 8,
+    padding: 12,
+    marginHorizontal: 6,
     borderWidth: 2,
     borderColor: '#e5e7eb',
     alignItems: 'center',
-    height: 140,
-    justifyContent: 'center',
-  },
-  winnerCard: {
-    backgroundColor: '#ecfdf5',
-    borderColor: '#10b981',
+    minHeight: 140,
   },
   selectedCard: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: '#f0fdf4',
     borderColor: '#16a34a',
-    borderWidth: 3,
+    borderWidth: 2.5,
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
   disabledCard: {
     backgroundColor: '#f3f4f6',
@@ -314,28 +318,19 @@ const styles = StyleSheet.create({
   },
   teamContent: {
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 8, // Fixed distance from top edge
-    height: '100%',
+    flex: 1,
   },
   flag: {
-    width: 48,
-    height: 32,
+    width: 56,
+    height: 36,
     marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 4,
   },
   teamName: {
     fontWeight: '600',
     color: '#374151',
     textAlign: 'center',
     marginBottom: 4,
-    lineHeight: 20, // Better line spacing for multi-line text
-  },
-  winnerText: {
-    color: '#059669',
-    fontWeight: 'bold',
+    lineHeight: 20,
   },
   selectedText: {
     color: '#15803d',
@@ -344,40 +339,37 @@ const styles = StyleSheet.create({
   disabledText: {
     color: '#9ca3af',
   },
-  winnerBadge: {
-    fontSize: 20,
-    marginTop: 4,
+  checkPlaceholder: {
+    height: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   vsContainer: {
-    paddingHorizontal: 16,
+    width: 36,
+    alignItems: 'center',
   },
   vsText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '800',
     color: '#6b7280',
-  },
-  instructionsContainer: {
-    alignItems: 'center',
-  },
-  instructionsText: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
   buttonContainer: {
-    alignItems: 'center',
-    marginTop: 16,
+    marginTop: 8,
+    marginBottom: 4,
+    width: '100%',
   },
   updateButton: {
     backgroundColor: '#16a34a',
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 120,
+    width: '100%',
+    height: 52,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   disabledButton: {
-    backgroundColor: '#d1d5db',
+    backgroundColor: '#e5e7eb',
   },
   updateButtonText: {
     color: '#ffffff',
@@ -387,5 +379,8 @@ const styles = StyleSheet.create({
   },
   disabledButtonText: {
     color: '#9ca3af',
+  },
+  buttonArrow: {
+    marginLeft: 4,
   },
 });
