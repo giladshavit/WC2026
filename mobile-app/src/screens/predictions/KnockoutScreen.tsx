@@ -258,58 +258,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   ) => {
     if (!isStageKeyEditable(prediction.stage)) return;
     setShowReadOnlyPrompt(true);
-    return;
-
-    const isTBD = (name?: string | null) => !name || name === 'TBD' || name.trim() === '';
-    if (teamId === prediction.team1_id && isTBD(prediction.team1_name)) return;
-    if (teamId === prediction.team2_id && isTBD(prediction.team2_name)) return;
-
-    const teamNumber = prediction.team1_id === teamId ? 1 : 2;
-    const teamName = teamNumber === 1 ? prediction.team1_name : prediction.team2_name;
-    if (!teamName) return;
-
-    if (originalWinners[prediction.id] === teamId) return;
-
-    setOriginalWinners(prev => ({ ...prev, [prediction.id]: teamId }));
-
-    try {
-      const userId = getCurrentUserId();
-      if (!userId) return;
-
-      // Check if this is the first final prediction — BEFORE fetch changes state
-      const isFirstFinalPrediction =
-        prediction.stage === 'final' && !hasEverPredictedFinal;
-
-      await apiService.updateBatchKnockoutPredictions(userId, [{
-        prediction_id: prediction.id,
-        winner_team_number: teamNumber,
-        winner_team_name: teamName,
-      }]);
-
-      const savedScrollY = scrollPositionRef.current;
-      pendingScrollYRef.current = savedScrollY;
-      await fetchAllStages(true);
-
-      setTouchedPredictions(prev => {
-        if (prev.has(prediction.id)) return prev;
-        const next = new Set(prev);
-        next.add(prediction.id);
-        return next;
-      });
-
-      // Show prompt after fetch, using the pre-fetch flag
-      if (isFirstFinalPrediction) {
-        setShowBracketPrompt(true);
-      }
-    } catch (error) {
-      console.error('Error saving knockout prediction:', error);
-      setOriginalWinners(prev => {
-        const reverted = { ...prev };
-        delete reverted[prediction.id];
-        return reverted;
-      });
-    }
-  }, [isStageKeyEditable, originalWinners, getCurrentUserId, fetchAllStages, hasEverPredictedFinal]);
+  }, [isStageKeyEditable]);
 
   const renderMatch = useCallback((prediction: KnockoutPrediction, stageKey: string) => {
     const locked = !isStageKeyEditable(stageKey);
