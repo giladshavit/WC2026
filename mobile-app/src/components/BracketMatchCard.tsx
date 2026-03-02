@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { BracketMatch } from '../utils/bracketCalculator';
 
+const TROPHY_IMAGE = require('../../assets/trophy.png');
+
 interface BracketMatchCardProps {
   match: BracketMatch;
   onPress?: (match: BracketMatch) => void;
@@ -12,387 +14,492 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
   const isTeam1Winner = match.winner_team_id === match.team1_id;
   const isTeam2Winner = match.winner_team_id === match.team2_id;
   const isFinal = match.stage === 'final';
-  
-  // Check if winner is not in team1 or team2 - need to show winner flag separately
-  const hasWinnerNotInTeams = match.winner_team_id && 
-                               match.winner_team_id !== match.team1_id && 
-                               match.winner_team_id !== match.team2_id;
 
-  // Check if match is finished (has is_correct field)
-  const matchFinished = match.is_correct !== undefined && match.is_correct !== null;
-  
-  // Get validity flags (only if match not finished)
-  // Invalid teams should be shown in gray (not red, not strikethrough)
-  // Mark as invalid if explicitly false (regardless of status)
-  const team1Invalid = matchFinished ? false : (match.team1_is_valid === false);
-  const team2Invalid = matchFinished ? false : (match.team2_is_valid === false);
-  
-  // Get elimination status
+  const matchHasResult = ['correct_full', 'correct_partial', 'incorrect'].includes(match.status || '');
+  const team1Invalid = matchHasResult ? false : (match.team1_is_valid === false);
+  const team2Invalid = matchHasResult ? false : (match.team2_is_valid === false);
+
+  const getScoreBadge = () => {
+    if (!match.status || match.points === undefined || match.points === null) return null;
+    const s = match.status;
+    if (s !== 'correct_full' && s !== 'correct_partial' && s !== 'incorrect') return null;
+    const pointsStr = match.points > 0 ? `+${match.points}` : `${match.points}`;
+    let bg = '#e2e8f0';
+    if (s === 'correct_full') bg = '#16a34a';
+    else if (s === 'correct_partial') bg = '#d97706';
+    else if (s === 'incorrect') bg = '#dc2626';
+    return { points: pointsStr, bg, text: '#fff' };
+  };
+  const scoreBadge = getScoreBadge();
   const team1Eliminated = match.team1_is_eliminated === true;
   const team2Eliminated = match.team2_is_eliminated === true;
 
-  // Get status-based border color
   const getStatusColor = (status?: string) => {
-    switch (status) {
-      case 'invalid':
-      case 'incorrect':
-        return '#F44336'; // red
-      case 'unreachable':
-      case 'correct_partial':
-        return '#FF9800'; // orange
-      case 'correct_full':
-        return '#4CAF50'; // green
+    const s = status?.toLowerCase();
+    switch (s) {
       case 'valid':
-        return '#FFFFFF'; // white/default
+        return '#e2e8f0';
+      case 'invalid':
+        return '#ef4444';
+      case 'unreachable':
+        return '#f59e0b';
+      case 'correct_full':
+      case 'correct_partial':
+      case 'incorrect':
       default:
-        return '#e2e8f0'; // default gray
+        return '#e2e8f0';
     }
   };
 
   const borderColor = getStatusColor(match.status);
 
-  const renderTeam = (teamName: string | undefined, teamFlag: string | undefined, isWinner: boolean, teamId?: number, shortName?: string, isInvalid: boolean = false, isEliminated: boolean = false) => {
-    const displayName = shortName || (teamName && teamName !== 'TBD' ? teamName.substring(0, 8) : 'TBD');
-    const isTBD = displayName === 'TBD' || (teamName && teamName === 'TBD');
-    
+  // Extract winner flag from team1/team2 based on winner_team_id when winner_team_flag is null
+  const resolvedWinnerFlag = match.winner_team_flag
+    || (match.winner_team_id === match.team1_id ? match.team1_flag : null)
+    || (match.winner_team_id === match.team2_id ? match.team2_flag : null);
+
+  const getHalfBackground = (
+    isWinner: boolean,
+    isInvalid: boolean
+  ): string => {
+    if (isInvalid) return '#f9fafb';
+    if (isWinner) return '#f0fdf4';
+    return '#fafafa';
+  };
+
+  const team1Bg = getHalfBackground(isTeam1Winner, team1Invalid);
+  const team2Bg = getHalfBackground(isTeam2Winner, team2Invalid);
+
+  const renderTeamHalf = (
+    teamName: string | undefined,
+    teamFlag: string | undefined,
+    teamShortName: string | undefined,
+    halfBg: string,
+    isInvalid: boolean,
+    isEliminated: boolean
+  ) => {
+    const isTBD = !teamName || teamName === 'TBD' || (teamName && teamName.trim() === '');
+    const displayName = isTBD ? '' : (teamShortName || (teamName ? teamName : ''));
+
     return (
-      <View style={styles.teamContainer}>
-        {teamFlag ? (
-          <Image 
-            source={{ uri: teamFlag }} 
-            style={styles.flag}
-            resizeMode="contain"
-          />
-        ) : null}
-        <Text style={[
-          styles.teamName, 
-          isWinner && !isTBD && styles.winnerText,
-          // Apply invalid style (gray) if invalid - applies to both winner and non-winner
-          isInvalid && styles.invalidText,
-          // Add strike-through if eliminated - applies to both winner and non-winner
-          isEliminated && styles.eliminatedText
-        ]}>
-          {displayName}
-        </Text>
+      <View style={[styles.teamHalf, { backgroundColor: halfBg }]}>
+        <View style={[styles.teamHalfInner, { opacity: isEliminated ? 0.25 : 1 }]}>
+          {isTBD ? (
+            <View style={styles.tbdFlagPlaceholder} />
+          ) : teamFlag ? (
+            <Image
+              source={{ uri: teamFlag }}
+              style={styles.flag}
+              resizeMode="contain"
+            />
+          ) : (
+            <View style={styles.tbdFlagPlaceholder} />
+          )}
+          <Text
+            style={[
+              styles.teamName,
+              isInvalid && styles.teamNameInvalid,
+            ]}
+            numberOfLines={1}
+          >
+            {displayName}
+          </Text>
+        </View>
       </View>
     );
   };
 
   const renderFinalMatch = () => {
-    const team1Name = match.team1_name && match.team1_name !== 'TBD' ? match.team1_name : 'TBD';
-    const team2Name = match.team2_name && match.team2_name !== 'TBD' ? match.team2_name : 'TBD';
-    
+    const team1IsTBD = !match.team1_name || match.team1_name === 'TBD';
+    const team2IsTBD = !match.team2_name || match.team2_name === 'TBD';
+    const team1Name = team1IsTBD ? '' : match.team1_name;
+    const team2Name = team2IsTBD ? '' : match.team2_name;
+
     return (
       <View style={styles.finalContainer}>
-        {/* Team 1 */}
-        <Text style={[
-          styles.finalTeamName, 
-          isTeam1Winner && styles.finalWinnerText,
-          // Apply invalid style (gray) if invalid - applies to both winner and non-winner
-          team1Invalid && styles.invalidText,
-          // Add strike-through if eliminated - applies to both winner and non-winner
-          team1Eliminated && styles.eliminatedText
-        ]}>
-          {team1Name}
-        </Text>
+        {/* Team 1 - name + large flag */}
+        <Text style={styles.finalTeamName}>{team1Name}</Text>
         {match.team1_flag ? (
           <View style={styles.finalFlagWrapper}>
-            <Image 
-              source={{ uri: match.team1_flag }} 
+            <Image
+              source={{ uri: match.team1_flag }}
               style={styles.finalFlag}
               resizeMode="contain"
             />
           </View>
-        ) : null}
-        
-        {/* VS */}
+        ) : (
+          <View style={styles.finalTbdPlaceholder} />
+        )}
+
         <Text style={styles.finalVsText}>VS</Text>
-        
-        {/* Team 2 */}
+
+        {/* Team 2 - large flag + name */}
         {match.team2_flag ? (
           <View style={styles.finalFlagWrapper}>
-            <Image 
-              source={{ uri: match.team2_flag }} 
+            <Image
+              source={{ uri: match.team2_flag }}
               style={styles.finalFlag}
               resizeMode="contain"
             />
           </View>
-        ) : null}
-        <Text style={[
-          styles.finalTeamName, 
-          isTeam2Winner && !(team2Name === 'TBD') && styles.finalWinnerText,
-          // Apply invalid style (gray) if invalid - applies to both winner and non-winner
-          team2Invalid && styles.invalidText,
-          // Add strike-through if eliminated - applies to both winner and non-winner
-          team2Eliminated && styles.eliminatedText
-        ]}>
-          {team2Name}
-        </Text>
-        
-        {/* Show correctness indicator if match finished */}
-        {matchFinished && (
-          <View style={styles.finalCorrectnessIndicator}>
-            <Text style={[
-              styles.correctnessSymbol, 
-              match.is_correct ? styles.correctSymbol : styles.incorrectSymbol
-            ]}>
-              {match.is_correct ? '✓' : '✗'}
-            </Text>
-          </View>
+        ) : (
+          <View style={styles.finalTbdPlaceholder} />
         )}
+        <Text style={styles.finalTeamName}>{team2Name}</Text>
       </View>
     );
   };
 
+  if (isFinal) {
+    return (
+      <View style={styles.finalWrapper}>
+        {/* Winner or placeholder ABOVE the card */}
+        {match.winner_team_id ? (
+          <View style={styles.winnerBanner}>
+            <Text style={styles.winnerLabel}>Winner</Text>
+            <View style={styles.winnerTeamRow}>
+              {resolvedWinnerFlag ? (
+                <Image
+                  source={{ uri: resolvedWinnerFlag }}
+                  style={styles.winnerBannerFlag}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={styles.winnerFlagPlaceholder} />
+              )}
+            </View>
+          </View>
+        ) : (
+          <View style={styles.winnerPlaceholder}>
+            <Text style={styles.winnerPlaceholderLabel}>Winner</Text>
+            <View style={styles.winnerPlaceholderBox}>
+              <Text style={styles.winnerPlaceholderQuestion}>?</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Trophy image between winner and card */}
+        <View style={styles.trophyWrapper}>
+          <Image source={TROPHY_IMAGE} style={styles.trophyImage} resizeMode="contain" />
+        </View>
+
+        {/* The actual final match card */}
+        <View style={styles.finalGlowOuter}>
+          <TouchableOpacity
+            style={[styles.container, styles.finalCardContainer]}
+            onPress={() => onPress?.(match)}
+            onLayout={(event) => {
+              const { x, y, width, height } = event.nativeEvent.layout;
+              onLayout?.(match.id, { x, y, width, height });
+            }}
+            activeOpacity={0.7}
+          >
+            {renderFinalMatch()}
+            {scoreBadge && (
+              <View style={[styles.scoreBadgeCircle, { backgroundColor: scoreBadge.bg }]}>
+                <Text style={[styles.scoreBadgeText, { color: scoreBadge.text }]}>
+                  {scoreBadge.points}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.wrapper}>
-    <TouchableOpacity 
-      style={[
-        styles.container, 
-        isFinal && styles.finalCardContainer,
-        { borderColor } // Apply dynamic border color based on status
-      ]}
-      onPress={() => {
-        console.log(`🔥 BracketMatchCard onPress called for match ${match.id}`);
-        onPress?.(match);
-      }}
-      onLayout={(event) => {
-        const { x, y, width, height } = event.nativeEvent.layout;
-        onLayout?.(match.id, { x, y, width, height });
-      }}
-      activeOpacity={0.7}
-    >
-      {isFinal ? (
-        renderFinalMatch()
-      ) : (
+      <TouchableOpacity
+        style={[
+          styles.container,
+          {
+            borderColor,
+            shadowColor: borderColor,
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: borderColor === '#e2e8f0' ? 0.15 : 0.5,
+            shadowRadius: borderColor === '#e2e8f0' ? 6 : 10,
+            elevation: borderColor === '#e2e8f0' ? 6 : 10,
+          },
+        ]}
+        onPress={() => {
+          console.log(`🔥 BracketMatchCard onPress called for match ${match.id}`);
+          onPress?.(match);
+        }}
+        onLayout={(event) => {
+          const { x, y, width, height } = event.nativeEvent.layout;
+          onLayout?.(match.id, { x, y, width, height });
+        }}
+        activeOpacity={0.7}
+      >
         <View style={styles.matchContainer}>
-          {renderTeam(
-            match.team1_name, 
-            match.team1_flag, 
-            isTeam1Winner,
-            match.team1_id,
+          {renderTeamHalf(
+            match.team1_name,
+            match.team1_flag,
             match.team1_short_name,
+            team1Bg,
             team1Invalid,
             team1Eliminated
           )}
-          
-          {renderTeam(
-            match.team2_name, 
-            match.team2_flag, 
-            isTeam2Winner,
-            match.team2_id,
+          <View style={styles.halfDivider} />
+          {renderTeamHalf(
+            match.team2_name,
+            match.team2_flag,
             match.team2_short_name,
+            team2Bg,
             team2Invalid,
             team2Eliminated
           )}
-          
-          {/* Show middle winner flag if winner_team_flag exists */}
-          {match.winner_team_flag ? (
-            <View style={styles.winnerFlagContainer}>
-              <Image 
-                source={{ uri: match.winner_team_flag }} 
-                style={styles.winnerFlag}
-                resizeMode="contain"
-              />
-            </View>
-          ) : null}
-          
-          {/* Show correctness indicator if match finished */}
-          {matchFinished && (
-            <View style={styles.correctnessIndicator}>
-              <Text style={[
-                styles.correctnessSymbol, 
-                match.is_correct ? styles.correctSymbol : styles.incorrectSymbol
-              ]}>
-                {match.is_correct ? '✓' : '✗'}
-              </Text>
-            </View>
-          )}
         </View>
-      )}
-    </TouchableOpacity>
+        {scoreBadge && (
+          <View style={[styles.scoreBadgeCircle, { backgroundColor: scoreBadge.bg }]}>
+            <Text style={[styles.scoreBadgeText, { color: scoreBadge.text }]}>
+              {scoreBadge.points}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    position: 'relative',
+  },
   container: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 4,
+    borderRadius: 20,
+    overflow: 'hidden',
     marginVertical: 1,
     marginHorizontal: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
-    borderWidth: 2, // Increased from 1 to 2 for better visibility
+    borderWidth: 2,
     borderColor: '#e2e8f0',
-    width: 90, // Smaller width
-    height: 60, // Smaller height
+    width: 100,
+    height: 68,
     alignSelf: 'center',
-    justifyContent: 'center',
   },
   matchContainer: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: '100%',
-    paddingVertical: 2, // Small padding from edges
+    flex: 1,
   },
-  teamContainer: {
+  teamHalf: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 1,
-    paddingLeft: 4, // Fixed distance from left edge
-    paddingRight: 2,
-    borderRadius: 3,
-    marginVertical: 0.5,
-    minWidth: 70,
-    justifyContent: 'flex-start', // Align to left instead of center
-    backgroundColor: '#f8fafc',
+    justifyContent: 'space-between',
+    paddingLeft: 4,
+    paddingRight: 4,
+    position: 'relative',
+  },
+  teamHalfInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
   },
   flag: {
-    width: 18, // 12 * 1.5
-    height: 12, // 8 * 1.5
-    marginRight: 2,
+    width: 20,
+    height: 14,
+    marginRight: 4,
+    borderRadius: 5,
+  },
+  tbdFlagPlaceholder: {
+    width: 16,
+    height: 10,
+    marginRight: 4,
+    borderWidth: 1,
+    borderColor: '#9ca3af',
+    borderStyle: 'dashed',
+    borderRadius: 2,
   },
   teamName: {
-    fontSize: 12, // 8 * 1.5
+    fontSize: 11,
     fontWeight: '500',
     color: '#374151',
-    textAlign: 'center',
+    flex: 1,
   },
-  winnerText: {
-    color: '#374151',
-    fontWeight: '700', // Bold instead of green background
-    fontSize: 13, // 12 + 1 (slightly larger for winner)
+  teamNameInvalid: {
+    color: '#cbd5e1',
   },
-  vsContainer: {
-    paddingVertical: 0.5,
+  halfDivider: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
   },
-  vsText: {
-    fontSize: 6,
-    fontWeight: 'bold',
-    color: '#6b7280',
-  },
-  // Final match styles
   finalCardContainer: {
-    width: 120, // Wider for final
-    height: 200, // Taller for final
-    padding: 8,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 2, // Add border width for final match
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    width: 130,
+    height: 220,
+    padding: 4,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    borderWidth: 2.5,
+    borderColor: '#f59e0b',
+    justifyContent: 'center',
+  },
+  finalGlowOuter: {
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    elevation: 15,
+    borderRadius: 20,
   },
   finalContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
+    paddingVertical: 2,
+  },
+  trophyEmoji: {
+    fontSize: 32,
+    color: '#d97706',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  placeholderEmoji: {
+    fontSize: 28,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 4,
   },
   finalTeamName: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#1f2937',
     textAlign: 'center',
-    marginVertical: 1, // קטן יותר מהגבולות
+    marginVertical: 2,
+    letterSpacing: 0.3,
   },
-  finalWinnerText: {
-    color: '#059669', // Green for winner
-    fontWeight: '900',
+  finalFlag: {
+    width: 44,
+    height: 30,
+    borderWidth: 0.5,
+    borderColor: '#d1d5db',
+    borderRadius: 6,
   },
   finalFlagWrapper: {
     backgroundColor: '#f8fafc',
-    borderRadius: 4,
-    padding: 4,
-    marginVertical: 12,
+    borderRadius: 6,
+    padding: 2,
+    marginVertical: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  finalFlag: {
-    width: 36,
-    height: 24,
-    borderWidth: 0.5,
-    borderColor: '#d1d5db',
-    borderRadius: 2,
+  finalTbdPlaceholder: {
+    width: 44,
+    height: 30,
+    marginVertical: 5,
+    borderWidth: 1,
+    borderColor: '#9ca3af',
+    borderStyle: 'dashed',
+    borderRadius: 6,
   },
   finalVsText: {
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '800',
     color: '#6b7280',
-    marginVertical: 3, // קצת יותר גדול בין הסמלים
+    marginVertical: 2,
+    letterSpacing: 2,
   },
-  winnerFlagContainer: {
+  scoreBadgeCircle: {
     position: 'absolute',
-    right: 2,
-    top: '50%',
-    marginTop: -6,
-    zIndex: 10,
-  },
-  winnerFlag: {
-    width: 12,
-    height: 8,
-    borderWidth: 0.5,
-    borderColor: '#d1d5db',
-    borderRadius: 1,
-  },
-  correctnessIndicator: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
+    top: 3,
+    right: 3,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1,
-    elevation: 2,
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
   },
-  correctnessSymbol: {
-    fontSize: 12,
-    fontWeight: 'bold',
+  scoreBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
-  correctSymbol: {
-    color: '#38a169', // Green for correct
+  finalWrapper: {
+    alignItems: 'center',
   },
-  incorrectSymbol: {
-    color: '#e53e3e', // Red for incorrect
+  trophyWrapper: {
+    height: 96,
+    width: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+    marginBottom: 6,
   },
-  invalidText: {
-    color: '#9ca3af', // Lighter gray text for invalid team (position not good)
+  trophyImage: {
+    width: 72,
+    height: 96,
   },
-  eliminatedText: {
-    textDecorationLine: 'line-through', // Strike-through for eliminated teams
-    textDecorationColor: '#e53e3e', // Red strike-through for better visibility
+  winnerBanner: {
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginBottom: 2,
+    overflow: 'hidden',
   },
-  finalCorrectnessIndicator: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 20,
-    height: 20,
+  winnerLabel: {
+    fontSize: 15,
+    fontWeight: '800',
+    fontStyle: 'italic',
+    color: '#6b7280',
+    letterSpacing: 4,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  winnerTeamRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  winnerBannerFlag: {
+    width: 80,
+    height: 54,
     borderRadius: 10,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
-  wrapper: {
-    position: 'relative',
+  winnerFlagPlaceholder: {
+    width: 80,
+    height: 54,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
+    borderStyle: 'dashed',
+    backgroundColor: '#f3f4f6',
+  },
+  winnerPlaceholder: {
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginBottom: 2,
+  },
+  winnerPlaceholderLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#9ca3af',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  winnerPlaceholderBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  winnerPlaceholderQuestion: {
+    fontSize: 18,
+    color: '#d1d5db',
+    fontWeight: '300',
   },
 });

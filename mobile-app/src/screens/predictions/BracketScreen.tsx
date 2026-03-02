@@ -6,7 +6,7 @@ import {
   ScrollView, 
   ActivityIndicator,
   Alert,
-  Dimensions,
+  useWindowDimensions,
   TouchableOpacity,
   Platform
 } from 'react-native';
@@ -22,22 +22,21 @@ import { useTournament } from '../../contexts/TournamentContext';
 import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const COLUMN_WIDTH = 120;
-const Y_OFFSET = 80; // Offset to move bracket down (positive = move down on screen)
-
-// Calculate available height for bracket display
-// Subtract: status bar (~44px), tab bar (~60px), navigation header (~60px), bottom tabs (~80px)
-const STATUS_BAR_HEIGHT = 44;
-const TAB_BAR_HEIGHT = 60;
-const NAV_HEADER_HEIGHT = 60;
-const BOTTOM_TABS_HEIGHT = 80;
-const AVAILABLE_HEIGHT = screenHeight - STATUS_BAR_HEIGHT - TAB_BAR_HEIGHT - NAV_HEADER_HEIGHT - BOTTOM_TABS_HEIGHT;
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 interface BracketScreenProps {}
 
 export default function BracketScreen({}: BracketScreenProps) {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+
+  // Derived constants - recalculate when dimensions change
+  const STATUS_BAR_HEIGHT = 44;
+  const TAB_BAR_HEIGHT = 60;
+  const NAV_HEADER_HEIGHT = 60;
+  const BOTTOM_TABS_HEIGHT = 80;
+  const AVAILABLE_HEIGHT = screenHeight - STATUS_BAR_HEIGHT - TAB_BAR_HEIGHT - NAV_HEADER_HEIGHT - BOTTOM_TABS_HEIGHT;
+  const Y_OFFSET = 60;
+  const COLUMN_WIDTH = 110;
   const [predictions, setPredictions] = useState<KnockoutPrediction[]>([]);
   const [organizedBracket, setOrganizedBracket] = useState<OrganizedBracket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,7 +48,6 @@ export default function BracketScreen({}: BracketScreenProps) {
   
   // Get current user ID
   const { getCurrentUserId } = useAuth();
-  const [matchLayouts, setMatchLayouts] = useState<{[key: number]: { x: number; y: number; width: number; height: number }}>({});
   const [selectedMatch, setSelectedMatch] = useState<BracketMatch | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   
@@ -61,260 +59,6 @@ export default function BracketScreen({}: BracketScreenProps) {
   
   // Get penalty confirmation hook
   const { showPenaltyConfirmation } = usePenaltyConfirmation();
-
-  // Function to handle match layout updates
-  const handleMatchLayout = (matchId: number, layout: { x: number; y: number; width: number; height: number }) => {
-    // The layout from onLayout is relative to the column container
-    // We need to calculate the absolute position based on which column the match is in
-    
-    let absoluteLayout = layout;
-    
-    if (organizedBracket) {
-      // Calculate column offset based on match position
-      let columnOffset = 0;
-      
-      // Find which column this match is in and calculate offset
-      if (organizedBracket.round32_left.some(m => m.id === matchId)) {
-        columnOffset = 0 * (COLUMN_WIDTH + 20); // Column 0
-      } else if (organizedBracket.round16_left.some(m => m.id === matchId)) {
-        columnOffset = 1 * (COLUMN_WIDTH + 20); // Column 1
-      } else if (organizedBracket.quarter_left.some(m => m.id === matchId)) {
-        columnOffset = 2 * (COLUMN_WIDTH + 20); // Column 2
-      } else if (organizedBracket.semi.filter(m => m.id === 101).some(m => m.id === matchId)) {
-        columnOffset = 3 * (COLUMN_WIDTH + 20); // Column 3
-      } else if (organizedBracket.final.some(m => m.id === matchId)) {
-        columnOffset = 4 * (COLUMN_WIDTH + 20); // Column 4
-      } else if (organizedBracket.semi.filter(m => m.id === 102).some(m => m.id === matchId)) {
-        columnOffset = 5 * (COLUMN_WIDTH + 20); // Column 5
-      } else if (organizedBracket.quarter_right.some(m => m.id === matchId)) {
-        columnOffset = 6 * (COLUMN_WIDTH + 20); // Column 6
-      } else if (organizedBracket.round16_right.some(m => m.id === matchId)) {
-        columnOffset = 7 * (COLUMN_WIDTH + 20); // Column 7
-      } else if (organizedBracket.round32_right.some(m => m.id === matchId)) {
-        columnOffset = 8 * (COLUMN_WIDTH + 20); // Column 8
-      }
-      
-      // Calculate absolute position - we need to add the marginTop for Y coordinate!
-      // The marginTop is calculated as: (match.verticalPosition || index) * spacing
-      let marginTop = 0;
-      
-      // Find the match to get its verticalPosition
-      const match = organizedBracket.round32_left.find(m => m.id === matchId) ||
-                   organizedBracket.round16_left.find(m => m.id === matchId) ||
-                   organizedBracket.quarter_left.find(m => m.id === matchId) ||
-                   organizedBracket.semi.find(m => m.id === matchId) ||
-                   organizedBracket.final.find(m => m.id === matchId) ||
-                   organizedBracket.quarter_right.find(m => m.id === matchId) ||
-                   organizedBracket.round16_right.find(m => m.id === matchId) ||
-                   organizedBracket.round32_right.find(m => m.id === matchId);
-      
-      if (match) {
-        const spacing = (AVAILABLE_HEIGHT - 40) / 8;
-        marginTop = (match.verticalPosition || 0) * spacing + Y_OFFSET; // Add Y_OFFSET to match bracket offset
-      }
-      
-      absoluteLayout = {
-        x: layout.x + columnOffset + 20, // Add paddingHorizontal from scrollContent
-        y: layout.y + marginTop,  // Add marginTop to get the REAL Y position!
-        width: layout.width,
-        height: layout.height
-      };
-      
-    }
-    
-    setMatchLayouts(prev => ({
-      ...prev,
-      [matchId]: absoluteLayout
-    }));
-  };
-
-  // Function to draw diagonal lines within each quarter match card (top-left to bottom-right)
-  const createQuarterDiagonalLine = (quarterMatch: BracketMatch, color: string = "#667eea") => {
-    const absoluteLayout = matchLayouts[quarterMatch.id];
-    
-    if (!absoluteLayout) {
-      return null;
-    }
-    
-    // Line from top-left to bottom-right of the same card using ABSOLUTE coordinates
-    const x1 = absoluteLayout.x;  // Top-left (absolute position)
-    const y1 = absoluteLayout.y;  // Top-left (absolute position)
-    const x2 = absoluteLayout.x + absoluteLayout.width;   // Bottom-right (absolute position)
-    const y2 = absoluteLayout.y + absoluteLayout.height;  // Bottom-right (absolute position)
-    
-    return (
-      <Line
-        key={`quarter-diagonal-${quarterMatch.id}`}
-        x1={x1}
-        y1={y1}
-        x2={x2}
-        y2={y2}
-        stroke="#ff0000"  // Bright red for visibility
-        strokeWidth="3"   // Thicker line
-      />
-    );
-  };
-
-  // Function to create connecting lines between matches using the precise algorithm
-  const createPreciseBracketLines = (quarterMatch1: BracketMatch, quarterMatch2: BracketMatch, semiMatch: BracketMatch) => {
-    // Use ABSOLUTE layout coordinates from matchLayouts
-    const absoluteLayout1 = matchLayouts[quarterMatch1.id];
-    const absoluteLayout2 = matchLayouts[quarterMatch2.id];
-    const absoluteLayout3 = matchLayouts[semiMatch.id];
-    
-    let x1, y1, x2, y2, x3, y3;
-    
-    // Only draw lines if we have all the ABSOLUTE layout data
-    if (!absoluteLayout1 || !absoluteLayout2 || !absoluteLayout3) {
-      return [];
-    }
-    
-    // Use the EDGE coordinates from the cards with OFFSET to fix deviation
-    const xOffset = 0; // Add offset to extend lines beyond card edges
-    const yOffset = 20; // Add offset to extend lines beyond card edges
-    
-    // Check if this is left side (going right) or right side (going left)
-    // We can determine this by checking the relative position of source vs target
-    // If target is to the right of source, it's left side (going right)
-    // If target is to the left of source, it's right side (going left)
-    const isLeftSide = absoluteLayout3.x > absoluteLayout1.x; // If target is to the right of source
-    
-    
-    
-    if (isLeftSide) {
-      // Left side: going right (quarter -> semi, round32 -> round16)
-      x1 = absoluteLayout1.x + absoluteLayout1.width + xOffset;  // Right edge + offset
-      y1 = absoluteLayout1.y + (absoluteLayout1.height / 2) + yOffset;  // Vertical center + offset
-      
-      x2 = absoluteLayout2.x + absoluteLayout2.width + xOffset;  // Right edge + offset
-      y2 = absoluteLayout2.y + (absoluteLayout2.height / 2) + yOffset;  // Vertical center + offset
-      
-      x3 = absoluteLayout3.x + xOffset;  // Left edge + offset (your fix!)
-      y3 = absoluteLayout3.y + (absoluteLayout3.height / 2) + yOffset;  // Vertical center + offset
-    } else {
-      // Right side: going left (round32 -> round16, quarter -> semi)
-      x1 = absoluteLayout1.x + xOffset;  // Left edge - offset
-      y1 = absoluteLayout1.y + (absoluteLayout1.height / 2) + yOffset;  // Vertical center + offset
-      
-      x2 = absoluteLayout2.x + xOffset;  // Left edge - offset
-      y2 = absoluteLayout2.y + (absoluteLayout2.height / 2) + yOffset;  // Vertical center + offset
-      
-      x3 = absoluteLayout3.x + absoluteLayout3.width + xOffset;  // Right edge - offset
-      y3 = absoluteLayout3.y + (absoluteLayout3.height / 2) + yOffset;  // Vertical center + offset
-    }
-    
-    
-    // Calculate intermediate points - simple and clean
-    const x4 = (x1 + x3) / 2;  // Middle point between quarter 1 and semi
-    const y4 = y1;
-    const x5 = x4;  // Same X as x4 for vertical connection
-    const y5 = y2;
-    const x6 = x4;  // Same X as x4 for final connection
-    const y6 = (y4 + y5) / 2;  // Vertical middle between the two horizontal lines
-    
-    
-    const lines = [];
-
-    // Horizontal line from x1,y1 to x4,y4
-    lines.push(
-      <Line
-        key={`line-${quarterMatch1.id}-horizontal-1`}
-        x1={x1}
-        y1={y1}
-        x2={x4}
-        y2={y4}
-        stroke="#667eea"
-        strokeWidth="2"
-      />
-    );
-
-    // Horizontal line from x2,y2 to x5,y5
-    lines.push(
-      <Line
-        key={`line-${quarterMatch2.id}-horizontal-2`}
-        x1={x2}
-        y1={y2}
-        x2={x5}
-        y2={y5}
-        stroke="#667eea"
-        strokeWidth="2"
-      />
-    );
-
-    // Vertical line from x4,y4 to x5,y5 (should pass through x6,y6)
-    lines.push(
-      <Line
-        key={`line-${semiMatch.id}-vertical`}
-        x1={x4}
-        y1={y4}
-        x2={x5}
-        y2={y5}
-        stroke="#667eea"
-        strokeWidth="2"
-      />
-    );
-
-    // Final line from x6,y6 to x3,y3
-    lines.push(
-      <Line
-        key={`line-${semiMatch.id}-final`}
-        x1={x6}
-        y1={y6}
-        x2={x3}
-        y2={y3}
-        stroke="#667eea"
-        strokeWidth="2"
-      />
-    );
-
-
-    return lines;
-  };
-
-  // Create horizontal lines from semi-finals to final
-  const createSemiToFinalLines = (semiMatch: BracketMatch, finalMatch: BracketMatch) => {
-    const absoluteLayout1 = matchLayouts[semiMatch.id];
-    const absoluteLayout2 = matchLayouts[finalMatch.id];
-    
-    if (!absoluteLayout1 || !absoluteLayout2) {
-      return [];
-    }
-    
-    const xOffset = 0;
-    const yOffset = 20;
-    
-    // Check if this is left semi (101) or right semi (102)
-    const isLeftSemi = semiMatch.id === 101;
-    
-    let x1, y1, x2, y2;
-    
-    if (isLeftSemi) {
-      // Left semi: from right edge to final left edge
-      x1 = absoluteLayout1.x + absoluteLayout1.width + xOffset; // Right edge of left semi
-      y1 = absoluteLayout1.y + (absoluteLayout1.height / 2) + yOffset; // Vertical center
-      x2 = absoluteLayout2.x - xOffset; // Left edge of final
-      y2 = y1; // Use same Y as semi-final for horizontal line
-    } else {
-      // Right semi: from left edge to final right edge
-      x1 = absoluteLayout1.x - xOffset; // Left edge of right semi
-      y1 = absoluteLayout1.y + (absoluteLayout1.height / 2) + yOffset; // Vertical center
-      x2 = absoluteLayout2.x + absoluteLayout2.width + xOffset; // Right edge of final
-      y2 = y1; // Use same Y as semi-final for horizontal line
-    }
-    
-    
-    return [
-      <Line 
-        key={`semi-to-final-${semiMatch.id}`} 
-        x1={x1} 
-        y1={y1} 
-        x2={x2} 
-        y2={y2} 
-        stroke="#667eea" 
-        strokeWidth="2" 
-      />
-    ];
-  };
 
   const refreshPenaltyCount = async () => {
     try {
@@ -363,6 +107,167 @@ export default function BracketScreen({}: BracketScreenProps) {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const drawBracketLines = () => {
+    if (!organizedBracket) return [];
+    const PADDING = 20; // scrollContent paddingHorizontal
+    const SCROLL_PADDING_TOP = 21; // matches scrollContent paddingTop style
+    const COL_WIDTH = COLUMN_WIDTH + 20; // column width + marginRight gap
+    const CARD_W = 100; // must match BracketMatchCard container width
+    const CARD_H = 68;  // must match BracketMatchCard container height
+    const spacing = (AVAILABLE_HEIGHT - 40) / 8;
+    const LINE_COLOR = '#94a3b8';
+    const LINE_WIDTH = 1.5;
+
+    // Given a match, compute the absolute X/Y of its right edge center and left edge center
+    const getCardCenter = (match: BracketMatch, columnIndex: number) => {
+      const colX = PADDING + columnIndex * COL_WIDTH;
+      const cardX = colX + (COLUMN_WIDTH - CARD_W) / 2;
+      const cardY = (match.verticalPosition || 0) * spacing + Y_OFFSET + SCROLL_PADDING_TOP;
+      return {
+        leftX: cardX,
+        rightX: cardX + CARD_W,
+        centerY: cardY + CARD_H / 2,
+      };
+    };
+
+    const lines: React.ReactElement[] = [];
+    let lineKey = 0;
+
+    // Draw connector: two source matches feed into one target match
+    // sourceIsLeft=true means sources are to the LEFT of target (left bracket side)
+    const drawConnector = (
+      source1: BracketMatch, source1Col: number,
+      source2: BracketMatch, source2Col: number,
+      target: BracketMatch, targetCol: number,
+      sourceIsLeft: boolean
+    ) => {
+      const s1 = getCardCenter(source1, source1Col);
+      const s2 = getCardCenter(source2, source2Col);
+      const t = getCardCenter(target, targetCol);
+      const sx1 = sourceIsLeft ? s1.rightX : s1.leftX;
+      const sx2 = sourceIsLeft ? s2.rightX : s2.leftX;
+      const tx = sourceIsLeft ? t.leftX : t.rightX;
+      const midX = (sx1 + tx) / 2;
+      lines.push(<Line key={lineKey++} x1={sx1} y1={s1.centerY} x2={midX} y2={s1.centerY} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />);
+      lines.push(<Line key={lineKey++} x1={sx2} y1={s2.centerY} x2={midX} y2={s2.centerY} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />);
+      lines.push(<Line key={lineKey++} x1={midX} y1={s1.centerY} x2={midX} y2={s2.centerY} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />);
+      const avgY = (s1.centerY + s2.centerY) / 2;
+      lines.push(<Line key={lineKey++} x1={midX} y1={avgY} x2={tx} y2={avgY} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />);
+    };
+
+    const { round32_left, round16_left, quarter_left, semi, final, quarter_right, round16_right, round32_right } = organizedBracket;
+    const findById = (arr: BracketMatch[], id: number) => arr.find(m => m.id === id);
+
+    const cols: number[] = [];
+    if (round32_left.length > 0) cols.push(0);
+    if (round16_left.length > 0) cols.push(1);
+    if (quarter_left.length > 0) cols.push(2);
+    if (semi.filter(m => m.id === 101).length > 0) cols.push(3);
+    if (final.length > 0) cols.push(4);
+    if (semi.filter(m => m.id === 102).length > 0) cols.push(5);
+    if (quarter_right.length > 0) cols.push(6);
+    if (round16_right.length > 0) cols.push(7);
+    if (round32_right.length > 0) cols.push(8);
+
+    const logicalToVisual: Record<number, number> = {};
+    cols.forEach((logical, visual) => { logicalToVisual[logical] = visual; });
+    const vc = (logical: number) => logicalToVisual[logical] ?? logical;
+
+    // LEFT SIDE: Round32 -> Round16
+    const r32l_connections = [
+      { s1: 74, s2: 77, t: 89 },
+      { s1: 73, s2: 75, t: 90 },
+      { s1: 83, s2: 84, t: 93 },
+      { s1: 81, s2: 82, t: 94 },
+    ];
+    r32l_connections.forEach(({ s1, s2, t }) => {
+      const m1 = findById(round32_left, s1);
+      const m2 = findById(round32_left, s2);
+      const mt = findById(round16_left, t);
+      if (m1 && m2 && mt) drawConnector(m1, vc(0), m2, vc(0), mt, vc(1), true);
+    });
+
+    // LEFT SIDE: Round16 -> Quarter
+    const r16l_connections = [
+      { s1: 89, s2: 90, t: 97 },
+      { s1: 93, s2: 94, t: 98 },
+    ];
+    r16l_connections.forEach(({ s1, s2, t }) => {
+      const m1 = findById(round16_left, s1);
+      const m2 = findById(round16_left, s2);
+      const mt = findById(quarter_left, t);
+      if (m1 && m2 && mt) drawConnector(m1, vc(1), m2, vc(1), mt, vc(2), true);
+    });
+
+    // LEFT SIDE: Quarter -> Semi 101
+    if (quarter_left.length === 2) {
+      const semiMatch = findById(semi, 101);
+      if (semiMatch) drawConnector(quarter_left[0], vc(2), quarter_left[1], vc(2), semiMatch, vc(3), true);
+    }
+
+    // LEFT SIDE: Semi 101 -> Final (horizontal line at semi's center Y)
+    const semi101 = findById(semi, 101);
+    if (semi101 && final.length > 0) {
+      const s = getCardCenter(semi101, vc(3));
+      const fColX = PADDING + vc(4) * COL_WIDTH;
+      const fCardLeftX = fColX + (COLUMN_WIDTH - CARD_W) / 2;
+      lines.push(
+        <Line key={lineKey++}
+          x1={s.rightX} y1={s.centerY}
+          x2={fCardLeftX} y2={s.centerY}
+          stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />
+      );
+    }
+
+    // RIGHT SIDE: Round32 -> Round16
+    const r32r_connections = [
+      { s1: 76, s2: 78, t: 91 },
+      { s1: 79, s2: 80, t: 92 },
+      { s1: 86, s2: 88, t: 95 },
+      { s1: 85, s2: 87, t: 96 },
+    ];
+    r32r_connections.forEach(({ s1, s2, t }) => {
+      const m1 = findById(round32_right, s1);
+      const m2 = findById(round32_right, s2);
+      const mt = findById(round16_right, t);
+      if (m1 && m2 && mt) drawConnector(m1, vc(8), m2, vc(8), mt, vc(7), false);
+    });
+
+    // RIGHT SIDE: Round16 -> Quarter
+    const r16r_connections = [
+      { s1: 91, s2: 92, t: 99 },
+      { s1: 95, s2: 96, t: 100 },
+    ];
+    r16r_connections.forEach(({ s1, s2, t }) => {
+      const m1 = findById(round16_right, s1);
+      const m2 = findById(round16_right, s2);
+      const mt = findById(quarter_right, t);
+      if (m1 && m2 && mt) drawConnector(m1, vc(7), m2, vc(7), mt, vc(6), false);
+    });
+
+    // RIGHT SIDE: Quarter -> Semi 102
+    if (quarter_right.length === 2) {
+      const semiMatch = findById(semi, 102);
+      if (semiMatch) drawConnector(quarter_right[0], vc(6), quarter_right[1], vc(6), semiMatch, vc(5), false);
+    }
+
+    // RIGHT SIDE: Semi 102 -> Final (horizontal line at semi's center Y)
+    const semi102 = findById(semi, 102);
+    if (semi102 && final.length > 0) {
+      const s = getCardCenter(semi102, vc(5));
+      const fColX = PADDING + vc(4) * COL_WIDTH;
+      const fCardRightX = fColX + (COLUMN_WIDTH - CARD_W) / 2 + CARD_W;
+      lines.push(
+        <Line key={lineKey++}
+          x1={s.leftX} y1={s.centerY}
+          x2={fCardRightX} y2={s.centerY}
+          stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />
+      );
+    }
+
+    return lines;
   };
 
   // Fetch data when component mounts or comes into focus, or when edit mode changes
@@ -562,10 +467,17 @@ export default function BracketScreen({}: BracketScreenProps) {
     return (
       <View style={[styles.column, isFinal && styles.finalColumn, { width: COLUMN_WIDTH }]}>
         {/* Remove column titles to save space */}
-        <View style={styles.matchesContainer}>
+        <View style={[styles.matchesContainer, { minHeight: AVAILABLE_HEIGHT + Y_OFFSET + 40 }]}>
           {matches.map((match, index) => {
-            const calculatedMarginTop = (match.verticalPosition || index) * spacing + Y_OFFSET;
-            
+            // For final cards, shift the wrapper UP so the card itself sits at the correct Y
+            // winnerBanner(80) + marginBottom(2) + trophyWrapper(96) + marginBottom(6) = 184
+            const FINAL_WRAPPER_ABOVE_CARD = 184;
+            const isThisFinal = match.stage === 'final';
+            const calculatedMarginTop = Math.max(
+              0,
+              (match.verticalPosition || index) * spacing + Y_OFFSET - (isThisFinal ? FINAL_WRAPPER_ABOVE_CARD : 0)
+            );
+
             return (
             <View 
               key={match.id} 
@@ -577,194 +489,12 @@ export default function BracketScreen({}: BracketScreenProps) {
               <BracketMatchCard
                 match={match}
                 onPress={handleMatchPress}
-                onLayout={handleMatchLayout}
               />
             </View>
             );
           })}
         </View>
       </View>
-    );
-  };
-
-  // Function to render all bracket lines
-  const renderBracketLines = () => {
-    if (!organizedBracket) return null;
-
-    return (
-      <>
-        {/* Lines from Round 32 Left to Round 16 Left (Left side) */}
-        {organizedBracket.round32_left.length >= 8 && organizedBracket.round16_left.length >= 4 && 
-          (() => {
-            // Find matches by ID, not by array index!
-            const round32Match74 = organizedBracket.round32_left.find(m => m.id === 74);
-            const round32Match77 = organizedBracket.round32_left.find(m => m.id === 77);
-            const round16Match89 = organizedBracket.round16_left.find(m => m.id === 89);
-            
-            const round32Match73 = organizedBracket.round32_left.find(m => m.id === 73);
-            const round32Match75 = organizedBracket.round32_left.find(m => m.id === 75);
-            const round16Match90 = organizedBracket.round16_left.find(m => m.id === 90);
-            
-            const round32Match83 = organizedBracket.round32_left.find(m => m.id === 83);
-            const round32Match84 = organizedBracket.round32_left.find(m => m.id === 84);
-            const round16Match93 = organizedBracket.round16_left.find(m => m.id === 93);
-            
-            const round32Match81 = organizedBracket.round32_left.find(m => m.id === 81);
-            const round32Match82 = organizedBracket.round32_left.find(m => m.id === 82);
-            const round16Match94 = organizedBracket.round16_left.find(m => m.id === 94);
-            
-            const lines = [];
-            
-            // Only draw lines if all matches exist
-            if (round32Match74 && round32Match77 && round16Match89) {
-              lines.push(...createPreciseBracketLines(round32Match74, round32Match77, round16Match89));
-            }
-            if (round32Match73 && round32Match75 && round16Match90) {
-              lines.push(...createPreciseBracketLines(round32Match73, round32Match75, round16Match90));
-            }
-            if (round32Match83 && round32Match84 && round16Match93) {
-              lines.push(...createPreciseBracketLines(round32Match83, round32Match84, round16Match93));
-            }
-            if (round32Match81 && round32Match82 && round16Match94) {
-              lines.push(...createPreciseBracketLines(round32Match81, round32Match82, round16Match94));
-            }
-            
-            return lines;
-          })()
-        }
-        
-        {/* Lines from Round 16 Left to Quarter Left (Left side) */}
-        {organizedBracket.round16_left.length >= 4 && organizedBracket.quarter_left.length >= 2 && 
-          (() => {
-            // Find matches by ID, not by array index!
-            const round16Match89 = organizedBracket.round16_left.find(m => m.id === 89);
-            const round16Match90 = organizedBracket.round16_left.find(m => m.id === 90);
-            const quarterMatch97 = organizedBracket.quarter_left.find(m => m.id === 97);
-            
-            const round16Match93 = organizedBracket.round16_left.find(m => m.id === 93);
-            const round16Match94 = organizedBracket.round16_left.find(m => m.id === 94);
-            const quarterMatch98 = organizedBracket.quarter_left.find(m => m.id === 98);
-            
-            const lines = [];
-            
-            // Only draw lines if all matches exist
-            if (round16Match89 && round16Match90 && quarterMatch97) {
-              lines.push(...createPreciseBracketLines(round16Match89, round16Match90, quarterMatch97));
-            }
-            if (round16Match93 && round16Match94 && quarterMatch98) {
-              lines.push(...createPreciseBracketLines(round16Match93, round16Match94, quarterMatch98));
-            }
-            
-            return lines;
-          })()
-        }
-        
-        {/* Lines from Quarter Left to Semi Final 101 (Left side) */}
-        {organizedBracket.quarter_left.length === 2 && organizedBracket.semi.find(s => s.id === 101) && 
-          (() => {
-            return createPreciseBracketLines(
-              organizedBracket.quarter_left[0], 
-              organizedBracket.quarter_left[1], 
-              organizedBracket.semi.find(s => s.id === 101)!
-            );
-          })()
-        }
-        
-        {/* Lines from Round 32 Right to Round 16 Right (Right side) */}
-        {organizedBracket.round32_right.length >= 8 && organizedBracket.round16_right.length >= 4 && 
-          (() => {
-            // Find matches by ID for right side
-            const round32Match76 = organizedBracket.round32_right.find(m => m.id === 76);
-            const round32Match78 = organizedBracket.round32_right.find(m => m.id === 78);
-            const round16Match91 = organizedBracket.round16_right.find(m => m.id === 91);
-            
-            const round32Match79 = organizedBracket.round32_right.find(m => m.id === 79);
-            const round32Match80 = organizedBracket.round32_right.find(m => m.id === 80);
-            const round16Match92 = organizedBracket.round16_right.find(m => m.id === 92);
-            
-            const round32Match86 = organizedBracket.round32_right.find(m => m.id === 86);
-            const round32Match88 = organizedBracket.round32_right.find(m => m.id === 88);
-            const round16Match95 = organizedBracket.round16_right.find(m => m.id === 95);
-            
-            const round32Match85 = organizedBracket.round32_right.find(m => m.id === 85);
-            const round32Match87 = organizedBracket.round32_right.find(m => m.id === 87);
-            const round16Match96 = organizedBracket.round16_right.find(m => m.id === 96);
-            
-            const lines = [];
-            
-            // Only draw lines if all matches exist
-            if (round32Match76 && round32Match78 && round16Match91) {
-              lines.push(...createPreciseBracketLines(round32Match76, round32Match78, round16Match91));
-            }
-            if (round32Match79 && round32Match80 && round16Match92) {
-              lines.push(...createPreciseBracketLines(round32Match79, round32Match80, round16Match92));
-            }
-            if (round32Match86 && round32Match88 && round16Match95) {
-              lines.push(...createPreciseBracketLines(round32Match86, round32Match88, round16Match95));
-            }
-            if (round32Match85 && round32Match87 && round16Match96) {
-              lines.push(...createPreciseBracketLines(round32Match85, round32Match87, round16Match96));
-            }
-            
-            return lines;
-          })()
-        }
-        
-        {/* Lines from Round 16 Right to Quarter Right (Right side) */}
-        {organizedBracket.round16_right.length >= 4 && organizedBracket.quarter_right.length >= 2 && 
-          (() => {
-            // Find matches by ID for right side
-            const round16Match91 = organizedBracket.round16_right.find(m => m.id === 91);
-            const round16Match92 = organizedBracket.round16_right.find(m => m.id === 92);
-            const quarterMatch99 = organizedBracket.quarter_right.find(m => m.id === 99);
-            
-            const round16Match95 = organizedBracket.round16_right.find(m => m.id === 95);
-            const round16Match96 = organizedBracket.round16_right.find(m => m.id === 96);
-            const quarterMatch100 = organizedBracket.quarter_right.find(m => m.id === 100);
-            
-            const lines = [];
-            
-            // Only draw lines if all matches exist
-            if (round16Match91 && round16Match92 && quarterMatch99) {
-              lines.push(...createPreciseBracketLines(round16Match91, round16Match92, quarterMatch99));
-            }
-            if (round16Match95 && round16Match96 && quarterMatch100) {
-              lines.push(...createPreciseBracketLines(round16Match95, round16Match96, quarterMatch100));
-            }
-            
-            return lines;
-          })()
-        }
-        
-        {/* Lines from Quarter Right to Semi Final 102 (Right side) */}
-        {organizedBracket.quarter_right.length === 2 && organizedBracket.semi.find(s => s.id === 102) && 
-          (() => {
-            return createPreciseBracketLines(
-              organizedBracket.quarter_right[0], 
-              organizedBracket.quarter_right[1], 
-              organizedBracket.semi.find(s => s.id === 102)!
-            );
-          })()
-        }
-        
-        {/* Lines from Semi Finals to Final */}
-        {organizedBracket.semi.length === 2 && organizedBracket.final.length === 1 && 
-          (() => {
-            const semi101 = organizedBracket.semi.find(s => s.id === 101);
-            const semi102 = organizedBracket.semi.find(s => s.id === 102);
-            const final = organizedBracket.final[0];
-            
-            if (semi101 && semi102 && final) {
-              return [
-                ...createSemiToFinalLines(semi101, final),
-                ...createSemiToFinalLines(semi102, final)
-              ];
-            }
-            
-            return [];
-          })()
-        }
-      </>
     );
   };
 
@@ -807,108 +537,101 @@ export default function BracketScreen({}: BracketScreenProps) {
 
   return (
     <View style={[styles.container, { pointerEvents: 'box-none' }]}>
-      {/* Buttons Container - Centered */}
-      <View style={styles.buttonsContainer}>
-        <TouchableOpacity 
-          style={[styles.editButton, editMode && styles.editButtonActive, (!editMode && !canEditDrafts) && { opacity: 0.4 }]}
-          onPress={handleEditModeToggle}
-          disabled={loading || (!editMode && !canEditDrafts)}
-        >
-          <Text style={styles.editButtonText}>
-            {editMode ? '✏️ יציאה מעריכה' : '✏️ עריכה'}
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.screenshotButton}
-          onPress={captureBracket}
-          disabled={isCapturing}
-        >
-          <Text style={styles.screenshotButtonText}>
-            {isCapturing ? 'צולם...' : '📸 שמור בראקט'}
-          </Text>
-        </TouchableOpacity>
+      {/* Soccer field subtle pattern */}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+        {Array.from({ length: 20 }).map((_, i) => (
+          <View
+            key={i}
+            style={{
+              position: 'absolute',
+              top: i * (screenHeight / 20),
+              left: 0,
+              right: 0,
+              height: screenHeight / 20,
+              backgroundColor: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent',
+            }}
+          />
+        ))}
       </View>
+      {/* Buttons Container - Penalty left, buttons right */}
+      <View style={styles.buttonsContainer}>
+        {editMode ? (
+          <View style={styles.penaltyChip}>
+            <Text style={styles.penaltyChipText}>
+              <Text style={styles.penaltyChipLabel}>Changes: </Text>
+              <Text style={styles.penaltyChipNum}>{penaltyInfo?.changes_count ?? 0}</Text>
+              <Text style={styles.penaltyChipLabel}>  Penalty: </Text>
+              <Text style={[
+                styles.penaltyChipNum,
+                (penaltyInfo?.total_penalty ?? 0) > 0 && { color: '#f87171' },
+              ]}>
+                {penaltyInfo?.total_penalty ?? 0}
+              </Text>
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.buttonsSpacer} />
+        )}
 
-      {editMode && penaltyInfo && penaltyInfo.changes_count > 0 && (
-        <View style={{
-          backgroundColor: '#FFF3CD',
-          padding: 8,
-          borderRadius: 8,
-          marginHorizontal: 16,
-          marginBottom: 8,
-          flexDirection: 'row',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}>
-          <Text style={{ color: '#856404', fontSize: 14, fontWeight: '600' }}>
-            {`עונש צפוי: ${penaltyInfo.total_penalty} נקודות (${penaltyInfo.changes_count} שינויים)`}
-          </Text>
+        <View style={styles.buttonsRow}>
+          <TouchableOpacity
+            style={[
+              styles.editButton,
+              editMode && styles.editButtonActive,
+              (!editMode && !canEditDrafts) && { opacity: 0.4 },
+            ]}
+            onPress={handleEditModeToggle}
+            disabled={loading || (!editMode && !canEditDrafts)}
+          >
+            <Ionicons name={editMode ? 'close-circle' : 'create-outline'} size={16} color="#fff" style={{ marginRight: 5 }} />
+            <Text style={styles.editButtonText}>{editMode ? 'Exit' : 'Edit'}</Text>
+          </TouchableOpacity>
+
+          {editMode && (
+            <>
+              <TouchableOpacity style={styles.saveButton} onPress={handleSavePress}>
+                <Ionicons name="checkmark-circle-outline" size={16} color="#fff" style={{ marginRight: 4 }} />
+                <Text style={styles.actionButtonText}>Save</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.resetButton} onPress={handleResetDrafts}>
+                <Ionicons name="refresh-outline" size={16} color="#fff" style={{ marginRight: 4 }} />
+                <Text style={styles.actionButtonText}>Reset</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {!editMode && (
+            <TouchableOpacity style={styles.screenshotButton} onPress={captureBracket} disabled={isCapturing}>
+              <Ionicons name="camera-outline" size={16} color="#fff" style={{ marginRight: 5 }} />
+              <Text style={styles.screenshotButtonText}>{isCapturing ? '...' : 'Capture'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      )}
+      </View>
 
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={true}
         contentContainerStyle={styles.scrollContent}
-        style={[styles.scrollView, { pointerEvents: 'box-none' }]}
+        style={[styles.scrollView, { pointerEvents: 'box-none', marginTop: 50 }]}
       >
         {/* SVG overlay for bracket lines - AFTER the cards */}
         <Svg 
           style={[styles.bracketLines, { height: AVAILABLE_HEIGHT + Y_OFFSET }]}
-          width={screenWidth * 3} // Wide enough for all columns (including right side at x=1155)
+          width={screenWidth * 3}
           height={AVAILABLE_HEIGHT + Y_OFFSET}
           pointerEvents="none"
         >
-          {renderBracketLines()}
+          {drawBracketLines()}
         </Svg>
         
         {/* All bracket columns */}
         {renderBracketColumns()}
       </ScrollView>
 
-      {editMode && (
-        <View style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          backgroundColor: '#f8f9fa',
-          borderTopWidth: 1,
-          borderTopColor: '#dee2e6',
-        }}>
-          <TouchableOpacity
-            onPress={handleResetDrafts}
-            style={{
-              flex: 1,
-              marginRight: 8,
-              paddingVertical: 12,
-              borderRadius: 8,
-              backgroundColor: '#6c757d',
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>אפס</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleSavePress}
-            style={{
-              flex: 1,
-              marginLeft: 8,
-              paddingVertical: 12,
-              borderRadius: 8,
-              backgroundColor: '#28a745',
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>שמור</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
       {/* Bracket Container for Screenshot */}
-      <View ref={bracketRef} style={styles.bracketContainer} collapsable={false}>
+      <View ref={bracketRef} style={[styles.bracketContainer, { width: screenWidth * 3.25, height: AVAILABLE_HEIGHT + Y_OFFSET + 60 }]} collapsable={false}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -918,184 +641,11 @@ export default function BracketScreen({}: BracketScreenProps) {
           {/* SVG overlay for bracket lines */}
           <Svg 
             style={[styles.bracketLines, { height: AVAILABLE_HEIGHT + Y_OFFSET + 60 }]}
-            width={screenWidth * 3.25}
+            width={screenWidth * 3}
             height={AVAILABLE_HEIGHT + Y_OFFSET + 60}
             pointerEvents="none"
           >
-            {/* All the same SVG lines as above */}
-            {/* Quarter diagonal lines removed - no longer needed */}
-            
-            {/* Lines from Round 32 Left to Round 16 Left (Left side) */}
-            {organizedBracket && organizedBracket.round32_left.length >= 8 && organizedBracket.round16_left.length >= 4 && 
-              (() => {
-                // Find matches by ID, not by array index!
-                const round32Match74 = organizedBracket.round32_left.find(m => m.id === 74);
-                const round32Match77 = organizedBracket.round32_left.find(m => m.id === 77);
-                const round16Match89 = organizedBracket.round16_left.find(m => m.id === 89);
-                
-                const round32Match73 = organizedBracket.round32_left.find(m => m.id === 73);
-                const round32Match75 = organizedBracket.round32_left.find(m => m.id === 75);
-                const round16Match90 = organizedBracket.round16_left.find(m => m.id === 90);
-                
-                const round32Match83 = organizedBracket.round32_left.find(m => m.id === 83);
-                const round32Match84 = organizedBracket.round32_left.find(m => m.id === 84);
-                const round16Match93 = organizedBracket.round16_left.find(m => m.id === 93);
-                
-                const round32Match81 = organizedBracket.round32_left.find(m => m.id === 81);
-                const round32Match82 = organizedBracket.round32_left.find(m => m.id === 82);
-                const round16Match94 = organizedBracket.round16_left.find(m => m.id === 94);
-                
-                const lines = [];
-                
-                // Only draw lines if all matches exist
-                if (round32Match74 && round32Match77 && round16Match89) {
-                  lines.push(...createPreciseBracketLines(round32Match74, round32Match77, round16Match89));
-                }
-                if (round32Match73 && round32Match75 && round16Match90) {
-                  lines.push(...createPreciseBracketLines(round32Match73, round32Match75, round16Match90));
-                }
-                if (round32Match83 && round32Match84 && round16Match93) {
-                  lines.push(...createPreciseBracketLines(round32Match83, round32Match84, round16Match93));
-                }
-                if (round32Match81 && round32Match82 && round16Match94) {
-                  lines.push(...createPreciseBracketLines(round32Match81, round32Match82, round16Match94));
-                }
-                
-                return lines;
-              })()
-            }
-            
-            {/* Lines from Round 16 Left to Quarter Left (Left side) */}
-            {organizedBracket && organizedBracket.round16_left.length >= 4 && organizedBracket.quarter_left.length >= 2 && 
-              (() => {
-                // Find matches by ID, not by array index!
-                const round16Match89 = organizedBracket.round16_left.find(m => m.id === 89);
-                const round16Match90 = organizedBracket.round16_left.find(m => m.id === 90);
-                const quarterMatch97 = organizedBracket.quarter_left.find(m => m.id === 97);
-                
-                const round16Match93 = organizedBracket.round16_left.find(m => m.id === 93);
-                const round16Match94 = organizedBracket.round16_left.find(m => m.id === 94);
-                const quarterMatch98 = organizedBracket.quarter_left.find(m => m.id === 98);
-                
-                const lines = [];
-                
-                // Only draw lines if all matches exist
-                if (round16Match89 && round16Match90 && quarterMatch97) {
-                  lines.push(...createPreciseBracketLines(round16Match89, round16Match90, quarterMatch97));
-                }
-                if (round16Match93 && round16Match94 && quarterMatch98) {
-                  lines.push(...createPreciseBracketLines(round16Match93, round16Match94, quarterMatch98));
-                }
-                
-                return lines;
-              })()
-            }
-            
-            {/* Lines from Quarter Left to Semi Final 101 (Left side) */}
-            {organizedBracket && organizedBracket.quarter_left.length === 2 && organizedBracket.semi.find(s => s.id === 101) && 
-              (() => {
-                return createPreciseBracketLines(
-                  organizedBracket.quarter_left[0], 
-                  organizedBracket.quarter_left[1], 
-                  organizedBracket.semi.find(s => s.id === 101)!
-                );
-              })()
-            }
-            
-            {/* Lines from Round 32 Right to Round 16 Right (Right side) */}
-            {organizedBracket && organizedBracket.round32_right.length >= 8 && organizedBracket.round16_right.length >= 4 && 
-              (() => {
-                // Find matches by ID for right side
-                const round32Match76 = organizedBracket.round32_right.find(m => m.id === 76);
-                const round32Match78 = organizedBracket.round32_right.find(m => m.id === 78);
-                const round16Match91 = organizedBracket.round16_right.find(m => m.id === 91);
-                
-                const round32Match79 = organizedBracket.round32_right.find(m => m.id === 79);
-                const round32Match80 = organizedBracket.round32_right.find(m => m.id === 80);
-                const round16Match92 = organizedBracket.round16_right.find(m => m.id === 92);
-                
-                const round32Match86 = organizedBracket.round32_right.find(m => m.id === 86);
-                const round32Match88 = organizedBracket.round32_right.find(m => m.id === 88);
-                const round16Match95 = organizedBracket.round16_right.find(m => m.id === 95);
-                
-                const round32Match85 = organizedBracket.round32_right.find(m => m.id === 85);
-                const round32Match87 = organizedBracket.round32_right.find(m => m.id === 87);
-                const round16Match96 = organizedBracket.round16_right.find(m => m.id === 96);
-                
-                const lines = [];
-                
-                // Only draw lines if all matches exist
-                if (round32Match76 && round32Match78 && round16Match91) {
-                  lines.push(...createPreciseBracketLines(round32Match76, round32Match78, round16Match91));
-                }
-                if (round32Match79 && round32Match80 && round16Match92) {
-                  lines.push(...createPreciseBracketLines(round32Match79, round32Match80, round16Match92));
-                }
-                if (round32Match86 && round32Match88 && round16Match95) {
-                  lines.push(...createPreciseBracketLines(round32Match86, round32Match88, round16Match95));
-                }
-                if (round32Match85 && round32Match87 && round16Match96) {
-                  lines.push(...createPreciseBracketLines(round32Match85, round32Match87, round16Match96));
-                }
-                
-                return lines;
-              })()
-            }
-            
-            {/* Lines from Round 16 Right to Quarter Right (Right side) */}
-            {organizedBracket && organizedBracket.round16_right.length >= 4 && organizedBracket.quarter_right.length >= 2 && 
-              (() => {
-                // Find matches by ID for right side
-                const round16Match91 = organizedBracket.round16_right.find(m => m.id === 91);
-                const round16Match92 = organizedBracket.round16_right.find(m => m.id === 92);
-                const quarterMatch99 = organizedBracket.quarter_right.find(m => m.id === 99);
-                
-                const round16Match95 = organizedBracket.round16_right.find(m => m.id === 95);
-                const round16Match96 = organizedBracket.round16_right.find(m => m.id === 96);
-                const quarterMatch100 = organizedBracket.quarter_right.find(m => m.id === 100);
-                
-                const lines = [];
-                
-                // Only draw lines if all matches exist
-                if (round16Match91 && round16Match92 && quarterMatch99) {
-                  lines.push(...createPreciseBracketLines(round16Match91, round16Match92, quarterMatch99));
-                }
-                if (round16Match95 && round16Match96 && quarterMatch100) {
-                  lines.push(...createPreciseBracketLines(round16Match95, round16Match96, quarterMatch100));
-                }
-                
-                return lines;
-              })()
-            }
-            
-            {/* Lines from Quarter Right to Semi Final 102 (Right side) */}
-            {organizedBracket && organizedBracket.quarter_right.length === 2 && organizedBracket.semi.find(s => s.id === 102) && 
-              (() => {
-                return createPreciseBracketLines(
-                  organizedBracket.quarter_right[0], 
-                  organizedBracket.quarter_right[1], 
-                  organizedBracket.semi.find(s => s.id === 102)!
-                );
-              })()
-            }
-            
-            {/* Lines from Semi Finals to Final */}
-            {organizedBracket && organizedBracket.semi.length === 2 && organizedBracket.final.length === 1 && 
-              (() => {
-                const semi101 = organizedBracket.semi.find(s => s.id === 101);
-                const semi102 = organizedBracket.semi.find(s => s.id === 102);
-                const final = organizedBracket.final[0];
-                
-                if (semi101 && semi102 && final) {
-                  return [
-                    ...createSemiToFinalLines(semi101, final),
-                    ...createSemiToFinalLines(semi102, final)
-                  ];
-                }
-                
-                return [];
-              })()
-            }
+            {drawBracketLines()}
           </Svg>
           
           {/* All columns for screenshot */}
@@ -1215,7 +765,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#718096',
+    color: '#86efac',
   },
   errorContainer: {
     flex: 1,
@@ -1241,7 +791,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     flex: 1,
-    minHeight: AVAILABLE_HEIGHT + Y_OFFSET + 40, // Add Y_OFFSET and extra padding to prevent cutoff
     paddingBottom: 40, // Extra padding to prevent cutoff (increased from 20)
     pointerEvents: 'box-none',
   },
@@ -1272,59 +821,118 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
     zIndex: 1000,
+    paddingHorizontal: 12,
+  },
+  buttonsSpacer: {
+    flex: 1,
+  },
+  buttonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   editButton: {
-    backgroundColor: '#48bb78',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 5,
-    elevation: 5,
+    backgroundColor: '#0f766e',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginRight: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowRadius: 4,
+    elevation: 4,
   },
   editButtonActive: {
-    backgroundColor: '#ed8936',
+    backgroundColor: '#9a3412',
   },
   editButtonText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  resetButton: {
+    backgroundColor: '#475569',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginRight: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  saveButton: {
+    backgroundColor: '#15803d',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginRight: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   screenshotButton: {
-    backgroundColor: '#667eea',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginLeft: 5,
-    elevation: 5,
+    backgroundColor: '#1e3a8a',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowRadius: 4,
+    elevation: 4,
   },
   screenshotButtonText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  penaltyChip: {
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  penaltyChipText: {
+    color: '#94a3b8',
+    fontSize: 11,
+  },
+  penaltyChipLabel: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  penaltyChipNum: {
+    color: '#e2e8f0',
+    fontSize: 11,
+    fontWeight: '800',
   },
   bracketContainer: {
     position: 'absolute',
     top: -10000, // Hide off-screen
     left: -10000,
-    width: screenWidth * 3.25, // Optimal width for full bracket capture
-    height: AVAILABLE_HEIGHT + Y_OFFSET + 60, // Add Y_OFFSET and extra padding to prevent cutoff
     backgroundColor: '#f8fafc',
   },
   hiddenScrollView: {
