@@ -17,9 +17,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import { apiService, KnockoutPrediction } from '../../services/api';
 import BracketMatchCard from '../../components/BracketMatchCard';
 import MatchEditModal from '../../components/MatchEditModal';
+import EnterEditModeModal from '../../components/EnterEditModeModal';
+import ConfirmSaveModal from '../../components/ConfirmSaveModal';
+import ConfirmResetModal from '../../components/ConfirmResetModal';
+import ConfirmExitModal from '../../components/ConfirmExitModal';
 import { organizeBracketMatches, BracketMatch, OrganizedBracket } from '../../utils/bracketCalculator';
 import { useTournament } from '../../contexts/TournamentContext';
-import { usePenaltyConfirmation } from '../../hooks/usePenaltyConfirmation';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -45,6 +48,11 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [editMode, setEditMode] = useState(false);
   const [canEditDrafts, setCanEditDrafts] = useState<boolean>(true);
   const [penaltyInfo, setPenaltyInfo] = useState<{changes_count: number, penalty_per_change: number, total_penalty: number} | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [isEnterEditModeModalVisible, setIsEnterEditModeModalVisible] = useState(false);
+  const [isConfirmSaveModalVisible, setIsConfirmSaveModalVisible] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
   
   // Get current user ID
   const { getCurrentUserId } = useAuth();
@@ -57,8 +65,14 @@ export default function BracketScreen({}: BracketScreenProps) {
   // Get tournament context data
   const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
   
-  // Get penalty confirmation hook
-  const { showPenaltyConfirmation } = usePenaltyConfirmation();
+  const isPreTournament = currentStage === 'PRE_GROUP_STAGE' || !currentStage;
+
+  // Toast auto-dismiss
+  useEffect(() => {
+    if (!toastMsg) return;
+    const t = setTimeout(() => setToastMsg(null), 2500);
+    return () => clearTimeout(t);
+  }, [toastMsg]);
 
   const refreshPenaltyCount = async () => {
     try {
@@ -111,7 +125,7 @@ export default function BracketScreen({}: BracketScreenProps) {
 
   const drawBracketLines = () => {
     if (!organizedBracket) return [];
-    const PADDING = 20; // scrollContent paddingHorizontal
+    const PADDING = 60; // must match scrollContent paddingLeft
     const SCROLL_PADDING_TOP = 21; // matches scrollContent paddingTop style
     const COL_WIDTH = COLUMN_WIDTH + 20; // column width + marginRight gap
     const CARD_W = 100; // must match BracketMatchCard container width
@@ -306,55 +320,98 @@ export default function BracketScreen({}: BracketScreenProps) {
         setLoading(false);
       }
     } else {
-      // Exiting edit mode - delete all drafts and switch back to regular predictions
-      try {
-        const userId = getCurrentUserId();
-        if (!userId) {
-          Alert.alert('Error', 'User not authenticated');
-          return;
+      // Exiting edit mode - check for unsaved changes first
+      const userId = getCurrentUserId();
+      if (!userId) return;
+
+      const countResult = await apiService.getDraftChangesCount(userId);
+
+      if (countResult.changes_count === 0) {
+        // No changes - exit directly
+        try {
+          setLoading(true);
+          await apiService.deleteAllDrafts(userId);
+          setEditMode(false);
+          setPenaltyInfo(null);
+        } catch (error) {
+          console.error('Error exiting edit mode:', error);
+          Alert.alert('Error', 'Could not exit edit mode. Try again.');
+        } finally {
+          setLoading(false);
         }
-        
-        setLoading(true);
-        await apiService.deleteAllDrafts(userId);
-        setEditMode(false);
-        setPenaltyInfo(null);
-        // fetchPredictions will be called automatically by useFocusEffect when editMode changes
-      } catch (error) {
-        console.error('Error deleting drafts:', error);
-        Alert.alert('שגיאה', 'לא ניתן לצאת ממצב עריכה. נסה שוב.');
-      } finally {
-        setLoading(false);
+      } else {
+        // Has changes - show confirm modal
+        setPenaltyInfo(countResult);
+        setShowExitModal(true);
       }
     }
   };
 
+  const executeExit = async () => {
+    try {
+      const userId = getCurrentUserId();
+      if (!userId) return;
+      setLoading(true);
+      await apiService.deleteAllDrafts(userId);
+      setEditMode(false);
+      setPenaltyInfo(null);
+    } catch (error) {
+      console.error('Error exiting edit mode:', error);
+      Alert.alert('Error', 'Could not exit. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEnterEditMode = async () => {
+    setIsEnterEditModeModalVisible(false);
+    if (!canEditDrafts) {
+      Alert.alert('לא ניתן לערוך', 'לא ניתן לערוך ניחושים בזמן שלב נוקאאוט פעיל');
+      return;
+    }
+    try {
+      const userId = getCurrentUserId();
+      if (!userId) return;
+      setLoading(true);
+      await apiService.createAllDrafts(userId);
+      setEditMode(true);
+    } catch (error) {
+      console.error('Error creating drafts:', error);
+      Alert.alert('שגיאה', 'לא ניתן להיכנס למצב עריכה. נסה שוב.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleResetDrafts = async () => {
-    Alert.alert(
-      'איפוס ניחושים',
-      'האם לאפס את כל השינויים ולחזור למצב המקורי?',
-      [
-        { text: 'ביטול', style: 'cancel' },
-        {
-          text: 'אפס',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const userId = getCurrentUserId();
-              if (!userId) return;
-              setLoading(true);
-              await apiService.resetDrafts(userId);
-              await fetchPredictions();
-              setPenaltyInfo({ changes_count: 0, penalty_per_change: 0, total_penalty: 0 });
-            } catch (error) {
-              console.error('Error resetting drafts:', error);
-              Alert.alert('שגיאה', 'לא ניתן לאפס. נסה שוב.');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+    const userId = getCurrentUserId();
+    if (!userId) return;
+
+    const countResult = await apiService.getDraftChangesCount(userId);
+
+    if (countResult.changes_count === 0) {
+      setToastMsg('No changes to reset');
+      return;
+    }
+
+    setPenaltyInfo(countResult);
+    setShowResetModal(true);
+  };
+
+  const executeReset = async () => {
+    try {
+      const userId = getCurrentUserId();
+      if (!userId) return;
+      setLoading(true);
+      await apiService.resetDrafts(userId);
+      await fetchPredictions();
+      setPenaltyInfo({ changes_count: 0, penalty_per_change: 0, total_penalty: 0 });
+    } catch (error) {
+      console.error('Error resetting drafts:', error);
+      Alert.alert('Error', 'Could not reset. Try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const executeCommit = async (userId: number) => {
@@ -384,40 +441,37 @@ export default function BracketScreen({}: BracketScreenProps) {
       const userId = getCurrentUserId();
       if (!userId) return;
 
-      // Get fresh count before confirming
       const countResult = await apiService.getDraftChangesCount(userId);
 
       if (countResult.changes_count === 0) {
-        Alert.alert('אין שינויים', 'לא בוצעו שינויים בניחושים.');
+        setToastMsg('No changes to save');
         return;
       }
 
-      // Show confirmation with penalty info
-      Alert.alert(
-        'שמירת שינויים',
-        `האם לשמור ${countResult.changes_count} שינויים?\n\nעונש: ${countResult.total_penalty} נקודות\n(${countResult.changes_count} שינויים × ${countResult.penalty_per_change} נקודות לשינוי)`,
-        [
-          {
-            text: 'ביטול',
-            style: 'cancel',
-          },
-          {
-            text: 'שמור',
-            style: 'destructive',
-            onPress: () => executeCommit(userId),
-          },
-        ]
-      );
+      setPenaltyInfo(countResult);
+      setIsConfirmSaveModalVisible(true);
     } catch (error) {
       console.error('Error in save press:', error);
       Alert.alert('שגיאה', 'לא ניתן לבצע שמירה. נסה שוב.');
     }
   };
 
+  const handleConfirmSave = async () => {
+    const userId = getCurrentUserId();
+    if (!userId) return;
+    setIsConfirmSaveModalVisible(false);
+    await executeCommit(userId);
+  };
+
   const handleMatchPress = (match: BracketMatch) => {
-    console.log(`🎯 CLICKED: Match ${match.id} - ${match.team1_name} vs ${match.team2_name}`);
     setSelectedMatch(match);
-    setIsModalVisible(true);
+    if (isPreTournament) {
+      setIsModalVisible(true);
+    } else if (!editMode) {
+      setIsEnterEditModeModalVisible(true);
+    } else {
+      setIsModalVisible(true);
+    }
   };
 
   const captureBracket = async () => {
@@ -553,44 +607,49 @@ export default function BracketScreen({}: BracketScreenProps) {
           />
         ))}
       </View>
-      {/* Buttons Container - Penalty left, buttons right */}
+      {/* Buttons Container - chip left, buttons right */}
       <View style={styles.buttonsContainer}>
         {editMode ? (
           <View style={styles.penaltyChip}>
-            <Text style={styles.penaltyChipText}>
-              <Text style={styles.penaltyChipLabel}>Changes: </Text>
-              <Text style={styles.penaltyChipNum}>{penaltyInfo?.changes_count ?? 0}</Text>
-              <Text style={styles.penaltyChipLabel}>  Penalty: </Text>
+            <View style={styles.penaltyStat}>
+              <Text style={styles.penaltyStatLabel}>Changes</Text>
+              <Text style={styles.penaltyStatValue}>{penaltyInfo?.changes_count ?? 0}</Text>
+            </View>
+            <View style={styles.penaltyDivider} />
+            <View style={styles.penaltyStat}>
+              <Text style={styles.penaltyStatLabel}>Penalty</Text>
               <Text style={[
-                styles.penaltyChipNum,
+                styles.penaltyStatValue,
                 (penaltyInfo?.total_penalty ?? 0) > 0 && { color: '#f87171' },
               ]}>
                 {penaltyInfo?.total_penalty ?? 0}
               </Text>
-            </Text>
+            </View>
           </View>
         ) : (
           <View style={styles.buttonsSpacer} />
         )}
 
         <View style={styles.buttonsRow}>
-          <TouchableOpacity
-            style={[
-              styles.editButton,
-              editMode && styles.editButtonActive,
-              (!editMode && !canEditDrafts) && { opacity: 0.4 },
-            ]}
-            onPress={handleEditModeToggle}
-            disabled={loading || (!editMode && !canEditDrafts)}
-          >
-            <Ionicons name={editMode ? 'close-circle' : 'create-outline'} size={16} color="#fff" style={{ marginRight: 5 }} />
-            <Text style={styles.editButtonText}>{editMode ? 'Exit' : 'Edit'}</Text>
-          </TouchableOpacity>
+          {!isPreTournament && (
+            <TouchableOpacity
+              style={[
+                styles.editButton,
+                editMode && styles.editButtonActive,
+                (!editMode && !canEditDrafts) && { opacity: 0.4 },
+              ]}
+              onPress={handleEditModeToggle}
+              disabled={loading || (!editMode && !canEditDrafts)}
+            >
+              <Ionicons name={editMode ? 'log-out-outline' : 'create-outline'} size={16} color="#fff" style={{ marginRight: 5 }} />
+              <Text style={styles.editButtonText}>{editMode ? 'Exit' : 'Edit Mode'}</Text>
+            </TouchableOpacity>
+          )}
 
           {editMode && (
             <>
               <TouchableOpacity style={styles.saveButton} onPress={handleSavePress}>
-                <Ionicons name="checkmark-circle-outline" size={16} color="#fff" style={{ marginRight: 4 }} />
+                <Ionicons name="cloud-upload-outline" size={16} color="#fff" style={{ marginRight: 4 }} />
                 <Text style={styles.actionButtonText}>Save</Text>
               </TouchableOpacity>
 
@@ -661,6 +720,52 @@ export default function BracketScreen({}: BracketScreenProps) {
         </ScrollView>
       </View>
       
+      {/* Inline Toast */}
+      {toastMsg && (
+        <View style={styles.toast} pointerEvents="none">
+          <Text style={styles.toastText}>{toastMsg}</Text>
+        </View>
+      )}
+
+      {/* Enter Edit Mode Modal */}
+      <EnterEditModeModal
+        visible={isEnterEditModeModalVisible}
+        onClose={() => setIsEnterEditModeModalVisible(false)}
+        onEnterEditMode={handleEnterEditMode}
+      />
+
+      {/* Confirm Save Modal */}
+      <ConfirmSaveModal
+        visible={isConfirmSaveModalVisible}
+        changesCount={penaltyInfo?.changes_count ?? 0}
+        penaltyPoints={penaltyInfo?.total_penalty ?? 0}
+        penaltyPerChange={penaltyInfo?.penalty_per_change ?? 0}
+        onClose={() => setIsConfirmSaveModalVisible(false)}
+        onConfirm={handleConfirmSave}
+      />
+
+      {/* Confirm Reset Modal */}
+      <ConfirmResetModal
+        visible={showResetModal}
+        changesCount={penaltyInfo?.changes_count ?? 0}
+        onClose={() => setShowResetModal(false)}
+        onConfirm={async () => {
+          setShowResetModal(false);
+          await executeReset();
+        }}
+      />
+
+      {/* Confirm Exit Modal */}
+      <ConfirmExitModal
+        visible={showExitModal}
+        changesCount={penaltyInfo?.changes_count ?? 0}
+        onClose={() => setShowExitModal(false)}
+        onConfirm={async () => {
+          setShowExitModal(false);
+          await executeExit();
+        }}
+      />
+
       {/* Match Edit Modal - OUTSIDE ScrollView */}
       <MatchEditModal
         visible={isModalVisible}
@@ -668,75 +773,66 @@ export default function BracketScreen({}: BracketScreenProps) {
         onClose={() => setIsModalVisible(false)}
         onSave={async (matchId, winnerId) => {
           console.log(`💾 Saving match ${matchId} with winner ${winnerId}`);
-          
-          // Use the generic penalty confirmation hook
-          // Each change is 1 change (as requested)
-          showPenaltyConfirmation(async () => {
-            try {
-              // Find the prediction for this match
-              const prediction = predictions.find(p => p.template_match_id === matchId);
-              if (!prediction) {
-                console.error('Prediction not found for match', matchId);
-                return;
-              }
-
-              // Determine winner_team_number (1 or 2)
-              const winnerTeamNumber = winnerId === prediction.team1_id ? 1 : 2;
-              const winnerTeamName = winnerId === prediction.team1_id ? (prediction.team1_name || '') : (prediction.team2_name || '');
-
-              // Update the prediction using the single prediction API (use draft if in edit mode)
-              await apiService.updateKnockoutPrediction(
-                prediction.id,
-                winnerTeamNumber,
-                winnerTeamName,
-                editMode
-              );
-
-              // Get fresh data from server to ensure all stages are updated correctly
-              // Wait a bit for server to process the update
-              setTimeout(async () => {
-                try {
-                  const userId = getCurrentUserId();
-                  if (!userId) return;
-                  
-                  const freshPredictions = await apiService.getKnockoutPredictions(userId, undefined, editMode);
-                  setPredictions(freshPredictions.predictions);
-                  
-                  // Organize into bracket structure with fresh data
-                  const { organized, calculateCardCoordinates } = organizeBracketMatches(freshPredictions.predictions);
-                  const spacing = (AVAILABLE_HEIGHT - 40) / 8;
-                  calculateCardCoordinates(spacing);
-                  setOrganizedBracket(organized);
-                  
-                  await refreshPenaltyCount();
-                  console.log('✅ Updated bracket with fresh data from server');
-                } catch (error) {
-                  console.error('❌ Error updating bracket with fresh data:', error);
-                }
-              }, 500); // Wait 500ms for server to process
-              
-              // Store the updated match ID in AsyncStorage to signal knockout screen
-              const updatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';
-              const updatedMatches = JSON.parse(updatedMatchesStr);
-              updatedMatches.push({
-                matchId: matchId,
-                timestamp: Date.now()
-              });
-              await AsyncStorage.setItem('bracketUpdatedMatches', JSON.stringify(updatedMatches));
-              
-              console.log('✅ Match updated successfully');
-            } catch (error) {
-              console.error('❌ Error updating match:', error);
-              Alert.alert('שגיאה', 'לא ניתן לעדכן את המשחק. נסה שוב.');
-            } finally {
-              // Close the modal only after the save operation completes (success or error)
-              setIsModalVisible(false);
+          try {
+            // Find the prediction for this match
+            const prediction = predictions.find(p => p.template_match_id === matchId);
+            if (!prediction) {
+              console.error('Prediction not found for match', matchId);
+              return;
             }
-          }, 1, () => {
-            // This function will be called if user cancels the penalty confirmation
-            // We can add any logic here if needed, but for now we just keep the modal open
-            console.log('User cancelled penalty confirmation, keeping modal open');
-          }); // Each change is 1 change
+
+            // Determine winner_team_number (1 or 2)
+            const winnerTeamNumber = winnerId === prediction.team1_id ? 1 : 2;
+            const winnerTeamName = winnerId === prediction.team1_id ? (prediction.team1_name || '') : (prediction.team2_name || '');
+
+            // Update the prediction using the single prediction API (use draft if in edit mode)
+            await apiService.updateKnockoutPrediction(
+              prediction.id,
+              winnerTeamNumber,
+              winnerTeamName,
+              editMode
+            );
+
+            // Get fresh data from server to ensure all stages are updated correctly
+            // Wait a bit for server to process the update
+            setTimeout(async () => {
+              try {
+                const userId = getCurrentUserId();
+                if (!userId) return;
+
+                const freshPredictions = await apiService.getKnockoutPredictions(userId, undefined, editMode);
+                setPredictions(freshPredictions.predictions);
+
+                // Organize into bracket structure with fresh data
+                const { organized, calculateCardCoordinates } = organizeBracketMatches(freshPredictions.predictions);
+                const spacing = (AVAILABLE_HEIGHT - 40) / 8;
+                calculateCardCoordinates(spacing);
+                setOrganizedBracket(organized);
+
+                await refreshPenaltyCount();
+                console.log('✅ Updated bracket with fresh data from server');
+              } catch (error) {
+                console.error('❌ Error updating bracket with fresh data:', error);
+              }
+            }, 500); // Wait 500ms for server to process
+
+            // Store the updated match ID in AsyncStorage to signal knockout screen
+            const updatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';
+            const updatedMatches = JSON.parse(updatedMatchesStr);
+            updatedMatches.push({
+              matchId: matchId,
+              timestamp: Date.now()
+            });
+            await AsyncStorage.setItem('bracketUpdatedMatches', JSON.stringify(updatedMatches));
+
+            console.log('✅ Match updated successfully');
+          } catch (error) {
+            console.error('❌ Error updating match:', error);
+            Alert.alert('שגיאה', 'לא ניתן לעדכן את המשחק. נסה שוב.');
+          } finally {
+            // Close the modal only after the save operation completes (success or error)
+            setIsModalVisible(false);
+          }
         }}
       />
     </View>
@@ -752,9 +848,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingLeft: 60,
+    paddingRight: 20,
     paddingTop: 20,
-    paddingBottom: 60, // Extra padding at bottom to prevent cutoff in screenshot
+    paddingBottom: 60,
   },
   loadingContainer: {
     flex: 1,
@@ -826,9 +923,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     paddingHorizontal: 12,
   },
-  buttonsSpacer: {
-    flex: 1,
-  },
+  buttonsSpacer: {},
   buttonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -839,7 +934,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    marginRight: 6,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
@@ -861,7 +955,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 10,
-    marginRight: 6,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
@@ -875,7 +968,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 10,
-    marginRight: 6,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
@@ -908,26 +1000,54 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   penaltyChip: {
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(30,30,30,0.55)',
     paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.2)',
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 8,
+    marginLeft: 4,
   },
-  penaltyChipText: {
-    color: '#94a3b8',
-    fontSize: 11,
+  penaltyStat: {
+    alignItems: 'center',
   },
-  penaltyChipLabel: {
-    color: '#94a3b8',
-    fontSize: 11,
+  penaltyStatLabel: {
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.6)',
     fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
-  penaltyChipNum: {
-    color: '#e2e8f0',
-    fontSize: 11,
-    fontWeight: '800',
+  penaltyStatValue: {
+    fontSize: 13,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  penaltyDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  toast: {
+    position: 'absolute',
+    bottom: 40,
+    left: 24,
+    right: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+  },
+  toastText: {
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    color: '#ffffff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 999,
+    fontSize: 14,
+    fontWeight: '500',
+    overflow: 'hidden',
   },
   bracketContainer: {
     position: 'absolute',
