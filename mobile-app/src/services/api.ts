@@ -1036,7 +1036,7 @@ class ApiService {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Error creating league:', error);
+      console.warn('createLeague failed (handled by caller):', error);
       throw error;
     }
   }
@@ -1063,7 +1063,7 @@ class ApiService {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Error joining league:', error);
+      console.warn('joinLeague failed (handled by caller):', error);
       throw error;
     }
   }

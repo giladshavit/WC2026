@@ -9,9 +9,11 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService } from '../services/api';
 import * as Clipboard from 'expo-clipboard';
 
@@ -21,23 +23,22 @@ export default function CreateLeagueScreen() {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [createdLeague, setCreatedLeague] = useState<any>(null);
+  const [nameFocused, setNameFocused] = useState(false);
+  const [descFocused, setDescFocused] = useState(false);
 
   const handleCreateLeague = async () => {
     if (!name.trim()) {
       Alert.alert('Error', 'League name is required');
       return;
     }
-
     if (name.trim().length < 3) {
       Alert.alert('Error', 'League name must be at least 3 characters long');
       return;
     }
-
     if (name.trim().length > 100) {
       Alert.alert('Error', 'League name must be less than 100 characters');
       return;
     }
-
     if (description && description.length > 500) {
       Alert.alert('Error', 'Description must be less than 500 characters');
       return;
@@ -45,16 +46,18 @@ export default function CreateLeagueScreen() {
 
     setLoading(true);
     try {
-      const leagueData = {
+      const newLeague = await apiService.createLeague({
         name: name.trim(),
         description: description.trim() || undefined,
-      };
-
-      const newLeague = await apiService.createLeague(leagueData);
+      });
       setCreatedLeague(newLeague);
     } catch (error: any) {
-      console.error('Error creating league:', error);
-      Alert.alert('Error', error.message || 'Failed to create league');
+      const msg = error?.message ?? '';
+      let userMessage = 'Something went wrong. Please try again.';
+      if (msg.includes('400')) userMessage = 'Invalid league details. Please check and try again.';
+      else if (msg.includes('409')) userMessage = 'A league with this name already exists.';
+      else if (msg.includes('401') || msg.includes('403')) userMessage = 'You must be logged in to create a league.';
+      Alert.alert('Could not create league', userMessage);
     } finally {
       setLoading(false);
     }
@@ -67,27 +70,36 @@ export default function CreateLeagueScreen() {
     }
   };
 
-  const handleDone = () => {
-    navigation.goBack();
+  const handleShare = async () => {
+    if (createdLeague?.invite_code) {
+      await Share.share({
+        message: `Join my Predicto league! Code: ${createdLeague.invite_code}`,
+      });
+    }
   };
 
   if (createdLeague) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.successContainer}>
-          <Text style={styles.successIcon}>🎉</Text>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScrollView contentContainerStyle={styles.successContainer}>
+          <View style={styles.successIconCircle}>
+            <Ionicons name="checkmark-circle" size={64} color="#16a34a" />
+          </View>
           <Text style={styles.successTitle}>League Created!</Text>
           <Text style={styles.successSubtitle}>
-            Your league "{createdLeague.name}" has been created successfully.
+            Your league{' '}
+            <Text style={styles.leagueNameHighlight}>{createdLeague.name}</Text>
+            {' '}has been created successfully.
           </Text>
 
           <View style={styles.inviteCodeContainer}>
-            <Text style={styles.inviteCodeLabel}>Invite Code:</Text>
+            <Text style={styles.inviteCodeLabel}>INVITE CODE</Text>
             <View style={styles.inviteCodeBox}>
               <Text style={styles.inviteCode}>{createdLeague.invite_code}</Text>
               <TouchableOpacity
                 style={styles.copyButton}
                 onPress={handleCopyInviteCode}
+                activeOpacity={0.8}
               >
                 <Text style={styles.copyButtonText}>Copy</Text>
               </TouchableOpacity>
@@ -98,69 +110,85 @@ export default function CreateLeagueScreen() {
             Share this code with friends to invite them to your league!
           </Text>
 
-          <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
-            <Text style={styles.doneButtonText}>Done</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.successButtons}>
+            <TouchableOpacity
+              style={styles.doneButton}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.doneButtonText}>Done</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.shareButton}
+              onPress={handleShare}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="share-outline" size={18} color="#16a34a" />
+              <Text style={styles.shareButtonText}>Share</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Create League</Text>
-          </View>
-
-          <View style={styles.form}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.formCard}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>League Name *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, nameFocused && styles.inputFocused]}
                 value={name}
                 onChangeText={setName}
                 placeholder="Enter league name"
+                placeholderTextColor="#9ca3af"
                 maxLength={100}
                 autoCapitalize="words"
                 autoCorrect={false}
+                onFocus={() => setNameFocused(true)}
+                onBlur={() => setNameFocused(false)}
               />
-              <Text style={styles.characterCount}>
-                {name.length}/100 characters
-              </Text>
+              <Text style={styles.characterCount}>{name.length}/100</Text>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Description (Optional)</Text>
+            <View style={[styles.inputGroup, { marginBottom: 0 }]}>
+              <Text style={styles.label}>Description (optional)</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[styles.input, styles.textArea, descFocused && styles.inputFocused]}
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Enter league description"
+                placeholderTextColor="#9ca3af"
                 maxLength={500}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
+                onFocus={() => setDescFocused(true)}
+                onBlur={() => setDescFocused(false)}
               />
-              <Text style={styles.characterCount}>
-                {description.length}/500 characters
-              </Text>
+              <Text style={styles.characterCount}>{description.length}/500</Text>
             </View>
-
-            <TouchableOpacity
-              style={[styles.createButton, loading && styles.createButtonDisabled]}
-              onPress={handleCreateLeague}
-              disabled={loading}
-            >
-              <Text style={styles.createButtonText}>
-                {loading ? 'Creating...' : 'Create League'}
-              </Text>
-            </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            style={[styles.createButton, loading && styles.createButtonDisabled]}
+            onPress={handleCreateLeague}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.createButtonText}>
+              {loading ? 'Creating...' : 'Create League'}
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -170,152 +198,195 @@ export default function CreateLeagueScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f1f5f9',
   },
   keyboardAvoidingView: {
     flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 32,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  form: {
-    padding: 16,
+  formCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 3,
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    color: '#64748b',
+    marginBottom: 6,
+    marginLeft: 4,
   },
   input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     fontSize: 16,
-    color: '#333',
+    color: '#1e293b',
+    letterSpacing: 0,
+  },
+  inputFocused: {
+    borderColor: '#16a34a',
   },
   textArea: {
-    height: 100,
+    height: 110,
     textAlignVertical: 'top',
   },
   characterCount: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 11,
+    color: '#94a3b8',
     textAlign: 'right',
     marginTop: 4,
   },
   createButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    paddingVertical: 16,
+    backgroundColor: '#16a34a',
+    borderRadius: 16,
+    height: 54,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    justifyContent: 'center',
+    gap: 8,
   },
   createButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#d1d5db',
   },
   createButtonText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
+  // Success screen
   successContainer: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
+    paddingVertical: 40,
   },
-  successIcon: {
-    fontSize: 64,
-    marginBottom: 16,
+  successIconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 2,
+    borderColor: '#bbf7d0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   successTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
+    color: '#1e293b',
     marginBottom: 8,
     textAlign: 'center',
   },
   successSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: '#64748b',
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 24,
   },
+  leagueNameHighlight: {
+    fontWeight: '700',
+    color: '#16a34a',
+  },
   inviteCodeContainer: {
     width: '100%',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   inviteCodeLabel: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#333',
+    color: '#64748b',
     marginBottom: 8,
     textAlign: 'center',
+    letterSpacing: 0.5,
   },
   inviteCodeBox: {
-    flexDirection: 'row',
+    position: 'relative',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    padding: 16,
+    justifyContent: 'center',
+    backgroundColor: '#f0fdf4',
+    borderRadius: 12,
+    padding: 20,
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: '#16a34a',
   },
   inviteCode: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#007AFF',
+    fontSize: 26,
+    fontWeight: '600',
+    letterSpacing: 4,
+    color: '#16a34a',
     fontFamily: 'monospace',
     textAlign: 'center',
+    width: '100%',
+    paddingHorizontal: 60,
   },
   copyButton: {
-    backgroundColor: '#007AFF',
+    position: 'absolute',
+    right: 12,
+    backgroundColor: '#16a34a',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 6,
-    marginLeft: 12,
+    borderRadius: 8,
   },
   copyButtonText: {
-    color: '#fff',
+    color: '#ffffff',
     fontWeight: '600',
     fontSize: 14,
   },
   shareText: {
     fontSize: 14,
-    color: '#666',
+    color: '#64748b',
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 28,
     lineHeight: 20,
   },
+  successButtons: {
+    width: '100%',
+    gap: 12,
+  },
   doneButton: {
-    backgroundColor: '#34C759',
-    paddingHorizontal: 32,
+    backgroundColor: '#16a34a',
     paddingVertical: 16,
-    borderRadius: 8,
+    borderRadius: 14,
+    alignItems: 'center',
   },
   doneButtonText: {
-    color: '#fff',
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#16a34a',
+  },
+  shareButtonText: {
+    color: '#16a34a',
     fontSize: 16,
     fontWeight: '600',
   },

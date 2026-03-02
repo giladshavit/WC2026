@@ -5,128 +5,196 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
+  Modal,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService } from '../services/api';
+
+const CONFETTI = [
+  { color: '#16a34a', style: { top: -4, left: -4 } },
+  { color: '#f59e0b', style: { top: -4, right: -4 } },
+  { color: '#3b82f6', style: { bottom: -4, left: -4 } },
+  { color: '#ef4444', style: { bottom: -4, right: -4 } },
+];
 
 export default function JoinLeagueScreen() {
   const navigation = useNavigation();
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [codeFocused, setCodeFocused] = useState(false);
+  const [joinedLeague, setJoinedLeague] = useState<{ league_name: string } | null>(null);
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
 
   const handleJoinLeague = async () => {
-    if (!inviteCode.trim()) {
-      Alert.alert('Error', 'Please enter an invite code');
-      return;
-    }
-
     const code = inviteCode.trim().toUpperCase();
     if (!/^[A-Z0-9]{8}$/.test(code)) {
-      Alert.alert('Error', 'Invite code must be exactly 8 uppercase letters and numbers');
+      setErrorModal({
+        title: 'Error',
+        message: 'Invite code must be exactly 8 uppercase letters and numbers',
+      });
       return;
     }
 
     setLoading(true);
     try {
+      // TODO: suppress global error toast if apiService has one
       const result = await apiService.joinLeague(code);
-      
-      Alert.alert(
-        'Success!',
-        `You have successfully joined "${result.league_name}"!`,
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      setJoinedLeague(result);
     } catch (error: any) {
-      console.error('Error joining league:', error);
-      
-      let errorMessage = 'Failed to join league';
-      if (error.message) {
-        if (error.message.includes('404')) {
-          errorMessage = 'Invalid or inactive invite code';
-        } else if (error.message.includes('400')) {
-          errorMessage = 'You are already a member of this league';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
-      Alert.alert('Error', errorMessage);
+      const msg = error?.message ?? '';
+      let userMessage = 'Something went wrong. Please try again.';
+      if (msg.includes('404')) userMessage = 'Invalid or inactive invite code.';
+      else if (msg.includes('400') || msg.toLowerCase().includes('already')) userMessage = 'You are already a member of this league.';
+      else if (msg.includes('401') || msg.includes('403')) userMessage = 'You must be logged in to join a league.';
+      setErrorModal({ title: 'Could not join league', message: userMessage });
     } finally {
       setLoading(false);
     }
   };
 
   const handleCodeChange = (text: string) => {
-    // Convert to uppercase and limit to 8 characters
-    const upperText = text.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
-    setInviteCode(upperText);
+    setInviteCode(text.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8));
   };
 
+  const isReady = inviteCode.length === 8 && !loading;
+
+  if (joinedLeague) {
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <View style={styles.successContainer}>
+          <View style={styles.successIconCircle}>
+            {CONFETTI.map((c, i) => (
+              <View
+                key={i}
+                style={[styles.confettiDot, { backgroundColor: c.color }, c.style]}
+              />
+            ))}
+            <Ionicons name="checkmark-circle" size={64} color="#16a34a" />
+          </View>
+          <Text style={styles.successTitle}>Joined Successfully!</Text>
+          <Text style={styles.successSubtitle}>
+            Welcome to{' '}
+            <Text style={{ fontWeight: '700', color: '#16a34a' }}>
+              {joinedLeague.league_name}
+            </Text>
+            !
+          </Text>
+          <TouchableOpacity
+            style={styles.doneButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.doneButtonText}>Let's Go!</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Join League</Text>
-            <Text style={styles.subtitle}>
-              Enter the 8-character invite code to join a league
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Banner card */}
+          <View style={styles.bannerCard}>
+            <Ionicons name="people-circle-outline" size={52} color="#16a34a" />
+            <Text style={styles.bannerTitle}>Enter your invite code</Text>
+            <Text style={styles.bannerSubtitle}>
+              Get the 8-character code from your league creator
             </Text>
           </View>
 
-          <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Invite Code</Text>
-              <TextInput
-                style={styles.input}
-                value={inviteCode}
-                onChangeText={handleCodeChange}
-                placeholder="ABCD1234"
-                maxLength={8}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                autoFocus
-                keyboardType="default"
-              />
-              <Text style={styles.characterCount}>
-                {inviteCode.length}/8 characters
-              </Text>
+          {/* Code input */}
+          <View style={styles.inputGroup}>
+            <TextInput
+              style={[styles.input, codeFocused && styles.inputFocused]}
+              value={inviteCode}
+              onChangeText={handleCodeChange}
+              placeholder="ABCD1234"
+              placeholderTextColor="#cbd5e1"
+              maxLength={8}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              autoFocus
+              keyboardType="default"
+              onFocus={() => setCodeFocused(true)}
+              onBlur={() => setCodeFocused(false)}
+            />
+            {/* Dot progress */}
+            <View style={styles.dotsRow}>
+              {Array(8).fill(0).map((_, i) => (
+                <View
+                  key={i}
+                  style={i < inviteCode.length ? styles.dotFilled : styles.dotEmpty}
+                />
+              ))}
             </View>
-
-            <TouchableOpacity
-              style={[
-                styles.joinButton,
-                (!inviteCode || inviteCode.length !== 8 || loading) && styles.joinButtonDisabled
-              ]}
-              onPress={handleJoinLeague}
-              disabled={!inviteCode || inviteCode.length !== 8 || loading}
-            >
-              <Text style={styles.joinButtonText}>
-                {loading ? 'Joining...' : 'Join League'}
-              </Text>
-            </TouchableOpacity>
           </View>
 
-          <View style={styles.helpSection}>
-            <Text style={styles.helpTitle}>How to get an invite code?</Text>
-            <Text style={styles.helpText}>
-              • Ask a friend who created a league for their invite code{'\n'}
-              • The code is 8 characters long (letters and numbers){'\n'}
-              • Make sure to enter it exactly as provided
+          {/* Join button */}
+          <TouchableOpacity
+            style={[styles.joinButton, !isReady && styles.joinButtonDisabled]}
+            onPress={handleJoinLeague}
+            disabled={!isReady}
+            activeOpacity={0.8}
+          >
+            {!isReady && !loading && (
+              <Ionicons name="lock-closed" size={16} color="#ffffff" />
+            )}
+            <Text style={styles.joinButtonText}>
+              {loading ? 'Joining...' : 'Join League'}
             </Text>
-          </View>
-        </View>
+            {isReady && (
+              <Ionicons name="arrow-forward" size={16} color="#ffffff" />
+            )}
+          </TouchableOpacity>
+        </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={errorModal !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setErrorModal(null)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center' }}
+          onPress={() => setErrorModal(null)}
+        >
+          <Pressable
+            style={{ backgroundColor: '#fff', borderRadius: 20, padding: 28, width: '82%', maxWidth: 340, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 16, elevation: 12 }}
+            onPress={() => {}}
+          >
+            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#fee2e2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+              <Ionicons name="alert-circle-outline" size={28} color="#ef4444" />
+            </View>
+            <Text style={{ fontSize: 19, fontWeight: '700', color: '#111827', marginBottom: 8, textAlign: 'center' }}>
+              {errorModal?.title}
+            </Text>
+            <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', lineHeight: 21, marginBottom: 20 }}>
+              {errorModal?.message}
+            </Text>
+            <Pressable
+              style={{ backgroundColor: '#16a34a', width: '100%', paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
+              onPress={() => setErrorModal(null)}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>OK</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -134,92 +202,147 @@ export default function JoinLeagueScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f1f5f9',
   },
   keyboardAvoidingView: {
     flex: 1,
   },
   content: {
-    flex: 1,
-    padding: 16,
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 32,
   },
-  header: {
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  form: {
-    marginBottom: 32,
-  },
-  inputGroup: {
+  // Banner
+  bannerCard: {
+    backgroundColor: '#f0fdf4',
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 24,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 24,
-    color: '#333',
-    fontFamily: 'monospace',
-    textAlign: 'center',
-    letterSpacing: 2,
-  },
-  characterCount: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  joinButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
     alignItems: 'center',
   },
+  bannerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  bannerSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  // Input
+  inputGroup: {
+    marginBottom: 20,
+  },
+  input: {
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 22,
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#1e293b',
+    fontFamily: 'monospace',
+    textAlign: 'center',
+    letterSpacing: 6,
+  },
+  inputFocused: {
+    borderColor: '#16a34a',
+    backgroundColor: '#f0fdf4',
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  dotFilled: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#16a34a',
+    margin: 3,
+  },
+  dotEmpty: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#e2e8f0',
+    margin: 3,
+  },
+  // Button
+  joinButton: {
+    backgroundColor: '#16a34a',
+    borderRadius: 16,
+    height: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   joinButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#d1d5db',
   },
   joinButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  helpSection: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  helpTitle: {
+    color: '#ffffff',
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    fontWeight: '700',
   },
-  helpText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
+  // Success
+  successContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  successIconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 2,
+    borderColor: '#bbf7d0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  confettiDot: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 2,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  successSubtitle: {
+    fontSize: 16,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 24,
+  },
+  doneButton: {
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 48,
+    paddingVertical: 16,
+    borderRadius: 14,
+  },
+  doneButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
