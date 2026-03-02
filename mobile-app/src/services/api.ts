@@ -2,7 +2,7 @@
 import { Platform } from 'react-native';
 
 // Change this to your Mac's IP address when testing on physical device
-const DEVICE_IP = '192.168.1.236';
+const DEVICE_IP = '10.100.102.108';
 
 // For iOS Simulator, use localhost. For physical device, use network IP
 const API_BASE_URL = Platform.OS === 'web' ? 'http://localhost:8000' : `http://${DEVICE_IP}:8000`;
@@ -48,6 +48,7 @@ export interface User {
   total_points: number;
   created_at: string;
   last_login: string | null;
+  is_admin?: boolean;
 }
 
 export interface AuthResponse {
@@ -537,6 +538,20 @@ class ApiService {
     }
   }
 
+  async getDraftChangesCount(userId: number = 1): Promise<any> {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${this.baseUrl}/api/predictions/knockout/draft-changes-count?user_id=${userId}&_t=${timestamp}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching draft changes count:', error);
+      throw error;
+    }
+  }
+
   async createAllDrafts(userId: number = 1): Promise<any> {
     try {
       const response = await fetch(`${this.baseUrl}/api/predictions/knockout/create-all-drafts?user_id=${userId}`, {
@@ -575,6 +590,42 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('Error deleting drafts:', error);
+      throw error;
+    }
+  }
+
+  async resetDrafts(userId: number = 1): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/predictions/knockout/reset-drafts?user_id=${userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error resetting drafts:', error);
+      throw error;
+    }
+  }
+
+  async commitDrafts(userId: number = 1): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/predictions/knockout/commit-drafts?user_id=${userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error committing drafts:', error);
       throw error;
     }
   }
@@ -688,6 +739,252 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('Error fetching app status:', error);
+      throw error;
+    }
+  }
+
+  async getCurrentStage(): Promise<any> {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${this.baseUrl}/api/admin/stage/current?_t=${timestamp}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching current stage:', error);
+      throw error;
+    }
+  }
+
+  async advanceStage(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/stage/advance`, { method: 'POST' });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error advancing stage:', error);
+      throw error;
+    }
+  }
+
+  async updateStage(stageName: string): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/stage/update?stage=${encodeURIComponent(stageName)}`, {
+        method: 'PUT',
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating stage:', error);
+      throw error;
+    }
+  }
+
+  async resetStage(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/stage/reset`, { method: 'POST' });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error resetting stage:', error);
+      throw error;
+    }
+  }
+
+  async getAdminMatches(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/matches/results`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching admin matches:', error);
+      throw error;
+    }
+  }
+
+  async updateMatchResult(matchId: number, scores: {
+    home_team_score?: number;
+    away_team_score?: number;
+    home_score?: number;
+    away_score?: number;
+    home_team_score_120?: number;
+    away_team_score_120?: number;
+    home_team_penalties?: number;
+    away_team_penalties?: number;
+    outcome_type?: string;
+  }): Promise<any> {
+    try {
+      const body = {
+        home_team_score: scores.home_team_score ?? scores.home_score ?? 0,
+        away_team_score: scores.away_team_score ?? scores.away_score ?? 0,
+        home_team_score_120: scores.home_team_score_120,
+        away_team_score_120: scores.away_team_score_120,
+        home_team_penalties: scores.home_team_penalties,
+        away_team_penalties: scores.away_team_penalties,
+        outcome_type: scores.outcome_type ?? 'regular',
+      };
+      const response = await fetch(`${this.baseUrl}/api/admin/matches/${matchId}/result`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating match result:', error);
+      throw error;
+    }
+  }
+
+  async updateMatchStatus(matchId: number, status: string): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/matches/${matchId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, outcome_type: 'regular' }),
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating match status:', error);
+      throw error;
+    }
+  }
+
+  async getAdminGroups(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/groups/results`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching admin groups:', error);
+      throw error;
+    }
+  }
+
+  async updateGroupResult(groupId: number, result: {
+    first_place: number;
+    second_place: number;
+    third_place: number;
+    fourth_place: number;
+  }): Promise<any> {
+    try {
+      const body = {
+        first_place_team_id: result.first_place,
+        second_place_team_id: result.second_place,
+        third_place_team_id: result.third_place,
+        fourth_place_team_id: result.fourth_place,
+      };
+      const response = await fetch(`${this.baseUrl}/api/admin/groups/${groupId}/result`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating group result:', error);
+      throw error;
+    }
+  }
+
+  async getAdminKnockoutMatches(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/knockout/results`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching admin knockout matches:', error);
+      throw error;
+    }
+  }
+
+  async deleteAllKnockoutResults(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/delete-all-knockout-results`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error deleting knockout results:', error);
+      throw error;
+    }
+  }
+
+  async rebuildRound32Bracket(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/bracket/rebuild-round32`, {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error rebuilding Round 32 bracket:', error);
+      throw error;
+    }
+  }
+
+  async getAdminThirdPlaceResults(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/third-place/results`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching admin third place results:', error);
+      throw error;
+    }
+  }
+
+  async updateAdminThirdPlaceResult(result: {
+    first_team_qualifying: number;
+    second_team_qualifying: number;
+    third_team_qualifying: number;
+    fourth_team_qualifying: number;
+    fifth_team_qualifying: number;
+    sixth_team_qualifying: number;
+    seventh_team_qualifying: number;
+    eighth_team_qualifying: number;
+  }): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/third-place/results`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(result),
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating third place result:', error);
+      throw error;
+    }
+  }
+
+  async createRandomGroupAndThirdPlaceResults(updateExisting: boolean = false): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/create-random-group-and-third-place-results`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ update_existing: updateExisting }),
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating random results:', error);
+      throw error;
+    }
+  }
+
+  async deleteAllResults(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/delete-all-results`, {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error deleting all results:', error);
       throw error;
     }
   }
@@ -830,6 +1127,108 @@ class ApiService {
       console.error('Error fetching league info:', error);
       throw error;
     }
+  }
+
+  // Statistics methods
+  async getUserFullProfile(userId: number): Promise<any> {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${this.baseUrl}/api/stats/user/${userId}/profile?_t=${timestamp}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      throw error;
+    }
+  }
+
+  async getMatchStatistics(matchId: number): Promise<any> {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${this.baseUrl}/api/stats/matches/${matchId}?_t=${timestamp}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching match statistics:', error);
+      throw error;
+    }
+  }
+
+  async getGroupStatistics(groupId: number): Promise<any> {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${this.baseUrl}/api/stats/groups/${groupId}?_t=${timestamp}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching group statistics:', error);
+      throw error;
+    }
+  }
+
+  async getThirdPlaceStatistics(): Promise<any> {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${this.baseUrl}/api/stats/third-place?_t=${timestamp}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching third place statistics:', error);
+      throw error;
+    }
+  }
+
+  async getKnockoutMatchStatistics(templateMatchId: number): Promise<any> {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${this.baseUrl}/api/stats/knockout/${templateMatchId}?_t=${timestamp}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching knockout match statistics:', error);
+      throw error;
+    }
+  }
+
+  async getUserMatchProfile(userId: number): Promise<any> {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${this.baseUrl}/api/stats/user/${userId}/matches?_t=${timestamp}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching user match profile:', error);
+      throw error;
+    }
+  }
+
+  // Stats aliases (used by modals)
+  async getMatchStats(matchId: number): Promise<any> {
+    return this.getMatchStatistics(matchId);
+  }
+
+  async getGroupStats(groupId: number): Promise<any> {
+    return this.getGroupStatistics(groupId);
+  }
+
+  async getThirdPlaceStats(): Promise<any> {
+    return this.getThirdPlaceStatistics();
+  }
+
+  async getKnockoutMatchStats(templateMatchId: number): Promise<any> {
+    return this.getKnockoutMatchStatistics(templateMatchId);
   }
 
 }
