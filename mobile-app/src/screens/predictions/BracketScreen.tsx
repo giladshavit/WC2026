@@ -35,7 +35,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const NAV_HEADER_HEIGHT = 60;
   const BOTTOM_TABS_HEIGHT = 80;
   const AVAILABLE_HEIGHT = screenHeight - STATUS_BAR_HEIGHT - TAB_BAR_HEIGHT - NAV_HEADER_HEIGHT - BOTTOM_TABS_HEIGHT;
-  const Y_OFFSET = 60;
+  const Y_OFFSET = 20;
   const COLUMN_WIDTH = 110;
   const [predictions, setPredictions] = useState<KnockoutPrediction[]>([]);
   const [organizedBracket, setOrganizedBracket] = useState<OrganizedBracket | null>(null);
