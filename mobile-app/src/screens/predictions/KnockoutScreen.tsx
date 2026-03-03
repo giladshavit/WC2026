@@ -104,6 +104,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const pendingScrollYRef = useRef<number | null>(null);
   const stageSectionYRef = useRef<Record<string, number>>({});
   const hasAutoScrolledRef = useRef(false);
+  const handleTeamPressRef = useRef<(prediction: KnockoutPrediction, teamId: number) => Promise<void>>(async () => {});
 
   const getRelevantStageKey = useCallback((): string => {
     const stageUpper = (currentStage || '').toUpperCase();
@@ -252,28 +253,74 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     return unlockedStages.has(prevKey) && !isStageComplete(prevKey);
   }, [unlockedStages, isStageComplete]);
 
-  const handleTeamPress = useCallback(async (
+  const handleTeamPress = async (
     prediction: KnockoutPrediction,
     teamId: number
   ) => {
-    if (!isStageKeyEditable(prediction.stage)) return;
-    setShowReadOnlyPrompt(true);
-  }, [isStageKeyEditable]);
+    if (!prediction.is_editable) {
+      setShowReadOnlyPrompt(true);
+      return;
+    }
+
+    if (isPreTournament) {
+      const winnerTeamNumber = teamId === prediction.team1_id ? 1 : 2;
+      const winnerTeamName = teamId === prediction.team1_id
+        ? (prediction.team1_name ?? '')
+        : (prediction.team2_name ?? '');
+
+      try {
+        await apiService.updateKnockoutPrediction(
+          prediction.id,
+          winnerTeamNumber,
+          winnerTeamName,
+          false
+        );
+
+        setPredictionsByStage(prev => {
+          const updated = { ...prev };
+          updated[prediction.stage] = (prev[prediction.stage] || []).map(p => {
+            if (p.id !== prediction.id) return p;
+            return { ...p, winner_team_id: teamId };
+          });
+          return updated;
+        });
+
+        setOriginalWinners(prev => ({ ...prev, [prediction.id]: teamId }));
+
+        setUnlockedStages(prev => {
+          const next = new Set(prev);
+          STAGES.forEach(({ key }) => {
+            if (computeIsStageVisible(key, predictionsByStage, { ...originalWinners, [prediction.id]: teamId })) {
+              next.add(key);
+            }
+          });
+          return next;
+        });
+
+      } catch (error) {
+        console.error('Error updating knockout prediction:', error);
+      }
+    } else {
+      setShowReadOnlyPrompt(true);
+    }
+  };
+
+  // Always keep ref up to date
+  handleTeamPressRef.current = handleTeamPress;
 
   const renderMatch = useCallback((prediction: KnockoutPrediction, stageKey: string) => {
-    const locked = !isStageKeyEditable(stageKey);
     return (
       <KnockoutMatchCard
         key={prediction.id}
         prediction={prediction}
-        onTeamPress={(teamId) => handleTeamPress(prediction, teamId)}
+        onTeamPress={(teamId) => handleTeamPressRef.current(prediction, teamId)}
         originalWinner={originalWinners[prediction.id]}
         isTouched={touchedPredictions.has(prediction.id)}
         isPreTournament={isPreTournament}
-        isLocked={locked}
+        isLocked={!prediction.is_editable}
       />
     );
-  }, [originalWinners, handleTeamPress, touchedPredictions, isPreTournament, isStageKeyEditable]);
+  }, [originalWinners, touchedPredictions, isPreTournament]);
 
   const hasAnyResult = Object.values(predictionsByStage).flat().some(
     p => p.is_correct !== null && p.is_correct !== undefined

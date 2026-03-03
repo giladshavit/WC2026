@@ -11,6 +11,7 @@ interface BracketMatchCardProps {
 }
 
 export default function BracketMatchCard({ match, onPress, onLayout }: BracketMatchCardProps) {
+  const isLocked = match.is_editable === false;
   const isTeam1Winner = match.winner_team_id === match.team1_id;
   const isTeam2Winner = match.winner_team_id === match.team2_id;
   const isFinal = match.stage === 'final';
@@ -152,7 +153,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
 
   if (isFinal) {
     return (
-      <View style={styles.finalWrapper}>
+      <View style={[styles.finalWrapper, isLocked && { opacity: 0.45 }]}>
         {/* Winner or placeholder ABOVE the card */}
         {match.winner_team_id ? (
           <View style={styles.winnerBanner}>
@@ -187,7 +188,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
               const { x, y, width, height } = event.nativeEvent.layout;
               onLayout?.(match.id, { x, y, width, height });
             }}
-            activeOpacity={0.7}
+            activeOpacity={isLocked ? 1 : 0.7}
           >
             {renderFinalMatch()}
             {scoreBadge && (
@@ -204,7 +205,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
   }
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, isLocked && { opacity: 0.45 }]}>
       <View style={[
         styles.shadowWrapper,
         {
@@ -217,15 +218,12 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
       ]}>
         <TouchableOpacity
           style={[styles.container, { borderColor }]}
-          onPress={() => {
-            console.log(`🔥 BracketMatchCard onPress called for match ${match.id}`);
-            onPress?.(match);
-          }}
+          onPress={() => onPress?.(match)}
           onLayout={(event) => {
             const { x, y, width, height } = event.nativeEvent.layout;
             onLayout?.(match.id, { x, y, width, height });
           }}
-          activeOpacity={0.7}
+          activeOpacity={isLocked ? 1 : 0.7}
         >
           <View style={styles.matchContainer}>
           {renderTeamHalf(

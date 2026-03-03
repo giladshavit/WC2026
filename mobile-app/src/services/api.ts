@@ -174,6 +174,8 @@ export interface KnockoutPrediction {
   is_correct?: boolean | null; // True if prediction is correct (match finished)
   team1_is_valid?: boolean | null; // True if team1 can reach this match (match not finished)
   team2_is_valid?: boolean | null; // True if team2 can reach this match (match not finished)
+  team1_is_eliminated?: boolean | null; // True if team1 has been eliminated
+  team2_is_eliminated?: boolean | null; // True if team2 has been eliminated
 }
 
 // League interfaces

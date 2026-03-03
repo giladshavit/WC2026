@@ -63,6 +63,7 @@ export interface BracketMatch {
   // Elimination status
   team1_is_eliminated?: boolean; // True if team1 has been eliminated
   team2_is_eliminated?: boolean; // True if team2 has been eliminated
+  is_editable?: boolean;
 }
 
 export interface OrganizedBracket {
@@ -176,6 +177,7 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       // Elimination status
       team1_is_eliminated: prediction.team1_is_eliminated,
       team2_is_eliminated: prediction.team2_is_eliminated,
+      is_editable: prediction.is_editable,
     };
 
     // Organize by stage and side

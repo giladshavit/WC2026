@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Tuple
+from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
 from models.tournament_config import TournamentConfig
@@ -62,6 +62,18 @@ class Stage(Enum):
         """Returns True only for PRE_GROUP_STAGE. Once tournament starts, knockout predictions can only be changed via draft system."""
         return self == Stage.PRE_GROUP_STAGE
 
+    @property
+    def knockout_stage_name(self) -> Optional[str]:
+        """Returns the knockout stage DB string for this stage, or None if not a knockout stage."""
+        mapping = {
+            Stage.ROUND32: 'round32',
+            Stage.ROUND16: 'round16',
+            Stage.QUARTER: 'quarter',
+            Stage.SEMI: 'semi',
+            Stage.FINAL: 'final',
+        }
+        return mapping.get(self, None)
+
 
 class StageManager:
     """Tournament stage management and penalty system"""
@@ -82,6 +94,7 @@ class StageManager:
     @staticmethod
     def set_current_stage(stage: Stage, db: Session) -> None:
         """Update current tournament stage and update prediction editability"""
+        print(f"[DEBUG] set_current_stage CALLED with stage={stage.name}", flush=True)
         # Save to database
         TournamentConfig.set_config(db, 'current_stage', stage.name)
         
@@ -106,82 +119,72 @@ class StageManager:
     
     @staticmethod
     def reset_stage(db: Session) -> Stage:
-        """Reset to first stage and make all predictions editable"""
+        """Reset to PRE_GROUP_STAGE and restore all editability."""
         StageManager.set_current_stage(Stage.PRE_GROUP_STAGE, db)
-        
-        # Make all predictions editable
-        DBWriter.set_match_predictions_editable(db, True)
-        DBWriter.set_group_predictions_editable(db, True)
-        DBWriter.set_third_place_predictions_editable(db, True)
-        DBWriter.set_knockout_predictions_editable(db, True)
-        
-        DBUtils.commit(db)
         return Stage.PRE_GROUP_STAGE
     
     @staticmethod
-    def _block_knockout_predictions_by_stage(db: Session, stage_name: str) -> None:
-        """Helper function to block knockout predictions by stage name"""
-        DBWriter.set_knockout_predictions_editable_by_stage(db, stage_name, False)
+    def _block_knockout_predictions_by_stage(db: Session, stage: Stage) -> None:
+        """Block knockout predictions for the given stage enum value."""
+        stage_name = stage.knockout_stage_name
+        if stage_name:
+            DBWriter.set_knockout_predictions_editable_by_stage(db, stage_name, False)
     
     @staticmethod
     def _update_prediction_editability(current_stage: Stage, db: Session) -> None:
-        """Update is_editable field for all predictions based on current stage"""
+        """
+        Update is_editable for all predictions based on current stage.
+        Called automatically by set_current_stage.
+        """
+        print(f"[DEBUG] _update_prediction_editability ENTERED with stage={current_stage.name}", flush=True)
 
-        # Knockout predictions: only directly editable at PRE_GROUP_STAGE
-        # After tournament starts, all changes must go through the draft system
-        if current_stage != Stage.PRE_GROUP_STAGE:
-            DBWriter.set_knockout_predictions_editable(db, False)
-
-        # Switch case for each stage
         if current_stage == Stage.PRE_GROUP_STAGE:
-            # All predictions editable - do nothing
+            print(f"[DEBUG] _update_prediction_editability: PRE_GROUP_STAGE - everything open")
+            # Everything open
+            DBWriter.set_group_predictions_editable(db, True)
+            DBWriter.set_third_place_predictions_editable(db, True)
+            DBWriter.set_knockout_predictions_editable(db, True)
+
+        elif current_stage in (Stage.GROUP_CYCLE_1, Stage.GROUP_CYCLE_2):
+            print(f"[DEBUG] _update_prediction_editability: {current_stage.name} - no changes")
+            # Nothing changes
             pass
-            
-        elif current_stage == Stage.GROUP_CYCLE_1:
-            # All predictions still editable - do nothing
-            pass
-            
-        elif current_stage == Stage.GROUP_CYCLE_2:
-            # All predictions still editable - do nothing
-            pass
-            
+
         elif current_stage == Stage.GROUP_CYCLE_3:
-            # Block group stage and third place predictions
+            print(f"[DEBUG] _update_prediction_editability: GROUP_CYCLE_3 - close groups + third place")
+            # Close groups and third place only
             DBWriter.set_group_predictions_editable(db, False)
             DBWriter.set_third_place_predictions_editable(db, False)
-            
+
         elif current_stage == Stage.PRE_ROUND32:
-            # No additional blocking - do nothing
+            print(f"[DEBUG] _update_prediction_editability: PRE_ROUND32 - no changes")
             pass
-            
-        elif current_stage == Stage.ROUND32:
-            # Block round32 knockout predictions
-            StageManager._block_knockout_predictions_by_stage(db, 'round32')
-            
+
+        elif current_stage.is_knockout_active():
+            print(f"[DEBUG] _update_prediction_editability: {current_stage.name} (knockout active) - close everything")
+            # Active knockout stage: close everything
+            DBWriter.set_group_predictions_editable(db, False)
+            DBWriter.set_third_place_predictions_editable(db, False)
+            DBWriter.set_knockout_predictions_editable(db, False)
+
         elif current_stage == Stage.PRE_ROUND16:
-            # No additional blocking - do nothing
-            pass
-            
-        elif current_stage == Stage.ROUND16:
-            # Block round16 knockout predictions
-            StageManager._block_knockout_predictions_by_stage(db, 'round16')
-            
+            print(f"[DEBUG] _update_prediction_editability: PRE_ROUND16 - close round32, open rest")
+            # Close round32, open round16 through final
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'round32', False)
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'round16', True)
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'quarter', True)
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'semi', True)
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'final', True)
+
         elif current_stage == Stage.PRE_QUARTER:
-            # No additional blocking - do nothing
-            pass
-            
-        elif current_stage == Stage.QUARTER:
-            # Block quarter knockout predictions
-            StageManager._block_knockout_predictions_by_stage(db, 'quarter')
-            
-        elif current_stage == Stage.SEMI:
-            # Block semi knockout predictions
-            StageManager._block_knockout_predictions_by_stage(db, 'semi')
-            
-        elif current_stage == Stage.FINAL:
-            # Block final knockout predictions
-            StageManager._block_knockout_predictions_by_stage(db, 'final')
-        
+            print(f"[DEBUG] _update_prediction_editability: PRE_QUARTER - close round32+round16, open rest")
+            # Close round32 + round16, open quarter through final
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'round32', False)
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'round16', False)
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'quarter', True)
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'semi', True)
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'final', True)
+
         DBUtils.commit(db)
     
     @staticmethod

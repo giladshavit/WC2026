@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
@@ -5,6 +6,8 @@ from pydantic import BaseModel
 from dataclasses import dataclass
 
 from services.predictions import PredictionService
+
+logger = logging.getLogger(__name__)
 from services.database import DBReader, DBUtils
 from services.stage_manager import StageManager, Stage
 from services.predictions.match_prediction_service import MatchPredictionService
@@ -60,6 +63,7 @@ def get_matches_with_predictions(user_id: int, db: Session = Depends(get_db)):
     """
     Get all matches with the user's predictions and user scores
     """
+    logger.info(f"[DEBUG] get_matches_with_predictions CALLED user_id={user_id}")
     return MatchPredictionService.get_all_matches_with_predictions(db, user_id)
 
 @router.post("/predictions/matches/batch", response_model=Dict[str, Any])

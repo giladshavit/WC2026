@@ -8,7 +8,9 @@ import {
   Alert,
   useWindowDimensions,
   TouchableOpacity,
-  Platform
+  Platform,
+  Modal,
+  Pressable
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -53,6 +55,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [isConfirmSaveModalVisible, setIsConfirmSaveModalVisible] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [showNotEditableModal, setShowNotEditableModal] = useState(false);
   
   // Get current user ID
   const { getCurrentUserId } = useAuth();
@@ -465,12 +468,28 @@ export default function BracketScreen({}: BracketScreenProps) {
 
   const handleMatchPress = (match: BracketMatch) => {
     setSelectedMatch(match);
+
     if (isPreTournament) {
+      // Pre-tournament: always allow direct edit
       setIsModalVisible(true);
-    } else if (!editMode) {
-      setIsEnterEditModeModalVisible(true);
+      return;
+    }
+
+    // Post-tournament
+    if (editMode) {
+      // In edit mode: check if this specific prediction is editable
+      if (match.is_editable === false) {
+        setShowNotEditableModal(true);
+      } else {
+        setIsModalVisible(true);
+      }
     } else {
-      setIsModalVisible(true);
+      // Not in edit mode: check if editable before prompting
+      if (match.is_editable === false) {
+        setShowNotEditableModal(true);
+      } else {
+        setIsEnterEditModeModalVisible(true);
+      }
     }
   };
 
@@ -766,6 +785,25 @@ export default function BracketScreen({}: BracketScreenProps) {
         }}
       />
 
+      {/* Not Editable Modal */}
+      <Modal visible={showNotEditableModal} transparent animationType="fade">
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowNotEditableModal(false)}
+        >
+          <View style={styles.modalCard}>
+            <Ionicons name="lock-closed" size={48} color="#64748b" />
+            <Text style={styles.modalTitle}>Not Editable</Text>
+            <Text style={styles.modalSubtitle}>
+              This prediction is locked and cannot be edited at this stage.
+            </Text>
+            <TouchableOpacity style={styles.modalButton} onPress={() => setShowNotEditableModal(false)}>
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* Match Edit Modal - OUTSIDE ScrollView */}
       <MatchEditModal
         visible={isModalVisible}
@@ -1058,5 +1096,51 @@ const styles = StyleSheet.create({
   hiddenScrollView: {
     flex: 1,
     opacity: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 28,
+    alignItems: 'center',
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalButton: {
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

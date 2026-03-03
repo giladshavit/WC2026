@@ -129,6 +129,7 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
         borderWidth: 1,
         borderColor: '#d1d5db',
       },
+      isLocked && { opacity: 0.45 },
     ]}>
       {showScoreBadge ? (
         <View style={[styles.scoreBadge, { backgroundColor: scoreBadgeColor }]}>

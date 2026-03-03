@@ -421,7 +421,8 @@ def update_tournament_stage(stage: str, db: Session = Depends(get_db)):
 def advance_tournament_stage(db: Session = Depends(get_db)):
     """
     Advance tournament stage by one (admin only)
-    """
+    """ 
+    print(f"[DEBUG] advance_tournament_stage CALLED", flush=True)
     new_stage = StageManager.advance_stage(db)
     return {
         "message": f"Stage advanced to {new_stage.name}",
@@ -436,7 +437,8 @@ def advance_to_group_stage(db: Session = Depends(get_db)):
     Advance directly to GROUP_CYCLE_1 (first group stage cycle) if currently at PRE_GROUP_STAGE (admin only)
     """
     current_stage = StageManager.get_current_stage(db)
-    
+    print(f"[DEBUG] _update_prediction_editability ENTERED with stage={current_stage.name}", flush=True)
+
     if current_stage == Stage.PRE_GROUP_STAGE:
         StageManager.set_current_stage(Stage.GROUP_CYCLE_1, db)
         return {
