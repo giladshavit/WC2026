@@ -51,6 +51,7 @@ export default function AdminMenuScreen() {
   const [deleting, setDeleting] = useState(false);
   const [creatingRandom, setCreatingRandom] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
+  const [generatingUsers, setGeneratingUsers] = useState(false);
 
   const handleCreateRandomResults = (updateExisting: boolean) => {
     const action = updateExisting ? 'update' : 'create';
@@ -159,6 +160,40 @@ export default function AdminMenuScreen() {
     );
   };
 
+  const handleGenerateTestUsers = () => {
+    Alert.alert(
+      '👥 Generate Test Users',
+      'Creates 50 fake users and fills all their predictions randomly.\n\n' +
+      '• Match scores use weighted distribution (0 goals = 25%, 1 = 20%, etc.)\n' +
+      '• Groups, third place, and knockout cascade automatically\n\n' +
+      '⚠️ Use only in development!',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Generate',
+          style: 'default',
+          onPress: async () => {
+            setGeneratingUsers(true);
+            try {
+              const result = await apiService.generateTestUsers(50);
+              Alert.alert(
+                '✅ Done!',
+                `👤 Users created: ${result.created}\n` +
+                `🎯 Predictions filled: ${result.predictions_filled}\n` +
+                `❌ Errors: ${result.errors}`,
+                [{ text: 'OK' }]
+              );
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Could not generate test users');
+            } finally {
+              setGeneratingUsers(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleDeleteAllResults = () => {
     Alert.alert(
       '⚠️ Delete All Results',
@@ -237,9 +272,20 @@ export default function AdminMenuScreen() {
           <Text style={styles.quickActionsTitle}>Quick Actions</Text>
           
           <TouchableOpacity
-            style={[styles.quickActionButton, styles.createRandomButton, (creatingRandom || deleting || rebuilding) && styles.buttonDisabled]}
+            style={[styles.quickActionButton, styles.generateTestUsersButton, (generatingUsers || deleting || creatingRandom || rebuilding) && styles.buttonDisabled]}
+            onPress={handleGenerateTestUsers}
+            disabled={generatingUsers || deleting || creatingRandom || rebuilding}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.quickActionButtonText}>
+              {generatingUsers ? 'Generating...' : '👥 Generate 50 Test Users'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.quickActionButton, styles.createRandomButton, (creatingRandom || deleting || rebuilding || generatingUsers) && styles.buttonDisabled]}
             onPress={() => handleCreateRandomResults(false)}
-            disabled={creatingRandom || deleting || rebuilding}
+            disabled={creatingRandom || deleting || rebuilding || generatingUsers}
             activeOpacity={0.7}
           >
             <Text style={styles.quickActionButtonText}>
@@ -248,9 +294,9 @@ export default function AdminMenuScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.quickActionButton, styles.rebuildButton, (rebuilding || deleting || creatingRandom) && styles.buttonDisabled]}
+            style={[styles.quickActionButton, styles.rebuildButton, (rebuilding || deleting || creatingRandom || generatingUsers) && styles.buttonDisabled]}
             onPress={handleRebuildRound32}
-            disabled={rebuilding || deleting || creatingRandom}
+            disabled={rebuilding || deleting || creatingRandom || generatingUsers}
             activeOpacity={0.7}
           >
             <Text style={styles.quickActionButtonText}>
@@ -260,9 +306,9 @@ export default function AdminMenuScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.deleteButton, deleting && styles.deleteButtonDisabled]}
+          style={[styles.deleteButton, (deleting || generatingUsers) && styles.deleteButtonDisabled]}
           onPress={handleDeleteAllResults}
-          disabled={deleting}
+          disabled={deleting || generatingUsers}
           activeOpacity={0.7}
         >
           <Text style={styles.deleteButtonText}>
@@ -325,6 +371,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  generateTestUsersButton: {
+    backgroundColor: '#0d9488',
   },
   createRandomButton: {
     backgroundColor: '#9333ea',

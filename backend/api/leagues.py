@@ -210,6 +210,17 @@ def get_league_standings(
             detail=f"Failed to get league standings: {str(e)}"
         )
 
+@router.delete("/leagues/{league_id}/leave")
+def leave_league_endpoint(
+    league_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Remove the current user from a league."""
+    LeagueService.leave_league(db, user_id=current_user.id, league_id=league_id)
+    return {"message": "Successfully left the league"}
+
+
 @router.get("/leagues/{league_id}", response_model=LeagueResponse)
 def get_league_info(
     league_id: int,

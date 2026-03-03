@@ -255,3 +255,23 @@ class LeagueService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to get league info: {str(e)}"
             )
+
+    @staticmethod
+    def leave_league(db: Session, user_id: int, league_id: int) -> None:
+        """Remove a user from a league."""
+        membership = DBReader.get_league_membership(db, league_id, user_id)
+        if not membership:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="You are not a member of this league"
+            )
+
+        league = DBReader.get_active_league_by_id(db, league_id)
+        if league and league.created_by == user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="League creator cannot leave their own league"
+            )
+
+        DBWriter.delete_league_membership(db, membership)
+        DBUtils.commit(db)

@@ -973,6 +973,20 @@ def rebuild_knockout_from_predictions(
 class CreateRandomResultsRequest(BaseModel):
     update_existing: bool = False
 
+@router.post("/admin/generate-test-users", response_model=Dict[str, Any])
+def generate_test_users(
+    count: int = 50,
+    db: Session = Depends(get_db)
+):
+    """
+    Generate `count` fake test users with fully randomized predictions.
+    Intended for local testing only.
+    """
+    from services.test_data_service import generate_test_users_with_predictions
+    result = generate_test_users_with_predictions(db, count)
+    return result
+
+
 @router.post("/admin/create-random-group-and-third-place-results", response_model=Dict[str, Any])
 def create_random_group_and_third_place_results(
     request: CreateRandomResultsRequest,

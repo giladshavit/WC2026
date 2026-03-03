@@ -1,11 +1,20 @@
 // Use localhost for emulator/web, network IP for physical device
 import { Platform } from 'react-native';
+import * as Device from 'expo-device';
 
 // Change this to your Mac's IP address when testing on physical device
 const DEVICE_IP = '10.100.102.108';
 
-// For iOS Simulator, use localhost. For physical device, use network IP
-const API_BASE_URL = Platform.OS === 'web' ? 'http://localhost:8000' : `http://${DEVICE_IP}:8000`;
+// For web: localhost. For iOS Simulator: localhost. For Android Emulator: 10.0.2.2. For physical device: network IP
+function getApiBaseUrl(): string {
+  if (Platform.OS === 'web') return 'http://localhost:8000';
+  if (!Device.isDevice) {
+    // Simulator/Emulator
+    return Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000';
+  }
+  return `http://${DEVICE_IP}:8000`;
+}
+const API_BASE_URL = getApiBaseUrl();
 
 export interface Team {
   id: number;
@@ -225,7 +234,7 @@ export interface JoinLeagueRequest {
   invite_code: string;
 }
 
-class ApiService {
+export class ApiService {
   private baseUrl: string;
   private accessToken: string | null = null;
 
@@ -979,6 +988,19 @@ class ApiService {
     }
   }
 
+  async generateTestUsers(count: number = 50): Promise<{ created: number; predictions_filled: number; errors: number }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/generate-test-users?count=${count}`, {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error generating test users:', error);
+      throw error;
+    }
+  }
+
   async deleteAllResults(): Promise<any> {
     try {
       const response = await fetch(`${this.baseUrl}/api/admin/delete-all-results`, {
@@ -1128,6 +1150,28 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('Error fetching league info:', error);
+      throw error;
+    }
+  }
+
+  async leaveLeague(leagueId: number): Promise<void> {
+    try {
+      const headers: HeadersInit = {};
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}/api/leagues/${leagueId}/leave`, {
+        method: 'DELETE',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error leaving league:', error);
       throw error;
     }
   }

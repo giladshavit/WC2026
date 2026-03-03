@@ -328,6 +328,29 @@
                             </div>
                         </div>
 
+                        <!-- Generate Test Users -->
+                        <div class="mb-6 p-4 bg-teal-50 rounded-lg border border-teal-200">
+                            <h3 class="text-lg font-semibold text-teal-800 mb-2">
+                                👥 Generate Test Users with Random Predictions
+                            </h3>
+                            <p class="text-sm text-teal-600 mb-4">
+                                Creates 50 fake users and fills all their predictions randomly.<br>
+                                Match scores use weighted distribution (0 goals = 25%, 1 = 20%, etc.).<br>
+                                Groups, third place, and knockout cascade automatically.
+                                <strong>⚠️ Use only in development!</strong>
+                            </p>
+                            <div class="flex items-center gap-3">
+                                <button 
+                                    onclick="generateTestUsers(this)" 
+                                    class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-6 rounded transition-colors"
+                                >
+                                    🚀 Generate 50 Test Users
+                                </button>
+                                <span id="generate-users-status" class="text-sm text-teal-700 font-medium"></span>
+                            </div>
+                            <div id="generate-users-result" class="mt-3 hidden p-3 bg-white rounded border border-teal-200 text-sm"></div>
+                        </div>
+
                         <!-- Create Random Results -->
                         <div class="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
                             <h3 class="text-lg font-semibold text-purple-800 mb-2">🎲 Create Random Group and Third Place Results</h3>
@@ -1646,6 +1669,45 @@
                     button.textContent = '🗑️ Reset All Results and Scores';
                     button.classList.remove('opacity-50');
                 }
+            }
+        }
+
+        async function generateTestUsers(btn) {
+            const status = document.getElementById('generate-users-status');
+            const result = document.getElementById('generate-users-result');
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Generating...';
+            status.textContent = 'Creating 50 users and filling predictions...';
+            result.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/admin/generate-test-users?count=50', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    status.textContent = '✅ Done!';
+                    result.classList.remove('hidden');
+                    result.innerHTML = `
+                        <strong>Results:</strong><br>
+                        👤 Users created: ${data.created}<br>
+                        🎯 Predictions filled: ${data.predictions_filled}<br>
+                        ❌ Errors: ${data.errors}
+                    `;
+                } else {
+                    status.textContent = '❌ Error occurred';
+                    result.classList.remove('hidden');
+                    result.textContent = JSON.stringify(data);
+                }
+            } catch (err) {
+                status.textContent = '❌ Network error';
+                result.classList.remove('hidden');
+                result.textContent = err.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 Generate 50 Test Users';
             }
         }
 
