@@ -16,7 +16,7 @@ import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiService, League } from '../services/api';
 
-const AVATAR_COLORS = ['#16a34a', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
+const AVATAR_COLORS = ['#2563eb', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function LeaguesScreen() {
   const navigation = useNavigation();
@@ -150,7 +150,7 @@ export default function LeaguesScreen() {
       activeOpacity={0.8}
     >
       <LinearGradient
-        colors={['#16a34a', '#15803d']}
+        colors={['#2563eb', '#1e40af']}
         style={styles.globalLeagueGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -168,7 +168,7 @@ export default function LeaguesScreen() {
     <>
       <View style={styles.emptyState}>
         <View style={styles.emptyStateIconCircle}>
-          <Ionicons name="people-outline" size={60} color="#86efac" />
+          <Ionicons name="people-outline" size={60} color="#93c5fd" />
         </View>
         <Text style={styles.emptyTitle}>No private leagues yet</Text>
         <Text style={styles.emptySubtitle}>
@@ -286,7 +286,7 @@ export default function LeaguesScreen() {
       {toastMsg && (
         <View style={styles.toast} pointerEvents="none">
           <View style={styles.toastContent}>
-            <Ionicons name="checkmark-circle" size={32} color="#16a34a" />
+            <Ionicons name="checkmark-circle" size={32} color="#2563eb" />
             <Text style={styles.toastText}>{toastMsg}</Text>
           </View>
         </View>
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
   },
   headerWrapper: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#1e40af',
     overflow: 'visible',
   },
   header: {
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#16a34a',
+    shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   rankPill: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#2563eb',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
   },
   copiedText: {
     fontSize: 12,
-    color: '#16a34a',
+    color: '#2563eb',
     fontWeight: '600',
     marginLeft: 4,
   },
@@ -493,9 +493,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#eff6ff',
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: '#93c5fd',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -544,17 +544,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#16a34a',
+    borderColor: '#2563eb',
     alignItems: 'center',
   },
   emptyButtonCreate: {
-    backgroundColor: '#16a34a',
-    borderColor: '#16a34a',
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
   },
   emptyButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#16a34a',
+    color: '#1d4ed8',
   },
   emptyButtonCreateText: {
     color: '#ffffff',

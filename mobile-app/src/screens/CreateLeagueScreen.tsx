@@ -25,6 +25,7 @@ export default function CreateLeagueScreen() {
   const [createdLeague, setCreatedLeague] = useState<any>(null);
   const [nameFocused, setNameFocused] = useState(false);
   const [descFocused, setDescFocused] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
 
   const handleCreateLeague = async () => {
     if (!name.trim()) {
@@ -66,7 +67,8 @@ export default function CreateLeagueScreen() {
   const handleCopyInviteCode = async () => {
     if (createdLeague?.invite_code) {
       await Clipboard.setStringAsync(createdLeague.invite_code);
-      Alert.alert('Copied!', 'Invite code copied to clipboard');
+      setToastVisible(true);
+      setTimeout(() => setToastVisible(false), 1500);
     }
   };
 
@@ -83,7 +85,7 @@ export default function CreateLeagueScreen() {
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <ScrollView contentContainerStyle={styles.successContainer}>
           <View style={styles.successIconCircle}>
-            <Ionicons name="checkmark-circle" size={64} color="#16a34a" />
+            <Ionicons name="checkmark-circle" size={64} color="#2563eb" />
           </View>
           <Text style={styles.successTitle}>League Created!</Text>
           <Text style={styles.successSubtitle}>
@@ -92,24 +94,29 @@ export default function CreateLeagueScreen() {
             {' '}has been created successfully.
           </Text>
 
-          <View style={styles.inviteCodeContainer}>
-            <Text style={styles.inviteCodeLabel}>INVITE CODE</Text>
-            <View style={styles.inviteCodeBox}>
-              <Text
-                style={styles.inviteCode}
-                numberOfLines={1}
-                adjustsFontSizeToFit={true}
-                minimumFontScale={0.8}
-              >
-                {createdLeague.invite_code}
-              </Text>
-              <TouchableOpacity
-                style={styles.copyButton}
-                onPress={handleCopyInviteCode}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.copyButtonText}>Copy</Text>
-              </TouchableOpacity>
+          <View style={styles.inviteCodeSection}>
+            <View style={styles.inviteCodeContainer}>
+              <Text style={styles.inviteCodeLabel}>INVITE CODE</Text>
+              <View style={styles.inviteCodeBox}>
+                <TouchableOpacity
+                  style={styles.copyIconInBox}
+                  onPress={handleCopyInviteCode}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="copy-outline" size={20} color="#1e40af" />
+                </TouchableOpacity>
+                <View style={styles.inviteCodeTextCenter}>
+                  <Text
+                    style={styles.inviteCodeText}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.5}
+                  >
+                    {createdLeague.invite_code}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
 
@@ -130,11 +137,19 @@ export default function CreateLeagueScreen() {
               onPress={handleShare}
               activeOpacity={0.8}
             >
-              <Ionicons name="share-outline" size={18} color="#16a34a" />
+              <Ionicons name="share-outline" size={18} color="#1d4ed8" />
               <Text style={styles.shareButtonText}>Share</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
+        {toastVisible && (
+          <View style={styles.toastWrapper} pointerEvents="box-none">
+            <View style={styles.toast}>
+              <Ionicons name="checkmark-circle" size={16} color="#ffffff" />
+              <Text style={styles.toastText}>Code copied!</Text>
+            </View>
+          </View>
+        )}
       </SafeAreaView>
     );
   }
@@ -249,7 +264,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   inputFocused: {
-    borderColor: '#16a34a',
+    borderColor: '#2563eb',
   },
   textArea: {
     height: 110,
@@ -262,7 +277,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   createButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#2563eb',
     borderRadius: 16,
     height: 54,
     flexDirection: 'row',
@@ -290,9 +305,9 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#eff6ff',
     borderWidth: 2,
-    borderColor: '#bbf7d0',
+    borderColor: '#93c5fd',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -313,51 +328,60 @@ const styles = StyleSheet.create({
   },
   leagueNameHighlight: {
     fontWeight: '700',
-    color: '#16a34a',
+    color: '#1e3a5f',
+  },
+  inviteCodeSection: {
+    flex: 1,
+    justifyContent: 'center',
+    width: '100%',
+    marginVertical: 24,
   },
   inviteCodeContainer: {
     width: '100%',
-    marginBottom: 16,
+    alignItems: 'center',
   },
   inviteCodeLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#64748b',
-    marginBottom: 8,
+    fontWeight: '700',
+    color: '#1e40af',
+    letterSpacing: 2,
+    marginBottom: 10,
     textAlign: 'center',
-    letterSpacing: 0.5,
   },
   inviteCodeBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#eff6ff',
     borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
     borderWidth: 2,
-    borderColor: '#16a34a',
+    borderColor: '#93c5fd',
     width: '100%',
+    minHeight: 100,
+    position: 'relative',
   },
-  inviteCode: {
-    fontSize: 26,
-    fontWeight: '700',
-    letterSpacing: 6,
-    color: '#16a34a',
-    fontFamily: 'monospace',
+  copyIconInBox: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'transparent',
+    padding: 4,
+    borderRadius: 20,
+  },
+  inviteCodeTextCenter: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 40,
   },
-  copyButton: {
-    backgroundColor: '#16a34a',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    flexShrink: 0,
-  },
-  copyButtonText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: 14,
+  inviteCodeText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    letterSpacing: 6,
+    textAlign: 'center',
+    width: '100%',
+    color: '#1e3a5f',
+    fontFamily: 'monospace',
   },
   shareText: {
     fontSize: 14,
@@ -371,7 +395,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   doneButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#2563eb',
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
@@ -389,11 +413,41 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: '#16a34a',
+    borderColor: '#93c5fd',
   },
   shareButtonText: {
-    color: '#16a34a',
+    color: '#1d4ed8',
     fontSize: 16,
     fontWeight: '600',
+  },
+  toastWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 120,
+    zIndex: 999,
+  },
+  toast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  toastText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });

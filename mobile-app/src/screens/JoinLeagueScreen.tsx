@@ -17,7 +17,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService } from '../services/api';
 
 const CONFETTI = [
-  { color: '#16a34a', style: { top: -4, left: -4 } },
+  { color: '#2563eb', style: { top: -4, left: -4 } },
   { color: '#f59e0b', style: { top: -4, right: -4 } },
   { color: '#3b82f6', style: { bottom: -4, left: -4 } },
   { color: '#ef4444', style: { bottom: -4, right: -4 } },
@@ -75,12 +75,12 @@ export default function JoinLeagueScreen() {
                 style={[styles.confettiDot, { backgroundColor: c.color }, c.style]}
               />
             ))}
-            <Ionicons name="checkmark-circle" size={64} color="#16a34a" />
+            <Ionicons name="checkmark-circle" size={64} color="#2563eb" />
           </View>
           <Text style={styles.successTitle}>Joined Successfully!</Text>
           <Text style={styles.successSubtitle}>
             Welcome to{' '}
-            <Text style={{ fontWeight: '700', color: '#16a34a' }}>
+            <Text style={{ fontWeight: '700', color: '#1d4ed8' }}>
               {joinedLeague.league_name}
             </Text>
             !
@@ -109,7 +109,7 @@ export default function JoinLeagueScreen() {
         >
           {/* Banner card */}
           <View style={styles.bannerCard}>
-            <Ionicons name="people-circle-outline" size={52} color="#16a34a" />
+            <Ionicons name="people-circle-outline" size={52} color="#2563eb" />
             <Text style={styles.bannerTitle}>Enter your invite code</Text>
             <Text style={styles.bannerSubtitle}>
               Get the 8-character code from your league creator
@@ -187,7 +187,7 @@ export default function JoinLeagueScreen() {
               {errorModal?.message}
             </Text>
             <Pressable
-              style={{ backgroundColor: '#16a34a', width: '100%', paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
+              style={{ backgroundColor: '#2563eb', width: '100%', paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
               onPress={() => setErrorModal(null)}
             >
               <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>OK</Text>
@@ -215,12 +215,12 @@ const styles = StyleSheet.create({
   },
   // Banner
   bannerCard: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#eff6ff',
     borderRadius: 20,
     padding: 20,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: '#93c5fd',
     alignItems: 'center',
   },
   bannerTitle: {
@@ -256,8 +256,8 @@ const styles = StyleSheet.create({
     letterSpacing: 6,
   },
   inputFocused: {
-    borderColor: '#16a34a',
-    backgroundColor: '#f0fdf4',
+    borderColor: '#2563eb',
+    backgroundColor: '#eff6ff',
   },
   dotsRow: {
     flexDirection: 'row',
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#16a34a',
+    backgroundColor: '#2563eb',
     margin: 3,
   },
   dotEmpty: {
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   },
   // Button
   joinButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#2563eb',
     borderRadius: 16,
     height: 54,
     flexDirection: 'row',
@@ -307,9 +307,9 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#eff6ff',
     borderWidth: 2,
-    borderColor: '#bbf7d0',
+    borderColor: '#93c5fd',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   doneButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#2563eb',
     paddingHorizontal: 48,
     paddingVertical: 16,
     borderRadius: 14,
