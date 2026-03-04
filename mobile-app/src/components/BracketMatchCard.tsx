@@ -107,11 +107,6 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             {displayName}
           </Text>
         </View>
-        {isEliminated && (
-          <View style={styles.strikethroughOverlay} pointerEvents="none">
-            <View style={styles.strikethroughLine} />
-          </View>
-        )}
       </View>
     );
   };
@@ -344,21 +339,6 @@ const styles = StyleSheet.create({
   teamNameStrikethrough: {
     textDecorationLine: 'line-through',
     textDecorationColor: '#000',
-  },
-  strikethroughOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  strikethroughLine: {
-    width: '150%',
-    height: 2,
-    backgroundColor: '#000',
-    transform: [{ rotate: '-45deg' }],
   },
   halfDivider: {
     height: 1,

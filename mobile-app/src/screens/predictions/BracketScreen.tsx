@@ -50,6 +50,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [editMode, setEditMode] = useState(false);
   const [canEditDrafts, setCanEditDrafts] = useState<boolean>(true);
   const [penaltyInfo, setPenaltyInfo] = useState<{changes_count: number, penalty_per_change: number, total_penalty: number} | null>(null);
+  const [knockoutScore, setKnockoutScore] = useState<number | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isEnterEditModeModalVisible, setIsEnterEditModeModalVisible] = useState(false);
   const [isConfirmSaveModalVisible, setIsConfirmSaveModalVisible] = useState(false);
@@ -107,6 +108,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       const allPredictions = await apiService.getKnockoutPredictions(userId, undefined, editMode);
       setPredictions(allPredictions.predictions);
       setCanEditDrafts(allPredictions.can_edit_drafts ?? true);
+      setKnockoutScore(allPredictions.knockout_score ?? null);
       
       // Organize into bracket structure
       const { organized, calculateCardCoordinates } = organizeBracketMatches(allPredictions.predictions);
@@ -645,6 +647,11 @@ export default function BracketScreen({}: BracketScreenProps) {
               </Text>
             </View>
           </View>
+        ) : knockoutScore !== null ? (
+          <View style={styles.knockoutScoreChip}>
+            <Text style={styles.knockoutScoreValue}>{knockoutScore}</Text>
+            <Text style={styles.knockoutScoreLabel}>points</Text>
+          </View>
         ) : (
           <View style={styles.buttonsSpacer} />
         )}
@@ -1047,6 +1054,29 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 8,
     marginLeft: 4,
+  },
+  knockoutScoreChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+    marginLeft: 4,
+    borderWidth: 1.5,
+    borderColor: '#86efac',
+  },
+  knockoutScoreLabel: {
+    fontSize: 11,
+    color: '#15803d',
+    fontWeight: '500',
+  },
+  knockoutScoreValue: {
+    fontSize: 16,
+    color: '#166534',
+    fontWeight: '700',
   },
   penaltyStat: {
     alignItems: 'center',
