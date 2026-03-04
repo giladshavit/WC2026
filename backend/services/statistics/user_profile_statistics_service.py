@@ -25,6 +25,7 @@ class UserProfileStatisticsService:
 
             "matches": UserProfileStatisticsService._get_matches_profile(db, user_id, user_scores),
             "groups": UserProfileStatisticsService._get_groups_profile(db, user_id, user_scores),
+            "third_place": UserProfileStatisticsService._get_third_place_profile(db, user_id, user_scores),
             "knockout": UserProfileStatisticsService._get_knockout_profile(db, user_id, user_scores),
         }
 
@@ -93,6 +94,69 @@ class UserProfileStatisticsService:
             "per_group": per_group,
             "position_totals": position_totals,
             "accuracy_distribution": accuracy_distribution,
+        }
+
+    # ═══════════════════════════════════════════════════════
+    # THIRD PLACE
+    # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def _get_third_place_profile(db: Session, user_id: int, user_scores) -> Dict[str, Any]:
+        """Third place picks breakdown: which groups user picked, which were correct."""
+        PRED_FIELDS = [
+            'first_team_qualifying', 'second_team_qualifying', 'third_team_qualifying',
+            'fourth_team_qualifying', 'fifth_team_qualifying', 'sixth_team_qualifying',
+            'seventh_team_qualifying', 'eighth_team_qualifying',
+        ]
+
+        prediction = DBReader.get_third_place_prediction(db, user_id)
+        result = DBReader.get_third_place_result(db)
+
+        score = user_scores.third_place_score or 0
+
+        # If no prediction yet
+        if not prediction:
+            return {"score": score, "has_prediction": False, "picks": [], "result_available": False}
+
+        # Extract the 8 group letters the user picked
+        def get_group_letters(obj) -> list:
+            letters = []
+            for field in PRED_FIELDS:
+                team_id = getattr(obj, field, None)
+                if team_id:
+                    letter = DBReader.get_team_group_letter(db, team_id)
+                    if letter:
+                        letters.append(letter)
+            return letters
+
+        user_picks = get_group_letters(prediction)
+
+        # No result yet - return picks without correctness info
+        if not result:
+            picks = [{"group": letter, "is_correct": None} for letter in user_picks]
+            return {
+                "score": score,
+                "has_prediction": True,
+                "result_available": False,
+                "picks": picks,
+                "correct_count": None,
+            }
+
+        # Result available - compute correctness per pick
+        result_groups = set(get_group_letters(result))
+
+        picks = [
+            {"group": letter, "is_correct": letter in result_groups}
+            for letter in user_picks
+        ]
+        correct_count = sum(1 for p in picks if p["is_correct"])
+
+        return {
+            "score": score,
+            "has_prediction": True,
+            "result_available": True,
+            "picks": picks,
+            "correct_count": correct_count,
         }
 
     # ═══════════════════════════════════════════════════════

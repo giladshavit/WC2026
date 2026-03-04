@@ -1,20 +1,70 @@
 import React, { useState, useCallback } from 'react';
 import {
   StyleSheet, View, Text, ActivityIndicator, RefreshControl,
-  ScrollView, TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { apiService, UserFullProfile } from '../services/api';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import Svg, { Circle } from 'react-native-svg';
+import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
-type Tab = 'matches' | 'bracket';
+interface ProfilePerGroup {
+  group_id: number;
+  group_name: string;
+  correct_positions_count: number | null;
+  points: number;
+}
+
+interface UserFullProfile {
+  total_points: number;
+  penalty: number;
+  matches: { score: number; exact: number; correct_outcome: number; wrong: number; pending: number; total_judged: number };
+  groups: {
+    score: number;
+    total_groups: number;
+    judged_groups: number;
+    per_group: ProfilePerGroup[];
+    position_totals: { first: number; second: number; third: number; fourth: number };
+    accuracy_distribution: Record<string, number>;
+  };
+  third_place: {
+    score: number;
+    has_prediction: boolean;
+    result_available: boolean;
+    picks: Array<{ group: string; is_correct: boolean | null }>;
+    correct_count: number | null;
+  };
+  knockout: {
+    score: number;
+    correct_full: number;
+    correct_partial: number;
+    incorrect: number;
+    valid: number;
+    invalid: number;
+    unreachable: number;
+  };
+}
+
+const GROUP_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+
+function getGroupBlockColor(correctPositions: number | null): string {
+  if (correctPositions === null) return '#e5e7eb';
+  switch (correctPositions) {
+    case 4: return '#16a34a';
+    case 3: return '#84cc16';
+    case 2: return '#f59e0b';
+    case 1: return '#f97316';
+    case 0: return '#ef4444';
+    default: return '#e5e7eb';
+  }
+}
 
 export default function StatisticsScreen() {
   const [profile, setProfile] = useState<UserFullProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>('matches');
   const { getCurrentUserId } = useAuth();
 
   const fetchProfile = useCallback(async () => {
@@ -67,138 +117,88 @@ export default function StatisticsScreen() {
     );
   };
 
-  const renderRow = (color: string, label: string, value: string | number) => (
-    <View style={styles.statsRow}>
-      <View style={[styles.statDot, { backgroundColor: color }]} />
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
+  const renderStatChip = (color: string, label: string, value: number) => (
+    <View key={label} style={styles.statChip}>
+      <View style={[styles.statChipDot, { backgroundColor: color }]} />
+      <Text style={styles.statChipLabel}>{label}</Text>
+      <Text style={styles.statChipValue}>{value}</Text>
     </View>
   );
 
-  const renderMatchesTab = () => {
-    const { matches } = profile;
+  const renderDonutChart = (correctFull: number, correctPartial: number, incorrect: number) => {
+    const judged = correctFull + correctPartial + incorrect;
+    const size = 160;
+    const strokeWidth = 18;
+
+    if (judged === 0) {
+      return (
+        <View style={[styles.donutPlaceholder, { height: size }]}>
+          <Text style={styles.donutPlaceholderText}>No results yet</Text>
+        </View>
+      );
+    }
+
+    const radius = (size - strokeWidth) / 2;
+    const center = size / 2;
+    const circumference = 2 * Math.PI * radius;
+
+    const segments = [
+      { value: correctFull, color: '#4CAF50' },
+      { value: correctPartial, color: '#FF9800' },
+      { value: incorrect, color: '#F44336' },
+    ].filter(s => s.value > 0);
+
+    let rotation = -90;
     return (
-      <View>
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Match Predictions</Text>
-            <Text style={styles.cardScore}>{matches.score} pts</Text>
+      <View style={styles.donutWrapper}>
+        <View style={{ width: size, height: size, position: 'relative' }}>
+          <Svg width={size} height={size}>
+            {segments.map((seg, i) => {
+              const percent = seg.value / judged;
+              const segmentLength = circumference * percent;
+              const dashArray = `${segmentLength} ${circumference}`;
+              const currentRotation = rotation;
+              rotation += percent * 360;
+              return (
+                <Circle
+                  key={i}
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  stroke={seg.color}
+                  strokeWidth={strokeWidth}
+                  fill="transparent"
+                  strokeDasharray={dashArray}
+                  strokeDashoffset={0}
+                  transform={`rotate(${currentRotation}, ${center}, ${center})`}
+                />
+              );
+            })}
+          </Svg>
+          <View style={[styles.donutCenter, { width: size, height: size }]}>
+            <Text style={styles.donutCenterCount}>{judged}</Text>
+            <Text style={styles.donutCenterLabel}>judged</Text>
           </View>
-          <Text style={styles.judgedText}>
-            {matches.total_judged} judged{matches.pending > 0 ? ` • ${matches.pending} pending` : ''}
-          </Text>
-          {matches.total_judged > 0 && (
-            <>
-              {renderBar([
-                { value: matches.exact, color: '#4CAF50' },
-                { value: matches.correct_outcome, color: '#FF9800' },
-                { value: matches.wrong, color: '#F44336' },
-              ])}
-              {renderRow('#4CAF50', 'Exact Score', matches.exact)}
-              {renderRow('#FF9800', 'Correct Outcome', matches.correct_outcome)}
-              {renderRow('#F44336', 'Wrong', matches.wrong)}
-            </>
-          )}
         </View>
       </View>
     );
   };
 
-  const renderBracketTab = () => {
-    const { groups, knockout } = profile;
-    return (
-      <View>
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Group Predictions</Text>
-            <Text style={styles.cardScore}>{groups.score} pts</Text>
-          </View>
-          <Text style={styles.judgedText}>
-            {groups.judged_groups}/{groups.total_groups} groups judged
-          </Text>
+  const { matches, groups, third_place, knockout } = profile;
+  const bracketPts = groups.score + third_place.score + knockout.score;
+  const judgedKnockout = knockout.correct_full + knockout.correct_partial + knockout.incorrect;
 
-          {groups.judged_groups > 0 && (
-            <>
-              {renderBar([
-                { value: groups.accuracy_distribution['4'] || 0, color: '#4CAF50' },
-                { value: groups.accuracy_distribution['3'] || 0, color: '#8BC34A' },
-                { value: groups.accuracy_distribution['2'] || 0, color: '#FF9800' },
-                { value: groups.accuracy_distribution['1'] || 0, color: '#FF5722' },
-                { value: groups.accuracy_distribution['0'] || 0, color: '#F44336' },
-              ])}
-              {renderRow('#4CAF50', '4/4 positions', groups.accuracy_distribution['4'] || 0)}
-              {renderRow('#8BC34A', '3/4 positions', groups.accuracy_distribution['3'] || 0)}
-              {renderRow('#FF9800', '2/4 positions', groups.accuracy_distribution['2'] || 0)}
-              {renderRow('#FF5722', '1/4 positions', groups.accuracy_distribution['1'] || 0)}
-              {renderRow('#F44336', '0/4 positions', groups.accuracy_distribution['0'] || 0)}
+  const perGroupMap = new Map<string, { correct_positions_count: number | null; points: number }>();
+  groups.per_group.forEach((g: ProfilePerGroup) => {
+    const letter = g.group_name.replace(/^Group\s+/i, '').trim() || g.group_name;
+    perGroupMap.set(letter, { correct_positions_count: g.correct_positions_count, points: g.points });
+  });
 
-              <Text style={styles.sectionSubtitle}>Position Accuracy</Text>
-              {renderRow('#16a34a', '1st place', `${groups.position_totals.first}/${groups.judged_groups}`)}
-              {renderRow('#16a34a', '2nd place', `${groups.position_totals.second}/${groups.judged_groups}`)}
-              {renderRow('#16a34a', '3rd place', `${groups.position_totals.third}/${groups.judged_groups}`)}
-              {renderRow('#9ca3af', '4th place', `${groups.position_totals.fourth}/${groups.judged_groups}`)}
-            </>
-          )}
-        </View>
-
-        {groups.judged_groups > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Per Group</Text>
-            {groups.per_group.filter(g => g.correct_positions_count !== null).map((g) => (
-              <View key={g.group_id} style={styles.groupRow}>
-                <Text style={styles.groupName}>{g.group_name}</Text>
-                <View style={styles.groupRight}>
-                  <Text style={[styles.groupPositions, { marginRight: 12 }]}>{g.correct_positions_count}/4</Text>
-                  <Text style={styles.groupPoints}>{g.points} pts</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Knockout Predictions</Text>
-            <Text style={styles.cardScore}>{knockout.score} pts</Text>
-          </View>
-
-          {(() => {
-            const judged = knockout.correct_full + knockout.correct_partial + knockout.incorrect;
-            const preResult = knockout.valid + knockout.invalid + knockout.unreachable;
-            return (
-              <>
-                <Text style={styles.judgedText}>
-                  {judged} judged{preResult > 0 ? ` • ${preResult} pending` : ''}
-                </Text>
-
-                {judged > 0 && (
-                  <>
-                    {renderBar([
-                      { value: knockout.correct_full, color: '#4CAF50' },
-                      { value: knockout.correct_partial, color: '#FF9800' },
-                      { value: knockout.incorrect, color: '#F44336' },
-                    ])}
-                    {renderRow('#4CAF50', 'Correct (full points)', knockout.correct_full)}
-                    {renderRow('#FF9800', 'Correct (partial)', knockout.correct_partial)}
-                    {renderRow('#F44336', 'Incorrect', knockout.incorrect)}
-                  </>
-                )}
-
-                {preResult > 0 && (
-                  <>
-                    <Text style={styles.sectionSubtitle}>Pending Predictions</Text>
-                    {renderRow('#4CAF50', 'Valid', knockout.valid)}
-                    {knockout.invalid > 0 && renderRow('#F44336', 'Need attention', knockout.invalid)}
-                    {knockout.unreachable > 0 && renderRow('#FF9800', 'Unreachable path', knockout.unreachable)}
-                  </>
-                )}
-              </>
-            );
-          })()}
-        </View>
-      </View>
-    );
-  };
+  const groupsArray = GROUP_LETTERS.map((letter) => {
+    const data = perGroupMap.get(letter) ?? { correct_positions_count: null, points: 0 };
+    return { letter, ...data };
+  });
+  const orderedGroups = [...groupsArray].sort((a, b) => b.points - a.points);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
@@ -212,34 +212,221 @@ export default function StatisticsScreen() {
           />
         }
       >
+        {/* 1. Header card */}
         <View style={styles.pointsCard}>
           <Text style={styles.pointsValue}>{profile.total_points}</Text>
           <Text style={styles.pointsLabel}>Total Points</Text>
+          <View style={styles.pointsDivider} />
+          <View style={styles.pointsStatsRow}>
+            <View style={styles.pointsStatBlock}>
+              <Ionicons name="football-outline" size={20} color="#a7f3d0" />
+              <Text style={styles.pointsStatNumber}>{matches.score} pts</Text>
+              <Text style={styles.pointsStatLabel}>Matches</Text>
+            </View>
+            <View style={styles.pointsStatSeparator} />
+            <View style={styles.pointsStatBlock}>
+              <Ionicons name="trophy-outline" size={20} color="#a7f3d0" />
+              <Text style={styles.pointsStatNumber}>{bracketPts} pts</Text>
+              <Text style={styles.pointsStatLabel}>Bracket</Text>
+            </View>
+          </View>
           {profile.penalty > 0 && (
             <Text style={styles.penaltyText}>-{profile.penalty} penalty</Text>
           )}
         </View>
 
-        <View style={styles.tabBar}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'matches' && styles.tabActive]}
-            onPress={() => setActiveTab('matches')}
-          >
-            <Text style={[styles.tabText, activeTab === 'matches' && styles.tabTextActive]}>
-              Matches
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'bracket' && styles.tabActive]}
-            onPress={() => setActiveTab('bracket')}
-          >
-            <Text style={[styles.tabText, activeTab === 'bracket' && styles.tabTextActive]}>
-              Bracket
-            </Text>
-          </TouchableOpacity>
+        {/* 2. Match Predictions card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Match Predictions</Text>
+            <View style={styles.cardScoreCircle}>
+              <Text style={styles.cardScoreCircleText}>{matches.score}</Text>
+            </View>
+          </View>
+          {matches.total_judged > 0 && (
+            <>
+              {renderBar([
+                { value: matches.exact, color: '#4CAF50' },
+                { value: matches.correct_outcome, color: '#FF9800' },
+                { value: matches.wrong, color: '#F44336' },
+              ])}
+              <View style={styles.statChipsRow}>
+                {renderStatChip('#4CAF50', 'Exact', matches.exact)}
+                {renderStatChip('#FF9800', 'Outcome', matches.correct_outcome)}
+                {renderStatChip('#F44336', 'Wrong', matches.wrong)}
+              </View>
+            </>
+          )}
+          <View style={styles.matchesFooter}>
+            <Text style={styles.matchesFooterText}>✓ {matches.total_judged} matches played</Text>
+          </View>
         </View>
 
-        {activeTab === 'matches' ? renderMatchesTab() : renderBracketTab()}
+        {/* 3. Group Stage card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Group Stage</Text>
+            <View style={styles.cardScoreCircle}>
+              <Text style={styles.cardScoreCircleText}>{groups.score}</Text>
+            </View>
+          </View>
+          <View style={styles.groupsGrid}>
+            {[0, 1, 2].map((rowIdx) => (
+              <View key={rowIdx} style={styles.groupsGridRow}>
+                {orderedGroups.slice(rowIdx * 4, rowIdx * 4 + 4).map(({ letter, correct_positions_count, points }) => (
+                  <View
+                    key={letter}
+                    style={[
+                      styles.groupBlock,
+                      { backgroundColor: getGroupBlockColor(correct_positions_count) },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.groupBlockLetter,
+                        correct_positions_count === null && styles.groupBlockLetterGray,
+                      ]}
+                    >
+                      {letter}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.groupBlockPoints,
+                        correct_positions_count === null && styles.groupBlockPointsGray,
+                      ]}
+                    >
+                      {points} pts
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* 4. Position Accuracy card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Position Accuracy</Text>
+          {groups.judged_groups > 0 ? (
+            <>
+              {[
+                { label: '1st', correct: groups.position_totals.first, color: '#16a34a' },
+                { label: '2nd', correct: groups.position_totals.second, color: '#22c55e' },
+                { label: '3rd', correct: groups.position_totals.third, color: '#84cc16' },
+                { label: '4th', correct: groups.position_totals.fourth, color: '#9ca3af' },
+              ].map(({ label, correct, color }) => (
+                <View key={label} style={styles.positionBarRow}>
+                  <Text style={styles.positionBarLabel}>{label}</Text>
+                  <View style={styles.positionBarTrack}>
+                    <View
+                      style={[
+                        styles.positionBarFill,
+                        {
+                          width: `${(correct / groups.judged_groups) * 100}%`,
+                          backgroundColor: color,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.positionBarValue}>
+                    {correct}/{groups.judged_groups}
+                  </Text>
+                </View>
+              ))}
+            </>
+          ) : (
+            <Text style={styles.noDataText}>No groups judged yet</Text>
+          )}
+        </View>
+
+        {/* 5. Third Place card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>3rd Place Picks</Text>
+            <View style={styles.cardScoreCircle}>
+              <Text style={styles.cardScoreCircleText}>{third_place.score}</Text>
+            </View>
+          </View>
+          {!third_place.has_prediction ? (
+            <Text style={styles.noDataText}>No prediction made yet</Text>
+          ) : !third_place.result_available ? (
+            <>
+              <Text style={styles.thirdPlaceSubtitle}>Your 8 picks (results pending)</Text>
+              <View style={styles.groupsGrid}>
+                {[0, 1].map((rowIdx) => (
+                  <View key={rowIdx} style={styles.groupsGridRow}>
+                    {third_place.picks.slice(rowIdx * 4, rowIdx * 4 + 4).map((p, idx) => (
+                      <View
+                        key={`${p.group}-${idx}`}
+                        style={[styles.groupBlock, { backgroundColor: '#e5e7eb' }]}
+                      >
+                        <Text style={[styles.groupBlockLetter, { color: '#6b7280' }]}>{p.group}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.groupsGrid}>
+                {[0, 1].map((rowIdx) => (
+                  <View key={rowIdx} style={styles.groupsGridRow}>
+                    {third_place.picks.slice(rowIdx * 4, rowIdx * 4 + 4).map((p, idx) => (
+                      <View
+                        key={`${p.group}-${idx}`}
+                        style={[
+                          styles.groupBlock,
+                          { backgroundColor: p.is_correct ? '#16a34a' : '#ef4444' },
+                        ]}
+                      >
+                        <Text style={styles.groupBlockLetter}>{p.group}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+              <View style={styles.thirdPlaceSummary}>
+                <Text style={[styles.thirdPlaceSummaryText, { color: '#16a34a' }]}>
+                  ✓ {third_place.correct_count ?? 0} correct
+                </Text>
+                <Text style={[styles.thirdPlaceSummaryText, { color: '#ef4444' }]}>
+                  ✗ {8 - (third_place.correct_count ?? 0)} wrong
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* 6. Knockout card */}
+        <View style={[styles.card, styles.cardLast]}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Knockout</Text>
+            <View style={styles.cardScoreCircle}>
+              <Text style={styles.cardScoreCircleText}>{knockout.score}</Text>
+            </View>
+          </View>
+          {renderDonutChart(knockout.correct_full, knockout.correct_partial, knockout.incorrect)}
+          {judgedKnockout > 0 && (
+            <View style={styles.knockoutLegend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
+                <Text style={styles.legendLabel}>Full</Text>
+                <Text style={styles.legendCount}>{knockout.correct_full}</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#FF9800' }]} />
+                <Text style={styles.legendLabel}>Partial</Text>
+                <Text style={styles.legendCount}>{knockout.correct_partial}</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#F44336' }]} />
+                <Text style={styles.legendLabel}>Wrong</Text>
+                <Text style={styles.legendCount}>{knockout.incorrect}</Text>
+              </View>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -252,57 +439,112 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 16, color: '#9ca3af' },
 
   pointsCard: {
-    backgroundColor: '#16a34a', borderRadius: 16, padding: 24,
+    backgroundColor: '#16a34a', borderRadius: 20, padding: 24,
     alignItems: 'center', marginBottom: 16,
   },
-  pointsValue: { fontSize: 40, fontWeight: 'bold', color: '#fff' },
+  pointsValue: { fontSize: 48, fontWeight: 'bold', color: '#fff' },
   pointsLabel: { fontSize: 14, color: '#d1fae5', marginTop: 4 },
-  penaltyText: { fontSize: 12, color: '#fecaca', marginTop: 4 },
-
-  tabBar: {
-    flexDirection: 'row', backgroundColor: '#e5e7eb', borderRadius: 12,
-    padding: 4, marginBottom: 16,
+  pointsDivider: {
+    width: '100%', height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginVertical: 14,
   },
-  tab: {
-    flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center',
+  pointsStatsRow: {
+    flexDirection: 'row', alignItems: 'center', width: '100%',
   },
-  tabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-  tabText: { fontSize: 15, fontWeight: '600', color: '#6b7280' },
-  tabTextActive: { color: '#16a34a' },
+  pointsStatBlock: {
+    flex: 1, alignItems: 'center',
+  },
+  pointsStatSeparator: {
+    width: 1, height: 40, backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  pointsStatNumber: { fontSize: 20, fontWeight: 'bold', color: '#fff', marginTop: 4 },
+  pointsStatLabel: { fontSize: 11, color: '#a7f3d0', marginTop: 2 },
+  penaltyText: { fontSize: 12, color: '#fecaca', marginTop: 8 },
 
   card: {
     backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
   },
+  cardLast: { marginBottom: 32 },
   cardHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
   },
   cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#1f2937' },
-  cardScore: { fontSize: 16, fontWeight: 'bold', color: '#16a34a' },
-  judgedText: { fontSize: 13, color: '#9ca3af', marginBottom: 12 },
-  sectionSubtitle: { fontSize: 13, fontWeight: '600', color: '#6b7280', marginTop: 12, marginBottom: 6 },
+  cardScoreCircle: {
+    width: 33, height: 33, borderRadius: 22,
+    backgroundColor: '#15803d', justifyContent: 'center', alignItems: 'center',
+  },
+  cardScoreCircleText: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
 
   barContainer: {
-    flexDirection: 'row', height: 32, borderRadius: 10, overflow: 'hidden', marginBottom: 16,
+    flexDirection: 'row', height: 32, borderRadius: 10, overflow: 'hidden', marginBottom: 8,
   },
   barSegment: { justifyContent: 'center', alignItems: 'center', minWidth: 24 },
   barText: { fontSize: 12, fontWeight: 'bold', color: '#fff' },
 
-  statsRow: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 6,
-    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+  statChipsRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12,
   },
-  statDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
-  statLabel: { flex: 1, fontSize: 14, color: '#374151' },
-  statValue: { fontSize: 15, fontWeight: 'bold', color: '#1f2937' },
+  statChip: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#f3f4f6', paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: 20,
+  },
+  statChipDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
+  statChipLabel: { fontSize: 13, color: '#6b7280', marginRight: 4 },
+  statChipValue: { fontSize: 14, fontWeight: 'bold', color: '#1f2937' },
 
-  groupRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+  matchesFooter: {
+    borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingTop: 12, marginTop: 4,
   },
-  groupName: { fontSize: 14, fontWeight: '600', color: '#374151' },
-  groupRight: { flexDirection: 'row', alignItems: 'center' },
-  groupPositions: { fontSize: 14, color: '#6b7280' },
-  groupPoints: { fontSize: 14, fontWeight: 'bold', color: '#16a34a', minWidth: 45, textAlign: 'right' },
+  matchesFooterText: { fontSize: 13, color: '#9ca3af' },
+
+  groupsGrid: { gap: 8 },
+  groupsGridRow: {
+    flexDirection: 'row', gap: 8, marginBottom: 8,
+  },
+  groupBlock: {
+    flex: 1, aspectRatio: 1, maxWidth: 72, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  groupBlockLetter: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
+  groupBlockLetterGray: { color: '#6b7280' },
+  groupBlockPoints: { fontSize: 9, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
+  groupBlockPointsGray: { color: '#9ca3af' },
+
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 12 },
+  positionBarRow: {
+    flexDirection: 'row', alignItems: 'center', marginBottom: 8,
+  },
+  positionBarLabel: { fontSize: 13, fontWeight: '600', color: '#374151', width: 36 },
+  positionBarTrack: {
+    flex: 1, height: 10, backgroundColor: '#e5e7eb', borderRadius: 5, overflow: 'hidden', marginHorizontal: 8,
+  },
+  positionBarFill: { height: '100%', borderRadius: 5 },
+  positionBarValue: { fontSize: 12, fontWeight: '600', color: '#6b7280', width: 36, textAlign: 'right' },
+  noDataText: { fontSize: 14, color: '#9ca3af' },
+
+  thirdPlaceSubtitle: { fontSize: 13, color: '#6b7280', marginBottom: 10 },
+  thirdPlaceSummary: {
+    flexDirection: 'row', justifyContent: 'center', gap: 20, marginTop: 12,
+  },
+  thirdPlaceSummaryText: { fontSize: 14, fontWeight: '600' },
+
+  donutWrapper: { alignItems: 'center', marginVertical: 12 },
+  donutCenter: {
+    position: 'absolute', top: 0, left: 0, justifyContent: 'center', alignItems: 'center',
+  },
+  donutCenterCount: { fontSize: 22, fontWeight: 'bold', color: '#1f2937' },
+  donutCenterLabel: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
+  donutPlaceholder: {
+    justifyContent: 'center', alignItems: 'center',
+  },
+  donutPlaceholderText: { fontSize: 14, color: '#9ca3af' },
+  knockoutLegend: {
+    flexDirection: 'row', justifyContent: 'center', gap: 20, flexWrap: 'wrap',
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center' },
+  legendDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
+  legendLabel: { fontSize: 13, color: '#6b7280', marginRight: 4 },
+  legendCount: { fontSize: 14, fontWeight: 'bold', color: '#1f2937' },
 });
