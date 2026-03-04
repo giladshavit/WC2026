@@ -18,7 +18,7 @@ const MatchStatusIndicator = ({ status }: { status: string }) => {
   const dotOpacity = React.useRef(new Animated.Value(1)).current;
 
   React.useEffect(() => {
-    if (status !== 'live_editable' && status !== 'live_locked') return;
+    if (status !== 'live') return;
     const blink = Animated.loop(
       Animated.sequence([
         Animated.timing(dotOpacity, { toValue: 0.1, duration: 800, useNativeDriver: true }),
@@ -29,7 +29,7 @@ const MatchStatusIndicator = ({ status }: { status: string }) => {
     return () => blink.stop();
   }, [status]);
 
-  if (status !== 'live_editable' && status !== 'live_locked') return null;
+  if (status !== 'live') return null;
 
   return (
     <View style={styles.liveContainer}>
@@ -41,20 +41,31 @@ const MatchStatusIndicator = ({ status }: { status: string }) => {
 
 // Component for actual result display (below score inputs)
 // Always rendered so all cards have identical height; shows " " when no result
-const ActualResultDisplay = ({ actualResult }: { actualResult: any }) => (
-  <View style={styles.actualResultContainer}>
-    <Text style={styles.actualResultScore}>
-      {actualResult ? `${actualResult.home_score} - ${actualResult.away_score}` : ' '}
-    </Text>
-  </View>
-);
+// Shows the score when actualResult exists (both live and finished)
+const ActualResultDisplay = ({ actualResult }: { actualResult: any }) => {
+  if (!actualResult) {
+    return (
+      <View style={styles.actualResultContainer}>
+        <Text style={styles.actualResultScore}> </Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.actualResultContainer}>
+      <Text style={styles.actualResultScore}>
+        {actualResult.home_score} - {actualResult.away_score}
+      </Text>
+    </View>
+  );
+};
 
 // Component for points display (bottom right)
-const PointsDisplay = ({ userPrediction, actualResult }: {
+const PointsDisplay = ({ userPrediction, actualResult, matchStatus }: {
   userPrediction: any;
   actualResult: any;
+  matchStatus: string;
 }) => {
-  if (!actualResult) return null;
+  if (!actualResult || matchStatus !== 'finished') return null;
 
   const points = userPrediction?.points ?? 0;
   const status = userPrediction?.status;
@@ -78,6 +89,37 @@ const PointsDisplay = ({ userPrediction, actualResult }: {
     </View>
   );
 };
+
+function getLivePredictionColor(
+  userPrediction: any,
+  actualResult: any,
+  isLive: boolean
+): string | null {
+  if (!isLive || !actualResult || !userPrediction) return null;
+  const predHome = userPrediction.home_score;
+  const predAway = userPrediction.away_score;
+  if (predHome === null || predAway === null) return null;
+
+  const currentWinner = actualResult.current_winner; // 'home' | 'away' | 'draw' | null
+
+  // Exact score match (based on current live score)
+  if (predHome === actualResult.home_score && predAway === actualResult.away_score) {
+    return '#16a34a'; // green
+  }
+
+  // Correct direction (winner/draw matches)
+  const predWinner = predHome > predAway ? 'home' : predHome < predAway ? 'away' : 'draw';
+  if (currentWinner && predWinner === currentWinner) {
+    return '#f59e0b'; // yellow/amber
+  }
+
+  // Wrong direction
+  if (currentWinner) {
+    return '#ef4444'; // red — only color red when we know the current winner
+  }
+
+  return null; // no color (e.g. 0-0 with no winner yet)
+}
 
 // Component for blinking cursor
 const BlinkingCursor = () => {
@@ -128,9 +170,12 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     away: false,
   });
 
-  const isEditable = match.can_edit;
+  const isEditable =
+    match.can_edit && match.status !== 'live' && match.status !== 'finished';
   const separatorChar = ':';
   const homeName = match.home_team.name || '';
+  const isLive = match.status === 'live';
+  const liveColor = getLivePredictionColor(match.user_prediction, match.actual_result, isLive);
   const awayName = match.away_team.name || '';
 
   // Call onScoreChange only when user manually changes scores
@@ -318,12 +363,16 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     const displayValue = scoreValue || (isEditable ? (isFieldFocused ? '' : '+') : '-');
     const placeholderColor = isEditable ? '#111827' : '#a0aec0';
 
+    // Live match: color score box by prediction accuracy (only when not focused and has score)
+    const showLiveColor = liveColor && isLive && scoreValue && !isFieldFocused;
+
     return (
       <View
         style={[
           styles.scoreBox,
           isEditable ? styles.scoreBoxEditable : styles.scoreBoxLocked,
           isFieldFocused && isEditable && styles.scoreBoxFocused,
+          showLiveColor && { borderColor: liveColor, borderWidth: 2 },
         ]}
       >
         <TextInput
@@ -356,6 +405,7 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
                 styles.scoreInput,
                 isEditable ? styles.scoreInputEditable : styles.scoreInputDisabled,
                 !scoreValue && { color: placeholderColor },
+                showLiveColor && { color: liveColor! },
               ]}
             >
               {displayValue}
@@ -367,7 +417,12 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
   };
 
   return (
-    <View style={[styles.container, hasPendingChanges && styles.containerPending]}>
+    <View
+      style={[
+        styles.container,
+        hasPendingChanges && styles.containerPending,
+      ]}
+    >
       <View style={styles.header}>
         <View style={styles.stageContainer}>
           <Text style={styles.stageText}>{getStageText(match.stage)}</Text>
@@ -383,7 +438,7 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
         <View style={styles.matchLayout}>
           {renderTeamColumn('home')}
 
-          <View style={styles.scoreSection}>
+          <View style={[styles.scoreSection, !isEditable && { opacity: 0.45 }]}>
             {renderScoreInput('home')}
             <Text
               style={[
@@ -426,10 +481,11 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
         onClose={() => setShowStats(false)}
       />
 
-      {/* Points - bottom right */}
+      {/* Points - bottom right (only when match finished) */}
       <PointsDisplay
         userPrediction={match.user_prediction}
         actualResult={match.actual_result}
+        matchStatus={match.status}
       />
     </View>
   );

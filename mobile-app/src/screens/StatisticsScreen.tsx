@@ -20,6 +20,11 @@ interface ProfilePerGroup {
 interface UserFullProfile {
   total_points: number;
   penalty: number;
+  penalty_breakdown?: {
+    groups: number;
+    third_place: number;
+    knockout: number;
+  };
   matches: { score: number; exact: number; correct_outcome: number; wrong: number; pending: number; total_judged: number };
   groups: {
     score: number;
@@ -229,10 +234,15 @@ export default function StatisticsScreen() {
               <Text style={styles.pointsStatNumber}>{bracketPts} pts</Text>
               <Text style={styles.pointsStatLabel}>Bracket</Text>
             </View>
+            <View style={styles.pointsStatSeparator} />
+            <View style={styles.pointsStatBlock}>
+              <Ionicons name="warning-outline" size={20} color="#a7f3d0" />
+              <Text style={[styles.pointsStatNumber, profile.penalty > 0 && styles.pointsStatNumberPenalty]}>
+                {profile.penalty > 0 ? `-${profile.penalty}` : '0'} pts
+              </Text>
+              <Text style={styles.pointsStatLabel}>Penalty</Text>
+            </View>
           </View>
-          {profile.penalty > 0 && (
-            <Text style={styles.penaltyText}>-{profile.penalty} penalty</Text>
-          )}
         </View>
 
         {/* 2. Match Predictions card */}
@@ -243,7 +253,7 @@ export default function StatisticsScreen() {
               <Text style={styles.cardScoreCircleText}>{matches.score}</Text>
             </View>
           </View>
-          {matches.total_judged > 0 && (
+          {matches.total_judged > 0 ? (
             <>
               {renderBar([
                 { value: matches.exact, color: '#4CAF50' },
@@ -255,11 +265,13 @@ export default function StatisticsScreen() {
                 {renderStatChip('#FF9800', 'Outcome', matches.correct_outcome)}
                 {renderStatChip('#F44336', 'Wrong', matches.wrong)}
               </View>
+              <View style={styles.matchesFooter}>
+                <Text style={styles.matchesFooterText}>✓ {matches.total_judged} matches played</Text>
+              </View>
             </>
+          ) : (
+            <Text style={styles.noDataText}>No results yet</Text>
           )}
-          <View style={styles.matchesFooter}>
-            <Text style={styles.matchesFooterText}>✓ {matches.total_judged} matches played</Text>
-          </View>
         </View>
 
         {/* 3. Group Stage card */}
@@ -270,38 +282,42 @@ export default function StatisticsScreen() {
               <Text style={styles.cardScoreCircleText}>{groups.score}</Text>
             </View>
           </View>
-          <View style={styles.groupsGrid}>
-            {[0, 1, 2].map((rowIdx) => (
-              <View key={rowIdx} style={styles.groupsGridRow}>
-                {orderedGroups.slice(rowIdx * 4, rowIdx * 4 + 4).map(({ letter, correct_positions_count, points }) => (
-                  <View
-                    key={letter}
-                    style={[
-                      styles.groupBlock,
-                      { backgroundColor: getGroupBlockColor(correct_positions_count) },
-                    ]}
-                  >
-                    <Text
+          {groups.judged_groups > 0 ? (
+            <View style={styles.groupsGrid}>
+              {[0, 1, 2].map((rowIdx) => (
+                <View key={rowIdx} style={styles.groupsGridRow}>
+                  {orderedGroups.slice(rowIdx * 4, rowIdx * 4 + 4).map(({ letter, correct_positions_count, points }) => (
+                    <View
+                      key={letter}
                       style={[
-                        styles.groupBlockLetter,
-                        correct_positions_count === null && styles.groupBlockLetterGray,
+                        styles.groupBlock,
+                        { backgroundColor: getGroupBlockColor(correct_positions_count) },
                       ]}
                     >
-                      {letter}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.groupBlockPoints,
-                        correct_positions_count === null && styles.groupBlockPointsGray,
-                      ]}
-                    >
-                      {points} pts
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            ))}
-          </View>
+                      <Text
+                        style={[
+                          styles.groupBlockLetter,
+                          correct_positions_count === null && styles.groupBlockLetterGray,
+                        ]}
+                      >
+                        {letter}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.groupBlockPoints,
+                          correct_positions_count === null && styles.groupBlockPointsGray,
+                        ]}
+                      >
+                        {points} pts
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.noDataText}>No results yet</Text>
+          )}
         </View>
 
         {/* 4. Position Accuracy card */}
@@ -335,7 +351,7 @@ export default function StatisticsScreen() {
               ))}
             </>
           ) : (
-            <Text style={styles.noDataText}>No groups judged yet</Text>
+            <Text style={styles.noDataText}>No results yet</Text>
           )}
         </View>
 
@@ -348,10 +364,10 @@ export default function StatisticsScreen() {
             </View>
           </View>
           {!third_place.has_prediction ? (
-            <Text style={styles.noDataText}>No prediction made yet</Text>
+            <Text style={styles.noDataText}>No results yet</Text>
           ) : !third_place.result_available ? (
             <>
-              <Text style={styles.thirdPlaceSubtitle}>Your 8 picks (results pending)</Text>
+              <Text style={[styles.noDataText, { marginBottom: 8 }]}>No results yet</Text>
               <View style={styles.groupsGrid}>
                 {[0, 1].map((rowIdx) => (
                   <View key={rowIdx} style={styles.groupsGridRow}>
@@ -399,7 +415,7 @@ export default function StatisticsScreen() {
         </View>
 
         {/* 6. Knockout card */}
-        <View style={[styles.card, styles.cardLast]}>
+        <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Knockout</Text>
             <View style={styles.cardScoreCircle}>
@@ -425,6 +441,34 @@ export default function StatisticsScreen() {
                 <Text style={styles.legendCount}>{knockout.incorrect}</Text>
               </View>
             </View>
+          )}
+        </View>
+
+        {/* 7. Penalty Breakdown card */}
+        <View style={[styles.card, styles.cardLast]}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Penalties</Text>
+            <View style={styles.cardScoreCircleRed}>
+              <Text style={styles.cardScoreCircleText}>
+                {profile.penalty > 0 ? `-${profile.penalty}` : '0'}
+              </Text>
+            </View>
+          </View>
+          {profile.penalty === 0 ? (
+            <Text style={styles.noDataText}>No penalties yet 🎉</Text>
+          ) : (
+            <>
+              {renderBar([
+                { value: profile.penalty_breakdown?.groups ?? 0, color: '#f97316' },
+                { value: profile.penalty_breakdown?.third_place ?? 0, color: '#a855f7' },
+                { value: profile.penalty_breakdown?.knockout ?? 0, color: '#ef4444' },
+              ])}
+              <View style={styles.statChipsRow}>
+                {renderStatChip('#f97316', 'Groups', profile.penalty_breakdown?.groups ?? 0)}
+                {renderStatChip('#a855f7', '3rd Place', profile.penalty_breakdown?.third_place ?? 0)}
+                {renderStatChip('#ef4444', 'Knockout', profile.penalty_breakdown?.knockout ?? 0)}
+              </View>
+            </>
           )}
         </View>
       </ScrollView>
@@ -457,8 +501,8 @@ const styles = StyleSheet.create({
     width: 1, height: 40, backgroundColor: 'rgba(255,255,255,0.25)',
   },
   pointsStatNumber: { fontSize: 20, fontWeight: 'bold', color: '#fff', marginTop: 4 },
+  pointsStatNumberPenalty: { color: '#fecaca' },
   pointsStatLabel: { fontSize: 11, color: '#a7f3d0', marginTop: 2 },
-  penaltyText: { fontSize: 12, color: '#fecaca', marginTop: 8 },
 
   card: {
     backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16,
@@ -473,6 +517,10 @@ const styles = StyleSheet.create({
   cardScoreCircle: {
     width: 33, height: 33, borderRadius: 22,
     backgroundColor: '#15803d', justifyContent: 'center', alignItems: 'center',
+  },
+  cardScoreCircleRed: {
+    width: 33, height: 33, borderRadius: 22,
+    backgroundColor: '#dc2626', justifyContent: 'center', alignItems: 'center',
   },
   cardScoreCircleText: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
 

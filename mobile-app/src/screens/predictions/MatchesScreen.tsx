@@ -49,17 +49,19 @@ export default function MatchesScreen() {
     };
   }, []);
 
-  // Scroll to first match without result when matches are loaded
+  // Scroll to first live or first unfinished match when matches are loaded
   useEffect(() => {
     if (hasAutoScrolledRef.current) return;
 
     if (!loading && matches.length > 0 && flatListRef.current) {
-      const firstMatchWithoutResult = matches.findIndex((match) => !match.actual_result);
+      const firstLive = matches.findIndex((m) => m.status === 'live');
+      const firstScheduled = matches.findIndex((m) => !m.actual_result);
+      const scrollTarget = firstLive !== -1 ? firstLive : firstScheduled;
 
-      if (firstMatchWithoutResult !== -1) {
+      if (scrollTarget !== -1) {
         setTimeout(() => {
           flatListRef.current?.scrollToIndex({
-            index: firstMatchWithoutResult,
+            index: scrollTarget,
             animated: true,
             viewPosition: 0,
           });
@@ -79,29 +81,23 @@ export default function MatchesScreen() {
       const match = matches.find((m) => m.id === matchId);
       if (!match) return;
 
-      const doSave = async () => {
-        try {
-          await apiService.updateBatchMatchPredictions(userId, [
-            { match_id: matchId, home_score: homeScore, away_score: awayScore },
-          ]);
-          await fetchMatches();
-        } catch (error) {
-          console.error('Error saving prediction:', error);
-          Alert.alert('Error', 'Could not save prediction. Please try again.');
-        }
-      };
+      if (match.status === 'live') {
+        Alert.alert('Locked', 'This match has started and can no longer be edited.');
+        return;
+      }
+      if (match.status === 'finished') {
+        Alert.alert('Locked', 'This match has finished and can no longer be edited.');
+        return;
+      }
 
-      if (match.status === 'live_editable') {
-        Alert.alert(
-          'Penalty Warning',
-          'This match is currently live. Editing your prediction will result in a 1-point penalty. Do you want to continue?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Continue', onPress: () => doSave() },
-          ]
-        );
-      } else {
-        await doSave();
+      try {
+        await apiService.updateBatchMatchPredictions(userId, [
+          { match_id: matchId, home_score: homeScore, away_score: awayScore },
+        ]);
+        await fetchMatches();
+      } catch (error) {
+        console.error('Error saving prediction:', error);
+        Alert.alert('Error', 'Could not save prediction. Please try again.');
       }
     },
     [matches, getCurrentUserId, fetchMatches]

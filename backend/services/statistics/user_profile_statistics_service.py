@@ -22,6 +22,11 @@ class UserProfileStatisticsService:
             "user_id": user_id,
             "total_points": user_scores.total_points,
             "penalty": user_scores.penalty,
+            "penalty_breakdown": {
+                "groups": user_scores.groups_penalty or 0,
+                "third_place": user_scores.third_place_penalty or 0,
+                "knockout": user_scores.knockout_penalty or 0,
+            },
 
             "matches": UserProfileStatisticsService._get_matches_profile(db, user_id, user_scores),
             "groups": UserProfileStatisticsService._get_groups_profile(db, user_id, user_scores),

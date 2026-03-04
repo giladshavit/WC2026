@@ -528,7 +528,7 @@ export default function AdminKnockoutScreen() {
         <View style={styles.statusContainer}>
           <Text style={styles.statusLabel}>Status:</Text>
           <View style={styles.statusButtons}>
-            {['scheduled', 'live_editable', 'live_locked', 'finished'].map((status, idx) => (
+            {['scheduled', 'live', 'finished'].map((status, idx) => (
               <TouchableOpacity
                 key={`${match?.id || 'unknown'}-status-${status}-${idx}`}
                 style={[

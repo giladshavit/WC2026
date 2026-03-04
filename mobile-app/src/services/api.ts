@@ -93,6 +93,7 @@ export interface Match {
     home_score: number;
     away_score: number;
     winner_team_id: number | null;
+    current_winner?: 'home' | 'away' | 'draw' | null;
   } | null;
   group?: string;
   match_number?: number;
@@ -232,6 +233,23 @@ export interface CreateLeagueRequest {
 
 export interface JoinLeagueRequest {
   invite_code: string;
+}
+
+export interface MemberMatchPrediction {
+  user_id: number;
+  username: string;
+  name: string | null;
+  home_score: number | null;
+  away_score: number | null;
+  points: number;
+  prediction_status: 'exact' | 'correct_outcome' | 'wrong' | null;
+}
+
+export interface LeagueMatchPredictionsResponse {
+  match_id: number;
+  match_status: string;
+  actual_result: { home_score: number; away_score: number } | null;
+  predictions: MemberMatchPrediction[];
 }
 
 export class ApiService {
@@ -1152,6 +1170,22 @@ export class ApiService {
       console.error('Error fetching league info:', error);
       throw error;
     }
+  }
+
+  async getLeagueMatchPredictions(
+    leagueId: number,
+    matchId: number
+  ): Promise<LeagueMatchPredictionsResponse> {
+    const headers: HeadersInit = {};
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+    const response = await fetch(
+      `${this.baseUrl}/api/leagues/${leagueId}/match/${matchId}/predictions`,
+      { headers }
+    );
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
   }
 
   async leaveLeague(leagueId: number): Promise<void> {
