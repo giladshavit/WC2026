@@ -4,6 +4,7 @@ This directory contains scripts to delete various types of tournament data from 
 
 ## Individual Scripts
 
+- `delete_all_users.py` - Delete all users and related data (leagues, memberships, predictions, user_scores)
 - `delete_all_pred.py` - Delete all predictions (match, group, third place, knockout)
 - `delete_all_results.py` - Delete all results (match, group, third place, knockout)
 - `delete_all_matches.py` - Delete all tournament matches (preserves match templates)
