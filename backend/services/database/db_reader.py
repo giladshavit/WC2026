@@ -318,6 +318,39 @@ class DBReader:
         return query.all()
 
     @staticmethod
+    def get_unreachable_knockout_prediction_with_winner(
+        db: Session,
+        user_id: int,
+        stage: str,
+        exclude_prediction_id: int,
+        winner_team_id: int,
+    ) -> Optional[KnockoutStagePrediction]:
+        """Find UNREACHABLE prediction in same stage with given winner. Returns at most one."""
+        return db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.user_id == user_id,
+            KnockoutStagePrediction.stage == stage,
+            KnockoutStagePrediction.id != exclude_prediction_id,
+            KnockoutStagePrediction.status == "unreachable",
+            KnockoutStagePrediction.winner_team_id == winner_team_id,
+        ).first()
+
+    @staticmethod
+    def get_knockout_predictions_with_winner_in_stage_excluding(
+        db: Session,
+        user_id: int,
+        stage: str,
+        exclude_prediction_id: int,
+        winner_team_id: int,
+    ) -> List[KnockoutStagePrediction]:
+        """Find all predictions in same stage with given winner (e.g. for loser handling)."""
+        return db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.user_id == user_id,
+            KnockoutStagePrediction.stage == stage,
+            KnockoutStagePrediction.id != exclude_prediction_id,
+            KnockoutStagePrediction.winner_team_id == winner_team_id,
+        ).all()
+
+    @staticmethod
     def get_knockout_predictions_by_stage(db: Session, stage: str) -> List[KnockoutStagePrediction]:
         return db.query(KnockoutStagePrediction).filter(
             KnockoutStagePrediction.stage == stage

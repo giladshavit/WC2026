@@ -802,22 +802,19 @@ class KnockoutService:
             return  # This prediction handled for winner
 
         # A2: This prediction didn't predict winner
-        # Search same stage for UNREACHABLE prediction that has the winner
-        same_stage_predictions = DBReader.get_knockout_predictions_by_user(
-            db, user_id, stage=stage, is_draft=False
-        )
-        for other_pred in same_stage_predictions:
-            if other_pred.id == prediction.id:
-                continue
-            if (other_pred.status == KnockoutPredictionStatus.UNREACHABLE.value and
-                    KnockoutService._normalize_team_id(other_pred.winner_team_id) == winner_team_id):
-                # Found UNREACHABLE prediction with correct winner -> CORRECT_PARTIAL
-                points = ScoringService.KNOCKOUT_SCORING.get(stage, {}).get("partial", 0)
-                KnockoutService._set_prediction_status_and_points(
-                    db, other_pred, user_id,
-                    KnockoutPredictionStatus.CORRECT_PARTIAL.value, points
-                )
-                return  # Found and handled, stop searching
+        # Search same stage for UNREACHABLE prediction that has the winner (DB query)
+        if winner_team_id:
+            other_pred = DBReader.get_unreachable_knockout_prediction_with_winner(
+                db, user_id, stage, prediction.id, winner_team_id
+            )
+            if other_pred:
+                normalized = KnockoutService._normalize_team_id(other_pred.winner_team_id)
+                if normalized and normalized == winner_team_id:
+                    points = ScoringService.KNOCKOUT_SCORING.get(stage, {}).get("partial", 0)
+                    KnockoutService._set_prediction_status_and_points(
+                        db, other_pred, user_id,
+                        KnockoutPredictionStatus.CORRECT_PARTIAL.value, points
+                    )
 
         # No UNREACHABLE with winner found — that's fine, nothing to do here
 
@@ -850,21 +847,21 @@ class KnockoutService:
             return  # This prediction handled for loser
 
         # B2: This prediction didn't predict loser
-        # Search same stage for predictions that have the loser as winner
-        same_stage_predictions = DBReader.get_knockout_predictions_by_user(
-            db, user_id, stage=stage, is_draft=False
-        )
-        for other_pred in same_stage_predictions:
-            if other_pred.id == prediction.id:
-                continue
-            if KnockoutService._normalize_team_id(other_pred.winner_team_id) == loser_team_id:
-                KnockoutService._set_prediction_status_and_points(
-                    db, other_pred, user_id,
-                    KnockoutPredictionStatus.INCORRECT.value, 0
-                )
-                KnockoutService._invalidate_loser_in_future_stages(
-                    db, user_id, loser_team_id, other_pred
-                )
+        # Search same stage for predictions that have the loser as winner (DB query)
+        if loser_team_id:
+            other_preds = DBReader.get_knockout_predictions_with_winner_in_stage_excluding(
+                db, user_id, stage, prediction.id, loser_team_id
+            )
+            for other_pred in other_preds:
+                normalized = KnockoutService._normalize_team_id(other_pred.winner_team_id)
+                if normalized and normalized == loser_team_id:
+                    KnockoutService._set_prediction_status_and_points(
+                        db, other_pred, user_id,
+                        KnockoutPredictionStatus.INCORRECT.value, 0
+                    )
+                    KnockoutService._invalidate_loser_in_future_stages(
+                        db, user_id, loser_team_id, other_pred
+                    )
 
     @staticmethod
     def _invalidate_loser_in_future_stages(
