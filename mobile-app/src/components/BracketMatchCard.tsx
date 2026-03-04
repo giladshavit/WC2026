@@ -43,7 +43,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
       case 'invalid':
         return '#ef4444';
       case 'unreachable':
-        return '#f59e0b';
+        return '#fb923c'; // light orange - distinct from gold final & red invalid
       case 'correct_full':
       case 'correct_partial':
       case 'incorrect':
@@ -84,7 +84,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
 
     return (
       <View style={[styles.teamHalf, { backgroundColor: halfBg }]}>
-        <View style={[styles.teamHalfInner, { opacity: isEliminated ? 0.25 : 1 }]}>
+        <View style={styles.teamHalfInner}>
           {isTBD ? (
             <View style={styles.tbdFlagPlaceholder} />
           ) : teamFlag ? (
@@ -100,12 +100,18 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
             style={[
               styles.teamName,
               isInvalid && styles.teamNameInvalid,
+              isEliminated && styles.teamNameStrikethrough,
             ]}
             numberOfLines={1}
           >
             {displayName}
           </Text>
         </View>
+        {isEliminated && (
+          <View style={styles.strikethroughOverlay} pointerEvents="none">
+            <View style={styles.strikethroughLine} />
+          </View>
+        )}
       </View>
     );
   };
@@ -116,42 +122,50 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
     const team1Name = team1IsTBD ? '' : match.team1_name;
     const team2Name = team2IsTBD ? '' : match.team2_name;
 
-    return (
-      <View style={styles.finalContainer}>
-        {/* Team 1 - name + large flag */}
-        <Text style={styles.finalTeamName}>{team1Name}</Text>
+    const renderFinalTeam1 = () => (
+      <View style={styles.finalTeamBlock}>
+        <Text style={[styles.finalTeamName, team1Eliminated && styles.finalTeamNameStrikethrough]}>
+          {team1Name}
+        </Text>
         {match.team1_flag ? (
           <View style={styles.finalFlagWrapper}>
-            <Image
-              source={{ uri: match.team1_flag }}
-              style={styles.finalFlag}
-              resizeMode="contain"
-            />
+            <Image source={{ uri: match.team1_flag }} style={styles.finalFlag} resizeMode="contain" />
           </View>
         ) : (
           <View style={styles.finalTbdPlaceholder} />
         )}
+      </View>
+    );
 
-        <Text style={styles.finalVsText}>VS</Text>
-
-        {/* Team 2 - large flag + name */}
+    const renderFinalTeam2 = () => (
+      <View style={styles.finalTeamBlock}>
         {match.team2_flag ? (
           <View style={styles.finalFlagWrapper}>
-            <Image
-              source={{ uri: match.team2_flag }}
-              style={styles.finalFlag}
-              resizeMode="contain"
-            />
+            <Image source={{ uri: match.team2_flag }} style={styles.finalFlag} resizeMode="contain" />
           </View>
         ) : (
           <View style={styles.finalTbdPlaceholder} />
         )}
-        <Text style={styles.finalTeamName}>{team2Name}</Text>
+        <Text style={[styles.finalTeamName, team2Eliminated && styles.finalTeamNameStrikethrough]}>
+          {team2Name}
+        </Text>
+      </View>
+    );
+
+    return (
+      <View style={styles.finalContainer}>
+        {renderFinalTeam1()}
+        <Text style={styles.finalVsText}>VS</Text>
+        {renderFinalTeam2()}
       </View>
     );
   };
 
   if (isFinal) {
+    const isInvalid = match.status?.toLowerCase() === 'invalid';
+    const finalBorderColor = isInvalid ? '#ef4444' : '#f59e0b';
+    const finalGlowColor = isInvalid ? '#ef4444' : '#f59e0b';
+
     return (
       <View style={[styles.finalWrapper, isLocked && { opacity: 0.45 }]}>
         {/* Winner or placeholder ABOVE the card */}
@@ -179,10 +193,18 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
           <Image source={TROPHY_IMAGE} style={styles.trophyImage} resizeMode="contain" />
         </View>
 
-        {/* The actual final match card */}
-        <View style={styles.finalGlowOuter}>
+        {/* The actual final match card - invalid = red+glow, else gold */}
+        <View style={[
+          styles.finalGlowOuter,
+          {
+            shadowColor: finalGlowColor,
+            shadowOpacity: 0.45,
+            shadowRadius: 18,
+            elevation: 15,
+          },
+        ]}>
           <TouchableOpacity
-            style={[styles.container, styles.finalCardContainer]}
+            style={[styles.container, styles.finalCardContainer, { borderColor: finalBorderColor }]}
             onPress={() => onPress?.(match)}
             onLayout={(event) => {
               const { x, y, width, height } = event.nativeEvent.layout;
@@ -319,6 +341,25 @@ const styles = StyleSheet.create({
   teamNameInvalid: {
     color: '#cbd5e1',
   },
+  teamNameStrikethrough: {
+    textDecorationLine: 'line-through',
+    textDecorationColor: '#000',
+  },
+  strikethroughOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  strikethroughLine: {
+    width: '150%',
+    height: 2,
+    backgroundColor: '#000',
+    transform: [{ rotate: '-45deg' }],
+  },
   halfDivider: {
     height: 1,
     backgroundColor: '#e5e7eb',
@@ -330,15 +371,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 20,
     borderWidth: 2.5,
-    borderColor: '#f59e0b',
     justifyContent: 'center',
   },
   finalGlowOuter: {
-    shadowColor: '#f59e0b',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 18,
-    elevation: 15,
     borderRadius: 20,
   },
   finalContainer: {
@@ -370,17 +406,19 @@ const styles = StyleSheet.create({
   finalFlag: {
     width: 44,
     height: 30,
-    borderWidth: 0.5,
-    borderColor: '#d1d5db',
-    borderRadius: 6,
   },
   finalFlagWrapper: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 6,
-    padding: 2,
     marginVertical: 5,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  finalTeamBlock: {
+    alignItems: 'center',
+  },
+  finalTeamNameStrikethrough: {
+    textDecorationLine: 'line-through',
+    textDecorationColor: '#000',
   },
   finalTbdPlaceholder: {
     width: 44,
@@ -458,9 +496,6 @@ const styles = StyleSheet.create({
   winnerBannerFlag: {
     width: 80,
     height: 54,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
   winnerFlagPlaceholder: {
     width: 80,

@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   },
   teamCard: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f0f4f8',
     borderRadius: 12,
     padding: 12,
     marginHorizontal: 6,
