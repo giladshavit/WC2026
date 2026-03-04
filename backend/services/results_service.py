@@ -1,6 +1,8 @@
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+
+from utils.datetime_utils import datetime_to_utc_iso as _to_utc_iso
 from models.matches import Match
 from models.results import MatchResult, GroupStageResult, ThirdPlaceResult, KnockoutStageResult
 from models.team import Team
@@ -44,7 +46,7 @@ class ResultsService:
                 },
                 "stage": match.stage,
                 "status": match.status,
-                "date": match.date.isoformat() if match.date else None,
+                "date": _to_utc_iso(match.date),
                 "group": match.group,
                 "result": {
                     "home_team_score": result.home_team_score if result else None,
@@ -498,7 +500,7 @@ class ResultsService:
                         "name": away_team.name,
                         "flag_url": away_team.flag_url
                     },
-                    "date": match.date.isoformat() if match.date else None,
+                    "date": _to_utc_iso(match.date),
                     "status": match.status,
                     "knockout_result": None,
                     "match_result": None,

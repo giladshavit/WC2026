@@ -1,6 +1,8 @@
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 from sqlalchemy.orm import Session
+
+from utils.datetime_utils import datetime_to_utc_iso as _to_utc_iso
 from models.matches import Match, MatchStatus
 from models.predictions import MatchPrediction
 from models.user_scores import UserScores
@@ -89,7 +91,7 @@ class MatchPredictionService:
                 "name": match.away_team.name if match.away_team else None,
                 "flag_url": match.away_team.flag_url if match.away_team else None,
             },
-            "date": match.date.isoformat(),
+            "date": _to_utc_iso(match.date) if match.date else None,
             "status": match.status,
             "user_prediction": {
                 "home_score": prediction.home_score if prediction else None,

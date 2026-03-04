@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """
-Script to create the matches_template table with all matches
+Script to create the matches_template table with all matches.
+Fetches Google Sheet once and creates matches with correct dates/placeholders in a single pass.
 """
 
+import csv
 import sys
 import os
+from io import StringIO
+
 # Add backend directory to path
 backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(backend_dir)
@@ -15,96 +19,106 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
 import requests
 
+from utils.datetime_utils import israel_time_to_utc
+
+SHEET_ID = "1D9zV9rivLeDUql_6bMvFEdZ3gOpMnG015WNL9iGfX4g"
+SHEET_GID = "255491779"
+
+
+def _fetch_sheet_data() -> dict[int, dict]:
+    """
+    Fetch Google Sheet and parse into match_id -> {date, group, team_1, team_2}.
+    Returns dict for all 104 matches. Knockout rows have group/team_1/team_2 as None.
+    """
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={SHEET_GID}"
+    response = requests.get(url)
+    response.raise_for_status()
+    all_rows = list(csv.reader(StringIO(response.text)))
+
+    # Find header row
+    header_idx = None
+    for idx, row in enumerate(all_rows):
+        if len(row) > 8 and row[5] == 'id' and row[6] == 'day' and row[7] == 'time' and row[8] == 'group':
+            header_idx = idx
+            break
+    if header_idx is None:
+        raise ValueError("Could not find schedule header row in sheet")
+
+    result = {}
+    for row in all_rows[header_idx + 1:]:
+        if len(row) < 11 or not row[5] or not row[6] or not row[7]:
+            continue
+        try:
+            match_id = int(row[5].strip())
+            day_parts = row[6].strip().split('.')
+            time_parts = row[7].strip().split(':')
+            day = int(day_parts[0])
+            month = int(day_parts[1])
+            hour = int(time_parts[0])
+            minute = int(time_parts[1])
+            # Sheet times are Israel time → convert to UTC for storage
+            date = israel_time_to_utc(2026, month, day, hour, minute)
+            group_val = row[8].strip() if len(row) > 8 else ''
+            t1_val = row[9].strip() if len(row) > 9 else ''
+            t2_val = row[10].strip() if len(row) > 10 else ''
+            result[match_id] = {
+                "date": date,
+                "group": group_val or None,
+                "team_1": f"{group_val}{t1_val}" if (group_val and t1_val) else None,
+                "team_2": f"{group_val}{t2_val}" if (group_val and t2_val) else None,
+            }
+        except (ValueError, IndexError):
+            continue
+    return result
+
+
 def create_matches_template():
-    """Create the matches_template table with all matches"""
+    """Create the matches_template table with all matches. Single pass using sheet data."""
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     try:
+        # Fetch sheet once (dates + placeholders for group stage)
+        print("Fetching schedule from Google Sheet...")
+        sheet_data = _fetch_sheet_data()
+        print(f"✅ Loaded {len(sheet_data)} matches from sheet\n")
+
         # Create the table if it does not exist
         MatchTemplate.__table__.create(engine, checkfirst=True)
-        
-        # Delete all existing matches
         session.query(MatchTemplate).delete()
-        
-        # Base dates
-        group_stage_start = datetime(2026, 6, 15)  # June 15, 2026
-        knockout_start = datetime(2026, 7, 1)      # July 1, 2026
-        
+
+        # Fallback dates in UTC (19:00 UTC ≈ 22:00 Israel)
+        group_stage_start = israel_time_to_utc(2026, 6, 15, 19, 0)
+        knockout_start = israel_time_to_utc(2026, 7, 1, 19, 0)
         matches = []
-        
+
         # ========================================
-        # Create group stage matches (72 matches)
+        # Group stage (72 matches) - from sheet in one pass
         # ========================================
-        
         groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
-        
-        # Round 1 (24 matches) - ID 1-24
-        for i, group in enumerate(groups):
-            # A1 vs A2
+        fallback_pairs = [
+            (1, 2), (3, 4), (1, 3), (4, 2), (4, 1), (2, 3)
+        ]  # Round 1-3 pairs per group
+        for match_id in range(1, 73):
+            data = sheet_data.get(match_id, {})
+            date = data.get("date") or group_stage_start
+            group = data.get("group")
+            team_1 = data.get("team_1")
+            team_2 = data.get("team_2")
+            if not group:
+                group_idx = (match_id - 1) // 6
+                pair_idx = (match_id - 1) % 6
+                group = groups[group_idx] if group_idx < 12 else "A"
+                p1, p2 = fallback_pairs[pair_idx]
+                team_1 = team_1 or f"{group}{p1}"
+                team_2 = team_2 or f"{group}{p2}"
             matches.append(MatchTemplate(
-                id=1 + i*2,
+                id=match_id,
                 stage="group",
-                team_1=f"{group}1",
-                team_2=f"{group}2",
+                team_1=team_1 or f"{group}1",
+                team_2=team_2 or f"{group}2",
                 status="scheduled",
-                date=group_stage_start,
-                group=group
-            ))
-            # A3 vs A4
-            matches.append(MatchTemplate(
-                id=2 + i*2,
-                stage="group",
-                team_1=f"{group}3",
-                team_2=f"{group}4",
-                status="scheduled",
-                date=group_stage_start,
-                group=group
-            ))
-        
-        # Round 2 (24 matches) - ID 25-48
-        for i, group in enumerate(groups):
-            # A1 vs A3
-            matches.append(MatchTemplate(
-                id=25 + i*2,
-                stage="group",
-                team_1=f"{group}1",
-                team_2=f"{group}3",
-                status="scheduled",
-                date=group_stage_start + timedelta(days=3),
-                group=group
-            ))
-            # A4 vs A2
-            matches.append(MatchTemplate(
-                id=26 + i*2,
-                stage="group",
-                team_1=f"{group}4",
-                team_2=f"{group}2",
-                status="scheduled",
-                date=group_stage_start + timedelta(days=3),
-                group=group
-            ))
-        
-        # Round 3 (24 matches) - ID 49-72
-        for i, group in enumerate(groups):
-            # A4 vs A1
-            matches.append(MatchTemplate(
-                id=49 + i*2,
-                stage="group",
-                team_1=f"{group}4",
-                team_2=f"{group}1",
-                status="scheduled",
-                date=group_stage_start + timedelta(days=6),
-                group=group
-            ))
-            # A2 vs A3
-            matches.append(MatchTemplate(
-                id=50 + i*2,
-                stage="group",
-                team_1=f"{group}2",
-                team_2=f"{group}3",
-                status="scheduled",
-                date=group_stage_start + timedelta(days=6),
+                date=date,
                 group=group
             ))
         
@@ -135,13 +149,15 @@ def create_matches_template():
         ]
         
         for match_data in round32_matches:
+            mid = match_data["id"]
+            date = sheet_data.get(mid, {}).get("date") or knockout_start + timedelta(days=(mid - 73) // 2)
             matches.append(MatchTemplate(
-                id=match_data["id"],
+                id=mid,
                 stage="round32",
                 team_1=match_data["team_1"],
                 team_2=match_data["team_2"],
                 status="scheduled",
-                date=knockout_start + timedelta(days=(match_data["id"] - 73) // 2),
+                date=date,
                 winner_next_knockout_match=match_data["winner_next_knockout_match"],
                 winner_next_position=match_data["winner_next_position"]
             ))
@@ -159,13 +175,15 @@ def create_matches_template():
         ]
         
         for match_data in round16_matches:
+            mid = match_data["id"]
+            date = sheet_data.get(mid, {}).get("date") or knockout_start + timedelta(days=8 + (mid - 89) // 2)
             matches.append(MatchTemplate(
-                id=match_data["id"],
+                id=mid,
                 stage="round16",
                 team_1=match_data["team_1"],
                 team_2=match_data["team_2"],
                 status="scheduled",
-                date=knockout_start + timedelta(days=8 + (match_data["id"] - 89) // 2),
+                date=date,
                 winner_next_knockout_match=match_data["winner_next_knockout_match"],
                 winner_next_position=match_data["winner_next_position"]
             ))
@@ -179,13 +197,15 @@ def create_matches_template():
         ]
         
         for match_data in quarter_matches:
+            mid = match_data["id"]
+            date = sheet_data.get(mid, {}).get("date") or knockout_start + timedelta(days=12 + (mid - 97))
             matches.append(MatchTemplate(
-                id=match_data["id"],
+                id=mid,
                 stage="quarter",
                 team_1=match_data["team_1"],
                 team_2=match_data["team_2"],
                 status="scheduled",
-                date=knockout_start + timedelta(days=12 + (match_data["id"] - 97)),
+                date=date,
                 winner_next_knockout_match=match_data["winner_next_knockout_match"],
                 winner_next_position=match_data["winner_next_position"]
             ))
@@ -197,37 +217,41 @@ def create_matches_template():
         ]
         
         for match_data in semi_matches:
+            mid = match_data["id"]
+            date = sheet_data.get(mid, {}).get("date") or knockout_start + timedelta(days=16 + (mid - 101))
             matches.append(MatchTemplate(
-                id=match_data["id"],
+                id=mid,
                 stage="semi",
                 team_1=match_data["team_1"],
                 team_2=match_data["team_2"],
                 status="scheduled",
-                date=knockout_start + timedelta(days=16 + (match_data["id"] - 101)),
+                date=date,
                 winner_next_knockout_match=match_data["winner_next_knockout_match"],
                 winner_next_position=match_data["winner_next_position"]
             ))
         
         # Third-place match - ID 103
+        date_103 = sheet_data.get(103, {}).get("date") or knockout_start + timedelta(days=18)
         matches.append(MatchTemplate(
             id=103,
             stage="third_place",
             team_1="Runner_up_M101",
             team_2="Runner_up_M102",
             status="scheduled",
-            date=knockout_start + timedelta(days=18),
+            date=date_103,
             winner_next_knockout_match=None,
             winner_next_position=None
         ))
-        
+
         # Final - ID 104
+        date_104 = sheet_data.get(104, {}).get("date") or knockout_start + timedelta(days=19)
         matches.append(MatchTemplate(
             id=104,
             stage="final",
             team_1="Winner_M101",
             team_2="Winner_M102",
             status="scheduled",
-            date=knockout_start + timedelta(days=19),
+            date=date_104,
             winner_next_knockout_match=None,
             winner_next_position=None
         ))
@@ -270,121 +294,6 @@ def create_matches_template():
     finally:
         session.close()
 
-def update_matches_dates_from_sheet():
-    """
-    Update match dates and times from Google Sheet
-    Sheet URL: https://docs.google.com/spreadsheets/d/1D9zV9rivLeDUql_6bMvFEdZ3gOpMnG015WNL9iGfX4g
-    Range: F11:H114 (id, day, time) - row 10 is header
-    """
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    
-    try:
-        # Access public Google Sheet via CSV export
-        sheet_id = "1D9zV9rivLeDUql_6bMvFEdZ3gOpMnG015WNL9iGfX4g"
-        gid = "255491779"  # First sheet
-        
-        # Export as CSV and parse
-        url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
-        response = requests.get(url)
-        response.raise_for_status()
-        
-        # Parse CSV data
-        import csv
-        from io import StringIO
-        
-        csv_data = StringIO(response.text)
-        reader = csv.reader(csv_data)
-        
-        # Skip to row 11 (0-indexed row 10) where data starts
-        # Row 1-9 are header rows, row 10 has column headers
-        all_rows = list(reader)
-        
-        # Find the row with "id", "day", "time" headers in columns F, G, H (indices 5, 6, 7)
-        header_row_idx = None
-        for idx, row in enumerate(all_rows):
-            if len(row) > 7 and row[5] == 'id' and row[6] == 'day' and row[7] == 'time':
-                header_row_idx = idx
-                break
-        
-        if header_row_idx is None:
-            print("Error: Could not find header row with 'id', 'day', 'time'")
-            return
-        
-        # Get data rows (starting from row after header)
-        data = []
-        for row in all_rows[header_row_idx + 1:]:
-            if len(row) > 7 and row[5] and row[6] and row[7]:  # columns F, G, H
-                data.append([row[5], row[6], row[7]])  # id, day, time
-        
-        print(f"Found {len(data)} rows of match schedule data")
-        
-        updated_count = 0
-        skipped_count = 0
-        
-        for row in data:
-            if len(row) < 3:
-                continue
-            
-            try:
-                match_id = int(row[0])  # id column
-                day_str = str(row[1])   # day column (e.g., "11.6" for June 11)
-                time_str = str(row[2])  # time column (e.g., "19:00")
-                
-                # Parse the day (format: "DD.M" where M is month)
-                day_parts = day_str.split('.')
-                if len(day_parts) != 2:
-                    print(f"Skipping match {match_id}: Invalid day format '{day_str}'")
-                    skipped_count += 1
-                    continue
-                
-                day = int(day_parts[0])
-                month = int(day_parts[1])
-                
-                # Parse the time (format: "HH:MM")
-                time_parts = time_str.split(':')
-                if len(time_parts) != 2:
-                    print(f"Skipping match {match_id}: Invalid time format '{time_str}'")
-                    skipped_count += 1
-                    continue
-                
-                hour = int(time_parts[0])
-                minute = int(time_parts[1])
-                
-                # Create the datetime object (year 2026)
-                match_datetime = datetime(2026, month, day, hour, minute)
-                
-                # Find and update the match
-                match = session.query(MatchTemplate).filter(MatchTemplate.id == match_id).first()
-                if match:
-                    match.date = match_datetime
-                    updated_count += 1
-                    print(f"Updated match {match_id}: {match_datetime.strftime('%Y-%m-%d %H:%M')}")
-                else:
-                    print(f"Warning: Match {match_id} not found in database")
-                    skipped_count += 1
-                    
-            except ValueError as e:
-                print(f"Error parsing row {row}: {e}")
-                skipped_count += 1
-                continue
-        
-        session.commit()
-        print(f"\n✅ Successfully updated {updated_count} matches with dates and times")
-        if skipped_count > 0:
-            print(f"⚠️  Skipped {skipped_count} matches due to errors")
-        
-    except Exception as e:
-        session.rollback()
-        print(f"Error updating match dates: {e}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        session.close()
 
 if __name__ == "__main__":
     create_matches_template()
-    print("\n" + "="*50)
-    print("Now updating match dates and times from Google Sheet...")
-    print("="*50 + "\n")
-    update_matches_dates_from_sheet()
