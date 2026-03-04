@@ -129,7 +129,8 @@ def build_round32_from_results():
                         date=match_time,
                         match_number=i + 1,
                         home_team_source=template.team_1,
-                        away_team_source=template.team_2
+                        away_team_source=template.team_2,
+                        external_api_id=None,
                     )
                     db.add(match)
                     print(f"  Created match {match_id}: {home_team.name} vs {away_team.name}")

@@ -72,44 +72,47 @@ class ResultsService:
     
     @staticmethod
     def update_match_result(
-        db: Session, 
-        match_id: int, 
-        home_team_score: int, 
+        db: Session,
+        match_id: int,
+        home_team_score: int,
         away_team_score: int,
         home_team_score_120: Optional[int] = None,
         away_team_score_120: Optional[int] = None,
         home_team_penalties: Optional[int] = None,
         away_team_penalties: Optional[int] = None,
-        outcome_type: str = "regular"
+        outcome_type: str = "regular",
+        is_final: bool = True
     ) -> Dict[str, Any]:
         """
         Update or create a match result.
-        Winner team ID is calculated automatically based on final scores.
+        Winner team ID is calculated automatically based on final scores when is_final=True.
         """
         # Verify the match exists and has both teams
         match = DBReader.get_match(db, match_id)
         if not match:
             raise ValueError(f"Match with ID {match_id} not found")
-        
+
         if not match.home_team_id or not match.away_team_id:
             raise ValueError(f"Match {match_id} does not have both teams defined")
-        
+
         # Validate scores
         if home_team_score < 0 or away_team_score < 0:
             raise ValueError("Scores must be non-negative")
-        
-        # Calculate winner based on outcome type
-        winner_team_id = ResultsService._calculate_winner(
-            match.home_team_id, match.away_team_id,
-            home_team_score, away_team_score,
-            home_team_score_120, away_team_score_120,
-            home_team_penalties, away_team_penalties,
-            outcome_type
-        )
-        
+
+        # Only calculate winner when match is finished
+        winner_team_id = None
+        if is_final:
+            winner_team_id = ResultsService._calculate_winner(
+                match.home_team_id, match.away_team_id,
+                home_team_score, away_team_score,
+                home_team_score_120, away_team_score_120,
+                home_team_penalties, away_team_penalties,
+                outcome_type
+            )
+
         # Check if result already exists
         existing_result = DBReader.get_match_result(db, match_id)
-        
+
         if existing_result:
             # Update existing result
             result = DBWriter.update_match_result(
@@ -138,43 +141,39 @@ class ResultsService:
                 away_penalties=away_team_penalties,
                 outcome_type=outcome_type
             )
-        
+
         DBUtils.commit(db)
         DBUtils.refresh(db, result)
-        
-        # Update match status to finished
-        DBWriter.set_match_status(db, match, "finished")
-        DBUtils.commit(db)
-        
+
+        # Only set match status to finished when is_final=True
+        if is_final:
+            DBWriter.set_match_status(db, match, "finished")
+            DBUtils.commit(db)
+
         # Check if this is a knockout match
         is_knockout = match.stage in ['round32', 'round16', 'quarter', 'semi', 'final']
-        
-        # Update KnockoutStageResult if this is a knockout match
+
         if is_knockout:
-            # Get team1 and team2 from the match
-            team_1_id = match.home_team_id
-            team_2_id = match.away_team_id
-            # Call the new update_knockout_result function that handles predictions
-            ResultsService.update_knockout_result(
-                db, match_id, team_1_id, team_2_id, winner_team_id
-            )
-            # Note: update_knockout_result already handles scoring, so we skip the match scoring below
+            if is_final:
+                ResultsService.update_knockout_result(
+                    db, match_id, match.home_team_id, match.away_team_id, winner_team_id
+                )
+            # During live knockout match: skip knockout result update
             return {
                 "match_id": match_id,
-                "home_team_score": result.home_team_score,
-                "away_team_score": result.away_team_score,
-                "winner_team_id": result.winner_team_id,
+                "home_team_score": home_team_score,
+                "away_team_score": away_team_score,
+                "winner_team_id": winner_team_id,
                 "message": "Match result updated successfully"
             }
-        
-        # Update scoring for all users who predicted this match (only for non-knockout matches)
-        ScoringService.update_match_scoring_for_all_users(db, result)
-        
+
+        ScoringService.update_match_scoring_for_all_users(db, result, update_status=is_final)
+
         return {
             "match_id": match_id,
-            "home_team_score": result.home_team_score,
-            "away_team_score": result.away_team_score,
-            "winner_team_id": result.winner_team_id,
+            "home_team_score": home_team_score,
+            "away_team_score": away_team_score,
+            "winner_team_id": winner_team_id,
             "message": "Match result updated successfully"
         }
     
@@ -1016,7 +1015,8 @@ class ResultsService:
                         date=match_time,
                         match_number=template.id,
                         home_team_source=template.team_1,
-                        away_team_source=template.team_2
+                        away_team_source=template.team_2,
+                        external_api_id=None,
                     )
                     matches_created += 1
                 else:

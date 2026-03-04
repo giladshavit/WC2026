@@ -5,9 +5,12 @@ Methods call db.flush() to get IDs but do NOT call db.commit().
 Commit responsibility belongs to the service layer via DBUtils.commit().
 """
 import logging
+from collections import defaultdict
 from typing import Optional, List, Dict, Any, Sequence, Union
 from datetime import datetime
+
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from models.team import Team
 from models.user import User
@@ -256,6 +259,98 @@ class DBWriter:
         prediction.penalty_points = (prediction.penalty_points or 0) + penalty_delta
         prediction.changes_count = (prediction.changes_count or 0) + changes_delta
         db.flush()
+
+    # ═══════════════════════════════════════════════════════
+    # MATCH SCORING (BULK)
+    # ═══════════════════════════════════════════════════════
+    @staticmethod
+    def bulk_update_match_prediction_scoring(
+        db: Session,
+        match_id: int,
+        home: int,
+        away: int,
+        winner_id: Optional[int],
+        update_status: bool,
+    ) -> int:
+        """
+        Bulk SQL: update match_predictions points/status + user_scores.
+        Returns number of users with non-zero delta.
+        Caller must commit.
+        """
+        rows = db.execute(text("""
+            SELECT
+                mp.id                          AS pred_id,
+                mp.user_id,
+                COALESCE(mp.points, 0)         AS old_points,
+                CASE
+                    WHEN mp.home_score IS NULL OR mp.away_score IS NULL THEN 0
+                    WHEN mp.home_score = :home AND mp.away_score = :away THEN 3
+                    WHEN :winner_id IS NOT NULL
+                     AND mp.predicted_winner = :winner_id               THEN 1
+                    ELSE 0
+                END                            AS new_points,
+                CASE
+                    WHEN mp.home_score IS NULL OR mp.away_score IS NULL THEN 'pending'
+                    WHEN mp.home_score = :home AND mp.away_score = :away THEN 'exact'
+                    WHEN :winner_id IS NOT NULL
+                     AND mp.predicted_winner = :winner_id               THEN 'correct_outcome'
+                    ELSE 'wrong'
+                END                            AS new_status
+            FROM match_predictions mp
+            WHERE mp.match_id = :match_id
+        """), {
+            "match_id": match_id,
+            "home": home,
+            "away": away,
+            "winner_id": winner_id,
+        }).fetchall()
+
+        if not rows:
+            return 0
+
+        pred_ids = [r.pred_id for r in rows]
+        new_points = [r.new_points for r in rows]
+
+        db.execute(text("""
+            UPDATE match_predictions mp
+            SET points = c.new_points
+            FROM unnest(:pred_ids::int[], :new_points::int[])
+                 AS c(pred_id, new_points)
+            WHERE mp.id = c.pred_id
+        """), {"pred_ids": pred_ids, "new_points": new_points})
+
+        if update_status:
+            new_statuses = [r.new_status for r in rows]
+            db.execute(text("""
+                UPDATE match_predictions mp
+                SET status = c.new_status
+                FROM unnest(:pred_ids::int[], :new_statuses::text[])
+                     AS c(pred_id, new_status)
+                WHERE mp.id = c.pred_id
+            """), {"pred_ids": pred_ids, "new_statuses": new_statuses})
+
+        user_deltas: dict[int, int] = defaultdict(int)
+        for r in rows:
+            delta = r.new_points - r.old_points
+            if delta != 0:
+                user_deltas[r.user_id] += delta
+
+        if user_deltas:
+            user_ids = list(user_deltas.keys())
+            deltas = list(user_deltas.values())
+            db.execute(text("""
+                INSERT INTO user_scores
+                    (user_id, matches_score, total_points,
+                     groups_score, third_place_score, knockout_score, penalty)
+                SELECT u, d, d, 0, 0, 0, 0
+                FROM unnest(:user_ids::int[], :deltas::int[]) AS t(u, d)
+                ON CONFLICT (user_id) DO UPDATE
+                    SET matches_score = user_scores.matches_score + EXCLUDED.matches_score,
+                        total_points  = user_scores.total_points  + EXCLUDED.total_points
+            """), {"user_ids": user_ids, "deltas": deltas})
+
+        db.flush()
+        return len(user_deltas)
 
     # ═══════════════════════════════════════════════════════
     # PREDICTIONS - Group
@@ -518,7 +613,7 @@ class DBWriter:
         match_id: int,
         home_score: int,
         away_score: int,
-        winner_id: int,
+        winner_id: Optional[int] = None,
         home_score_120: Optional[int] = None,
         away_score_120: Optional[int] = None,
         home_penalties: Optional[int] = None,
@@ -548,6 +643,12 @@ class DBWriter:
                 setattr(result, key, value)
         db.flush()
         return result
+
+    @staticmethod
+    def mark_match_result_finalized(db: Session, match: Match) -> None:
+        """Mark that the match result has been finalized from external sync."""
+        match.status = "finished"
+        db.flush()
 
     @staticmethod
     def create_group_stage_result(db: Session, group_id: int,

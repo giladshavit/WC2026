@@ -1,0 +1,17 @@
+# PostgreSQL for local dev — enables bulk match scoring
+# Usage: docker compose up -d
+# Then: DATABASE_URL=postgresql://predicto:predicto@localhost:5432/predicto python -m backend.main
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: predicto
+      POSTGRES_PASSWORD: predicto
+      POSTGRES_DB: predicto
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

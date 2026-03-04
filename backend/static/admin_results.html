@@ -1860,8 +1860,7 @@
         function getStatusDisplayName(status) {
             const statusMap = {
                 'scheduled': 'Scheduled',
-                'live_editable': 'Live (Editable)',
-                'live_locked': 'Live (Locked)',
+                'live': 'Live',
                 'finished': 'Finished'
             };
             return statusMap[status] || status;
@@ -1871,8 +1870,7 @@
         function getStatusColor(status) {
             const colorMap = {
                 'scheduled': 'bg-gray-100 text-gray-800',
-                'live_editable': 'bg-yellow-100 text-yellow-800',
-                'live_locked': 'bg-orange-100 text-orange-800',
+                'live': 'bg-yellow-100 text-yellow-800',
                 'finished': 'bg-green-100 text-green-800'
             };
             return colorMap[status] || 'bg-gray-100 text-gray-800';
@@ -1885,8 +1883,7 @@
             
             const statusOptions = [
                 { value: 'scheduled', label: 'Scheduled' },
-                { value: 'live_editable', label: 'Live (Editable)' },
-                { value: 'live_locked', label: 'Live (Locked)' },
+                { value: 'live', label: 'Live' },
                 { value: 'finished', label: 'Finished' }
             ];
             

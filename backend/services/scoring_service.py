@@ -1,4 +1,5 @@
 from typing import List, Dict, Any, Optional, Tuple
+
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from services.predictions.enums import MatchPredictionStatus, KnockoutPredictionStatus, PredictionType
@@ -176,31 +177,49 @@ class ScoringService:
         return leaderboard
     
     @staticmethod
-    def update_match_scoring_for_all_users(db: Session, result: MatchResult) -> Dict[str, Any]:
-        predictions = DBReader.get_match_predictions_by_match(db, result.match_id)
+    def update_match_scoring_for_all_users(
+        db: Session,
+        result: MatchResult,
+        update_status: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Bulk SQL on PostgreSQL; loop-based fallback on SQLite (dev/tests).
+        update_status=True  → persists prediction status. Use when match is FINISHED.
+        update_status=False → updates points only, status stays PENDING. Use during live match.
+        """
+        match_id = result.match_id
+        dialect = db.get_bind().dialect.name
 
-        updated_users = set()
-        for prediction in predictions:
-            old_points = prediction.points if prediction.points is not None else 0
-
-            # Step 1: Determine and save status
-            status = ScoringService._determine_match_status(prediction, result)
-            DBWriter.update_match_prediction_status(db, prediction, status)
-
-            # Step 2: Points from status (pure)
-            new_points = ScoringService.match_status_to_points(status)
-            DBWriter.update_match_prediction(db, prediction, points=new_points)
-
-            # Step 3: Delta update on UserScores (single line!)
-            ScoringService._apply_score_delta(db, prediction.user_id, 'matches_score', new_points - old_points)
-
-            updated_users.add(prediction.user_id)
+        if dialect == "postgresql":
+            updated_users = DBWriter.bulk_update_match_prediction_scoring(
+                db,
+                match_id=match_id,
+                home=result.home_team_score,
+                away=result.away_team_score,
+                winner_id=result.winner_team_id,
+                update_status=update_status,
+            )
+        else:
+            # SQLite fallback (dev/tests) — no unnest/UPDATE FROM
+            predictions = DBReader.get_match_predictions_by_match(db, result.match_id)
+            updated_user_ids = set()
+            for prediction in predictions:
+                old_points = prediction.points if prediction.points is not None else 0
+                status = ScoringService._determine_match_status(prediction, result)
+                if update_status:
+                    DBWriter.update_match_prediction_status(db, prediction, status)
+                new_points = ScoringService.match_status_to_points(status)
+                DBWriter.update_match_prediction(db, prediction, points=new_points)
+                if new_points - old_points != 0:
+                    ScoringService._apply_score_delta(db, prediction.user_id, "matches_score", new_points - old_points)
+                    updated_user_ids.add(prediction.user_id)
+            updated_users = len(updated_user_ids)
 
         DBUtils.commit(db)
         return {
-            "message": f"Updated scoring for {len(updated_users)} users",
-            "updated_users": len(updated_users),
-            "match_id": result.match_id
+            "message": f"Updated scoring for {updated_users} users",
+            "updated_users": updated_users,
+            "match_id": match_id,
         }
     
     @staticmethod

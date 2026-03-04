@@ -120,8 +120,9 @@ npm install
 ### Running the Backend
 ```bash
 cd backend
-uvicorn main:app --reload
+uvicorn main:app --reload --host 0.0.0.0
 ```
+> **טיפ:** `--host 0.0.0.0` נדרש כדי שהאפליקציה תעבוד על אייפון פיזי (ולא רק בסימולטור) - מאפשר חיבורים מהרשת המקומית.
 
 ### Running the Frontend
 ```bash

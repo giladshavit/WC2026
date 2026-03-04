@@ -156,8 +156,33 @@ class DBReader:
         return db.query(Match).filter(Match.id == match_id).first()
 
     @staticmethod
+    def get_match_by_external_id(db: Session, external_api_id: int) -> Optional[Match]:
+        return db.query(Match).filter(Match.external_api_id == external_api_id).first()
+
+    @staticmethod
+    def get_matches_by_status(db: Session, statuses: list[str]) -> list[Match]:
+        return db.query(Match).filter(Match.status.in_(statuses)).all()
+
+    @staticmethod
+    def get_live_unfinalized_matches(db: Session) -> list[Match]:
+        """Return matches that are live and haven't been finalized (status=finished)."""
+        return db.query(Match).filter(Match.status == "live").all()
+
+    @staticmethod
     def get_match_by_number(db: Session, match_number: int) -> Optional[Match]:
         return db.query(Match).filter(Match.match_number == match_number).first()
+
+    @staticmethod
+    def get_matches_today(db: Session) -> list[Match]:
+        """Return all matches scheduled for today (UTC)."""
+        from datetime import datetime, timezone, timedelta
+
+        today = datetime.now(timezone.utc).date()
+        tomorrow = today + timedelta(days=1)
+        return db.query(Match).filter(
+            Match.date >= datetime(today.year, today.month, today.day, 0, 0, 0),
+            Match.date < datetime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0),
+        ).all()
 
     @staticmethod
     def get_all_matches(db: Session) -> List[Match]:
@@ -507,6 +532,21 @@ class DBReader:
     def get_league_memberships_by_user(db: Session, user_id: int) -> List[LeagueMembership]:
         return db.query(LeagueMembership).filter(
             LeagueMembership.user_id == user_id
+        ).all()
+
+    @staticmethod
+    def get_league_match_predictions(db: Session, league_id: int, match_id: int) -> List[Tuple[User, Optional[MatchPrediction]]]:
+        """
+        Get all league members with their match predictions for a given match.
+        Left join so members without a prediction still appear.
+        """
+        return db.query(User, MatchPrediction).join(
+            LeagueMembership, User.id == LeagueMembership.user_id
+        ).outerjoin(
+            MatchPrediction,
+            and_(MatchPrediction.user_id == User.id, MatchPrediction.match_id == match_id)
+        ).filter(
+            LeagueMembership.league_id == league_id
         ).all()
 
     @staticmethod

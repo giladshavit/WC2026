@@ -162,7 +162,7 @@ class MatchResultRequest(BaseModel):
     outcome_type: str = "regular"
 
 class MatchStatusRequest(BaseModel):
-    status: str  # scheduled, live_editable, live_locked, finished
+    status: str  # scheduled, live, finished
     outcome_type: str = "regular"
 
 class GroupStageResultRequest(BaseModel):

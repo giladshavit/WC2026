@@ -257,6 +257,69 @@ class LeagueService:
             )
 
     @staticmethod
+    def get_league_match_predictions(db: Session, league_id: int, match_id: int) -> Dict[str, Any]:
+        """Get all league members' predictions for a match. Only when match has started (live/finished)."""
+        match = DBReader.get_match(db, match_id)
+        if not match:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Match not found"
+            )
+        if match.status == "scheduled":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Match has not started yet"
+            )
+
+        league = DBReader.get_active_league_by_id(db, league_id)
+        if not league:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="League not found"
+            )
+
+        rows = DBReader.get_league_match_predictions(db, league_id, match_id)
+        match_result = DBReader.get_match_result(db, match_id)
+
+        actual_result = None
+        if match_result and match_result.home_team_score is not None and match_result.away_team_score is not None:
+            actual_result = {
+                "home_score": match_result.home_team_score,
+                "away_score": match_result.away_team_score,
+            }
+
+        predictions = []
+        for user, pred in rows:
+            if pred:
+                pred_status = pred.status.value if pred.status else None
+                predictions.append({
+                    "user_id": user.id,
+                    "username": user.username,
+                    "name": user.name,
+                    "home_score": pred.home_score,
+                    "away_score": pred.away_score,
+                    "points": pred.points if pred.points is not None else 0,
+                    "prediction_status": pred_status,
+                })
+            else:
+                predictions.append({
+                    "user_id": user.id,
+                    "username": user.username,
+                    "name": user.name,
+                    "home_score": None,
+                    "away_score": None,
+                    "points": 0,
+                    "prediction_status": None,
+                })
+
+        return {
+            "match_id": match_id,
+            "match_status": match.status,
+            "actual_result": actual_result,
+            "predictions": predictions,
+        }
+
+    @staticmethod
     def leave_league(db: Session, user_id: int, league_id: int) -> None:
         """Remove a user from a league."""
         membership = DBReader.get_league_membership(db, league_id, user_id)

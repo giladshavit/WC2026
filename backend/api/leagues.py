@@ -68,6 +68,24 @@ class LeagueStandingsResponse(BaseModel):
     league_info: Optional[Dict[str, Any]] = None
     standings: List[LeagueStanding]
 
+
+class MemberMatchPrediction(BaseModel):
+    user_id: int
+    username: str
+    name: Optional[str] = None
+    home_score: Optional[int] = None
+    away_score: Optional[int] = None
+    points: int
+    prediction_status: Optional[str] = None  # 'exact', 'correct_outcome', 'wrong', None
+
+
+class LeagueMatchPredictionsResponse(BaseModel):
+    match_id: int
+    match_status: str
+    actual_result: Optional[Dict[str, Any]] = None  # {home_score, away_score} or null
+    predictions: List[MemberMatchPrediction]
+
+
 # Dependency to get current user
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -211,7 +229,7 @@ def get_league_standings(
         )
 
 @router.delete("/leagues/{league_id}/leave")
-def leave_league_endpoint(
+def leave_league(
     league_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -219,6 +237,29 @@ def leave_league_endpoint(
     """Remove the current user from a league."""
     LeagueService.leave_league(db, user_id=current_user.id, league_id=league_id)
     return {"message": "Successfully left the league"}
+
+
+@router.get("/leagues/{league_id}/match/{match_id}/predictions", response_model=LeagueMatchPredictionsResponse)
+def get_league_match_predictions(
+    league_id: int,
+    match_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all league members' predictions for a match.
+    Only available when match has started (live or finished).
+    """
+    try:
+        result = LeagueService.get_league_match_predictions(db=db, league_id=league_id, match_id=match_id)
+        return LeagueMatchPredictionsResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get league match predictions: {str(e)}"
+        )
 
 
 @router.get("/leagues/{league_id}", response_model=LeagueResponse)

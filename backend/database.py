@@ -2,13 +2,13 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# SQLite database - always in backend directory (same for API and scripts)
+# Use DATABASE_URL for PostgreSQL (bulk scoring); fallback to SQLite for dev
 _db_dir = os.path.dirname(os.path.abspath(__file__))
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.join(_db_dir, 'world_cup_predictions.db')}"
+_default_sqlite = f"sqlite:///{os.path.join(_db_dir, 'world_cup_predictions.db')}"
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", _default_sqlite)
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+_connect_args = {"check_same_thread": False} if "sqlite" in SQLALCHEMY_DATABASE_URL else {}
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=_connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=True)
 
 # Dependency

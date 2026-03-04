@@ -105,10 +105,22 @@ class MatchPredictionService:
         }
 
         if actual_result:
+            home = actual_result.home_team_score
+            away = actual_result.away_team_score
+            if home is not None and away is not None:
+                if home > away:
+                    current_winner = "home"
+                elif away > home:
+                    current_winner = "away"
+                else:
+                    current_winner = "draw"
+            else:
+                current_winner = None
             match_data["actual_result"] = {
-                "home_score": actual_result.home_team_score,
-                "away_score": actual_result.away_team_score,
+                "home_score": home,
+                "away_score": away,
                 "winner_team_id": actual_result.winner_team_id,
+                "current_winner": current_winner,
             }
         else:
             match_data["actual_result"] = None
@@ -130,13 +142,8 @@ class MatchPredictionService:
 
         new_status = match.status
         if match.status == MatchStatus.SCHEDULED.value:
-            if 0 <= time_since_match_start <= 1.0:
-                new_status = MatchStatus.LIVE_EDITABLE.value
-            elif time_since_match_start > 1.0:
-                new_status = MatchStatus.LIVE_LOCKED.value
-        elif match.status == MatchStatus.LIVE_EDITABLE.value:
-            if time_since_match_start > 1.0:
-                new_status = MatchStatus.LIVE_LOCKED.value
+            if time_since_match_start >= 0:
+                new_status = MatchStatus.LIVE.value
 
         if new_status != match.status:
             DBWriter.set_match_status(db, match, new_status)
@@ -242,13 +249,19 @@ class MatchPredictionService:
         Validate that match exists and is editable
         Returns: (match, error_dict) - if error, match is None and error_dict is returned
         """
+        from models.matches import MatchStatus
+
         match = DBReader.get_match(db, match_id)
         if not match:
             return None, {"error": "Match not found"}
-        
+
+        if match.status == MatchStatus.LIVE.value:
+            return None, {"error": "Cannot edit prediction for a live match"}
+        if match.status == MatchStatus.FINISHED.value:
+            return None, {"error": "Cannot edit prediction for a finished match"}
         if not match.is_editable:
             return None, {"error": "Match is no longer editable"}
-        
+
         return match, None
     
     @staticmethod
@@ -270,10 +283,10 @@ class MatchPredictionService:
     @staticmethod
     def _apply_penalty_if_needed(db: Session, user_id: int, match: Any) -> int:
         """
-        Apply penalty only if match is live_editable
+        Apply penalty only if match is live
         Returns: penalty points applied
         """
-        if match.status == MatchStatus.LIVE_EDITABLE.value:
+        if match.status == MatchStatus.LIVE.value:
             return ScoringService.apply_match_prediction_penalty(db, user_id)
         return 0
     

@@ -60,7 +60,8 @@ def create_group_matches():
                     status=template.status,
                     date=template.date,
                     group=template.group,
-                    match_number=template.id  # use ID as match number
+                    match_number=template.id,  # use ID as match number
+                    external_api_id=None,
                 )
                 session.add(match)
                 matches_created += 1
@@ -75,7 +76,8 @@ def create_group_matches():
                     status="not_scheduled",
                     date=template.date,
                     group=template.group,
-                    match_number=template.id
+                    match_number=template.id,
+                    external_api_id=None,
                 )
                 session.add(match)
                 matches_created += 1
@@ -135,7 +137,8 @@ def create_knockout_matches():
                 status="not_scheduled",  # initial status
                 date=template.date,
                 group=None,  # no groups in knockout stage
-                match_number=template.id
+                match_number=template.id,
+                external_api_id=None,
             )
             session.add(match)
             matches_created += 1

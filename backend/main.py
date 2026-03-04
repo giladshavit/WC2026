@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -9,11 +11,20 @@ from api.statistics import router as statistics_router
 from database import engine
 from models import base, user, team, matches as match_models, predictions as prediction_models
 from models import groups as group_models
+from scheduler import start_scheduler, stop_scheduler
 
 # Create database tables
 base.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="World Cup 2026 Predictions API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    start_scheduler()
+    yield
+    stop_scheduler()
+
+
+app = FastAPI(title="World Cup 2026 Predictions API", lifespan=lifespan)
 
 # Add CORS middleware
 app.add_middleware(
