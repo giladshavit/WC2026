@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path } from 'react-native-svg';
@@ -20,10 +20,12 @@ const AVATAR_COLORS = ['#16a34a', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function LeaguesScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const [leagues, setLeagues] = useState<League[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [copiedLeagueId, setCopiedLeagueId] = useState<number | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const fetchLeagues = async () => {
     try {
@@ -50,8 +52,19 @@ export default function LeaguesScreen() {
   useFocusEffect(
     React.useCallback(() => {
       fetchLeagues();
-    }, [])
+      const params = (route.params as { showToast?: string }) || {};
+      if (params.showToast) {
+        setToastMsg(params.showToast);
+        (navigation as any).setParams({ showToast: undefined });
+      }
+    }, [route.params])
   );
+
+  useEffect(() => {
+    if (!toastMsg) return;
+    const t = setTimeout(() => setToastMsg(null), 1500);
+    return () => clearTimeout(t);
+  }, [toastMsg]);
 
   const handleGlobalLeague = () => {
     (navigation as any).navigate('LeagueDetails', { leagueId: 'global' });
@@ -270,6 +283,14 @@ export default function LeaguesScreen() {
         />
         {leagues.length > 0 && renderFixedBottomBar()}
       </View>
+      {toastMsg && (
+        <View style={styles.toast} pointerEvents="none">
+          <View style={styles.toastContent}>
+            <Ionicons name="checkmark-circle" size={32} color="#16a34a" />
+            <Text style={styles.toastText}>{toastMsg}</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -551,5 +572,29 @@ const styles = StyleSheet.create({
   skeletonTall: {
     height: 100,
     marginBottom: 16,
+  },
+  toast: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+  },
+  toastContent: {
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 10,
+  },
+  toastText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '500',
   },
 });

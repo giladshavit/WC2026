@@ -17,6 +17,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService, LeagueStanding, LeagueStandingsResponse } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import * as Clipboard from 'expo-clipboard';
+import { LeaveLeagueModal } from '../components/CustomModals';
 
 type SortKey = 'total' | 'matches' | 'groups' | 'knockout' | 'penalty';
 
@@ -200,6 +201,7 @@ export default function LeagueDetailsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<SortKey>('total');
   const [menuVisible, setMenuVisible] = useState(false);
+  const [leaveModalVisible, setLeaveModalVisible] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
@@ -246,28 +248,26 @@ export default function LeagueDetailsScreen() {
 
   const handleLeaveLeague = () => {
     setMenuVisible(false);
-    Alert.alert(
-      'Leave League',
-      `Are you sure you want to leave "${leagueName}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: async () => {
-            setLeaving(true);
-            try {
-              await apiService.leaveLeague(Number(leagueId));
-              navigation.goBack();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to leave league. Please try again.');
-            } finally {
-              setLeaving(false);
-            }
-          },
-        },
-      ]
-    );
+    const id = Number(leagueId);
+    if (isNaN(id)) {
+      Alert.alert('Error', 'Invalid league');
+      return;
+    }
+    setLeaveModalVisible(true);
+  };
+
+  const handleLeaveConfirm = async () => {
+    const id = Number(leagueId);
+    setLeaveModalVisible(false);
+    setLeaving(true);
+    try {
+      await apiService.leaveLeague(id);
+      (navigation as any).navigate('LeaguesMain', { showToast: 'Left league successfully' });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to leave league. Please try again.');
+    } finally {
+      setLeaving(false);
+    }
   };
 
   const sortedStandings = useMemo(() => {
@@ -366,20 +366,8 @@ export default function LeagueDetailsScreen() {
                 onPress={() => setMenuVisible((v) => !v)}
                 disabled={leaving}
               >
-                <Ionicons name="ellipsis-horizontal" size={22} color="#94a3b8" />
+                <Ionicons name="ellipsis-vertical" size={22} color="#94a3b8" />
               </TouchableOpacity>
-
-              {menuVisible && (
-                <View style={styles.menuDropdown}>
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={handleLeaveLeague}
-                  >
-                    <Ionicons name="exit-outline" size={16} color="#ef4444" />
-                    <Text style={styles.menuItemText}>Leave League</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
             </>
           )}
 
@@ -566,6 +554,23 @@ export default function LeagueDetailsScreen() {
           activeOpacity={1}
         />
       )}
+      {menuVisible && !isGlobalLeague && (
+        <View style={styles.menuDropdownFloating}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={handleLeaveLeague}
+          >
+            <Ionicons name="exit-outline" size={14} color="#ef4444" />
+            <Text style={styles.menuItemText}>Leave League</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      <LeaveLeagueModal
+        visible={leaveModalVisible}
+        leagueName={leagueName}
+        onConfirm={handleLeaveConfirm}
+        onCancel={() => setLeaveModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -595,7 +600,9 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     zIndex: 1,
-    padding: 4,
+    paddingVertical: 8,
+    paddingLeft: 12,
+    paddingRight: 0,
   },
   menuDropdown: {
     position: 'absolute',
@@ -614,15 +621,32 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 10,
   },
+  menuDropdownFloating: {
+    position: 'absolute',
+    right: 16,
+    top: 90,
+    zIndex: 101,
+    backgroundColor: '#1e293b',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: 2,
+    minWidth: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 11,
+  },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   menuItemText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: '#ef4444',
   },

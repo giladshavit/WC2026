@@ -636,6 +636,14 @@ class DBWriter:
         db.delete(membership)
         db.flush()
 
+    @staticmethod
+    def delete_league(db: Session, league_id: int) -> None:
+        """Delete a league by ID. Cascades to memberships."""
+        league = db.query(League).filter(League.id == league_id).first()
+        if league:
+            db.delete(league)
+            db.flush()
+
     # ═══════════════════════════════════════════════════════
     # TOURNAMENT CONFIG
     # ═══════════════════════════════════════════════════════

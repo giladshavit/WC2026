@@ -95,7 +95,14 @@ export default function CreateLeagueScreen() {
           <View style={styles.inviteCodeContainer}>
             <Text style={styles.inviteCodeLabel}>INVITE CODE</Text>
             <View style={styles.inviteCodeBox}>
-              <Text style={styles.inviteCode}>{createdLeague.invite_code}</Text>
+              <Text
+                style={styles.inviteCode}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.8}
+              >
+                {createdLeague.invite_code}
+              </Text>
               <TouchableOpacity
                 style={styles.copyButton}
                 onPress={handleCopyInviteCode}
@@ -321,32 +328,31 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   inviteCodeBox: {
-    position: 'relative',
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#f0fdf4',
     borderRadius: 12,
-    padding: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderWidth: 2,
     borderColor: '#16a34a',
+    width: '100%',
   },
   inviteCode: {
     fontSize: 26,
-    fontWeight: '600',
-    letterSpacing: 4,
+    fontWeight: '700',
+    letterSpacing: 6,
     color: '#16a34a',
     fontFamily: 'monospace',
-    textAlign: 'center',
-    width: '100%',
-    paddingHorizontal: 60,
+    flex: 1,
   },
   copyButton: {
-    position: 'absolute',
-    right: 12,
     backgroundColor: '#16a34a',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
+    flexShrink: 0,
   },
   copyButtonText: {
     color: '#ffffff',

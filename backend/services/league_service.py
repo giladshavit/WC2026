@@ -268,10 +268,15 @@ class LeagueService:
 
         league = DBReader.get_active_league_by_id(db, league_id)
         if league and league.created_by == user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="League creator cannot leave their own league"
-            )
+            member_count = DBReader.get_league_membership_count(db, league_id)
+            if member_count == 1:
+                DBWriter.delete_league(db, league_id)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="League creator cannot leave their own league"
+                )
+        else:
+            DBWriter.delete_league_membership(db, membership)
 
-        DBWriter.delete_league_membership(db, membership)
         DBUtils.commit(db)

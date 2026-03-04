@@ -97,6 +97,51 @@ export function UnsavedChangesModal({ visible, onDiscard, onStay }: ExitModalPro
   );
 }
 
+// ─── Leave League Modal ──────────────────────────────────────────────────────
+
+interface LeaveLeagueModalProps {
+  visible: boolean;
+  leagueName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+export function LeaveLeagueModal({ visible, leagueName, onConfirm, onCancel }: LeaveLeagueModalProps) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onCancel}>
+        <TouchableOpacity style={styles.container} activeOpacity={1} onPress={() => {}}>
+          <View style={[styles.iconCircle, { backgroundColor: '#fee2e2' }]}>
+            <Ionicons name="exit-outline" size={28} color="#ef4444" />
+          </View>
+
+          <Text style={styles.title}>Leave League</Text>
+          <Text style={styles.message}>
+            Are you sure you want to leave "{leagueName}"?
+          </Text>
+
+          <View style={styles.buttonsContainer}>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonDestructive]}
+              onPress={onConfirm}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.buttonText}>Leave</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonCancel]}
+              onPress={onCancel}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.buttonTextCancel}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
 // ─── Maximum Reached Modal ───────────────────────────────────────────────────
 
 interface MaximumReachedModalProps {
