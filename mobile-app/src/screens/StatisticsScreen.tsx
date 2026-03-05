@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -136,11 +136,7 @@ export default function StatisticsScreen() {
     const strokeWidth = 18;
 
     if (judged === 0) {
-      return (
-        <View style={[styles.donutPlaceholder, { height: size }]}>
-          <Text style={styles.donutPlaceholderText}>No results yet</Text>
-        </View>
-      );
+      return null;
     }
 
     const radius = (size - strokeWidth) / 2;
@@ -225,20 +221,20 @@ export default function StatisticsScreen() {
           <View style={styles.pointsStatsRow}>
             <View style={styles.pointsStatBlock}>
               <Ionicons name="football-outline" size={20} color="#a7f3d0" />
-              <Text style={styles.pointsStatNumber}>{matches.score} pts</Text>
+              <Text style={styles.pointsStatNumber}>{matches.score}</Text>
               <Text style={styles.pointsStatLabel}>Matches</Text>
             </View>
             <View style={styles.pointsStatSeparator} />
             <View style={styles.pointsStatBlock}>
               <Ionicons name="trophy-outline" size={20} color="#a7f3d0" />
-              <Text style={styles.pointsStatNumber}>{bracketPts} pts</Text>
+              <Text style={styles.pointsStatNumber}>{bracketPts}</Text>
               <Text style={styles.pointsStatLabel}>Bracket</Text>
             </View>
             <View style={styles.pointsStatSeparator} />
             <View style={styles.pointsStatBlock}>
               <Ionicons name="warning-outline" size={20} color="#a7f3d0" />
               <Text style={[styles.pointsStatNumber, profile.penalty > 0 && styles.pointsStatNumberPenalty]}>
-                {profile.penalty > 0 ? `-${profile.penalty}` : '0'} pts
+                {profile.penalty}
               </Text>
               <Text style={styles.pointsStatLabel}>Penalty</Text>
             </View>
@@ -364,7 +360,7 @@ export default function StatisticsScreen() {
             </View>
           </View>
           {!third_place.has_prediction ? (
-            <Text style={styles.noDataText}>No results yet</Text>
+            <Text style={styles.noDataText}>No prediction made</Text>
           ) : !third_place.result_available ? (
             <>
               <Text style={[styles.noDataText, { marginBottom: 8 }]}>No results yet</Text>
@@ -383,6 +379,18 @@ export default function StatisticsScreen() {
                 ))}
               </View>
             </>
+          ) : !third_place.picks?.length ? (
+            <>
+              <Text style={styles.noDataText}>No groups selected</Text>
+              <View style={styles.thirdPlaceSummary}>
+                <Text style={[styles.thirdPlaceSummaryText, { color: '#16a34a' }]}>
+                  ✓ {third_place.correct_count ?? 0} correct
+                </Text>
+                <Text style={[styles.thirdPlaceSummaryText, { color: '#ef4444' }]}>
+                  ✗ {8 - (third_place.correct_count ?? 0)} wrong
+                </Text>
+              </View>
+            </>
           ) : (
             <>
               <View style={styles.groupsGrid}>
@@ -393,10 +401,24 @@ export default function StatisticsScreen() {
                         key={`${p.group}-${idx}`}
                         style={[
                           styles.groupBlock,
-                          { backgroundColor: p.is_correct ? '#16a34a' : '#ef4444' },
+                          {
+                            backgroundColor:
+                              p.is_correct === true
+                                ? '#16a34a'
+                                : p.is_correct === false
+                                ? '#ef4444'
+                                : '#e5e7eb',
+                          },
                         ]}
                       >
-                        <Text style={styles.groupBlockLetter}>{p.group}</Text>
+                        <Text
+                          style={[
+                            styles.groupBlockLetter,
+                            p.is_correct === null && { color: '#6b7280' },
+                          ]}
+                        >
+                          {p.group}
+                        </Text>
                       </View>
                     ))}
                   </View>
@@ -422,25 +444,29 @@ export default function StatisticsScreen() {
               <Text style={styles.cardScoreCircleText}>{knockout.score}</Text>
             </View>
           </View>
-          {renderDonutChart(knockout.correct_full, knockout.correct_partial, knockout.incorrect)}
-          {judgedKnockout > 0 && (
-            <View style={styles.knockoutLegend}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
-                <Text style={styles.legendLabel}>Full</Text>
-                <Text style={styles.legendCount}>{knockout.correct_full}</Text>
+          {judgedKnockout === 0 ? (
+            <Text style={styles.noDataText}>No results yet</Text>
+          ) : (
+            <>
+              {renderDonutChart(knockout.correct_full, knockout.correct_partial, knockout.incorrect)}
+              <View style={styles.knockoutLegend}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
+                  <Text style={styles.legendLabel}>Full</Text>
+                  <Text style={styles.legendCount}>{knockout.correct_full}</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#FF9800' }]} />
+                  <Text style={styles.legendLabel}>Partial</Text>
+                  <Text style={styles.legendCount}>{knockout.correct_partial}</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#F44336' }]} />
+                  <Text style={styles.legendLabel}>Wrong</Text>
+                  <Text style={styles.legendCount}>{knockout.incorrect}</Text>
+                </View>
               </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#FF9800' }]} />
-                <Text style={styles.legendLabel}>Partial</Text>
-                <Text style={styles.legendCount}>{knockout.correct_partial}</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#F44336' }]} />
-                <Text style={styles.legendLabel}>Wrong</Text>
-                <Text style={styles.legendCount}>{knockout.incorrect}</Text>
-              </View>
-            </View>
+            </>
           )}
         </View>
 
@@ -450,26 +476,96 @@ export default function StatisticsScreen() {
             <Text style={styles.cardTitle}>Penalties</Text>
             <View style={styles.cardScoreCircleRed}>
               <Text style={styles.cardScoreCircleText}>
-                {profile.penalty > 0 ? `-${profile.penalty}` : '0'}
+                {profile.penalty}
               </Text>
             </View>
           </View>
-          {profile.penalty === 0 ? (
-            <Text style={styles.noDataText}>No penalties yet 🎉</Text>
-          ) : (
-            <>
-              {renderBar([
-                { value: profile.penalty_breakdown?.groups ?? 0, color: '#f97316' },
-                { value: profile.penalty_breakdown?.third_place ?? 0, color: '#a855f7' },
-                { value: profile.penalty_breakdown?.knockout ?? 0, color: '#ef4444' },
-              ])}
-              <View style={styles.statChipsRow}>
-                {renderStatChip('#f97316', 'Groups', profile.penalty_breakdown?.groups ?? 0)}
-                {renderStatChip('#a855f7', '3rd Place', profile.penalty_breakdown?.third_place ?? 0)}
-                {renderStatChip('#ef4444', 'Knockout', profile.penalty_breakdown?.knockout ?? 0)}
+          {(() => {
+            const breakdown = profile.penalty_breakdown;
+            const groups   = breakdown?.groups      ?? 0;
+            const thirdPl  = breakdown?.third_place ?? 0;
+            const knockout = breakdown?.knockout    ?? 0;
+            const total    = groups + thirdPl + knockout;
+
+            const allSegments = [
+              { value: groups,   color: '#f59e0b', label: 'Groups' },
+              { value: thirdPl,  color: '#f97316', label: '3rd Place' },
+              { value: knockout, color: '#92400e', label: 'Knockout' },
+            ];
+
+            const size = 160;
+            const center = size / 2;
+            const radius = size / 2 - 4;
+
+            const toRad = (deg: number) => (deg - 90) * (Math.PI / 180);
+            const getArcPath = (startAngle: number, endAngle: number) => {
+              const startRad = toRad(startAngle);
+              const endRad = toRad(endAngle);
+              const x1 = center + radius * Math.cos(startRad);
+              const y1 = center + radius * Math.sin(startRad);
+              const x2 = center + radius * Math.cos(endRad);
+              const y2 = center + radius * Math.sin(endRad);
+              const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+              return `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+            };
+
+            const segmentsWithValue = allSegments.filter(s => s.value > 0);
+            let currentAngle = 0;
+
+            return (
+              <View style={styles.penaltyDonutWrapper}>
+                {total > 0 && (
+                  <View style={{ width: size, height: size, position: 'relative' }}>
+                    <Svg width={size} height={size}>
+                      {segmentsWithValue.length === 1 ? (
+                        <Circle
+                          cx={center}
+                          cy={center}
+                          r={radius}
+                          fill={segmentsWithValue[0].color}
+                        />
+                      ) : (
+                        segmentsWithValue.map((seg, i) => {
+                          const percent = seg.value / total;
+                          const angle = percent * 360;
+                          const startAngle = currentAngle;
+                          currentAngle += angle;
+                          return (
+                            <Path
+                              key={i}
+                              d={getArcPath(startAngle, currentAngle)}
+                              fill={seg.color}
+                            />
+                          );
+                        })
+                      )}
+                    </Svg>
+                    {segmentsWithValue.length === 1 && (
+                      <View style={[styles.donutCenter, { width: size, height: size }]}>
+                        <Text style={[styles.donutCenterCount, { color: '#fff' }]}>
+                          {segmentsWithValue[0].value}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+                <View style={styles.penaltyLegendChips}>
+                  {allSegments.map(({ label, value, color }) => (
+                    <View key={label} style={[styles.penaltyChip, { backgroundColor: color + '18' }]}>
+                      <View style={[styles.statChipDot, { backgroundColor: color }]} />
+                      <Text style={[styles.penaltyChipLabel, { color }]}>{label}</Text>
+                      <Text style={[styles.penaltyChipValue, { color }]}>{value}</Text>
+                    </View>
+                  ))}
+                </View>
+                {total === 0 && (
+                  <Text style={[styles.noDataText, { textAlign: 'center', marginTop: 4 }]}>
+                    No penalties yet 🎉
+                  </Text>
+                )}
               </View>
-            </>
-          )}
+            );
+          })()}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -510,6 +606,35 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
   },
   cardLast: { marginBottom: 32 },
+  penaltyDonutWrapper: {
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  penaltyLegendChips: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingHorizontal: 4,
+  },
+  penaltyChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 5,
+    marginHorizontal: 4,
+  },
+  penaltyChipLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  penaltyChipValue: {
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
   cardHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
   },
