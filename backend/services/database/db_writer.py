@@ -221,6 +221,13 @@ class DBWriter:
         return db.query(MatchPrediction).update({MatchPrediction.points: 0})
 
     @staticmethod
+    def reset_match_prediction_statuses(db: Session) -> int:
+        """Reset all match prediction statuses to pending (when results are deleted)."""
+        return db.query(MatchPrediction).update({
+            MatchPrediction.status: MatchPredictionStatus.PENDING
+        })
+
+    @staticmethod
     def set_match_predictions_editable(db: Session, is_editable: bool) -> int:
         return db.query(MatchPrediction).update({MatchPrediction.is_editable: is_editable})
 
@@ -412,6 +419,13 @@ class DBWriter:
         return db.query(GroupStagePrediction).update({GroupStagePrediction.points: 0})
 
     @staticmethod
+    def reset_group_prediction_penalties(db: Session) -> int:
+        return db.query(GroupStagePrediction).update({
+            GroupStagePrediction.penalty_points: 0,
+            GroupStagePrediction.changes_count: 0,
+        })
+
+    @staticmethod
     def set_group_predictions_editable(db: Session, is_editable: bool) -> int:
         return db.query(GroupStagePrediction).update({GroupStagePrediction.is_editable: is_editable})
 
@@ -496,6 +510,13 @@ class DBWriter:
     @staticmethod
     def reset_third_place_prediction_points(db: Session) -> int:
         return db.query(ThirdPlacePrediction).update({ThirdPlacePrediction.points: 0})
+
+    @staticmethod
+    def reset_third_place_prediction_penalties(db: Session) -> int:
+        return db.query(ThirdPlacePrediction).update({
+            ThirdPlacePrediction.penalty_points: 0,
+            ThirdPlacePrediction.changes_count: 0,
+        })
 
     @staticmethod
     def set_third_place_predictions_editable(db: Session, is_editable: bool) -> int:
@@ -591,6 +612,13 @@ class DBWriter:
     @staticmethod
     def reset_knockout_prediction_points(db: Session) -> int:
         return db.query(KnockoutStagePrediction).update({KnockoutStagePrediction.points: 0})
+
+    @staticmethod
+    def reset_knockout_prediction_penalties(db: Session) -> int:
+        return db.query(KnockoutStagePrediction).update({
+            KnockoutStagePrediction.penalty_points: 0,
+            KnockoutStagePrediction.changes_count: 0,
+        })
 
     @staticmethod
     def set_knockout_predictions_editable(db: Session, is_editable: bool) -> int:

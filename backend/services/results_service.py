@@ -727,13 +727,26 @@ class ResultsService:
             
             for user_scores in all_scores:
                 DBWriter.reset_user_scores(db, user_scores)
+                DBWriter.update_user_scores(
+                    db,
+                    user_scores,
+                    groups_penalty=0,
+                    third_place_penalty=0,
+                    knockout_penalty=0,
+                )
                 count += 1
             
-            # Reset all prediction points
+            # Reset all prediction points and match prediction statuses
             match_pred_count = DBWriter.reset_match_prediction_points(db)
+            DBWriter.reset_match_prediction_statuses(db)
             group_pred_count = DBWriter.reset_group_prediction_points(db)
             third_place_pred_count = DBWriter.reset_third_place_prediction_points(db)
             knockout_pred_count = DBWriter.reset_knockout_prediction_points(db)
+
+            # Reset penalty tracking on predictions
+            DBWriter.reset_group_prediction_penalties(db)
+            DBWriter.reset_third_place_prediction_penalties(db)
+            DBWriter.reset_knockout_prediction_penalties(db)
             
             DBUtils.commit(db)
             
@@ -743,7 +756,8 @@ class ResultsService:
                 "match_predictions_reset": match_pred_count,
                 "group_predictions_reset": group_pred_count,
                 "third_place_predictions_reset": third_place_pred_count,
-                "knockout_predictions_reset": knockout_pred_count
+                "knockout_predictions_reset": knockout_pred_count,
+                "penalties_reset": True,
             }
         except Exception as e:
             DBUtils.rollback(db)
