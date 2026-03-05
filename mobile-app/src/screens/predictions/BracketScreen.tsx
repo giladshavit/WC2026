@@ -1,21 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
   ActivityIndicator,
   Alert,
   useWindowDimensions,
   TouchableOpacity,
   Platform,
   Modal,
-  Pressable
+  Pressable,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Line } from 'react-native-svg';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { apiService, KnockoutPrediction } from '../../services/api';
 import BracketMatchCard from '../../components/BracketMatchCard';
 import MatchEditModal from '../../components/MatchEditModal';
@@ -32,7 +32,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 interface BracketScreenProps {}
 
 export default function BracketScreen({}: BracketScreenProps) {
+  const navigation = useNavigation();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const pendingNavActionRef = useRef<any>(null);
 
   // Derived constants - recalculate when dimensions change
   const STATUS_BAR_HEIGHT = 44;
@@ -57,6 +59,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [showResetModal, setShowResetModal] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [showNotEditableModal, setShowNotEditableModal] = useState(false);
+  const [saveSuccessInfo, setSaveSuccessInfo] = useState<{ changes_count: number; penalty_applied: number } | null>(null);
   
   // Get current user ID
   const { getCurrentUserId } = useAuth();
@@ -77,6 +80,26 @@ export default function BracketScreen({}: BracketScreenProps) {
     const t = setTimeout(() => setToastMsg(null), 2500);
     return () => clearTimeout(t);
   }, [toastMsg]);
+
+  // Intercept back button/gesture when in edit mode
+  useEffect(() => {
+    if (!editMode) return;
+
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      e.preventDefault();
+      const checkChanges = async () => {
+        const userId = getCurrentUserId();
+        if (!userId) return;
+        const countResult = await apiService.getDraftChangesCount(userId);
+        setPenaltyInfo(countResult);
+        setShowExitModal(true);
+        pendingNavActionRef.current = e.data.action;
+      };
+      checkChanges();
+    });
+
+    return unsubscribe;
+  }, [editMode, navigation]);
 
   const refreshPenaltyCount = async () => {
     try {
@@ -352,7 +375,7 @@ export default function BracketScreen({}: BracketScreenProps) {
     }
   };
 
-  const executeExit = async () => {
+  const executeExit = async (navAction?: any) => {
     try {
       const userId = getCurrentUserId();
       if (!userId) return;
@@ -360,6 +383,9 @@ export default function BracketScreen({}: BracketScreenProps) {
       await apiService.deleteAllDrafts(userId);
       setEditMode(false);
       setPenaltyInfo(null);
+      if (navAction) {
+        navigation.dispatch(navAction);
+      }
     } catch (error) {
       console.error('Error exiting edit mode:', error);
       Alert.alert('Error', 'Could not exit. Try again.');
@@ -426,13 +452,10 @@ export default function BracketScreen({}: BracketScreenProps) {
 
       setEditMode(false);
       setPenaltyInfo(null);
-
-      // Show success
-      let message = `${result.changes_count} שינויים נשמרו בהצלחה.`;
-      if (result.penalty_applied > 0) {
-        message += `\nהופחתו ${result.penalty_applied} נקודות עונש.`;
-      }
-      Alert.alert('נשמר', message);
+      setSaveSuccessInfo({
+        changes_count: result.changes_count,
+        penalty_applied: result.penalty_applied,
+      });
     } catch (error) {
       console.error('Error committing drafts:', error);
       Alert.alert('שגיאה', 'השמירה נכשלה. נסה שוב.');
@@ -612,21 +635,24 @@ export default function BracketScreen({}: BracketScreenProps) {
 
   return (
     <View style={[styles.container, { pointerEvents: 'box-none' }]}>
-      {/* Soccer field subtle pattern */}
+      {/* Subtle dot-grid background */}
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-        {Array.from({ length: 20 }).map((_, i) => (
-          <View
-            key={i}
-            style={{
-              position: 'absolute',
-              top: i * (screenHeight / 20),
-              left: 0,
-              right: 0,
-              height: screenHeight / 20,
-              backgroundColor: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent',
-            }}
-          />
-        ))}
+        {Array.from({ length: Math.ceil(screenHeight / 28) }).map((_, row) =>
+          Array.from({ length: Math.ceil(screenWidth / 28) }).map((_, col) => (
+            <View
+              key={`${row}-${col}`}
+              style={{
+                position: 'absolute',
+                top: row * 28 + (col % 2 === 0 ? 0 : 14),
+                left: col * 28,
+                width: 2,
+                height: 2,
+                borderRadius: 1,
+                backgroundColor: 'rgba(148, 163, 184, 0.25)',
+              }}
+            />
+          ))
+        )}
       </View>
       {/* Buttons Container - chip left, buttons right */}
       <View style={styles.buttonsContainer}>
@@ -785,10 +811,14 @@ export default function BracketScreen({}: BracketScreenProps) {
       <ConfirmExitModal
         visible={showExitModal}
         changesCount={penaltyInfo?.changes_count ?? 0}
-        onClose={() => setShowExitModal(false)}
+        onClose={() => {
+          setShowExitModal(false);
+          pendingNavActionRef.current = null;
+        }}
         onConfirm={async () => {
           setShowExitModal(false);
-          await executeExit();
+          await executeExit(pendingNavActionRef.current);
+          pendingNavActionRef.current = null;
         }}
       />
 
@@ -806,6 +836,65 @@ export default function BracketScreen({}: BracketScreenProps) {
             </Text>
             <TouchableOpacity style={styles.modalButton} onPress={() => setShowNotEditableModal(false)}>
               <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Save Success Modal */}
+      <Modal visible={saveSuccessInfo !== null} transparent animationType="fade">
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setSaveSuccessInfo(null)}
+        >
+          <View style={styles.modalCard}>
+            <View style={{
+              width: 64, height: 64, borderRadius: 32,
+              backgroundColor: '#f0fdf4', borderWidth: 2, borderColor: '#86efac',
+              alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+            }}>
+              <Ionicons name="checkmark-circle" size={36} color="#16a34a" />
+            </View>
+            <Text style={styles.modalTitle}>Saved Successfully</Text>
+            
+            <View style={{
+              flexDirection: 'row', gap: 16, marginTop: 4, marginBottom: 20,
+            }}>
+              <View style={{
+                backgroundColor: '#f1f5f9', borderRadius: 12,
+                paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center',
+              }}>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: '#1e293b' }}>
+                  {saveSuccessInfo?.changes_count ?? 0}
+                </Text>
+                <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500', marginTop: 2 }}>
+                  Changes
+                </Text>
+              </View>
+              <View style={{
+                backgroundColor: (saveSuccessInfo?.penalty_applied ?? 0) > 0 ? '#fef2f2' : '#f1f5f9',
+                borderRadius: 12,
+                paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center',
+                borderWidth: (saveSuccessInfo?.penalty_applied ?? 0) > 0 ? 1.5 : 0,
+                borderColor: '#fca5a5',
+              }}>
+                <Text style={{
+                  fontSize: 22, fontWeight: '800',
+                  color: (saveSuccessInfo?.penalty_applied ?? 0) > 0 ? '#dc2626' : '#1e293b',
+                }}>
+                  -{saveSuccessInfo?.penalty_applied ?? 0}
+                </Text>
+                <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500', marginTop: 2 }}>
+                  Penalty pts
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setSaveSuccessInfo(null)}
+            >
+              <Text style={styles.modalButtonText}>Done</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -887,7 +976,7 @@ export default function BracketScreen({}: BracketScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f1f5f9',
   },
   scrollView: {
     flex: 1,
@@ -902,7 +991,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f1f5f9',
   },
   loadingText: {
     marginTop: 10,
@@ -913,7 +1002,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f1f5f9',
   },
   errorText: {
     fontSize: 16,
@@ -1121,7 +1210,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -10000, // Hide off-screen
     left: -10000,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f1f5f9',
   },
   hiddenScrollView: {
     flex: 1,

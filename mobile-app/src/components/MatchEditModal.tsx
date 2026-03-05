@@ -31,7 +31,6 @@ const STAGE_STYLES: Record<string, { bg: string; text: string }> = {
 
 export default function MatchEditModal({ visible, match, onClose, onSave }: MatchEditModalProps) {
   const [selectedWinner, setSelectedWinner] = useState<number | null>(null);
-  const [hasChanged, setHasChanged] = useState(false);
 
   const getTeamNameDisplayProps = (teamName: string) => {
     const nameLength = teamName.length;
@@ -47,7 +46,6 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
   useEffect(() => {
     if (match) {
       setSelectedWinner(match.winner_team_id || null);
-      setHasChanged(false);
     }
   }, [match]);
 
@@ -57,14 +55,9 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
   const team2DisplayProps = getTeamNameDisplayProps(match.team2_name || 'TBD');
 
   const handleTeamSelection = (teamId: number) => {
+    if (teamId === selectedWinner) return; // already selected, no-op
     setSelectedWinner(teamId);
-    setHasChanged(teamId !== match.winner_team_id);
-  };
-
-  const handleUpdate = () => {
-    if (selectedWinner && hasChanged) {
-      onSave(match.id, selectedWinner);
-    }
+    onSave(match.id, teamId);
   };
 
   const isTeam1TBD = !match.team1_name || match.team1_name === 'TBD';
@@ -87,7 +80,7 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
           <View style={[styles.modal, { overflow: 'hidden' }]}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Pick a Winner</Text>
+              <Text style={styles.title}>Tap to Pick Winner</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                 <Ionicons name="close" size={20} color="rgba(255,255,255,0.9)" />
               </TouchableOpacity>
@@ -187,22 +180,6 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
                       <Ionicons name="checkmark-circle" size={22} color="#16a34a" />
                     )}
                   </View>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                  style={[styles.updateButton, !hasChanged && styles.disabledButton]}
-                  onPress={handleUpdate}
-                  disabled={!hasChanged}
-                  activeOpacity={hasChanged ? 0.8 : 1}
-                >
-                  <Text style={[styles.updateButtonText, !hasChanged && styles.disabledButtonText]}>
-                    {hasChanged ? 'Confirm Winner' : 'Select a Winner'}
-                  </Text>
-                  {hasChanged && (
-                    <Ionicons name="arrow-forward" size={18} color="#ffffff" style={styles.buttonArrow} />
-                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -352,35 +329,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: '#6b7280',
-  },
-  buttonContainer: {
-    marginTop: 8,
-    marginBottom: 4,
-    width: '100%',
-  },
-  updateButton: {
-    backgroundColor: '#16a34a',
-    width: '100%',
-    height: 52,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  disabledButton: {
-    backgroundColor: '#e5e7eb',
-  },
-  updateButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  disabledButtonText: {
-    color: '#9ca3af',
-  },
-  buttonArrow: {
-    marginLeft: 4,
   },
 });

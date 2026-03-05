@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import BracketIcon from '../components/icons/BracketIcon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -40,6 +41,13 @@ const options: Array<{
   },
 ];
 
+const renderIcon = (option: typeof options[0]) => {
+  if (option.navigateTo === 'Bracket') {
+    return <BracketIcon size={28} color="#16a34a" />;
+  }
+  return <Ionicons name={option.icon} size={28} color="#16a34a" />;
+};
+
 export default function PredictionsMenuScreen() {
   const navigation = useNavigation<NavigationProp>();
 
@@ -58,7 +66,7 @@ export default function PredictionsMenuScreen() {
             activeOpacity={0.75}
           >
             <View style={styles.iconContainer}>
-              <Ionicons name={option.icon} size={28} color="#16a34a" />
+              {renderIcon(option)}
             </View>
             <View style={styles.cardText}>
               <Text style={styles.cardTitle}>{option.title}</Text>
