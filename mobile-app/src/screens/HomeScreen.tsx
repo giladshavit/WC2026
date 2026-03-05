@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   Dimensions,
   ScrollView,
+  StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path } from 'react-native-svg';
 import PredictOLogo from '../components/PredictOLogo';
@@ -56,6 +57,7 @@ const actions: Array<{
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const isAdmin =
     (user?.user_id != null && user.user_id >= 1 && user.user_id <= 10) ||
@@ -97,8 +99,9 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
+    <View style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={styles.logoContainer}>
           <PredictOLogo size="small" variant="light" />
         </View>
@@ -144,7 +147,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

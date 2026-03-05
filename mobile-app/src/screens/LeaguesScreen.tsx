@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
@@ -245,20 +246,25 @@ export default function LeaguesScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        {renderHeader()}
+      <View style={styles.statusBarFill}>
+        <StatusBar barStyle="light-content" backgroundColor="#1e40af" />
+        <SafeAreaView style={styles.container} edges={['top']}>
+          {renderHeader()}
         <View style={styles.mainContent}>
           <View style={styles.contentArea}>
             {renderLoadingSkeletons()}
           </View>
         </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {renderHeader()}
+    <View style={styles.statusBarFill}>
+      <StatusBar barStyle="light-content" backgroundColor="#1e40af" />
+      <SafeAreaView style={styles.container} edges={['top']}>
+        {renderHeader()}
       <View style={styles.mainContent}>
         <FlatList
           style={styles.list}
@@ -283,22 +289,27 @@ export default function LeaguesScreen() {
         />
         {leagues.length > 0 && renderFixedBottomBar()}
       </View>
-      {toastMsg && (
+        {toastMsg && (
         <View style={styles.toast} pointerEvents="none">
           <View style={styles.toastContent}>
             <Ionicons name="checkmark-circle" size={32} color="#2563eb" />
             <Text style={styles.toastText}>{toastMsg}</Text>
           </View>
         </View>
-      )}
-    </SafeAreaView>
+        )}
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  statusBarFill: {
+    flex: 1,
+    backgroundColor: '#1e40af',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: 'transparent',
   },
   headerWrapper: {
     backgroundColor: '#1e40af',
