@@ -24,7 +24,7 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert('שגיאה', 'אנא מלא את כל השדות');
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
@@ -32,7 +32,7 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
       setIsLoading(true);
       await login(username.trim(), password);
     } catch (error) {
-      Alert.alert('שגיאת התחברות', error instanceof Error ? error.message : 'שגיאה לא ידועה');
+      Alert.alert('Login Error', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsLoading(false);
     }
@@ -45,17 +45,17 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.content}>
-          <Text style={styles.title}>התחברות</Text>
-          <Text style={styles.subtitle}>הכנס את פרטי ההתחברות שלך</Text>
+          <Text style={styles.title}>Login</Text>
+          <Text style={styles.subtitle}>Enter your login details</Text>
 
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>שם משתמש</Text>
+              <Text style={styles.label}>Username</Text>
               <TextInput
                 style={styles.input}
                 value={username}
                 onChangeText={setUsername}
-                placeholder="הכנס שם משתמש"
+                placeholder="Enter username"
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
@@ -63,12 +63,12 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>סיסמה</Text>
+              <Text style={styles.label}>Password</Text>
               <TextInput
                 style={styles.input}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="הכנס סיסמה"
+                placeholder="Enter password"
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -82,14 +82,14 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
               disabled={isLoading}
             >
               <Text style={styles.buttonText}>
-                {isLoading ? 'מתחבר...' : 'התחבר'}
+                {isLoading ? 'Logging in...' : 'Login'}
               </Text>
             </TouchableOpacity>
 
             <View style={styles.switchContainer}>
-              <Text style={styles.switchText}>אין לך חשבון? </Text>
+              <Text style={styles.switchText}>Don't have an account? </Text>
               <TouchableOpacity onPress={onSwitchToRegister} disabled={isLoading}>
-                <Text style={styles.switchLink}>הירשם כאן</Text>
+                <Text style={styles.switchLink}>Sign up here</Text>
               </TouchableOpacity>
             </View>
           </View>

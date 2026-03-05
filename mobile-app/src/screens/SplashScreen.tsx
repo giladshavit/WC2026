@@ -8,13 +8,13 @@ interface SplashScreenProps {
 }
 
 export default function SplashScreen({ onAnimationComplete }: SplashScreenProps) {
-  const letterOPosition = useRef(new Animated.Value(-150)).current; // מתחיל מלמעלה
+  const letterOPosition = useRef(new Animated.Value(-150)).current; // starts from top
   const letterOOpacity = useRef(new Animated.Value(0)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
-    // אנימציה של הטקסט
+    // Text animation
     Animated.timing(textOpacity, {
       toValue: 1,
       duration: 600,
@@ -28,12 +28,12 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
       useNativeDriver: true,
     }).start();
 
-    // אנימציה של האות O שנופלת
+    // Letter O drop animation
     Animated.parallel([
       Animated.timing(letterOPosition, {
-        toValue: 0, // נוחת על המיקום הסופי
+        toValue: 0, // lands on final position
         duration: 1400,
-        easing: Easing.bounce, // אפקט קפיצה
+        easing: Easing.bounce, // bounce effect
         useNativeDriver: true,
       }),
       Animated.timing(letterOOpacity, {
@@ -42,7 +42,7 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
         useNativeDriver: true,
       }),
     ]).start(() => {
-      // אחרי שהאנימציה מסתיימת, מחכים עוד קצת ואז קוראים ל-callback
+      // After animation ends, wait a bit then call callback
       setTimeout(() => {
         onAnimationComplete();
       }, 1000);

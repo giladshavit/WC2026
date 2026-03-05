@@ -144,7 +144,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       
     } catch (error) {
       console.error('Error fetching bracket predictions:', error);
-      Alert.alert('שגיאה', 'שגיאה בטעינת הבראקט');
+      Alert.alert('Error', 'Error loading bracket');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -326,7 +326,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const handleEditModeToggle = async () => {
     if (!editMode) {
       if (!canEditDrafts) {
-        Alert.alert('לא ניתן לערוך', 'לא ניתן לערוך ניחושים בזמן שלב נוקאאוט פעיל');
+        Alert.alert('Cannot Edit', 'Cannot edit predictions while knockout stage is active');
         return;
       }
       // Entering edit mode - create all drafts
@@ -343,7 +343,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         // fetchPredictions and refreshPenaltyCount will be called by useFocusEffect when editMode changes
       } catch (error) {
         console.error('Error creating drafts:', error);
-        Alert.alert('שגיאה', 'לא ניתן להיכנס למצב עריכה. נסה שוב.');
+        Alert.alert('Error', 'Cannot enter edit mode. Try again.');
       } finally {
         setLoading(false);
       }
@@ -397,7 +397,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const handleEnterEditMode = async () => {
     setIsEnterEditModeModalVisible(false);
     if (!canEditDrafts) {
-      Alert.alert('לא ניתן לערוך', 'לא ניתן לערוך ניחושים בזמן שלב נוקאאוט פעיל');
+      Alert.alert('Cannot Edit', 'Cannot edit predictions while knockout stage is active');
       return;
     }
     try {
@@ -408,7 +408,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       setEditMode(true);
     } catch (error) {
       console.error('Error creating drafts:', error);
-      Alert.alert('שגיאה', 'לא ניתן להיכנס למצב עריכה. נסה שוב.');
+      Alert.alert('Error', 'Cannot enter edit mode. Try again.');
     } finally {
       setLoading(false);
     }
@@ -458,7 +458,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       });
     } catch (error) {
       console.error('Error committing drafts:', error);
-      Alert.alert('שגיאה', 'השמירה נכשלה. נסה שוב.');
+      Alert.alert('Error', 'Save failed. Try again.');
     } finally {
       setLoading(false);
     }
@@ -480,7 +480,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       setIsConfirmSaveModalVisible(true);
     } catch (error) {
       console.error('Error in save press:', error);
-      Alert.alert('שגיאה', 'לא ניתן לבצע שמירה. נסה שוב.');
+      Alert.alert('Error', 'Cannot save. Try again.');
     }
   };
 
@@ -520,7 +520,7 @@ export default function BracketScreen({}: BracketScreenProps) {
 
   const captureBracket = async () => {
     if (!bracketRef.current) {
-      Alert.alert('שגיאה', 'לא ניתן לצלם את הבראקט');
+      Alert.alert('Error', 'Cannot capture bracket');
       return;
     }
 
@@ -530,7 +530,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       // Request permission to save to photos
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('שגיאה', 'נדרש אישור לשמירת תמונות');
+        Alert.alert('Error', 'Permission required to save images');
         return;
       }
 
@@ -545,10 +545,10 @@ export default function BracketScreen({}: BracketScreenProps) {
       const asset = await MediaLibrary.createAssetAsync(uri);
       await MediaLibrary.createAlbumAsync('Bracket Screenshots', asset, false);
 
-      Alert.alert('הצלחה', 'הבראקט נשמר בתמונות בהצלחה!');
+      Alert.alert('Success', 'Bracket saved to photos successfully!');
     } catch (error) {
       console.error('Error capturing bracket:', error);
-      Alert.alert('שגיאה', 'שגיאה בשמירת הבראקט');
+      Alert.alert('Error', 'Error saving bracket');
     } finally {
       setIsCapturing(false);
     }
@@ -602,15 +602,15 @@ export default function BracketScreen({}: BracketScreenProps) {
 
     return (
       <>
-        {renderColumn('32 אחרונות (שמאל)', organizedBracket.round32_left, false, 0)}
-        {renderColumn('16 אחרונות (שמאל)', organizedBracket.round16_left, false, 1)}
-        {renderColumn('רבע (שמאל)', organizedBracket.quarter_left, false, 2)}
-        {renderColumn('חצי גמר 101', organizedBracket.semi.filter(match => match.id === 101), false, 3)}
-        {renderColumn('גמר', organizedBracket.final, true, 4)}
-        {renderColumn('חצי גמר 102', organizedBracket.semi.filter(match => match.id === 102), false, 5)}
-        {renderColumn('רבע (ימין)', organizedBracket.quarter_right, false, 6)}
-        {renderColumn('16 אחרונות (ימין)', organizedBracket.round16_right, false, 7)}
-        {renderColumn('32 אחרונות (ימין)', organizedBracket.round32_right, false, 8)}
+        {renderColumn('Round of 32 (Left)', organizedBracket.round32_left, false, 0)}
+        {renderColumn('Round of 16 (Left)', organizedBracket.round16_left, false, 1)}
+        {renderColumn('Quarter (Left)', organizedBracket.quarter_left, false, 2)}
+        {renderColumn('Semi 101', organizedBracket.semi.filter(match => match.id === 101), false, 3)}
+        {renderColumn('Final', organizedBracket.final, true, 4)}
+        {renderColumn('Semi 102', organizedBracket.semi.filter(match => match.id === 102), false, 5)}
+        {renderColumn('Quarter (Right)', organizedBracket.quarter_right, false, 6)}
+        {renderColumn('Round of 16 (Right)', organizedBracket.round16_right, false, 7)}
+        {renderColumn('Round of 32 (Right)', organizedBracket.round32_right, false, 8)}
       </>
     );
   };
@@ -620,7 +620,7 @@ export default function BracketScreen({}: BracketScreenProps) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>טוען בראקט...</Text>
+        <Text style={styles.loadingText}>Loading bracket...</Text>
       </View>
     );
   }
@@ -628,7 +628,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   if (!organizedBracket) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>שגיאה בטעינת הבראקט</Text>
+        <Text style={styles.errorText}>Error loading bracket</Text>
       </View>
     );
   }
@@ -760,15 +760,15 @@ export default function BracketScreen({}: BracketScreenProps) {
           </Svg>
           
           {/* All columns for screenshot */}
-          {renderColumn('32 אחרונות (שמאל)', organizedBracket.round32_left, false, 0)}
-          {renderColumn('16 אחרונות (שמאל)', organizedBracket.round16_left, false, 1)}
-          {renderColumn('רבע (שמאל)', organizedBracket.quarter_left, false, 2)}
-          {renderColumn('חצי גמר 101', organizedBracket.semi.filter(match => match.id === 101), false, 3)}
-          {renderColumn('גמר', organizedBracket.final, true, 4)}
-          {renderColumn('חצי גמר 102', organizedBracket.semi.filter(match => match.id === 102), false, 5)}
-          {renderColumn('רבע (ימין)', organizedBracket.quarter_right, false, 6)}
-          {renderColumn('16 אחרונות (ימין)', organizedBracket.round16_right, false, 7)}
-          {renderColumn('32 אחרונות (ימין)', organizedBracket.round32_right, false, 8)}
+          {renderColumn('Round of 32 (Left)', organizedBracket.round32_left, false, 0)}
+          {renderColumn('Round of 16 (Left)', organizedBracket.round16_left, false, 1)}
+          {renderColumn('Quarter (Left)', organizedBracket.quarter_left, false, 2)}
+          {renderColumn('Semi 101', organizedBracket.semi.filter(match => match.id === 101), false, 3)}
+          {renderColumn('Final', organizedBracket.final, true, 4)}
+          {renderColumn('Semi 102', organizedBracket.semi.filter(match => match.id === 102), false, 5)}
+          {renderColumn('Quarter (Right)', organizedBracket.quarter_right, false, 6)}
+          {renderColumn('Round of 16 (Right)', organizedBracket.round16_right, false, 7)}
+          {renderColumn('Round of 32 (Right)', organizedBracket.round32_right, false, 8)}
         </ScrollView>
       </View>
       
@@ -962,7 +962,7 @@ export default function BracketScreen({}: BracketScreenProps) {
             console.log('✅ Match updated successfully');
           } catch (error) {
             console.error('❌ Error updating match:', error);
-            Alert.alert('שגיאה', 'לא ניתן לעדכן את המשחק. נסה שוב.');
+            Alert.alert('Error', 'Cannot update match. Try again.');
           } finally {
             // Close the modal only after the save operation completes (success or error)
             setIsModalVisible(false);

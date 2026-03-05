@@ -26,27 +26,27 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
 
   const validateForm = () => {
     if (!username.trim() || !password.trim() || !name.trim()) {
-      Alert.alert('שגיאה', 'אנא מלא את כל השדות');
+      Alert.alert('Error', 'Please fill in all fields');
       return false;
     }
 
     if (username.length < 3) {
-      Alert.alert('שגיאה', 'שם המשתמש חייב להכיל לפחות 3 תווים');
+      Alert.alert('Error', 'Username must be at least 3 characters');
       return false;
     }
 
     if (password.length < 6) {
-      Alert.alert('שגיאה', 'הסיסמה חייבת להכיל לפחות 6 תווים');
+      Alert.alert('Error', 'Password must be at least 6 characters');
       return false;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('שגיאה', 'הסיסמאות אינן תואמות');
+      Alert.alert('Error', 'Passwords do not match');
       return false;
     }
 
     if (name.length < 2) {
-      Alert.alert('שגיאה', 'השם חייב להכיל לפחות 2 תווים');
+      Alert.alert('Error', 'Name must be at least 2 characters');
       return false;
     }
 
@@ -62,7 +62,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
       setIsLoading(true);
       await register(username.trim(), password, name.trim());
     } catch (error) {
-      Alert.alert('שגיאת הרשמה', error instanceof Error ? error.message : 'שגיאה לא ידועה');
+      Alert.alert('Registration Error', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsLoading(false);
     }
@@ -75,17 +75,17 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.content}>
-          <Text style={styles.title}>הרשמה</Text>
-          <Text style={styles.subtitle}>צור חשבון חדש</Text>
+          <Text style={styles.title}>Sign Up</Text>
+          <Text style={styles.subtitle}>Create a new account</Text>
 
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>שם מלא</Text>
+              <Text style={styles.label}>Full Name</Text>
               <TextInput
                 style={styles.input}
                 value={name}
                 onChangeText={setName}
-                placeholder="הכנס שם מלא"
+                placeholder="Enter full name"
                 autoCapitalize="words"
                 autoCorrect={false}
                 editable={!isLoading}
@@ -93,12 +93,12 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>שם משתמש</Text>
+              <Text style={styles.label}>Username</Text>
               <TextInput
                 style={styles.input}
                 value={username}
                 onChangeText={setUsername}
-                placeholder="הכנס שם משתמש (לפחות 3 תווים)"
+                placeholder="Enter username (at least 3 characters)"
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
@@ -106,12 +106,12 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>סיסמה</Text>
+              <Text style={styles.label}>Password</Text>
               <TextInput
                 style={styles.input}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="הכנס סיסמה (לפחות 6 תווים)"
+                placeholder="Enter password (at least 6 characters)"
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -120,12 +120,12 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>אישור סיסמה</Text>
+              <Text style={styles.label}>Confirm Password</Text>
               <TextInput
                 style={styles.input}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
-                placeholder="הכנס סיסמה שוב"
+                placeholder="Enter password again"
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -139,14 +139,14 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
               disabled={isLoading}
             >
               <Text style={styles.buttonText}>
-                {isLoading ? 'נרשם...' : 'הירשם'}
+                {isLoading ? 'Signing up...' : 'Sign Up'}
               </Text>
             </TouchableOpacity>
 
             <View style={styles.switchContainer}>
-              <Text style={styles.switchText}>יש לך כבר חשבון? </Text>
+              <Text style={styles.switchText}>Already have an account? </Text>
               <TouchableOpacity onPress={onSwitchToLogin} disabled={isLoading}>
-                <Text style={styles.switchLink}>התחבר כאן</Text>
+                <Text style={styles.switchLink}>Login here</Text>
               </TouchableOpacity>
             </View>
           </View>

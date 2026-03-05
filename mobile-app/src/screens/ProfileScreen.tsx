@@ -43,12 +43,12 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      'התנתקות',
-      'האם אתה בטוח שברצונך להתנתק?',
+      'Sign Out',
+      'Are you sure you want to sign out?',
       [
-        { text: 'ביטול', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'התנתק',
+          text: 'Sign Out',
           style: 'destructive',
           onPress: logout,
         },

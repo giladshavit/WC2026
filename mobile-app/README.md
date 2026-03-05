@@ -43,8 +43,8 @@ The app is built with:
 ### Current Status
 
 - ✅ Navigation structure complete
-  - Bottom tabs: ניחושים, תוצאות
-  - Top tabs in ניחושים: משחקים, מיקומים, מקום 3, נוקאאוט
+  - Bottom tabs: Predictions, Results
+  - Top tabs in Predictions: Matches, Groups, 3rd Place, Knockout
 - ✅ 5 empty screens with placeholders
 - 🔜 Build actual prediction UI
 - 🔜 API integration

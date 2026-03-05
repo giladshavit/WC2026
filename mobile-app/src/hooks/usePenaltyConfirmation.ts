@@ -23,10 +23,10 @@ export const usePenaltyConfirmation = () => {
     // Show penalty confirmation dialog
     Alert.alert(
       'Penalty Warning',
-      `השינויים יורידו לך ${totalPenalty} נקודות מהניקוד הנוכחי שלך`,
+      `These changes will deduct ${totalPenalty} points from your current score`,
       [
         {
-          text: 'לא לבצע',
+          text: 'Cancel',
           style: 'cancel',
           onPress: () => {
             // Call the onCancel function if provided
@@ -36,7 +36,7 @@ export const usePenaltyConfirmation = () => {
           }
         },
         {
-          text: 'לבצע',
+          text: 'Confirm',
           style: 'default',
           onPress: () => {
             requestFunction();
