@@ -4,7 +4,7 @@ This is the ONLY place where db.query() should appear for reads.
 No service should call db.query() directly — always go through DBReader.
 """
 from typing import List, Optional, Sequence, Dict, Tuple
-from sqlalchemy import and_, desc, func
+from sqlalchemy import and_, desc, func, text
 from sqlalchemy.orm import Session
 
 from models.team import Team
@@ -592,17 +592,15 @@ class DBReader:
 
     @staticmethod
     def count_match_predictions_by_status(db: Session, user_id: int) -> Dict[str, int]:
-        """Count user's match predictions grouped by status. Returns dict like {'exact': 5, 'correct_outcome': 10, ...}"""
-        rows = (
-            db.query(MatchPrediction.status, func.count(MatchPrediction.id))
-            .filter(MatchPrediction.user_id == user_id)
-            .group_by(MatchPrediction.status)
-            .all()
+        """Count user's match predictions grouped by status. Returns dict like {'exact': 5, 'correct_outcome': 10, ...}.
+        Uses raw SQL to avoid SQLAlchemy Enum conversion (DB may have 'pending' while Enum expects different format)."""
+        result = db.execute(
+            text("SELECT status, COUNT(id) AS cnt FROM match_predictions WHERE user_id = :user_id GROUP BY status"),
+            {"user_id": user_id},
         )
-        return {
-            (status.value if status else "pending"): count
-            for status, count in rows
-        }
+        rows = result.fetchall()
+        # Normalize keys: DB may store enum name (EXACT) or value (exact); service expects lowercase
+        return {(str(row[0] or "pending").lower()): row[1] for row in rows}
 
     @staticmethod
     def count_knockout_predictions_by_status(db: Session, user_id: int) -> Dict[str, int]:
