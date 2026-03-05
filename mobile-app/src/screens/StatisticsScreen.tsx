@@ -552,15 +552,15 @@ export default function StatisticsScreen() {
                 <View style={styles.penaltyLegendChips}>
                   {allSegments.map(({ label, value, color }) => (
                     <View key={label} style={[styles.penaltyChip, { backgroundColor: color + '18' }]}>
-                      <View style={[styles.statChipDot, { backgroundColor: color }]} />
+                      <View style={[styles.statChipDot, styles.penaltyChipDot, { backgroundColor: color }]} />
                       <Text style={[styles.penaltyChipLabel, { color }]}>{label}</Text>
                       <Text style={[styles.penaltyChipValue, { color }]}>{value}</Text>
                     </View>
                   ))}
                 </View>
                 {total === 0 && (
-                  <Text style={[styles.noDataText, { textAlign: 'center', marginTop: 4 }]}>
-                    No penalties yet 🎉
+                  <Text style={[styles.noDataText, { textAlign: 'center', marginTop: 16 }]}>
+                    No penalties yet
                   </Text>
                 )}
               </View>
@@ -624,8 +624,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 20,
-    gap: 5,
+    gap: 4,
     marginHorizontal: 4,
+  },
+  penaltyChipDot: {
+    marginRight: 0,
   },
   penaltyChipLabel: {
     fontSize: 12,
