@@ -1,15 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
 } from 'react-native';
+import type { ScrollView as RNScrollView } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface LoginScreenProps {
@@ -20,42 +19,61 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const scrollViewRef = useRef<RNScrollView>(null);
   const { login } = useAuth();
 
+  const scrollToInput = (yPosition: number) => {
+    scrollViewRef.current?.scrollTo({ y: yPosition, animated: true });
+  };
+
   const handleLogin = async () => {
+    setError('');
     if (!username.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      setError('Please fill in all fields');
       return;
     }
 
     try {
       setIsLoading(true);
       await login(username.trim(), password);
-    } catch (error) {
-      Alert.alert('Login Error', error instanceof Error ? error.message : 'Unknown error');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior="padding"
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Login</Text>
-          <Text style={styles.subtitle}>Enter your login details</Text>
-
-          <View style={styles.form}>
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <View style={styles.form}>
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Username</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  focusedInput === 'username' && styles.inputFocused,
+                ]}
                 value={username}
-                onChangeText={setUsername}
+                onChangeText={(t) => {
+                  setUsername(t);
+                  setError('');
+                }}
+                onFocus={() => { setFocusedInput('username'); scrollToInput(0); }}
+                onBlur={() => setFocusedInput(null)}
                 placeholder="Enter username"
+                placeholderTextColor="#64748b"
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
@@ -65,16 +83,27 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Password</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  focusedInput === 'password' && styles.inputFocused,
+                ]}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(t) => {
+                  setPassword(t);
+                  setError('');
+                }}
+                onFocus={() => { setFocusedInput('password'); scrollToInput(80); }}
+                onBlur={() => setFocusedInput(null)}
                 placeholder="Enter password"
+                placeholderTextColor="#64748b"
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
               />
             </View>
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
               style={[styles.button, isLoading && styles.buttonDisabled]}
@@ -93,39 +122,17 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: 'center',
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 40,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-    color: '#333',
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 40,
-    color: '#666',
+    paddingTop: 24,
+    paddingBottom: 300,
   },
   form: {
     width: '100%',
@@ -137,29 +144,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
-    color: '#333',
+    color: '#94a3b8',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
+    borderColor: '#334155',
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 16,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    color: '#ffffff',
+  },
+  inputFocused: {
+    borderColor: '#16a34a',
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 14,
+    marginBottom: 12,
   },
   button: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    paddingVertical: 16,
+    backgroundColor: '#16a34a',
+    borderRadius: 12,
+    height: 52,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 8,
   },
   buttonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#15803d',
+    opacity: 0.7,
   },
   buttonText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -171,11 +189,11 @@ const styles = StyleSheet.create({
   },
   switchText: {
     fontSize: 16,
-    color: '#666',
+    color: '#94a3b8',
   },
   switchLink: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#16a34a',
     fontWeight: '600',
   },
 });

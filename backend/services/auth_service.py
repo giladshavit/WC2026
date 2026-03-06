@@ -1,6 +1,7 @@
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+import os
 import jwt
 import bcrypt
 from fastapi import HTTPException, status
@@ -15,9 +16,9 @@ class AuthService:
     """Service for handling user authentication and authorization."""
     
     # JWT Configuration
-    SECRET_KEY = "your-secret-key-here"  # In production, use environment variable
+    SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-secret-key-change-in-production")
     ALGORITHM = "HS256"
-    ACCESS_TOKEN_EXPIRE_DAYS = 60  # 2 months as requested
+    ACCESS_TOKEN_EXPIRE_DAYS = 90  # Covers full World Cup tournament
     
     @staticmethod
     def hash_password(password: str) -> str:

@@ -1,15 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
 } from 'react-native';
+import type { ScrollView as RNScrollView } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface RegisterScreenProps {
@@ -22,70 +21,88 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const scrollViewRef = useRef<RNScrollView>(null);
   const { register } = useAuth();
 
-  const validateForm = () => {
+  const scrollToInput = (yPosition: number) => {
+    scrollViewRef.current?.scrollTo({ y: yPosition, animated: true });
+  };
+
+  const validateForm = (): string | null => {
     if (!username.trim() || !password.trim() || !name.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return false;
+      return 'Please fill in all fields';
     }
 
     if (username.length < 3) {
-      Alert.alert('Error', 'Username must be at least 3 characters');
-      return false;
+      return 'Username must be at least 3 characters';
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
-      return false;
+      return 'Password must be at least 6 characters';
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return false;
+      return 'Passwords do not match';
     }
 
     if (name.length < 2) {
-      Alert.alert('Error', 'Name must be at least 2 characters');
-      return false;
+      return 'Name must be at least 2 characters';
     }
 
-    return true;
+    return null;
   };
 
   const handleRegister = async () => {
-    if (!validateForm()) {
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
+    setError('');
     try {
       setIsLoading(true);
       await register(username.trim(), password, name.trim());
-    } catch (error) {
-      Alert.alert('Registration Error', error instanceof Error ? error.message : 'Unknown error');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Sign Up</Text>
-          <Text style={styles.subtitle}>Create a new account</Text>
+  const clearError = () => setError('');
 
-          <View style={styles.form}>
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior="padding"
+    >
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <View style={styles.form}>
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Full Name</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  focusedInput === 'name' && styles.inputFocused,
+                ]}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(t) => {
+                  setName(t);
+                  clearError();
+                }}
+                onFocus={() => { setFocusedInput('name'); scrollToInput(0); }}
+                onBlur={() => setFocusedInput(null)}
                 placeholder="Enter full name"
+                placeholderTextColor="#64748b"
                 autoCapitalize="words"
                 autoCorrect={false}
                 editable={!isLoading}
@@ -95,10 +112,19 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Username</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  focusedInput === 'username' && styles.inputFocused,
+                ]}
                 value={username}
-                onChangeText={setUsername}
+                onChangeText={(t) => {
+                  setUsername(t);
+                  clearError();
+                }}
+                onFocus={() => { setFocusedInput('username'); scrollToInput(80); }}
+                onBlur={() => setFocusedInput(null)}
                 placeholder="Enter username (at least 3 characters)"
+                placeholderTextColor="#64748b"
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
@@ -108,10 +134,19 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Password</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  focusedInput === 'password' && styles.inputFocused,
+                ]}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(t) => {
+                  setPassword(t);
+                  clearError();
+                }}
+                onFocus={() => { setFocusedInput('password'); scrollToInput(160); }}
+                onBlur={() => setFocusedInput(null)}
                 placeholder="Enter password (at least 6 characters)"
+                placeholderTextColor="#64748b"
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -122,16 +157,27 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Confirm Password</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  focusedInput === 'confirmPassword' && styles.inputFocused,
+                ]}
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={(t) => {
+                  setConfirmPassword(t);
+                  clearError();
+                }}
+                onFocus={() => { setFocusedInput('confirmPassword'); scrollToInput(240); }}
+                onBlur={() => setFocusedInput(null)}
                 placeholder="Enter password again"
+                placeholderTextColor="#64748b"
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
               />
             </View>
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
               style={[styles.button, isLoading && styles.buttonDisabled]}
@@ -150,39 +196,17 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
               </TouchableOpacity>
             </View>
           </View>
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: 'center',
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 40,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-    color: '#333',
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 40,
-    color: '#666',
+    paddingTop: 24,
+    paddingBottom: 300,
   },
   form: {
     width: '100%',
@@ -194,29 +218,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
-    color: '#333',
+    color: '#94a3b8',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
+    borderColor: '#334155',
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 16,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    color: '#ffffff',
+  },
+  inputFocused: {
+    borderColor: '#16a34a',
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 14,
+    marginBottom: 12,
   },
   button: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    paddingVertical: 16,
+    backgroundColor: '#16a34a',
+    borderRadius: 12,
+    height: 52,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 8,
   },
   buttonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#15803d',
+    opacity: 0.7,
   },
   buttonText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -228,11 +263,11 @@ const styles = StyleSheet.create({
   },
   switchText: {
     fontSize: 16,
-    color: '#666',
+    color: '#94a3b8',
   },
   switchLink: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#16a34a',
     fontWeight: '600',
   },
 });

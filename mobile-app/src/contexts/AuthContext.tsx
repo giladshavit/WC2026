@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { apiService, User, AuthResponse } from '../services/api';
 
 interface AuthContextType {
@@ -15,8 +15,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const TOKEN_KEY = '@auth_token';
-const USER_KEY = '@auth_user';
+const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -35,10 +35,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const loadStoredAuth = async () => {
     try {
-      const [storedToken, storedUser] = await Promise.all([
-        AsyncStorage.getItem(TOKEN_KEY),
-        AsyncStorage.getItem(USER_KEY),
-      ]);
+      const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      const storedUser = await SecureStore.getItemAsync(USER_KEY);
 
       if (storedToken && storedUser) {
         // Set token in API service
@@ -64,10 +62,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const storeAuth = async (authResponse: AuthResponse, userData: User) => {
     try {
-      await Promise.all([
-        AsyncStorage.setItem(TOKEN_KEY, authResponse.access_token),
-        AsyncStorage.setItem(USER_KEY, JSON.stringify(userData)),
-      ]);
+      await SecureStore.setItemAsync(TOKEN_KEY, authResponse.access_token);
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
     } catch (error) {
       console.error('Error storing auth data:', error);
     }
@@ -75,10 +71,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const clearStoredAuth = async () => {
     try {
-      await Promise.all([
-        AsyncStorage.removeItem(TOKEN_KEY),
-        AsyncStorage.removeItem(USER_KEY),
-      ]);
+      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await SecureStore.deleteItemAsync(USER_KEY);
       apiService.logout();
       setUser(null);
     } catch (error) {
@@ -134,7 +128,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (isAuthenticated) {
         const userData = await apiService.getCurrentUser();
         setUser(userData);
-        await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
+        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
       }
     } catch (error) {
       console.error('Error refreshing user:', error);
