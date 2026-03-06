@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Animated } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MatchStatsModal from './MatchStatsModal';
@@ -7,10 +7,13 @@ import { Match } from '../services/api';
 
 type ScoreField = 'home' | 'away';
 
+export interface MatchCardHandle {
+  measureCard: () => Promise<{ y: number; height: number } | null>;
+}
+
 interface MatchCardProps {
   match: Match;
   onScoreChange: (matchId: number, homeScore: number | null, awayScore: number | null) => void;
-  hasPendingChanges?: boolean;
   onInputFocus?: (matchId: number) => void;
 }
 
@@ -149,7 +152,22 @@ const BlinkingCursor = () => {
   );
 };
 
-export default function MatchCard({ match, onScoreChange, hasPendingChanges = false, onInputFocus }: MatchCardProps) {
+const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
+  function MatchCard({ match, onScoreChange, onInputFocus }, ref) {
+  const rootRef = useRef<View>(null);
+
+  useImperativeHandle(ref, () => ({
+    measureCard: () =>
+      new Promise<{ y: number; height: number } | null>((resolve) => {
+        if (!rootRef.current) {
+          resolve(null);
+          return;
+        }
+        rootRef.current.measure((_x, _y, _w, height, _pageX, pageY) => {
+          resolve({ y: pageY, height });
+        });
+      }),
+  }), []);
   const [homeScore, setHomeScore] = React.useState<string>(
     match.user_prediction.home_score?.toString() || ''
   );
@@ -270,7 +288,6 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
     originalScoreRef.current[field] = scoreValue;
     overwriteRef.current[field] = isEditable && scoreValue.length > 0;
 
-    
     const input = inputRef.current;
     if (input && scoreValue.length > 0) {
       input.setNativeProps({ selection: { start: 0, end: scoreValue.length } });
@@ -418,10 +435,8 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
 
   return (
     <View
-      style={[
-        styles.container,
-        hasPendingChanges && styles.containerPending,
-      ]}
+      ref={rootRef}
+      style={styles.container}
     >
       <View style={styles.header}>
         <View style={styles.stageContainer}>
@@ -489,7 +504,9 @@ export default function MatchCard({ match, onScoreChange, hasPendingChanges = fa
       />
     </View>
   );
-}
+});
+
+export default MatchCard;
 
 const styles = StyleSheet.create({
   container: {

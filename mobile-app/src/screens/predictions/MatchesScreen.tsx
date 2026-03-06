@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator, Platform, Dimensions, Keyboard } from 'react-native';
 import { Match, apiService, MatchesResponse } from '../../services/api';
-import MatchCard from '../../components/MatchCard';
+import MatchCard, { MatchCardHandle } from '../../components/MatchCard';
 import { useAuth } from '../../contexts/AuthContext';
 
 const DEBOUNCE_MS = 800;
@@ -11,9 +11,13 @@ export default function MatchesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [matchesScore, setMatchesScore] = useState<number | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const hasAutoScrolledRef = useRef(false);
   const debounceTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const cardHandles = useRef<Map<number, MatchCardHandle>>(new Map());
+  const scrollOffsetRef = useRef(0);
+  const focusedMatchIdRef = useRef<number | null>(null);
 
   const { getCurrentUserId } = useAuth();
 
@@ -48,6 +52,50 @@ export default function MatchesScreen() {
       debounceTimersRef.current.clear();
     };
   }, []);
+
+  const scrollToFocusedCard = useCallback(async (kbHeight: number) => {
+    const matchId = focusedMatchIdRef.current;
+    if (matchId === null || !flatListRef.current) return;
+
+    const handle = cardHandles.current.get(matchId);
+    if (!handle) return;
+
+    const pos = await handle.measureCard();
+    if (!pos) return;
+
+    const PADDING = 16;
+    const screenHeight = Dimensions.get('window').height;
+    const visibleBottom = screenHeight - kbHeight;
+    const cardBottom = pos.y + pos.height;
+
+    if (cardBottom > visibleBottom) {
+      const newOffset = scrollOffsetRef.current + (cardBottom - visibleBottom + PADDING);
+      flatListRef.current.scrollToOffset({ offset: newOffset, animated: true });
+    }
+  }, []);
+
+  // Keyboard show/hide listeners for dynamic padding and scroll logic
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      const kbHeight = e.endCoordinates.height;
+      setKeyboardHeight(kbHeight);
+      setTimeout(() => {
+        scrollToFocusedCard(kbHeight);
+      }, 50);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+      focusedMatchIdRef.current = null;
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [scrollToFocusedCard]);
 
   // Scroll to first live or first unfinished match when matches are loaded
   useEffect(() => {
@@ -128,26 +176,14 @@ export default function MatchesScreen() {
   };
 
   const handleMatchFocus = useCallback((matchId: number) => {
-    const index = matches.findIndex((match) => match.id === matchId);
-    if (index >= 0) {
-      try {
-        flatListRef.current?.scrollToIndex({
-          index,
-          animated: true,
-          viewPosition: 0.3,
-        });
-      } catch (error) {
-        const offset = Math.max(index - 1, 0);
-        flatListRef.current?.scrollToIndex({
-          index: offset,
-          animated: true,
-        });
-      }
-    }
-  }, [matches]);
+    focusedMatchIdRef.current = matchId;
+  }, []);
 
   const renderMatch = ({ item }: { item: Match }) => (
     <MatchCard
+      ref={(el) => {
+        if (el) cardHandles.current.set(item.id, el);
+      }}
       match={item}
       onScoreChange={handleScoreChange}
       onInputFocus={handleMatchFocus}
@@ -165,25 +201,17 @@ export default function MatchesScreen() {
 
   if (matches.length === 0) {
     return (
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
-      >
+      <View style={styles.flex}>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No matches available</Text>
           <Text style={styles.emptySubtext}>Check that the server is running and matches are created</Text>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
-    >
+    <View style={styles.flex}>
       <View style={styles.container}>
         <View style={styles.header}>
           {matchesScore !== null && (
@@ -200,8 +228,15 @@ export default function MatchesScreen() {
           onRefresh={handleRefresh}
           refreshing={refreshing}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[
+            styles.listContainer,
+            { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 32 : 20 },
+          ]}
           keyboardShouldPersistTaps="handled"
+          onScroll={(e) => {
+            scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
           onScrollToIndexFailed={(info) => {
             const wait = new Promise((resolve) => setTimeout(resolve, 500));
             wait.then(() => {
@@ -210,7 +245,7 @@ export default function MatchesScreen() {
           }}
         />
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
