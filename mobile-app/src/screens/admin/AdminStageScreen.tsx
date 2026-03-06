@@ -15,22 +15,22 @@ import { apiService } from '../../services/api';
 interface StageInfo {
   stage: string;
   stage_value: number;
-  penalty: number;
+  penalty: number; // API field; displayed as "Fine"
 }
 
 const ALL_STAGES = [
-  { name: 'PRE_GROUP_STAGE', label: 'Pre Group Stage', value: 0, penalty: 0 },
-  { name: 'GROUP_CYCLE_1', label: 'Group Cycle 1', value: 1, penalty: 1 },
-  { name: 'GROUP_CYCLE_2', label: 'Group Cycle 2', value: 2, penalty: 2 },
-  { name: 'GROUP_CYCLE_3', label: 'Group Cycle 3', value: 3, penalty: 3 },
-  { name: 'PRE_ROUND32', label: 'Pre Round of 32', value: 4, penalty: 4 },
-  { name: 'ROUND32', label: 'Round of 32', value: 5, penalty: 5 },
-  { name: 'PRE_ROUND16', label: 'Pre Round of 16', value: 6, penalty: 6 },
-  { name: 'ROUND16', label: 'Round of 16', value: 7, penalty: 7 },
-  { name: 'PRE_QUARTER', label: 'Pre Quarter Final', value: 8, penalty: 8 },
-  { name: 'QUARTER', label: 'Quarter Final', value: 9, penalty: 9 },
-  { name: 'SEMI', label: 'Semi Final', value: 10, penalty: 10 },
-  { name: 'FINAL', label: 'Final', value: 11, penalty: 11 },
+  { name: 'PRE_GROUP_STAGE', label: 'Pre Group Stage', value: 0, fine: 0 },
+  { name: 'GROUP_CYCLE_1', label: 'Group Cycle 1', value: 1, fine: 1 },
+  { name: 'GROUP_CYCLE_2', label: 'Group Cycle 2', value: 2, fine: 2 },
+  { name: 'GROUP_CYCLE_3', label: 'Group Cycle 3', value: 3, fine: 3 },
+  { name: 'PRE_ROUND32', label: 'Pre Round of 32', value: 4, fine: 4 },
+  { name: 'ROUND32', label: 'Round of 32', value: 5, fine: 5 },
+  { name: 'PRE_ROUND16', label: 'Pre Round of 16', value: 6, fine: 6 },
+  { name: 'ROUND16', label: 'Round of 16', value: 7, fine: 7 },
+  { name: 'PRE_QUARTER', label: 'Pre Quarter Final', value: 8, fine: 8 },
+  { name: 'QUARTER', label: 'Quarter Final', value: 9, fine: 9 },
+  { name: 'SEMI', label: 'Semi Final', value: 10, fine: 10 },
+  { name: 'FINAL', label: 'Final', value: 11, fine: 11 },
 ];
 
 export default function AdminStageScreen() {
@@ -195,7 +195,7 @@ export default function AdminStageScreen() {
                   <Text style={styles.infoValue}>{currentStage.stage_value}</Text>
                 </View>
                 <View style={styles.infoItem}>
-                  <Text style={styles.infoLabel}>Penalty:</Text>
+                  <Text style={styles.infoLabel}>Fine:</Text>
                   <Text style={styles.infoValue}>{currentStage.penalty} pts</Text>
                 </View>
               </View>
@@ -260,7 +260,7 @@ export default function AdminStageScreen() {
                         {stage.label}
                       </Text>
                       <Text style={styles.stageItemValue}>
-                        Value: {stage.value} | Penalty: {stage.penalty} pts
+                        Value: {stage.value} | Fine: {stage.fine} pts
                       </Text>
                     </View>
                   </View>

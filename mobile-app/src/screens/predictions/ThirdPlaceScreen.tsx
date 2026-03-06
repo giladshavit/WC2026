@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThirdPlaceTeam, apiService } from '../../services/api';
 import { useTournament } from '../../contexts/TournamentContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { PenaltyConfirmationModal, UnsavedChangesModal, MaximumReachedModal } from '../../components/CustomModals';
+import { FineConfirmationModal, UnsavedChangesModal, MaximumReachedModal } from '../../components/CustomModals';
 
 interface ThirdPlaceScreenProps {}
 
@@ -25,7 +25,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [counterHeight, setCounterHeight] = useState(0);
   const [showStats, setShowStats] = useState(false);
-  const [penaltyModalVisible, setPenaltyModalVisible] = useState(false);
+  const [fineModalVisible, setFineModalVisible] = useState(false);
   const [exitModalVisible, setExitModalVisible] = useState(false);
   const [pendingNavAction, setPendingNavAction] = useState<any>(null);
   const [maxReachedModalVisible, setMaxReachedModalVisible] = useState(false);
@@ -35,7 +35,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const insets = useSafeAreaInsets();
 
   // Get tournament context data
-  const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
+  const { currentStage, finePerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
 
   const isPreTournament = currentStage === 'PRE_GROUP_STAGE';
   const isThirdPlaceEditable =
@@ -299,7 +299,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       Alert.alert('No Changes', 'No changes to save');
       return;
     }
-    setPenaltyModalVisible(true);
+    setFineModalVisible(true);
   };
 
   const renderTeam = ({ item }: { item: ThirdPlaceTeam }) => {
@@ -484,15 +484,15 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         onClose={() => setShowStats(false)}
       />
 
-      {/* Penalty Confirmation Modal */}
-      <PenaltyConfirmationModal
-        visible={penaltyModalVisible}
-        penaltyPoints={calculateThirdPlaceChanges * (penaltyPerChange ?? 0)}
+      {/* Fine Confirmation Modal */}
+      <FineConfirmationModal
+        visible={fineModalVisible}
+        finePoints={calculateThirdPlaceChanges * (finePerChange ?? 0)}
         onConfirm={() => {
-          setPenaltyModalVisible(false);
+          setFineModalVisible(false);
           performSave();
         }}
-        onCancel={() => setPenaltyModalVisible(false)}
+        onCancel={() => setFineModalVisible(false)}
       />
 
       {/* Unsaved Changes Exit Modal */}

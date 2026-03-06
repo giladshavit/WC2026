@@ -3,7 +3,7 @@ import { apiService, AppConfig } from '../services/api';
 
 interface TournamentContextType {
   currentStage: string | null;
-  penaltyPerChange: number | null;
+  finePerChange: number | null;
   isLoading: boolean;
   error: string | null;
   refreshTournamentData: () => Promise<void>;
@@ -17,7 +17,7 @@ interface TournamentProviderProps {
 
 export const TournamentProvider: React.FC<TournamentProviderProps> = ({ children }) => {
   const [currentStage, setCurrentStage] = useState<string | null>(null);
-  const [penaltyPerChange, setPenaltyPerChange] = useState<number | null>(null);
+  const [finePerChange, setFinePerChange] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +29,7 @@ export const TournamentProvider: React.FC<TournamentProviderProps> = ({ children
       const config: AppConfig = await apiService.getAppConfig();
       
       setCurrentStage(config.current_stage);
-      setPenaltyPerChange(config.penalty_per_change);
+      setFinePerChange(config.penalty_per_change);
     } catch (err) {
       console.error('Failed to fetch tournament config:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch tournament config');
@@ -44,7 +44,7 @@ export const TournamentProvider: React.FC<TournamentProviderProps> = ({ children
 
   const value: TournamentContextType = {
     currentStage,
-    penaltyPerChange,
+    finePerChange,
     isLoading,
     error,
     refreshTournamentData,

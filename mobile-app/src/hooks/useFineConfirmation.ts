@@ -2,28 +2,28 @@ import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useTournament } from '../contexts/TournamentContext';
 
-export const usePenaltyConfirmation = () => {
-  const { penaltyPerChange } = useTournament();
+export const useFineConfirmation = () => {
+  const { finePerChange } = useTournament();
 
-  const showPenaltyConfirmation = useCallback((
+  const showFineConfirmation = useCallback((
     requestFunction: () => Promise<void>,
     numberOfChanges: number,
     onCancel?: () => void
   ) => {
-    const totalPenalty = penaltyPerChange && penaltyPerChange > 0 
-      ? numberOfChanges * penaltyPerChange 
+    const totalFine = finePerChange && finePerChange > 0
+      ? numberOfChanges * finePerChange
       : 0;
 
-    if (totalPenalty === 0) {
-      // No penalty, execute request directly
+    if (totalFine === 0) {
+      // No fine, execute request directly
       requestFunction();
       return;
     }
 
-    // Show penalty confirmation dialog
+    // Show fine confirmation dialog
     Alert.alert(
-      'Penalty Warning',
-      `These changes will deduct ${totalPenalty} points from your current score`,
+      'Fine Warning',
+      `These changes will deduct ${totalFine} points from your current score`,
       [
         {
           text: 'Cancel',
@@ -44,7 +44,7 @@ export const usePenaltyConfirmation = () => {
         }
       ]
     );
-  }, [penaltyPerChange]);
+  }, [finePerChange]);
 
-  return { showPenaltyConfirmation };
+  return { showFineConfirmation };
 };

@@ -2,16 +2,16 @@ import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-// ─── Penalty Confirmation Modal ─────────────────────────────────────────────
+// ─── Fine Confirmation Modal ─────────────────────────────────────────────
 
-interface PenaltyModalProps {
+interface FineModalProps {
   visible: boolean;
-  penaltyPoints: number;
+  finePoints: number;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export function PenaltyConfirmationModal({ visible, penaltyPoints, onConfirm, onCancel }: PenaltyModalProps) {
+export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel }: FineModalProps) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onCancel}>
@@ -22,11 +22,11 @@ export function PenaltyConfirmationModal({ visible, penaltyPoints, onConfirm, on
 
           <Text style={styles.title}>Save Prediction</Text>
 
-          <Text style={styles.message}>Saving will apply a penalty of</Text>
+          <Text style={styles.message}>Saving will apply a fine of</Text>
 
-          <View style={styles.penaltyBadge}>
-            <Text style={styles.penaltyNumber}>{penaltyPoints}</Text>
-            <Text style={styles.penaltyLabel}>{penaltyPoints === 1 ? 'point' : 'points'}</Text>
+          <View style={styles.fineBadge}>
+            <Text style={styles.fineNumber}>{finePoints}</Text>
+            <Text style={styles.fineLabel}>{finePoints === 1 ? 'point' : 'points'}</Text>
           </View>
 
           <Text style={styles.subMessage}>Are you sure you want to save?</Text>
@@ -37,7 +37,7 @@ export function PenaltyConfirmationModal({ visible, penaltyPoints, onConfirm, on
               onPress={onConfirm}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonText}>Save & Accept Penalty</Text>
+              <Text style={styles.buttonText}>Save & Accept Fine</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.buttonCancel]}
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
   },
-  penaltyBadge: {
+  fineBadge: {
     flexDirection: 'row',
     alignItems: 'baseline',
     backgroundColor: '#fef9c3',
@@ -239,12 +239,12 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     gap: 6,
   },
-  penaltyNumber: {
+  fineNumber: {
     fontSize: 36,
     fontWeight: '800',
     color: '#b45309',
   },
-  penaltyLabel: {
+  fineLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: '#b45309',

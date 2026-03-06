@@ -6,7 +6,7 @@ import { GroupPrediction, apiService, GroupsResponse } from '../../services/api'
 import GroupCard from '../../components/GroupCard';
 import { useTournament } from '../../contexts/TournamentContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { PenaltyConfirmationModal, UnsavedChangesModal } from '../../components/CustomModals';
+import { FineConfirmationModal, UnsavedChangesModal } from '../../components/CustomModals';
 
 export default function GroupsScreen() {
   const [groups, setGroups] = useState<GroupPrediction[]>([]);
@@ -22,12 +22,12 @@ export default function GroupsScreen() {
     third_place: number | null;
     fourth_place: number | null;
   }>>(new Map());
-  const [penaltyModalVisible, setPenaltyModalVisible] = useState(false);
+  const [fineModalVisible, setFineModalVisible] = useState(false);
   const [exitModalVisible, setExitModalVisible] = useState(false);
   const [pendingNavAction, setPendingNavAction] = useState<any>(null);
 
   // Get tournament context data
-  const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
+  const { currentStage, finePerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
 
   const isPreTournament = currentStage === 'PRE_GROUP_STAGE';
   const isGroupEditable =
@@ -422,7 +422,7 @@ export default function GroupsScreen() {
       Alert.alert('No Changes', 'No predictions to save');
       return;
     }
-    setPenaltyModalVisible(true);
+    setFineModalVisible(true);
   };
 
   const handleTeamPress = (groupId: number, teamId: number) => {
@@ -592,14 +592,14 @@ export default function GroupsScreen() {
         contentContainerStyle={styles.listContainer}
       />
 
-      <PenaltyConfirmationModal
-        visible={penaltyModalVisible}
-        penaltyPoints={calculateGroupChanges() * (penaltyPerChange ?? 0)}
+      <FineConfirmationModal
+        visible={fineModalVisible}
+        finePoints={calculateGroupChanges() * (finePerChange ?? 0)}
         onConfirm={() => {
-          setPenaltyModalVisible(false);
+          setFineModalVisible(false);
           performSave();
         }}
-        onCancel={() => setPenaltyModalVisible(false)}
+        onCancel={() => setFineModalVisible(false)}
       />
 
       <UnsavedChangesModal

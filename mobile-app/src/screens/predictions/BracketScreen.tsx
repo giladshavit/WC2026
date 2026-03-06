@@ -51,7 +51,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [isCapturing, setIsCapturing] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [canEditDrafts, setCanEditDrafts] = useState<boolean>(true);
-  const [penaltyInfo, setPenaltyInfo] = useState<{changes_count: number, penalty_per_change: number, total_penalty: number} | null>(null);
+  const [fineInfo, setFineInfo] = useState<{changes_count: number, penalty_per_change: number, total_penalty: number} | null>(null);
   const [knockoutScore, setKnockoutScore] = useState<number | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isEnterEditModeModalVisible, setIsEnterEditModeModalVisible] = useState(false);
@@ -70,7 +70,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const bracketRef = useRef<View>(null);
 
   // Get tournament context data
-  const { currentStage, penaltyPerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
+  const { currentStage, finePerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
   
   const isPreTournament = currentStage === 'PRE_GROUP_STAGE' || !currentStage;
 
@@ -91,7 +91,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         const userId = getCurrentUserId();
         if (!userId) return;
         const countResult = await apiService.getDraftChangesCount(userId);
-        setPenaltyInfo(countResult);
+        setFineInfo(countResult);
         setShowExitModal(true);
         pendingNavActionRef.current = e.data.action;
       };
@@ -101,14 +101,14 @@ export default function BracketScreen({}: BracketScreenProps) {
     return unsubscribe;
   }, [editMode, navigation]);
 
-  const refreshPenaltyCount = async () => {
+  const refreshFineCount = async () => {
     try {
       const userId = getCurrentUserId();
       if (!userId || !editMode) return;
       const result = await apiService.getDraftChangesCount(userId);
-      setPenaltyInfo(result);
+      setFineInfo(result);
     } catch (error) {
-      console.error('Error refreshing penalty count:', error);
+      console.error('Error refreshing fine count:', error);
     }
   };
 
@@ -317,7 +317,7 @@ export default function BracketScreen({}: BracketScreenProps) {
     React.useCallback(() => {
       fetchPredictions().then(() => {
         if (editMode) {
-          refreshPenaltyCount();
+          refreshFineCount();
         }
       });
     }, [editMode])
@@ -340,7 +340,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         setLoading(true);
         await apiService.createAllDrafts(userId);
         setEditMode(true);
-        // fetchPredictions and refreshPenaltyCount will be called by useFocusEffect when editMode changes
+        // fetchPredictions and refreshFineCount will be called by useFocusEffect when editMode changes
       } catch (error) {
         console.error('Error creating drafts:', error);
         Alert.alert('Error', 'Cannot enter edit mode. Try again.');
@@ -360,7 +360,7 @@ export default function BracketScreen({}: BracketScreenProps) {
           setLoading(true);
           await apiService.deleteAllDrafts(userId);
           setEditMode(false);
-          setPenaltyInfo(null);
+          setFineInfo(null);
         } catch (error) {
           console.error('Error exiting edit mode:', error);
           Alert.alert('Error', 'Could not exit edit mode. Try again.');
@@ -369,7 +369,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         }
       } else {
         // Has changes - show confirm modal
-        setPenaltyInfo(countResult);
+        setFineInfo(countResult);
         setShowExitModal(true);
       }
     }
@@ -382,7 +382,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       setLoading(true);
       await apiService.deleteAllDrafts(userId);
       setEditMode(false);
-      setPenaltyInfo(null);
+      setFineInfo(null);
       if (navAction) {
         navigation.dispatch(navAction);
       }
@@ -425,7 +425,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       return;
     }
 
-    setPenaltyInfo(countResult);
+        setFineInfo(countResult);
     setShowResetModal(true);
   };
 
@@ -436,7 +436,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       setLoading(true);
       await apiService.resetDrafts(userId);
       await fetchPredictions();
-      setPenaltyInfo({ changes_count: 0, penalty_per_change: 0, total_penalty: 0 });
+      setFineInfo({ changes_count: 0, penalty_per_change: 0, total_penalty: 0 });
     } catch (error) {
       console.error('Error resetting drafts:', error);
       Alert.alert('Error', 'Could not reset. Try again.');
@@ -451,7 +451,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       const result = await apiService.commitDrafts(userId);
 
       setEditMode(false);
-      setPenaltyInfo(null);
+      setFineInfo(null);
       setSaveSuccessInfo({
         changes_count: result.changes_count,
         penalty_applied: result.penalty_applied,
@@ -476,7 +476,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         return;
       }
 
-      setPenaltyInfo(countResult);
+        setFineInfo(countResult);
       setIsConfirmSaveModalVisible(true);
     } catch (error) {
       console.error('Error in save press:', error);
@@ -657,19 +657,19 @@ export default function BracketScreen({}: BracketScreenProps) {
       {/* Buttons Container - chip left, buttons right */}
       <View style={styles.buttonsContainer}>
         {editMode ? (
-          <View style={styles.penaltyChip}>
-            <View style={styles.penaltyStat}>
-              <Text style={styles.penaltyStatLabel}>Changes</Text>
-              <Text style={styles.penaltyStatValue}>{penaltyInfo?.changes_count ?? 0}</Text>
+          <View style={styles.fineChip}>
+            <View style={styles.fineStat}>
+              <Text style={styles.fineStatLabel}>Changes</Text>
+              <Text style={styles.fineStatValue}>{fineInfo?.changes_count ?? 0}</Text>
             </View>
-            <View style={styles.penaltyDivider} />
-            <View style={styles.penaltyStat}>
-              <Text style={styles.penaltyStatLabel}>Penalty</Text>
+            <View style={styles.fineDivider} />
+            <View style={styles.fineStat}>
+              <Text style={styles.fineStatLabel}>Fine</Text>
               <Text style={[
-                styles.penaltyStatValue,
-                (penaltyInfo?.total_penalty ?? 0) > 0 && { color: '#f87171' },
+                styles.fineStatValue,
+                (fineInfo?.total_penalty ?? 0) > 0 && { color: '#f87171' },
               ]}>
-                {penaltyInfo?.total_penalty ?? 0}
+                {fineInfo?.total_penalty ?? 0}
               </Text>
             </View>
           </View>
@@ -789,9 +789,9 @@ export default function BracketScreen({}: BracketScreenProps) {
       {/* Confirm Save Modal */}
       <ConfirmSaveModal
         visible={isConfirmSaveModalVisible}
-        changesCount={penaltyInfo?.changes_count ?? 0}
-        penaltyPoints={penaltyInfo?.total_penalty ?? 0}
-        penaltyPerChange={penaltyInfo?.penalty_per_change ?? 0}
+        changesCount={fineInfo?.changes_count ?? 0}
+        finePoints={fineInfo?.total_penalty ?? 0}
+        finePerChange={fineInfo?.penalty_per_change ?? 0}
         onClose={() => setIsConfirmSaveModalVisible(false)}
         onConfirm={handleConfirmSave}
       />
@@ -799,7 +799,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       {/* Confirm Reset Modal */}
       <ConfirmResetModal
         visible={showResetModal}
-        changesCount={penaltyInfo?.changes_count ?? 0}
+        changesCount={fineInfo?.changes_count ?? 0}
         onClose={() => setShowResetModal(false)}
         onConfirm={async () => {
           setShowResetModal(false);
@@ -810,7 +810,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       {/* Confirm Exit Modal */}
       <ConfirmExitModal
         visible={showExitModal}
-        changesCount={penaltyInfo?.changes_count ?? 0}
+        changesCount={fineInfo?.changes_count ?? 0}
         onClose={() => {
           setShowExitModal(false);
           pendingNavActionRef.current = null;
@@ -885,7 +885,7 @@ export default function BracketScreen({}: BracketScreenProps) {
                   -{saveSuccessInfo?.penalty_applied ?? 0}
                 </Text>
                 <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500', marginTop: 2 }}>
-                  Penalty pts
+                  Fine pts
                 </Text>
               </View>
             </View>
@@ -943,7 +943,7 @@ export default function BracketScreen({}: BracketScreenProps) {
                 calculateCardCoordinates(spacing);
                 setOrganizedBracket(organized);
 
-                await refreshPenaltyCount();
+                await refreshFineCount();
                 console.log('✅ Updated bracket with fresh data from server');
               } catch (error) {
                 console.error('❌ Error updating bracket with fresh data:', error);
@@ -1133,7 +1133,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  penaltyChip: {
+  fineChip: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
@@ -1167,22 +1167,22 @@ const styles = StyleSheet.create({
     color: '#166534',
     fontWeight: '700',
   },
-  penaltyStat: {
+  fineStat: {
     alignItems: 'center',
   },
-  penaltyStatLabel: {
+  fineStatLabel: {
     fontSize: 9,
     color: 'rgba(255,255,255,0.6)',
     fontWeight: '500',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
-  penaltyStatValue: {
+  fineStatValue: {
     fontSize: 13,
     color: '#ffffff',
     fontWeight: '700',
   },
-  penaltyDivider: {
+  fineDivider: {
     width: 1,
     height: 24,
     backgroundColor: 'rgba(255,255,255,0.2)',

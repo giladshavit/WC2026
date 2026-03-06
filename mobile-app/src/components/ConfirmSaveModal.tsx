@@ -12,8 +12,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 interface ConfirmSaveModalProps {
   visible: boolean;
   changesCount: number;
-  penaltyPoints: number;
-  penaltyPerChange: number;
+  finePoints: number;
+  finePerChange: number;
   onClose: () => void;
   onConfirm: () => void;
 }
@@ -23,8 +23,8 @@ const { width: screenWidth } = Dimensions.get('window');
 export default function ConfirmSaveModal({
   visible,
   changesCount,
-  penaltyPoints,
-  penaltyPerChange,
+  finePoints,
+  finePerChange,
   onClose,
   onConfirm,
 }: ConfirmSaveModalProps) {
@@ -54,22 +54,22 @@ export default function ConfirmSaveModal({
             {' '}to your bracket.
           </Text>
 
-          {/* Penalty display */}
-          {penaltyPoints > 0 ? (
+          {/* Fine display */}
+          {finePoints > 0 ? (
             <>
-              <Text style={styles.penaltyMessage}>Saving will apply a penalty of</Text>
-              <View style={styles.penaltyBadge}>
-                <Text style={styles.penaltyNumber}>{penaltyPoints}</Text>
-                <Text style={styles.penaltyLabel}>
-                  {penaltyPoints === 1 ? 'point' : 'points'}
+              <Text style={styles.fineMessage}>Saving will apply a fine of</Text>
+              <View style={styles.fineBadge}>
+                <Text style={styles.fineNumber}>{finePoints}</Text>
+                <Text style={styles.fineLabel}>
+                  {finePoints === 1 ? 'point' : 'points'}
                 </Text>
               </View>
-              <Text style={styles.penaltySubMessage}>Are you sure you want to save?</Text>
+              <Text style={styles.fineSubMessage}>Are you sure you want to save?</Text>
             </>
           ) : (
             <View style={styles.freeBadge}>
               <Ionicons name="checkmark-circle-outline" size={16} color="#15803d" style={{ marginRight: 6 }} />
-              <Text style={styles.freeText}>No penalty points for this save</Text>
+              <Text style={styles.freeText}>No fine points for this save</Text>
             </View>
           )}
 
@@ -138,13 +138,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#374151',
   },
-  penaltyMessage: {
+  fineMessage: {
     fontSize: 14,
     color: '#6b7280',
     textAlign: 'center',
     marginBottom: 4,
   },
-  penaltyBadge: {
+  fineBadge: {
     flexDirection: 'row',
     alignItems: 'baseline',
     backgroundColor: '#fef9c3',
@@ -154,17 +154,17 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     gap: 6,
   },
-  penaltyNumber: {
+  fineNumber: {
     fontSize: 36,
     fontWeight: '800',
     color: '#b45309',
   },
-  penaltyLabel: {
+  fineLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: '#b45309',
   },
-  penaltySubMessage: {
+  fineSubMessage: {
     fontSize: 13,
     color: '#9ca3af',
     textAlign: 'center',

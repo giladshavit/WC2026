@@ -19,7 +19,7 @@ interface ProfilePerGroup {
 
 interface UserFullProfile {
   total_points: number;
-  penalty: number;
+  penalty: number; // API field; displayed as "Fine"
   penalty_breakdown?: {
     groups: number;
     third_place: number;
@@ -233,10 +233,10 @@ export default function StatisticsScreen() {
             <View style={styles.pointsStatSeparator} />
             <View style={styles.pointsStatBlock}>
               <Ionicons name="warning-outline" size={20} color="#a7f3d0" />
-              <Text style={[styles.pointsStatNumber, profile.penalty > 0 && styles.pointsStatNumberPenalty]}>
+              <Text style={[styles.pointsStatNumber, profile.penalty > 0 && styles.pointsStatNumberFine]}>
                 {profile.penalty}
               </Text>
-              <Text style={styles.pointsStatLabel}>Penalty</Text>
+              <Text style={styles.pointsStatLabel}>Fine</Text>
             </View>
           </View>
         </View>
@@ -470,10 +470,10 @@ export default function StatisticsScreen() {
           )}
         </View>
 
-        {/* 7. Penalty Breakdown card */}
+        {/* 7. Fine Breakdown card */}
         <View style={[styles.card, styles.cardLast]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Penalties</Text>
+            <Text style={styles.cardTitle}>Fines</Text>
             <View style={styles.cardScoreCircleRed}>
               <Text style={styles.cardScoreCircleText}>
                 {profile.penalty}
@@ -513,7 +513,7 @@ export default function StatisticsScreen() {
             let currentAngle = 0;
 
             return (
-              <View style={styles.penaltyDonutWrapper}>
+              <View style={styles.fineDonutWrapper}>
                 {total > 0 && (
                   <View style={{ width: size, height: size, position: 'relative' }}>
                     <Svg width={size} height={size}>
@@ -549,18 +549,18 @@ export default function StatisticsScreen() {
                     )}
                   </View>
                 )}
-                <View style={styles.penaltyLegendChips}>
+                <View style={styles.fineLegendChips}>
                   {allSegments.map(({ label, value, color }) => (
-                    <View key={label} style={[styles.penaltyChip, { backgroundColor: color + '18' }]}>
-                      <View style={[styles.statChipDot, styles.penaltyChipDot, { backgroundColor: color }]} />
-                      <Text style={[styles.penaltyChipLabel, { color }]}>{label}</Text>
-                      <Text style={[styles.penaltyChipValue, { color }]}>{value}</Text>
+                    <View key={label} style={[styles.fineChip, { backgroundColor: color + '18' }]}>
+                      <View style={[styles.statChipDot, styles.fineChipDot, { backgroundColor: color }]} />
+                      <Text style={[styles.fineChipLabel, { color }]}>{label}</Text>
+                      <Text style={[styles.fineChipValue, { color }]}>{value}</Text>
                     </View>
                   ))}
                 </View>
                 {total === 0 && (
                   <Text style={[styles.noDataText, { textAlign: 'center', marginTop: 16 }]}>
-                    No penalties yet
+                    No fines yet
                   </Text>
                 )}
               </View>
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
     width: 1, height: 40, backgroundColor: 'rgba(255,255,255,0.25)',
   },
   pointsStatNumber: { fontSize: 20, fontWeight: 'bold', color: '#fff', marginTop: 4 },
-  pointsStatNumberPenalty: { color: '#fecaca' },
+  pointsStatNumberFine: { color: '#fecaca' },
   pointsStatLabel: { fontSize: 11, color: '#a7f3d0', marginTop: 2 },
 
   card: {
@@ -606,17 +606,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
   },
   cardLast: { marginBottom: 32 },
-  penaltyDonutWrapper: {
+  fineDonutWrapper: {
     alignItems: 'center',
     marginTop: 4,
   },
-  penaltyLegendChips: {
+  fineLegendChips: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 16,
     paddingHorizontal: 4,
   },
-  penaltyChip: {
+  fineChip: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -627,14 +627,14 @@ const styles = StyleSheet.create({
     gap: 4,
     marginHorizontal: 4,
   },
-  penaltyChipDot: {
+  fineChipDot: {
     marginRight: 0,
   },
-  penaltyChipLabel: {
+  fineChipLabel: {
     fontSize: 12,
     fontWeight: '600',
   },
-  penaltyChipValue: {
+  fineChipValue: {
     fontSize: 13,
     fontWeight: 'bold',
   },

@@ -24,15 +24,15 @@ import { useAuth } from '../contexts/AuthContext';
 import * as Clipboard from 'expo-clipboard';
 import { LeaveLeagueModal } from '../components/CustomModals';
 
-type SortKey = 'total' | 'matches' | 'groups' | 'knockout' | 'penalty';
+type SortKey = 'total' | 'matches' | 'groups' | 'knockout' | 'fine';
 
 interface RouteParams {
   leagueId: string | number;
 }
 
-// Extended standing with optional penalty (API may not return it yet)
-interface StandingWithPenalty extends LeagueStanding {
-  penalty?: number;
+// Extended standing with optional fine (point deduction; API returns as penalty)
+interface StandingWithFine extends LeagueStanding {
+  penalty?: number; // API field
 }
 
 const PODIUM_MEDAL_CONFIG = [
@@ -83,7 +83,7 @@ function PodiumSection({
   currentUserId,
   truncateName,
 }: {
-  topThree: StandingWithPenalty[];
+  topThree: StandingWithFine[];
   currentUserId: number | null;
   truncateName: (name: string) => string;
 }) {
@@ -136,7 +136,7 @@ function AnimatedPlayerRow({
   liveMatchPredictionsList,
   side,
 }: {
-  item: StandingWithPenalty;
+  item: StandingWithFine;
   index: number;
   currentUserId: number | null;
   truncateName: (name: string) => string;
@@ -154,7 +154,7 @@ function AnimatedPlayerRow({
   }, []);
 
   const isCurrentUser = currentUserId !== null && item.user_id === currentUserId;
-  const penaltyVal = item.penalty ?? 0;
+  const fineVal = item.penalty ?? 0; // API returns penalty
   const groupsPlusThird = (item.groups_points ?? 0) + (item.third_place_points ?? 0);
   const rowBg = index % 2 === 0 ? '#0f172a' : '#111827';
   const rank = index + 1;
@@ -214,10 +214,10 @@ function AnimatedPlayerRow({
           <View style={styles.colNum}>
             <Text style={[styles.cellText, styles.cellCenter]}>{item.knockout_points ?? 0}</Text>
           </View>
-          <View style={styles.colPen}>
-            {penaltyVal > 0 ? (
-              <View style={styles.penaltyBadge}>
-                <Text style={styles.penaltyBadgeText}>{penaltyVal}</Text>
+          <View style={styles.colFine}>
+            {fineVal > 0 ? (
+              <View style={styles.fineBadge}>
+                <Text style={styles.fineBadgeText}>{fineVal}</Text>
               </View>
             ) : null}
           </View>
@@ -418,9 +418,9 @@ export default function LeagueDetailsScreen() {
 
   const sortedStandings = useMemo(() => {
     if (!standingsData?.standings) return [];
-    const standings = [...standingsData.standings] as StandingWithPenalty[];
-    const penalty = (s: StandingWithPenalty) => s.penalty ?? 0;
-    const groupsPlusThird = (s: StandingWithPenalty) =>
+    const standings = [...standingsData.standings] as StandingWithFine[];
+    const fine = (s: StandingWithFine) => s.penalty ?? 0; // API returns penalty
+    const groupsPlusThird = (s: StandingWithFine) =>
       (s.groups_points ?? 0) + (s.third_place_points ?? 0);
 
     standings.sort((a, b) => {
@@ -433,8 +433,8 @@ export default function LeagueDetailsScreen() {
           return groupsPlusThird(b) - groupsPlusThird(a);
         case 'knockout':
           return (b.knockout_points ?? 0) - (a.knockout_points ?? 0);
-        case 'penalty':
-          return penalty(b) - penalty(a);
+        case 'fine':
+          return fine(b) - fine(a);
         default:
           return 0;
       }
@@ -635,13 +635,13 @@ export default function LeagueDetailsScreen() {
                       </View>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.colPen, styles.headerIconCell]}
-                      onPress={() => setSortBy('penalty')}
+                      style={[styles.colFine, styles.headerIconCell]}
+                      onPress={() => setSortBy('fine')}
                       activeOpacity={0.7}
                     >
                       <View style={styles.headerIconWrapper}>
-                        <Ionicons name={sortBy === 'penalty' ? 'warning' : 'warning-outline'} size={14} color={sortBy === 'penalty' ? '#ef4444' : 'rgba(239,68,68,0.4)'} />
-                        <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'penalty' ? '#ef4444' : 'transparent' }]} />
+                        <Ionicons name={sortBy === 'fine' ? 'warning' : 'warning-outline'} size={14} color={sortBy === 'fine' ? '#ef4444' : 'rgba(239,68,68,0.4)'} />
+                        <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'fine' ? '#ef4444' : 'transparent' }]} />
                       </View>
                     </TouchableOpacity>
                   </View>
@@ -727,10 +727,10 @@ export default function LeagueDetailsScreen() {
                       {currentUserStanding.knockout_points ?? 0}
                     </Text>
                   </View>
-                  <View style={styles.colPen}>
+                  <View style={styles.colFine}>
                     {(currentUserStanding.penalty ?? 0) > 0 && (
-                      <View style={styles.penaltyBadge}>
-                        <Text style={styles.penaltyBadgeText}>
+                      <View style={styles.fineBadge}>
+                        <Text style={styles.fineBadgeText}>
                           {currentUserStanding.penalty}
                         </Text>
                       </View>
@@ -1074,7 +1074,7 @@ const styles = StyleSheet.create({
   colNum: {
     width: 36,
   },
-  colPen: {
+  colFine: {
     width: 36,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1194,14 +1194,14 @@ const styles = StyleSheet.create({
   cellBold: {
     fontWeight: 'bold',
   },
-  penaltyBadge: {
+  fineBadge: {
     backgroundColor: 'rgba(220, 38, 38, 0.4)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
     alignSelf: 'center',
   },
-  penaltyBadgeText: {
+  fineBadgeText: {
     fontSize: 11,
     fontWeight: '600',
     color: '#fca5a5',

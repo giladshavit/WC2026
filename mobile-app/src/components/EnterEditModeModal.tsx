@@ -41,7 +41,7 @@ export default function EnterEditModeModal({
 
           {/* Subtitle */}
           <Text style={styles.subtitle}>
-            To make changes to your bracket, switch to Edit Mode. Note that saving changes will apply penalty points.
+            To make changes to your bracket, switch to Edit Mode. Note that saving changes will apply fine points.
           </Text>
 
           {/* Primary button */}
