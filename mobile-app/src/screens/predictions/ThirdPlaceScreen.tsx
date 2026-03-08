@@ -484,10 +484,11 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
           <View style={styles.headerLeft}>
             <TouchableOpacity
               onPress={() => setShowStats(true)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={styles.statsButton}
+              activeOpacity={0.8}
             >
-              <Ionicons name="stats-chart" size={22} color="#ffffff" />
+              <Ionicons name="stats-chart" size={14} color="#ffffff" />
+              <Text style={styles.statsButtonText}>Stats</Text>
             </TouchableOpacity>
           </View>
 
@@ -713,13 +714,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   statsButton: {
-    backgroundColor: '#0284c7',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 4,
     marginLeft: 8,
+  },
+  statsButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   headerRightSpacer: {
     minWidth: 90,

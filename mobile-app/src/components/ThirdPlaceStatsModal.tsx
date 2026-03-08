@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService, ThirdPlaceStats } from '../services/api';
 
 interface Props {
@@ -19,15 +20,15 @@ export default function ThirdPlaceStatsModal({ visible, onClose }: Props) {
   const [stats, setStats] = useState<ThirdPlaceStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sortByPct, setSortByPct] = useState(false);
+  const [sortByPct, setSortByPct] = useState(true);
 
   useEffect(() => {
     if (visible) {
+      setSortByPct(true);
       fetchStats();
     } else {
       setStats(null);
       setError(null);
-      setSortByPct(false);
     }
   }, [visible]);
 
@@ -47,33 +48,52 @@ export default function ThirdPlaceStatsModal({ visible, onClose }: Props) {
   const renderPreResult = () => {
     if (!stats || !stats.group_pick_pct) return null;
 
-    let entries = Object.entries(stats.group_pick_pct);
-    if (sortByPct) {
-      entries.sort((a, b) => b[1] - a[1]);
-    } else {
-      entries.sort((a, b) => a[0].localeCompare(b[0]));
-    }
+    const allEntries = Object.entries(stats.group_pick_pct);
+
+    // Always compute rank by % to determine colors
+    const sortedByPct = [...allEntries].sort((a, b) => b[1] - a[1]);
+    const rank8Pct = sortedByPct[7]?.[1];
+    const rank9Pct = sortedByPct[8]?.[1];
+    const isTie = rank8Pct !== undefined && rank9Pct !== undefined && rank8Pct === rank9Pct;
+
+    const getRowColor = (group: string): string => {
+      const rank = sortedByPct.findIndex(([g]) => g === group);
+      const pct = stats!.group_pick_pct![group];
+      if (isTie && pct === rank8Pct) return '#f97316'; // orange tie
+      if (rank < 8) return '#16a34a'; // green top 8
+      return '#ef4444'; // red bottom 4
+    };
+
+    // Display order based on sort toggle
+    const displayEntries = sortByPct
+      ? [...allEntries].sort((a, b) => b[1] - a[1])
+      : [...allEntries].sort((a, b) => a[0].localeCompare(b[0]));
 
     return (
       <View>
         <View style={styles.sortRow}>
           <Text style={styles.sectionTitle}>Group Pick Rate</Text>
-          <TouchableOpacity onPress={() => setSortByPct(!sortByPct)}>
-            <Text style={styles.sortButton}>
-              {sortByPct ? 'Sort A-L' : 'Sort by %'}
+          <TouchableOpacity onPress={() => setSortByPct(!sortByPct)} style={styles.sortButtonWrapper}>
+            <Text style={styles.sortButtonText}>
+              {sortByPct ? 'Sort A–L' : 'Sort by %'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {entries.map(([group, pct]) => (
-          <View key={group} style={styles.groupRow}>
-            <Text style={styles.groupLabel}>Group {group}</Text>
-            <View style={styles.barWrapper}>
-              <View style={[styles.bar, { width: `${Math.max(pct, 2)}%` }]} />
+        {displayEntries.map(([group, pct]) => {
+          const color = getRowColor(group);
+          return (
+            <View key={group} style={styles.groupRow}>
+              <Text style={[styles.groupLabel, { color, fontWeight: '700' }]}>
+                Group {group}
+              </Text>
+              <View style={styles.barWrapper}>
+                <View style={[styles.bar, { width: `${Math.max(pct, 2)}%`, backgroundColor: color }]} />
+              </View>
+              <Text style={[styles.pctText, { color, fontWeight: '600' }]}>{pct}%</Text>
             </View>
-            <Text style={styles.pctText}>{pct}%</Text>
-          </View>
-        ))}
+          );
+        })}
       </View>
     );
   };
@@ -81,7 +101,7 @@ export default function ThirdPlaceStatsModal({ visible, onClose }: Props) {
   const renderPostResult = () => {
     if (!stats || !stats.group_accuracy || !stats.accuracy_distribution) return null;
 
-    const accuracyEntries = Object.entries(stats.group_accuracy).sort();
+    const accuracyEntries = Object.entries(stats.group_accuracy).sort((a, b) => b[1] - a[1]);
 
     return (
       <View>
@@ -98,12 +118,18 @@ export default function ThirdPlaceStatsModal({ visible, onClose }: Props) {
 
         <Text style={[styles.sectionTitle, { marginTop: 16 }]}>How Many Groups Right?</Text>
         <View style={styles.distContainer}>
-          {[4, 5, 6, 7, 8].map((n) => {
+          {[
+            { n: 4, color: '#fee2e2', textColor: '#dc2626' },   // red - worst
+            { n: 5, color: '#ffedd5', textColor: '#ea580c' },  // orange
+            { n: 6, color: '#fef9c3', textColor: '#b45309' },    // yellow
+            { n: 7, color: '#bbf7d0', textColor: '#15803d' },    // light green
+            { n: 8, color: '#dcfce7', textColor: '#16a34a' },    // green - best
+          ].map(({ n, color, textColor }) => {
             const pct = stats.accuracy_distribution![String(n)] || 0;
             return (
-              <View key={n} style={styles.distItem}>
-                <Text style={styles.distPct}>{pct}%</Text>
-                <Text style={styles.distLabel}>{n}/8</Text>
+              <View key={n} style={[styles.distItem, { backgroundColor: color }]}>
+                <Text style={[styles.distPct, { color: textColor }]}>{pct}%</Text>
+                <Text style={[styles.distLabel, { color: textColor }]}>{n}/8</Text>
               </View>
             );
           })}
@@ -117,9 +143,9 @@ export default function ThirdPlaceStatsModal({ visible, onClose }: Props) {
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity style={styles.modalContent} activeOpacity={1} onPress={() => {}}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>3rd Place Statistics</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={styles.closeButton}>✕</Text>
+            <Text style={[styles.modalTitle, { flex: 1, textAlign: 'center' }]}>3rd Place Statistics</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButtonWrapper}>
+              <Ionicons name="close" size={22} color="#9ca3af" />
             </TouchableOpacity>
           </View>
 
@@ -127,8 +153,7 @@ export default function ThirdPlaceStatsModal({ visible, onClose }: Props) {
           {error && <Text style={styles.errorText}>{error}</Text>}
 
           {stats && !loading && (
-            <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
-              <Text style={styles.totalText}>{stats.total_predictions} predictions</Text>
+            <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
               {stats.has_result ? renderPostResult() : renderPreResult()}
             </ScrollView>
           )}
@@ -154,24 +179,21 @@ const styles = StyleSheet.create({
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+    position: 'relative',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1f2937',
   },
-  closeButton: {
-    fontSize: 20,
-    color: '#9ca3af',
-    paddingLeft: 12,
-  },
-  totalText: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginBottom: 12,
+  closeButtonWrapper: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    padding: 4,
   },
   sectionTitle: {
     fontSize: 14,
@@ -185,15 +207,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  sortButton: {
+  sortButtonWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 4,
+  },
+  sortButtonText: {
+    color: '#ffffff',
     fontSize: 12,
-    color: '#16a34a',
     fontWeight: '600',
   },
   groupRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    backgroundColor: '#f9fafb',
   },
   groupLabel: {
     width: 60,
@@ -203,7 +238,7 @@ const styles = StyleSheet.create({
   },
   barWrapper: {
     flex: 1,
-    height: 16,
+    height: 20,
     backgroundColor: '#f3f4f6',
     borderRadius: 4,
     overflow: 'hidden',
@@ -225,25 +260,30 @@ const styles = StyleSheet.create({
   },
   distContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 4,
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingHorizontal: 4,
+    gap: 6,
   },
   distItem: {
+    flex: 1,
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    padding: 8,
-    minWidth: 52,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    minWidth: 0,
   },
   distPct: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: 'bold',
-    color: '#1f2937',
+    textAlign: 'center',
+    flexShrink: 1,
   },
   distLabel: {
     fontSize: 11,
-    color: '#9ca3af',
     marginTop: 2,
+    textAlign: 'center',
+    flexShrink: 1,
   },
   errorText: {
     color: '#ef4444',
