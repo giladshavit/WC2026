@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from utils.datetime_utils import datetime_to_utc_iso as _to_utc_iso
 from models.matches import Match, MatchStatus
 from models.predictions import MatchPrediction
+from services.predictions.enums import MatchPredictionStatus
 from models.user_scores import UserScores
 from models.results import MatchResult
 from services.database import DBReader, DBWriter, DBUtils
@@ -36,7 +37,18 @@ class MatchPredictionService:
         if not match_ids_to_create:
             return 0
 
+        match_id_to_match = {m.id: m for m in group_matches}
         DBWriter.bulk_create_match_predictions(db, user_id, match_ids_to_create)
+
+        # Mark predictions as incorrect (red) for matches that already have finalized results
+        for match_id in match_ids_to_create:
+            match = match_id_to_match.get(match_id)
+            if match and match.status == MatchStatus.FINISHED.value:
+                prediction = DBReader.get_match_prediction(db, user_id, match_id)
+                if prediction:
+                    DBWriter.update_match_prediction_status(db, prediction, MatchPredictionStatus.WRONG)
+
+        DBUtils.flush(db)
         return len(match_ids_to_create)
 
     # ========================================

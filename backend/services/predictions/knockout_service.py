@@ -670,9 +670,16 @@ class KnockoutService:
                 winner_team_id=None,
                 is_editable=True
             )
-            current_stage = StageManager.get_current_stage(db)
-            check_reachable = current_stage.value >= Stage.PRE_ROUND32.value
-            KnockoutService._compute_and_set_status(db, prediction, check_reachable=check_reachable)
+            # Mark as incorrect (red) if knockout result already finalized
+            knockout_result = DBReader.get_knockout_result_by_id(db, knockout_result_id)
+            if knockout_result and knockout_result.winner_team_id:
+                DBWriter.set_prediction_status(prediction, KnockoutPredictionStatus.INCORRECT.value)
+                DBWriter.update_knockout_prediction(db, prediction, is_editable=False)
+                DBUtils.flush(db)
+            else:
+                current_stage = StageManager.get_current_stage(db)
+                check_reachable = current_stage.value >= Stage.PRE_ROUND32.value
+                KnockoutService._compute_and_set_status(db, prediction, check_reachable=check_reachable)
             created.append(prediction)
 
         DBUtils.flush(db)

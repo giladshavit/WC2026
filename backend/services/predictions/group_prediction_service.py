@@ -123,7 +123,7 @@ class GroupPredictionService:
             if existing:
                 continue
 
-            DBWriter.create_group_prediction(
+            prediction = DBWriter.create_group_prediction(
                 db,
                 user_id=user_id,
                 group_id=group.id,
@@ -133,6 +133,19 @@ class GroupPredictionService:
                 fourth=None,
             )
             created += 1
+
+            # Mark as incorrect (red) if group result already finalized
+            group_result = DBReader.get_group_stage_result(db, group.id)
+            if group_result:
+                DBWriter.update_group_prediction_accuracy(
+                    db, prediction,
+                    first_correct=False,
+                    second_correct=False,
+                    third_correct=False,
+                    fourth_correct=False,
+                    correct_positions_count=0,
+                )
+                DBWriter.update_group_prediction(db, prediction, points=0, is_editable=False)
 
         DBUtils.flush(db)
         return created

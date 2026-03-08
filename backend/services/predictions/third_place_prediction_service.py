@@ -190,11 +190,19 @@ class ThirdPlacePredictionService:
         if existing:
             return False
 
-        DBWriter.create_third_place_prediction(
+        prediction = DBWriter.create_third_place_prediction(
             db,
             user_id=user_id,
             team_ids=[None, None, None, None, None, None, None, None],
         )
+
+        # Mark as incorrect (red) if third place result already finalized
+        third_place_result = DBReader.get_third_place_result(db)
+        if third_place_result:
+            DBWriter.update_third_place_prediction_fields(
+                db, prediction, correct_groups_count=0, points=0, is_editable=False
+            )
+
         DBUtils.flush(db)
         return True
 
