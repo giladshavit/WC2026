@@ -8,6 +8,7 @@ import AuthScreen from './src/screens/auth/AuthScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import { TournamentProvider } from './src/contexts/TournamentContext';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { ToastProvider } from './src/components/Toast';
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -30,10 +31,12 @@ function AppContent() {
   }
 
   return (
-    <NavigationContainer>
-      {isAuthenticated ? <MainNavigator /> : <AuthScreen />}
-      <StatusBar style="auto" />
-    </NavigationContainer>
+    <ToastProvider>
+      <NavigationContainer>
+        {isAuthenticated ? <MainNavigator /> : <AuthScreen />}
+        <StatusBar style="auto" />
+      </NavigationContainer>
+    </ToastProvider>
   );
 }
 
