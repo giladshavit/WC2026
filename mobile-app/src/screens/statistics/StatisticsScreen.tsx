@@ -492,7 +492,7 @@ export default function StatisticsScreen() {
 
             const allSegments = [
               { value: groups,   color: '#f59e0b', label: 'Groups' },
-              { value: thirdPl,  color: '#f97316', label: '3rd Place' },
+              { value: thirdPl,  color: '#f97316', label: 'Third Place' },
               { value: knockout, color: '#92400e', label: 'Knockout' },
             ];
 
