@@ -56,10 +56,20 @@ class KnockoutStatisticsService:
         )
         matchup = KnockoutStatisticsService._count_correct_matchups(predictions, result)
 
+        team1 = DBReader.get_team(db, result.team_1) if result.team_1 else None
+        team2 = DBReader.get_team(db, result.team_2) if result.team_2 else None
+        winner_team = DBReader.get_team(db, winner_id) if winner_id else None
+
         return {
             "template_match_id": template_match_id,
             "has_result": True,
             "total_predictions": total,
+            "winner_name": winner_team.name if winner_team else None,
+            "winner_flag": winner_team.flag_url if winner_team else None,
+            "team1_name": team1.name if team1 else None,
+            "team1_flag": team1.flag_url if team1 else None,
+            "team2_name": team2.name if team2 else None,
+            "team2_flag": team2.flag_url if team2 else None,
             "exact_winner_pct": KnockoutStatisticsService._pct(exact, total),
             "partial_winner_pct": KnockoutStatisticsService._pct(partial, total),
             "correct_matchup_pct": KnockoutStatisticsService._pct(matchup, total),
@@ -120,13 +130,25 @@ class KnockoutStatisticsService:
         team_a = DBReader.get_team(db, team_ids[0])
         team_b = DBReader.get_team(db, team_ids[1])
         winners = matchup_winners.get(pair, Counter())
+        winner_a = winners.get(team_ids[0], 0)
+        winner_b = winners.get(team_ids[1], 0)
+        decided = winner_a + winner_b  # only predictions with a winner set
 
         return {
-            "team_a": {"id": team_ids[0], "name": team_a.name if team_a else "Unknown"},
-            "team_b": {"id": team_ids[1], "name": team_b.name if team_b else "Unknown"},
+            "team_a": {
+                "id": team_ids[0],
+                "name": team_a.name if team_a else "Unknown",
+                "flag_url": team_a.flag_url if team_a else None,
+            },
+            "team_b": {
+                "id": team_ids[1],
+                "name": team_b.name if team_b else "Unknown",
+                "flag_url": team_b.flag_url if team_b else None,
+            },
             "matchup_pct": KnockoutStatisticsService._pct(count, total),
-            "team_a_winner_pct": KnockoutStatisticsService._pct(winners.get(team_ids[0], 0), count),
-            "team_b_winner_pct": KnockoutStatisticsService._pct(winners.get(team_ids[1], 0), count),
+            "team_a_winner_pct": 50.0 if decided == 0 else KnockoutStatisticsService._pct(winner_a, decided),
+            "team_b_winner_pct": 50.0 if decided == 0 else KnockoutStatisticsService._pct(winner_b, decided),
+            "winner_decided_pct": KnockoutStatisticsService._pct(decided, count),
         }
 
     # ═══════════════════════════════════════════════════════

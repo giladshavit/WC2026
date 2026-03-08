@@ -129,24 +129,8 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
         borderWidth: 1,
         borderColor: '#d1d5db',
       },
-      isLocked && { opacity: 0.45 },
     ]}>
-      {showScoreBadge ? (
-        <View style={[styles.scoreBadge, { backgroundColor: scoreBadgeColor }]}>
-          <Text style={styles.scoreBadgeText}>
-            {prediction.points !== undefined ? prediction.points : '?'}
-          </Text>
-        </View>
-      ) : isUnreachable ? (
-        <View style={[styles.warningIconTopRight, styles.invalidIndicator, styles.unreachableIndicator]}>
-          <Ionicons name="alert-circle-outline" size={22} color="#ca8a04" />
-        </View>
-      ) : isInvalid ? (
-        <View style={[styles.warningIconTopRight, styles.invalidIndicator]}>
-          <Ionicons name="warning-outline" size={12} color="#ffffff" style={{ marginTop: 1 }} />
-        </View>
-      ) : null}
-
+      {/* Stats button — always full opacity, rendered outside the blurred layer */}
       <TouchableOpacity
         onPress={(e) => {
           e.stopPropagation();
@@ -154,13 +138,32 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
         }}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         style={styles.statsButton}
+        activeOpacity={0.8}
       >
         <View style={styles.statsButtonInner}>
-          <Ionicons name="stats-chart" size={11} color="#ffffff" />
+          <Ionicons name="stats-chart" size={14} color="#ffffff" />
         </View>
       </TouchableOpacity>
 
-      <View style={styles.halvesRow}>
+      {/* Everything else gets dimmed when locked */}
+      <View style={isLocked ? { opacity: 0.45 } : undefined}>
+        {showScoreBadge ? (
+          <View style={[styles.scoreBadge, { backgroundColor: scoreBadgeColor }]}>
+            <Text style={styles.scoreBadgeText}>
+              {prediction.points !== undefined ? prediction.points : '?'}
+            </Text>
+          </View>
+        ) : isUnreachable ? (
+          <View style={[styles.warningIconTopRight, styles.invalidIndicator, styles.unreachableIndicator]}>
+            <Ionicons name="alert-circle-outline" size={22} color="#ca8a04" />
+          </View>
+        ) : isInvalid ? (
+          <View style={[styles.warningIconTopRight, styles.invalidIndicator]}>
+            <Ionicons name="warning-outline" size={12} color="#ffffff" style={{ marginTop: 1 }} />
+          </View>
+        ) : null}
+
+        <View style={styles.halvesRow}>
         {renderTeamHalf(
           prediction.team1_id,
           team1IsTBD,
@@ -183,6 +186,7 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
           team2Bg,
           team2TextColor
         )}
+        </View>
       </View>
 
       <KnockoutStatsModal
@@ -317,17 +321,18 @@ const styles = StyleSheet.create({
     left: 8,
     zIndex: 10,
   },
-  statsButtonRight: {
-    left: undefined,
-    right: 8,
-  },
   statsButtonInner: {
     backgroundColor: '#0284c7',
-    borderRadius: 11,
-    width: 22,
-    height: 22,
+    borderRadius: 14,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
 });
 

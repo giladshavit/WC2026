@@ -6,7 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Image,
+  ScrollView,
 } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService, KnockoutStats } from '../services/api';
 
 interface Props {
@@ -51,23 +54,40 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
         <Text style={styles.sectionTitle}>Most Popular Matchups</Text>
         {stats.top_matchups.map((matchup, index) => (
           <View key={index} style={styles.matchupCard}>
-            <View style={styles.matchupHeader}>
-              <Text style={styles.matchupTeams}>
-                {matchup.team_a.name} vs {matchup.team_b.name}
-              </Text>
-              <Text style={styles.matchupPct}>{matchup.matchup_pct}%</Text>
+            <Text style={styles.matchupSubtitle}>
+              <Text style={{ fontWeight: '800', color: '#374151' }}>{matchup.matchup_pct}%</Text>
+              {' of predictions'}
+            </Text>
+            <View style={styles.teamsRow}>
+              <View style={styles.teamColumn}>
+                {matchup.team_a.flag_url ? (
+                  <Image source={{ uri: matchup.team_a.flag_url }} style={styles.teamFlag} />
+                ) : (
+                  <View style={styles.teamFlagPlaceholder} />
+                )}
+                <Text style={styles.teamNameInCard} numberOfLines={2}>{matchup.team_a.name}</Text>
+              </View>
+              <Text style={styles.vsLabel}>vs</Text>
+              <View style={styles.teamColumn}>
+                {matchup.team_b.flag_url ? (
+                  <Image source={{ uri: matchup.team_b.flag_url }} style={styles.teamFlag} />
+                ) : (
+                  <View style={styles.teamFlagPlaceholder} />
+                )}
+                <Text style={styles.teamNameInCard} numberOfLines={2}>{matchup.team_b.name}</Text>
+              </View>
             </View>
             <View style={styles.winnerBar}>
-              <View style={[styles.winnerSegmentA, { flex: matchup.team_a_winner_pct || 1 }]}>
-                <Text style={styles.winnerBarText}>{matchup.team_a_winner_pct}%</Text>
-              </View>
-              <View style={[styles.winnerSegmentB, { flex: matchup.team_b_winner_pct || 1 }]}>
-                <Text style={styles.winnerBarText}>{matchup.team_b_winner_pct}%</Text>
-              </View>
-            </View>
-            <View style={styles.winnerLabels}>
-              <Text style={styles.winnerLabelA}>{matchup.team_a.name}</Text>
-              <Text style={styles.winnerLabelB}>{matchup.team_b.name}</Text>
+              {(matchup.team_a_winner_pct ?? 0) > 0 && (
+                <View style={[styles.winnerSegmentA, { flex: matchup.team_a_winner_pct }]}>
+                  <Text style={styles.winnerBarText}>{matchup.team_a_winner_pct}%</Text>
+                </View>
+              )}
+              {(matchup.team_b_winner_pct ?? 0) > 0 && (
+                <View style={[styles.winnerSegmentB, { flex: matchup.team_b_winner_pct }]}>
+                  <Text style={styles.winnerBarText}>{matchup.team_b_winner_pct}%</Text>
+                </View>
+              )}
             </View>
           </View>
         ))}
@@ -79,21 +99,75 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
     if (!stats) return null;
 
     const items = [
-      { label: 'Exact winner', pct: stats.exact_winner_pct || 0, color: '#16a34a' },
-      { label: 'Winner via other match', pct: stats.partial_winner_pct || 0, color: '#f59e0b' },
-      { label: 'Correct matchup', pct: stats.correct_matchup_pct || 0, color: '#3b82f6' },
+      {
+        icon: 'trophy-outline' as const,
+        iconColor: '#16a34a',
+        bgColor: '#f0fdf4',
+        pct: stats.exact_winner_pct || 0,
+        barColor: '#16a34a',
+        labelParts: [
+          { type: 'flag' as const, value: stats.winner_flag || '' },
+          { type: 'text' as const, value: 'exact winner' },
+        ],
+      },
+      {
+        icon: 'shuffle-outline' as const,
+        iconColor: '#f59e0b',
+        bgColor: '#fffbeb',
+        pct: stats.partial_winner_pct || 0,
+        barColor: '#f59e0b',
+        labelParts: [
+          { type: 'flag' as const, value: stats.winner_flag || '' },
+          { type: 'text' as const, value: 'winner from different match' },
+        ],
+      },
+      {
+        icon: 'people-outline' as const,
+        iconColor: '#3b82f6',
+        bgColor: '#eff6ff',
+        pct: stats.correct_matchup_pct || 0,
+        barColor: '#3b82f6',
+        labelParts: [
+          { type: 'flag' as const, value: stats.team1_flag || '' },
+          { type: 'text' as const, value: 'vs' },
+          { type: 'flag' as const, value: stats.team2_flag || '' },
+          { type: 'text' as const, value: 'exact matchup' },
+        ],
+      },
     ];
 
     return (
       <View>
-        <Text style={styles.sectionTitle}>Prediction Accuracy</Text>
-        {items.map((item, i) => (
-          <View key={i} style={styles.accuracyRow}>
-            <Text style={styles.accuracyLabel}>{item.label}</Text>
-            <View style={styles.barWrapper}>
-              <View style={[styles.bar, { width: `${Math.max(item.pct, 2)}%`, backgroundColor: item.color }]} />
+        {/* Winner banner */}
+        {(stats.winner_name || stats.winner_flag) && (
+          <View style={styles.winnerBanner}>
+            {stats.winner_flag && (
+              <Image source={{ uri: stats.winner_flag }} style={styles.winnerFlag} />
+            )}
+            <View>
+              <Text style={styles.winnerLabel}>Match Winner</Text>
+              <Text style={styles.winnerName}>{stats.winner_name || ''}</Text>
             </View>
-            <Text style={styles.accuracyPct}>{item.pct}%</Text>
+          </View>
+        )}
+
+        {/* Stat cards */}
+        {items.map((item, i) => (
+          <View key={i} style={[styles.statCard, { backgroundColor: item.bgColor }]}>
+            <View style={styles.statCardHeader}>
+              <Ionicons name={item.icon} size={18} color={item.iconColor} />
+              <View style={styles.statLabelRow}>
+                {item.labelParts.map((part, j) =>
+                  part.type === 'text'
+                    ? <Text key={j} style={styles.statCardLabel} numberOfLines={1}>{part.value}</Text>
+                    : part.value ? <Image key={j} source={{ uri: part.value }} style={styles.inlineFlag} /> : null
+                )}
+              </View>
+              <Text style={[styles.statCardPct, { color: item.iconColor }]}>{item.pct}%</Text>
+            </View>
+            <View style={styles.statBarWrapper}>
+              <View style={[styles.statBar, { width: `${Math.max(item.pct, 2)}%`, backgroundColor: item.barColor }]} />
+            </View>
           </View>
         ))}
       </View>
@@ -105,8 +179,8 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity style={styles.modalContent} activeOpacity={1} onPress={() => {}}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Match Statistics</Text>
-            <TouchableOpacity onPress={onClose}>
+            <Text style={styles.modalTitle}>Knockout Match Statistics</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButtonWrapper}>
               <Text style={styles.closeButton}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -115,10 +189,9 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
           {error && <Text style={styles.errorText}>{error}</Text>}
 
           {stats && !loading && (
-            <View>
-              <Text style={styles.totalText}>{stats.total_predictions} predictions</Text>
+            <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
               {stats.has_result ? renderPostResult() : renderPreResult()}
-            </View>
+            </ScrollView>
           )}
         </TouchableOpacity>
       </TouchableOpacity>
@@ -142,24 +215,27 @@ const styles = StyleSheet.create({
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+    position: 'relative',
   },
   modalTitle: {
+    flex: 1,
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1f2937',
+    textAlign: 'center',
+  },
+  closeButtonWrapper: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    padding: 4,
   },
   closeButton: {
     fontSize: 20,
     color: '#9ca3af',
-    paddingLeft: 12,
-  },
-  totalText: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 14,
@@ -170,25 +246,50 @@ const styles = StyleSheet.create({
   matchupCard: {
     backgroundColor: '#f9fafb',
     borderRadius: 8,
-    padding: 10,
+    padding: 14,
+    marginBottom: 10,
+  },
+  matchupSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+    textAlign: 'center',
     marginBottom: 8,
   },
-  matchupHeader: {
+  teamsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  matchupTeams: {
+  teamColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  vsLabel: {
     fontSize: 13,
+    fontWeight: '700',
+    color: '#9ca3af',
+    marginHorizontal: 4,
+  },
+  teamFlagPlaceholder: {
+    width: 40,
+    height: 28,
+    borderRadius: 4,
+    backgroundColor: '#e5e7eb',
+    marginBottom: 4,
+  },
+  teamFlag: {
+    width: 40,
+    height: 28,
+    borderRadius: 4,
+    marginBottom: 4,
+  },
+  teamNameInCard: {
+    fontSize: 12,
     fontWeight: '600',
     color: '#1f2937',
-    flex: 1,
-  },
-  matchupPct: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#6b7280',
+    textAlign: 'center',
   },
   winnerBar: {
     flexDirection: 'row',
@@ -211,48 +312,74 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
-  winnerLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 2,
-  },
-  winnerLabelA: {
-    fontSize: 10,
-    color: '#16a34a',
-  },
-  winnerLabelB: {
-    fontSize: 10,
-    color: '#3b82f6',
-    textAlign: 'right',
-  },
-  accuracyRow: {
+  winnerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  winnerFlag: {
+    width: 44,
+    height: 32,
+    borderRadius: 4,
+  },
+  winnerLabel: {
+    fontSize: 11,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  winnerName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#15803d',
+  },
+  statCard: {
+    borderRadius: 10,
+    padding: 12,
     marginBottom: 8,
   },
-  accuracyLabel: {
-    width: 110,
+  statCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  statLabelRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'nowrap',
+    overflow: 'hidden',
+    gap: 4,
+  },
+  statCardLabel: {
     fontSize: 12,
     color: '#374151',
+    fontWeight: '500',
   },
-  barWrapper: {
-    flex: 1,
+  inlineFlag: {
+    width: 22,
     height: 16,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 4,
+    borderRadius: 2,
+  },
+  statCardPct: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  statBarWrapper: {
+    height: 6,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 3,
     overflow: 'hidden',
-    marginHorizontal: 8,
   },
-  bar: {
+  statBar: {
     height: '100%',
-    borderRadius: 4,
-  },
-  accuracyPct: {
-    width: 42,
-    fontSize: 12,
-    color: '#6b7280',
-    textAlign: 'right',
-    fontWeight: '600',
+    borderRadius: 3,
   },
   errorText: {
     color: '#ef4444',
