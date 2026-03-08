@@ -1,14 +1,26 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, BackHandler } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation, useFocusEffect, useIsFocused } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GroupPrediction, apiService, GroupsResponse } from '../../services/api';
 import GroupCard from '../../components/GroupCard';
 import { useTournament } from '../../contexts/TournamentContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { FineConfirmationModal, UnsavedChangesModal } from '../../components/CustomModals';
+import { FineConfirmationModal, UnsavedChangesModal, ErrorModal, ValidationModal } from '../../components/CustomModals';
+import { useToast } from '../../components/Toast';
 
 export default function GroupsScreen() {
+  const { showToast } = useToast();
+  const [errorModal, setErrorModal] = useState<{
+    title: string;
+    message: string;
+    goBack?: boolean;
+  } | null>(null);
+  const [validationModal, setValidationModal] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
   const [groups, setGroups] = useState<GroupPrediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -94,7 +106,8 @@ export default function GroupsScreen() {
     try {
       const userId = getCurrentUserId();
       if (!userId) {
-        Alert.alert('Error', 'User not authenticated');
+        setErrorModal({ title: 'Error', message: 'User not authenticated', goBack: true });
+        setLoading(false);
         return;
       }
       
@@ -139,7 +152,7 @@ export default function GroupsScreen() {
       setGroupsScore(data.groups_score);
     } catch (error) {
       console.error('Error fetching groups:', error);
-      Alert.alert('Error', 'Could not load groups. Please check that the server is running.');
+      setErrorModal({ title: 'Error', message: 'Could not load groups. Please check your connection.', goBack: true });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -219,7 +232,7 @@ export default function GroupsScreen() {
       }));
     } catch (error) {
       console.error('Error auto-saving group:', error);
-      Alert.alert('Error', 'Could not save, please try again.');
+      showToast('Could not save, please try again', 'error');
     } finally {
       setAutoSaving(false);
     }
@@ -313,11 +326,10 @@ export default function GroupsScreen() {
         .filter(name => name !== '')
         .join(', ');
       
-      Alert.alert(
-        'Incomplete Predictions',
-        `Please complete at least 3 positions for: ${groupNames}`,
-        [{ text: 'OK' }]
-      );
+      setValidationModal({
+        title: 'Incomplete Predictions',
+        message: `Please complete at least 3 positions for: ${groupNames}`,
+      });
       
       // Keep highlights until user completes them or saves successfully
     }
@@ -325,7 +337,7 @@ export default function GroupsScreen() {
     // If no complete groups to save, return
     if (completeGroups.length === 0) {
       if (incompleteGroupIds.length === 0) {
-        Alert.alert('No Changes', 'No predictions to save');
+        showToast('No predictions to save', 'info');
       }
       return;
     }
@@ -335,7 +347,7 @@ export default function GroupsScreen() {
     try {
       const userId = getCurrentUserId();
       if (!userId) {
-        Alert.alert('Error', 'User not authenticated');
+        setErrorModal({ title: 'Error', message: 'User not authenticated' });
         return;
       }
       
@@ -409,7 +421,7 @@ export default function GroupsScreen() {
       // No success alert - silent save
     } catch (error) {
       console.error('Error saving predictions:', error);
-      Alert.alert('Error', 'Could not save predictions. Please try again.');
+      setErrorModal({ title: 'Error', message: 'Could not save predictions. Please try again.' });
     } finally {
       setSaving(false);
     }
@@ -419,7 +431,7 @@ export default function GroupsScreen() {
     if (!isGroupEditable) return;
     const numberOfChanges = calculateGroupChanges();
     if (numberOfChanges === 0) {
-      Alert.alert('No Changes', 'No predictions to save');
+      showToast('No predictions to save', 'info');
       return;
     }
     setFineModalVisible(true);
@@ -514,6 +526,19 @@ export default function GroupsScreen() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#16a34a" />
         <Text style={styles.loadingText}>Loading groups...</Text>
+        <ErrorModal
+          visible={!!errorModal}
+          title={errorModal?.title ?? 'Error'}
+          message={errorModal?.message ?? ''}
+          onClose={() => setErrorModal(null)}
+          {...(errorModal?.goBack && {
+            onGoBack: () => {
+              setErrorModal(null);
+              navigation.goBack();
+            },
+            goBackLabel: 'Go Back',
+          })}
+        />
       </View>
     );
   }
@@ -521,8 +546,19 @@ export default function GroupsScreen() {
   if (groups.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No groups available</Text>
-        <Text style={styles.emptySubtext}>Check that the server is running and groups are created</Text>
+        <Ionicons name="cloud-offline-outline" size={56} color="#f87171" />
+        <Text style={styles.emptyText}>Could not load groups</Text>
+        <Text style={styles.emptySubtext}>Please check your connection and try again</Text>
+        <ErrorModal
+          visible={!!errorModal}
+          title={errorModal?.title ?? 'Error'}
+          message={errorModal?.message ?? ''}
+          onClose={() => setErrorModal(null)}
+          {...(errorModal?.goBack && {
+            onGoBack: () => { setErrorModal(null); navigation.goBack(); },
+            goBackLabel: 'Go Back',
+          })}
+        />
       </View>
     );
   }
@@ -617,6 +653,25 @@ export default function GroupsScreen() {
           setPendingNavAction(null);
         }}
       />
+      <ErrorModal
+        visible={!!errorModal}
+        title={errorModal?.title ?? 'Error'}
+        message={errorModal?.message ?? ''}
+        onClose={() => setErrorModal(null)}
+        {...(errorModal?.goBack && {
+          onGoBack: () => {
+            setErrorModal(null);
+            navigation.goBack();
+          },
+          goBackLabel: 'Go Back',
+        })}
+      />
+      <ValidationModal
+        visible={!!validationModal}
+        title={validationModal?.title ?? ''}
+        message={validationModal?.message ?? ''}
+        onClose={() => setValidationModal(null)}
+      />
     </View>
   );
 }
@@ -699,7 +754,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#4a5568',
+    marginTop: 16,
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 14,

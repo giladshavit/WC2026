@@ -7,7 +7,21 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { apiService, GroupStats, Team } from '../services/api';
+import { apiService, Team } from '../services/api';
+
+interface GroupStats {
+  total_predictions: number;
+  has_result: boolean;
+  consensus_table?: Array<{ team_id: number; rank: number }>;
+  position_distribution?: Record<string, {
+    first_pct: number;
+    second_pct: number;
+    third_pct: number;
+    fourth_pct: number;
+  }>;
+  position_accuracy?: Record<string, { team_name: string; correct_pct: number }>;
+  accuracy_distribution?: Record<string, number>;
+}
 
 interface Props {
   visible: boolean;
