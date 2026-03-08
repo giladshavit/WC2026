@@ -28,6 +28,7 @@ export interface UserPrediction {
   predicted_winner: number | null;
   points: number | null;
   is_editable: boolean | null;
+  is_tempted?: boolean;
 }
 
 export interface MatchesResponse {
@@ -248,6 +249,7 @@ export interface MemberMatchPrediction {
   away_score: number | null;
   points: number;
   prediction_status: 'exact' | 'correct_outcome' | 'wrong' | null;
+  is_tempted?: boolean;
 }
 
 export interface LeagueMatchPredictionsResponse {
@@ -470,12 +472,34 @@ export class ApiService {
     }
   }
 
+  async getTemptationSuggestions(
+    matchId: number,
+    userId: number
+  ): Promise<{
+    available: boolean;
+    suggestions: Array<{ home_score: number; away_score: number }>;
+  }> {
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/api/predictions/matches/${matchId}/temptation-suggestions?user_id=${userId}`
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching temptation suggestions:', error);
+      throw error;
+    }
+  }
+
   async updateBatchMatchPredictions(
     userId: number,
     predictions: Array<{
       match_id: number;
       home_score: number | null;
       away_score: number | null;
+      is_tempted?: boolean;
     }>
   ): Promise<any> {
     try {
@@ -490,6 +514,7 @@ export class ApiService {
             match_id: p.match_id,
             home_score: p.home_score,
             away_score: p.away_score,
+            is_tempted: p.is_tempted ?? false,
           })),
         }),
       });
@@ -1073,6 +1098,19 @@ export class ApiService {
     }
   }
 
+  async generateTestUsersDraws(count: number = 50): Promise<{ created: number; predictions_filled: number; errors: number }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/admin/create-test-users-draws?count=${count}`, {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error generating draw test users:', error);
+      throw error;
+    }
+  }
+
   async deleteAllResults(): Promise<any> {
     try {
       const response = await fetch(`${this.baseUrl}/api/admin/delete-all-results`, {
@@ -1236,6 +1274,19 @@ export class ApiService {
     }
     const response = await fetch(
       `${this.baseUrl}/api/leagues/${leagueId}/match/${matchId}/predictions`,
+      { headers }
+    );
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }
+
+  async getGlobalMatchPredictions(matchId: number): Promise<LeagueMatchPredictionsResponse> {
+    const headers: HeadersInit = {};
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+    const response = await fetch(
+      `${this.baseUrl}/api/leagues/global/match/${matchId}/predictions`,
       { headers }
     );
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);

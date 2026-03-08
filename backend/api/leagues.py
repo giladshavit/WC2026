@@ -77,6 +77,7 @@ class MemberMatchPrediction(BaseModel):
     away_score: Optional[int] = None
     points: int
     prediction_status: Optional[str] = None  # 'exact', 'correct_outcome', 'wrong', None
+    is_tempted: bool = False
 
 
 class LeagueMatchPredictionsResponse(BaseModel):
@@ -227,6 +228,28 @@ def get_league_standings(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get league standings: {str(e)}"
         )
+
+@router.get("/leagues/global/match/{match_id}/predictions", response_model=LeagueMatchPredictionsResponse)
+def get_global_match_predictions(
+    match_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all users' predictions for a match (global league).
+    Only available when match has started (live or finished).
+    """
+    try:
+        result = LeagueService.get_global_match_predictions(db=db, match_id=match_id)
+        return LeagueMatchPredictionsResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get global match predictions: {str(e)}"
+        )
+
 
 @router.delete("/leagues/{league_id}/leave")
 def leave_league(

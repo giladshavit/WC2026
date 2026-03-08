@@ -550,6 +550,19 @@ class DBReader:
         ).all()
 
     @staticmethod
+    def get_global_match_predictions(db: Session, match_id: int) -> List[Tuple[User, Optional[MatchPrediction]]]:
+        """
+        Get all users with their match predictions for a given match (global standings order).
+        Used for global league live columns.
+        """
+        return db.query(User, MatchPrediction).outerjoin(
+            MatchPrediction,
+            and_(MatchPrediction.user_id == User.id, MatchPrediction.match_id == match_id)
+        ).outerjoin(UserScores, User.id == UserScores.user_id).order_by(
+            desc(UserScores.total_points)
+        ).all()
+
+    @staticmethod
     def get_active_league_by_invite_code(db: Session, invite_code: str) -> Optional[League]:
         return db.query(League).filter(
             League.invite_code == invite_code,

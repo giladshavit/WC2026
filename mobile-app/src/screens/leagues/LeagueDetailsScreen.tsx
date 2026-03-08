@@ -246,7 +246,13 @@ function AnimatedPlayerRow({
           const liveBadgeColor = getLivePredBadgeColor(memberPred, !!liveData.actual_result, liveData.actual_result ?? undefined);
           return (
             <View key={liveData.match_id} style={styles.colLive}>
-              <View style={[styles.livePredBadge, { backgroundColor: liveBadgeColor }]}>
+              <View
+                style={[
+                  styles.livePredBadge,
+                  { backgroundColor: liveBadgeColor },
+                  memberPred?.is_tempted && styles.livePredBadgeTempted,
+                ]}
+              >
                 <Text style={styles.livePredText}>{scoreDisplay}</Text>
               </View>
             </View>
@@ -303,7 +309,7 @@ export default function LeagueDetailsScreen() {
   const currentUserId = getCurrentUserId();
 
   const fetchAndSetupLiveMatches = async () => {
-    if (isGlobalLeague || !currentUserId) return;
+    if (!currentUserId) return;
     try {
       const matchesData = await apiService.getMatches(currentUserId);
       const liveMatches = matchesData.matches.filter((m) => m.status === 'live');
@@ -315,7 +321,9 @@ export default function LeagueDetailsScreen() {
         const results = await Promise.all(
           liveMatches.map(async (m) => {
             try {
-              return await apiService.getLeagueMatchPredictions(Number(leagueId), m.id);
+              return isGlobalLeague
+                ? await apiService.getGlobalMatchPredictions(m.id)
+                : await apiService.getLeagueMatchPredictions(Number(leagueId), m.id);
             } catch (err) {
               console.warn('Failed to fetch live match predictions for match', m.id, err);
               return null;
@@ -330,12 +338,14 @@ export default function LeagueDetailsScreen() {
   };
 
   const refreshLiveMatchPredictions = async () => {
-    if (isGlobalLeague || liveMatchIdsRef.current.length === 0) return;
+    if (liveMatchIdsRef.current.length === 0) return;
     try {
       const results = await Promise.all(
         liveMatchIdsRef.current.map(async (matchId) => {
           try {
-            return await apiService.getLeagueMatchPredictions(Number(leagueId), matchId);
+            return isGlobalLeague
+              ? await apiService.getGlobalMatchPredictions(matchId)
+              : await apiService.getLeagueMatchPredictions(Number(leagueId), matchId);
           } catch (err) {
             console.warn('Failed to fetch live match predictions for match', matchId, err);
             return null;
@@ -374,7 +384,7 @@ export default function LeagueDetailsScreen() {
   };
 
   useEffect(() => {
-    if (isGlobalLeague || liveMatchIdsRef.current.length === 0) return;
+    if (liveMatchIdsRef.current.length === 0) return;
     liveRefreshIntervalRef.current = setInterval(refreshLiveMatchPredictions, 60000);
     return () => {
       if (liveRefreshIntervalRef.current) {
@@ -721,8 +731,8 @@ export default function LeagueDetailsScreen() {
 
           {currentUserStanding && currentUserRank && currentUserRank > 3 && (
             <View style={styles.stickyUserRow}>
-              <View style={styles.tableFixedLeft}>
-                <View style={styles.playerRowContent}>
+              <View style={[styles.tableFixedLeft, { backgroundColor: '#1a2744' }]}>
+                <View style={[styles.playerRowContent, { paddingLeft: 14 }]}>
                   <View style={styles.colPlayer}>
                     <View style={styles.rankNameRow}>
                       <Text style={styles.stickyRankNumber}>{currentUserRank}</Text>
@@ -739,35 +749,37 @@ export default function LeagueDetailsScreen() {
                 style={styles.tableScrollMiddle}
                 contentContainerStyle={styles.tableScrollMiddleContent}
               >
-                <View style={styles.playerRowContent}>
-                  <View style={styles.colNum}>
-                    <Text style={[styles.cellText, styles.cellCenter]}>
-                      {currentUserStanding.matches_points ?? 0}
-                    </Text>
-                  </View>
-                  <View style={styles.colNum}>
-                    <Text style={[styles.cellText, styles.cellCenter]}>
-                      {(currentUserStanding.groups_points ?? 0) + (currentUserStanding.third_place_points ?? 0)}
-                    </Text>
-                  </View>
-                  <View style={styles.colNum}>
-                    <Text style={[styles.cellText, styles.cellCenter]}>
-                      {currentUserStanding.knockout_points ?? 0}
-                    </Text>
-                  </View>
-                  <View style={styles.colFine}>
-                    {(currentUserStanding.penalty ?? 0) > 0 && (
-                      <View style={styles.fineBadge}>
-                        <Text style={styles.fineBadgeText}>
-                          {currentUserStanding.penalty}
-                        </Text>
-                      </View>
-                    )}
+                <View style={{ backgroundColor: '#1a2744', flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={styles.playerRowContent}>
+                    <View style={styles.colNum}>
+                      <Text style={[styles.cellText, styles.cellCenter]}>
+                        {currentUserStanding.matches_points ?? 0}
+                      </Text>
+                    </View>
+                    <View style={styles.colNum}>
+                      <Text style={[styles.cellText, styles.cellCenter]}>
+                        {(currentUserStanding.groups_points ?? 0) + (currentUserStanding.third_place_points ?? 0)}
+                      </Text>
+                    </View>
+                    <View style={styles.colNum}>
+                      <Text style={[styles.cellText, styles.cellCenter]}>
+                        {currentUserStanding.knockout_points ?? 0}
+                      </Text>
+                    </View>
+                    <View style={styles.colFine}>
+                      {(currentUserStanding.penalty ?? 0) > 0 && (
+                        <View style={styles.fineBadge}>
+                          <Text style={styles.fineBadgeText}>
+                            {currentUserStanding.penalty}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                 </View>
               </ScrollView>
               <View style={[styles.tableFixedRight, styles.stickyUserRowRight, { width: 54 + liveMatchPredictionsList.length * 50, backgroundColor: '#1a2744' }]}>
-                <View style={[styles.playerRowContent, styles.playerRowContentRight]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 0 }}>
                   {liveMatchPredictionsList.map((liveData) => {
                     const memberPred = liveData.predictions.find((p) => p.user_id === currentUserStanding.user_id) ?? null;
                     const hasScore = memberPred && memberPred.home_score != null && memberPred.away_score != null;
@@ -778,6 +790,7 @@ export default function LeagueDetailsScreen() {
                           style={[
                             styles.livePredBadge,
                             { backgroundColor: getLivePredBadgeColor(memberPred, !!liveData.actual_result, liveData.actual_result ?? undefined) },
+                            memberPred?.is_tempted && styles.livePredBadgeTempted,
                           ]}
                         >
                           <Text style={styles.livePredText}>{scoreDisplay}</Text>
@@ -1058,6 +1071,8 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     backgroundColor: '#0f172a',
     flexGrow: 1,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
   },
   playerRow: {
     flexDirection: 'row',
@@ -1076,10 +1091,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 52,
-    paddingHorizontal: 14,
     backgroundColor: '#1a2744',
     borderTopWidth: 2,
     borderTopColor: '#3b82f6',
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    overflow: 'hidden',
   },
   stickyRankNumber: {
     fontSize: 12,
@@ -1131,6 +1148,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  livePredBadgeTempted: {
+    borderWidth: 2,
+    borderColor: '#7c3aed',
   },
   livePredText: {
     fontSize: 12,

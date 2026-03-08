@@ -300,6 +300,7 @@ class LeagueService:
                     "away_score": pred.away_score,
                     "points": pred.points if pred.points is not None else 0,
                     "prediction_status": pred_status,
+                    "is_tempted": bool(pred.is_tempted) if pred else False,
                 })
             else:
                 predictions.append({
@@ -310,6 +311,65 @@ class LeagueService:
                     "away_score": None,
                     "points": 0,
                     "prediction_status": None,
+                    "is_tempted": False,
+                })
+
+        return {
+            "match_id": match_id,
+            "match_status": match.status,
+            "actual_result": actual_result,
+            "predictions": predictions,
+        }
+
+    @staticmethod
+    def get_global_match_predictions(db: Session, match_id: int) -> Dict[str, Any]:
+        """Get all users' predictions for a match (global league). Same shape as get_league_match_predictions."""
+        match = DBReader.get_match(db, match_id)
+        if not match:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Match not found"
+            )
+        if match.status == "scheduled":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Match has not started yet"
+            )
+
+        rows = DBReader.get_global_match_predictions(db, match_id)
+        match_result = DBReader.get_match_result(db, match_id)
+
+        actual_result = None
+        if match_result and match_result.home_team_score is not None and match_result.away_team_score is not None:
+            actual_result = {
+                "home_score": match_result.home_team_score,
+                "away_score": match_result.away_team_score,
+            }
+
+        predictions = []
+        for user, pred in rows:
+            if pred:
+                pred_status = pred.status.value if pred.status else None
+                predictions.append({
+                    "user_id": user.id,
+                    "username": user.username,
+                    "name": user.name,
+                    "home_score": pred.home_score,
+                    "away_score": pred.away_score,
+                    "points": pred.points if pred.points is not None else 0,
+                    "prediction_status": pred_status,
+                    "is_tempted": bool(pred.is_tempted) if pred else False,
+                })
+            else:
+                predictions.append({
+                    "user_id": user.id,
+                    "username": user.username,
+                    "name": user.name,
+                    "home_score": None,
+                    "away_score": None,
+                    "points": 0,
+                    "prediction_status": None,
+                    "is_tempted": False,
                 })
 
         return {
