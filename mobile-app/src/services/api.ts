@@ -38,11 +38,13 @@ export interface MatchesResponse {
 export interface GroupsResponse {
   groups: GroupPrediction[];
   groups_score: number | null;
+  groups_penalty?: number;
 }
 
 export interface KnockoutResponse {
   predictions: KnockoutPrediction[];
   knockout_score: number | null;
+  knockout_penalty?: number;
   can_edit_drafts?: boolean;
 }
 
@@ -111,6 +113,7 @@ export interface GroupPrediction {
   third_place: number | null;
   fourth_place: number | null;
   points: number;
+  penalty_points?: number;
   is_editable: boolean;
   created_at: string | null;
   updated_at: string | null;
@@ -143,6 +146,7 @@ export interface ThirdPlacePredictionData {
     updated_at: string | null;
   };
   third_place_score: number | null;
+  third_place_penalty?: number;
   result?: {
     first_team_qualifying: number;
     second_team_qualifying: number;
@@ -168,6 +172,7 @@ export interface KnockoutPrediction {
   winner_team_id: number | null;
   status: string;
   points: number;
+  penalty_points?: number;
   is_editable: boolean;
   created_at: string;
   updated_at: string;
