@@ -482,9 +482,10 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
       <TouchableOpacity
         style={styles.statsButton}
         onPress={() => setShowStats(true)}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        activeOpacity={0.7}
       >
-        <Ionicons name="stats-chart" size={16} color="#ffffff" />
+        <Ionicons name="stats-chart" size={13} color="#0284c7" />
+        <Text style={styles.statsButtonText}>Stats</Text>
       </TouchableOpacity>
 
       {/* Stats Modal */}
@@ -493,6 +494,8 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
         matchId={match.id}
         homeTeamName={match.home_team?.name || ''}
         awayTeamName={match.away_team?.name || ''}
+        homeTeamFlagCode={match.home_team?.flag_url?.match(/\/([a-z]{2})\.png$/i)?.[1]}
+        awayTeamFlagCode={match.away_team?.flag_url?.match(/\/([a-z]{2})\.png$/i)?.[1]}
         onClose={() => setShowStats(false)}
       />
 
@@ -715,14 +718,22 @@ const styles = StyleSheet.create({
   // Stats button - bottom left
   statsButton: {
     position: 'absolute',
-    bottom: 4,
-    left: 4,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#0284c7',
-    justifyContent: 'center',
+    bottom: 8,
+    left: 8,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#bae6fd',
+    backgroundColor: '#f0f9ff',
+  },
+  statsButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#0284c7',
   },
   // Points display styles - bottom right
   pointsContainer: {

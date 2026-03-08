@@ -63,20 +63,20 @@ class MatchStatisticsService:
     @staticmethod
     def _pre_result_stats(match, predictions) -> Dict[str, Any]:
         """Before result: who people think will win + popular predicted scores."""
-        total = len(predictions)
-
         home = sum(1 for p in predictions if p.predicted_winner == match.home_team_id)
         draw = sum(1 for p in predictions if p.predicted_winner == 0)
         away = sum(1 for p in predictions if p.predicted_winner == match.away_team_id)
+        total_with_winner = home + draw + away
+        total_all = len(predictions)
 
         home_pct, draw_pct, away_pct = MatchStatisticsService._round_percentages_to_100(
-            [home, draw, away], total
+            [home, draw, away], total_with_winner
         )
 
         return {
             "match_id": match.id,
             "has_result": False,
-            "total_predictions": total,
+            "total_predictions": total_all,  # show real total in UI
             "winner_distribution": {
                 "home_pct": home_pct,
                 "draw_pct": draw_pct,
@@ -132,9 +132,8 @@ class MatchStatisticsService:
     def _round_percentages_to_100(counts: list, total: int) -> list:
         """
         Round percentages to whole integers that sum to exactly 100.
-        Uses largest-remainder method:
-        1. Floor all percentages
-        2. Distribute leftover (100 - sum) to items with largest fractional parts
+        Uses largest-remainder method.
+        Handles negative leftover (edge case where floored sum > 100).
         """
         if total == 0:
             return [0] * len(counts)
@@ -144,9 +143,19 @@ class MatchStatisticsService:
         remainders = [r - f for r, f in zip(raw, floored)]
         leftover = 100 - sum(floored)
 
-        # Give +1 to the items with the largest remainders
-        indices_by_remainder = sorted(range(len(remainders)), key=lambda i: remainders[i], reverse=True)
-        for i in range(leftover):
-            floored[indices_by_remainder[i]] += 1
+        indices_by_remainder = sorted(
+            range(len(remainders)),
+            key=lambda i: remainders[i],
+            reverse=True,
+        )
+
+        if leftover > 0:
+            for i in range(min(leftover, len(indices_by_remainder))):
+                floored[indices_by_remainder[i]] += 1
+        elif leftover < 0:
+            # Edge case: remove 1 from items with smallest remainders
+            indices_asc = indices_by_remainder[::-1]
+            for i in range(min(-leftover, len(indices_asc))):
+                floored[indices_asc[i]] -= 1
 
         return floored

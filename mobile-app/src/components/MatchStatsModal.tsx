@@ -6,18 +6,24 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { apiService, MatchStats } from '../services/api';
+
+const flagUrl = (code: string) =>
+  `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
 
 interface Props {
   visible: boolean;
   matchId: number | null;
   homeTeamName: string;
   awayTeamName: string;
+  homeTeamFlagCode?: string;
+  awayTeamFlagCode?: string;
   onClose: () => void;
 }
 
-export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTeamName, onClose }: Props) {
+export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTeamName, homeTeamFlagCode, awayTeamFlagCode, onClose }: Props) {
   const [stats, setStats] = useState<MatchStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +57,7 @@ export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTe
 
     return (
       <View>
-        <Text style={styles.sectionTitle}>Winner Predictions</Text>
+        <Text style={styles.sectionLabel}>Who Will Win?</Text>
 
         {/* Horizontal bar showing distribution */}
         <View style={styles.barContainer}>
@@ -72,36 +78,41 @@ export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTe
           )}
         </View>
 
-        {/* Legend */}
+        {/* Legend: colored dot + flag for home/away, dot + "Draw" for draw */}
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
-            <Text style={styles.legendText}>{homeTeamName}</Text>
+            <View style={[styles.legendDot, { backgroundColor: '#16a34a' }]} />
+            {homeTeamFlagCode ? (
+              <Image source={{ uri: flagUrl(homeTeamFlagCode) }} style={styles.flagImage} />
+            ) : null}
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#9E9E9E' }]} />
-            <Text style={styles.legendText}>Draw</Text>
+            <View style={[styles.legendDot, { backgroundColor: '#9ca3af' }]} />
+            <Text style={styles.legendDrawText}>Draw</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#2196F3' }]} />
-            <Text style={styles.legendText}>{awayTeamName}</Text>
+            <View style={[styles.legendDot, { backgroundColor: '#2563eb' }]} />
+            {awayTeamFlagCode ? (
+              <Image source={{ uri: flagUrl(awayTeamFlagCode) }} style={styles.flagImage} />
+            ) : null}
           </View>
         </View>
 
-        {/* Popular scores */}
+        {/* Popular scores - Top Scores cards */}
         {stats.popular_scores && stats.popular_scores.length > 0 && (
-          <View style={styles.scoresSection}>
-            <Text style={styles.sectionTitle}>Popular Predictions</Text>
-            {stats.popular_scores.map((score, index) => (
-              <View key={index} style={styles.scoreRow}>
-                <Text style={styles.scoreText}>
-                  {score.home} - {score.away}
-                </Text>
-                <Text style={styles.scoreCount}>
-                  {score.count} {score.count === 1 ? 'prediction' : 'predictions'}
-                </Text>
-              </View>
-            ))}
+          <View style={styles.sectionWithDivider}>
+            <Text style={styles.sectionLabel}>Top Scores</Text>
+            <View style={styles.popularRow}>
+              {stats.popular_scores.slice(0, 3).map((score, index) => (
+                <View key={index} style={styles.popularCard}>
+                  <View style={styles.scoreRow}>
+                    <Text style={styles.scoreHome}>{score.home}</Text>
+                    <Text style={styles.scoreSep}> – </Text>
+                    <Text style={styles.scoreAway}>{score.away}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
         )}
       </View>
@@ -114,7 +125,7 @@ export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTe
 
     return (
       <View>
-        <Text style={styles.sectionTitle}>Prediction Accuracy</Text>
+        <Text style={styles.sectionLabel}>Prediction Accuracy</Text>
 
         {/* Horizontal bar */}
         <View style={styles.barContainer}>
@@ -138,16 +149,16 @@ export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTe
         {/* Legend */}
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
-            <Text style={styles.legendText}>Exact ({exact_pct}%)</Text>
+            <View style={[styles.postLegendDot, { backgroundColor: '#4CAF50' }]} />
+            <Text style={styles.postLegendText}>Exact</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#FF9800' }]} />
-            <Text style={styles.legendText}>Correct ({correct_pct}%)</Text>
+            <View style={[styles.postLegendDot, { backgroundColor: '#FF9800' }]} />
+            <Text style={styles.postLegendText}>Correct</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#F44336' }]} />
-            <Text style={styles.legendText}>Wrong ({wrong_pct}%)</Text>
+            <View style={[styles.postLegendDot, { backgroundColor: '#F44336' }]} />
+            <Text style={styles.postLegendText}>Wrong</Text>
           </View>
         </View>
       </View>
@@ -163,7 +174,7 @@ export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTe
             <Text style={styles.modalTitle}>
               {homeTeamName} vs {awayTeamName}
             </Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButtonTouch}>
               <Text style={styles.closeButton}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -175,9 +186,6 @@ export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTe
 
           {stats && !loading && (
             <View>
-              <Text style={styles.totalText}>
-                {stats.total_predictions} predictions
-              </Text>
               {stats.has_result ? renderPostResult() : renderPreResult()}
             </View>
           )}
@@ -203,32 +211,43 @@ const styles = StyleSheet.create({
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    position: 'relative',
   },
   modalTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
     flex: 1,
+  },
+  closeButtonTouch: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    padding: 4,
   },
   closeButton: {
     fontSize: 20,
     color: '#9ca3af',
-    paddingLeft: 12,
   },
-  totalText: {
+  sectionLabel: {
     fontSize: 13,
+    fontWeight: '700',
     color: '#6b7280',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    marginBottom: 10,
     marginTop: 4,
+  },
+  sectionWithDivider: {
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    marginTop: 12,
+    paddingTop: 12,
   },
   // Horizontal stacked bar
   barContainer: {
@@ -248,9 +267,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
-  barHome: { backgroundColor: '#4CAF50' },
-  barDraw: { backgroundColor: '#9E9E9E' },
-  barAway: { backgroundColor: '#2196F3' },
+  barHome: { backgroundColor: '#16a34a' },
+  barDraw: { backgroundColor: '#9ca3af' },
+  barAway: { backgroundColor: '#2563eb' },
   barExact: { backgroundColor: '#4CAF50' },
   barCorrect: { backgroundColor: '#FF9800' },
   barWrong: { backgroundColor: '#F44336' },
@@ -268,33 +287,61 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+    marginRight: 5,
+  },
+  legendDrawText: {
+    fontSize: 12,
+    color: '#9ca3af',
+  },
+  flagImage: {
+    width: 22,
+    height: 15,
+    borderRadius: 2,
     marginRight: 4,
   },
-  legendText: {
+  postLegendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 4,
+  },
+  postLegendText: {
     fontSize: 11,
     color: '#6b7280',
   },
-  // Popular scores
-  scoresSection: {
-    marginTop: 4,
+  popularRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  popularCard: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scoreRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    backgroundColor: '#f9fafb',
-    borderRadius: 6,
-    marginBottom: 4,
+    alignItems: 'center',
   },
-  scoreText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
+  scoreHome: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#16a34a',
   },
-  scoreCount: {
-    fontSize: 12,
+  scoreSep: {
+    fontSize: 20,
+    fontWeight: '400',
     color: '#9ca3af',
+  },
+  scoreAway: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#2563eb',
   },
   errorText: {
     color: '#ef4444',
