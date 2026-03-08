@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator, Platform, Dimensions, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Platform, Dimensions, Keyboard } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Match, apiService, MatchesResponse } from '../../services/api';
 import MatchCard, { MatchCardHandle } from '../../components/MatchCard';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigation } from '@react-navigation/native';
+import { useToast } from '../../components/Toast';
+import { ErrorModal, LockedMatchModal } from '../../components/CustomModals';
 
 const DEBOUNCE_MS = 800;
 
@@ -20,21 +24,35 @@ export default function MatchesScreen() {
   const focusedMatchIdRef = useRef<number | null>(null);
 
   const { getCurrentUserId } = useAuth();
+  const navigation = useNavigation();
+  const { showToast } = useToast();
+  const [errorModal, setErrorModal] = useState<{
+    title: string;
+    message: string;
+    goBack?: boolean;
+  } | null>(null);
+  const [lockedModal, setLockedModal] = useState<{
+    message: string;
+  } | null>(null);
+  const [fetchCount, setFetchCount] = useState(0);
+  const [resetCount, setResetCount] = useState(0);
 
   const fetchMatches = useCallback(async () => {
     try {
       const userId = getCurrentUserId();
       if (!userId) {
-        Alert.alert('Error', 'User not authenticated');
+        setErrorModal({ title: 'Error', message: 'User not authenticated', goBack: true });
+        setLoading(false);
         return;
       }
 
       const data: MatchesResponse = await apiService.getMatches(userId);
       setMatches(data.matches);
       setMatchesScore(data.matches_score);
+      setFetchCount(prev => prev + 1);
     } catch (error) {
       console.error('Error fetching matches:', error);
-      Alert.alert('Error', 'Could not load matches. Please check that the server is running.');
+      setErrorModal({ title: 'Error', message: 'Could not load matches. Please check your connection.', goBack: true });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -130,11 +148,11 @@ export default function MatchesScreen() {
       if (!match) return;
 
       if (match.status === 'live') {
-        Alert.alert('Locked', 'This match has started and can no longer be edited.');
+        setLockedModal({ message: 'This match has started and can no longer be edited.' });
         return;
       }
       if (match.status === 'finished') {
-        Alert.alert('Locked', 'This match has finished and can no longer be edited.');
+        setLockedModal({ message: 'This match has finished and can no longer be edited.' });
         return;
       }
 
@@ -145,7 +163,8 @@ export default function MatchesScreen() {
         await fetchMatches();
       } catch (error) {
         console.error('Error saving prediction:', error);
-        Alert.alert('Error', 'Could not save prediction. Please try again.');
+        showToast('Could not save prediction. Please try again.', 'error');
+        setResetCount(prev => prev + 1);
       }
     },
     [matches, getCurrentUserId, fetchMatches]
@@ -181,6 +200,7 @@ export default function MatchesScreen() {
 
   const renderMatch = ({ item }: { item: Match }) => (
     <MatchCard
+      key={`${item.id}-${fetchCount}-${resetCount}`}
       ref={(el) => {
         if (el) cardHandles.current.set(item.id, el);
       }}
@@ -195,17 +215,36 @@ export default function MatchesScreen() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#16a34a" />
         <Text style={styles.loadingText}>Loading matches...</Text>
+        <ErrorModal
+          visible={!!errorModal}
+          title={errorModal?.title ?? 'Error'}
+          message={errorModal?.message ?? ''}
+          onClose={() => setErrorModal(null)}
+          {...(errorModal?.goBack && {
+            onGoBack: () => { setErrorModal(null); navigation.goBack(); },
+            goBackLabel: 'Go Back',
+          })}
+        />
       </View>
     );
   }
 
   if (matches.length === 0) {
     return (
-      <View style={styles.flex}>
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No matches available</Text>
-          <Text style={styles.emptySubtext}>Check that the server is running and matches are created</Text>
-        </View>
+      <View style={styles.emptyContainer}>
+        <Ionicons name="cloud-offline-outline" size={56} color="#f87171" />
+        <Text style={styles.emptyText}>Could not load matches</Text>
+        <Text style={styles.emptySubtext}>Please check your connection and try again</Text>
+        <ErrorModal
+          visible={!!errorModal}
+          title={errorModal?.title ?? 'Error'}
+          message={errorModal?.message ?? ''}
+          onClose={() => setErrorModal(null)}
+          {...(errorModal?.goBack && {
+            onGoBack: () => { setErrorModal(null); navigation.goBack(); },
+            goBackLabel: 'Go Back',
+          })}
+        />
       </View>
     );
   }
@@ -245,6 +284,21 @@ export default function MatchesScreen() {
           }}
         />
       </View>
+      <ErrorModal
+        visible={!!errorModal}
+        title={errorModal?.title ?? 'Error'}
+        message={errorModal?.message ?? ''}
+        onClose={() => setErrorModal(null)}
+        {...(errorModal?.goBack && {
+          onGoBack: () => { setErrorModal(null); navigation.goBack(); },
+          goBackLabel: 'Go Back',
+        })}
+      />
+      <LockedMatchModal
+        visible={!!lockedModal}
+        message={lockedModal?.message ?? ''}
+        onClose={() => setLockedModal(null)}
+      />
     </View>
   );
 }
@@ -302,7 +356,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#4a5568',
+    marginTop: 16,
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 14,
