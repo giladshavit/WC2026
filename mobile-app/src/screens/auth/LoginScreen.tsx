@@ -7,7 +7,10 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   ScrollView,
+  Modal,
+  Pressable,
 } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ScrollView as RNScrollView } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -20,6 +23,10 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [errorModal, setErrorModal] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const scrollViewRef = useRef<RNScrollView>(null);
   const { login } = useAuth();
@@ -39,13 +46,24 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
       setIsLoading(true);
       await login(username.trim(), password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      let msg = 'Something went wrong. Please try again.';
+      if (err instanceof Error) {
+        if (err.message.includes('401') || err.message.toLowerCase().includes('invalid') || err.message.toLowerCase().includes('unauthorized')) {
+          msg = 'Incorrect username or password. Please try again.';
+        } else if (err.message.includes('Network') || err.message.includes('fetch') || err.message.includes('connect')) {
+          msg = 'Cannot connect to server. Please check your connection.';
+        } else {
+          msg = err.message;
+        }
+      }
+      setErrorModal({ title: 'Login Failed', message: msg });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
+    <>
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior="padding"
@@ -74,6 +92,7 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
                 onBlur={() => setFocusedInput(null)}
                 placeholder="Enter username"
                 placeholderTextColor="#64748b"
+                textContentType="oneTimeCode"
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
@@ -96,6 +115,7 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
                 onBlur={() => setFocusedInput(null)}
                 placeholder="Enter password"
                 placeholderTextColor="#64748b"
+                textContentType="oneTimeCode"
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -124,6 +144,33 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
           </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    <Modal visible={!!errorModal} transparent animationType="fade">
+      <Pressable
+        style={styles.modalOverlay}
+        onPress={() => setErrorModal(null)}
+      >
+        <Pressable onPress={e => e.stopPropagation()}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconWrapper}>
+              <Ionicons name="alert-circle" size={36} color="#ef4444" />
+            </View>
+            <Text style={styles.modalTitle}>
+              {errorModal?.title ?? 'Error'}
+            </Text>
+            <Text style={styles.modalMessage}>
+              {errorModal?.message ?? ''}
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setErrorModal(null)}
+            >
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+    </>
   );
 }
 
@@ -195,5 +242,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#16a34a',
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 20,
+    padding: 28,
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  modalIconWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#f1f5f9',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: '#94a3b8',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalButton: {
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 32,
+    paddingVertical: 13,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

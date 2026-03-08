@@ -82,33 +82,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (username: string, password: string) => {
     try {
-      setIsLoading(true);
       const authResponse = await apiService.login({ username, password });
       const userData = await apiService.getCurrentUser();
-      
       await storeAuth(authResponse, userData);
       setUser(userData);
     } catch (error) {
       console.error('Login error:', error);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const register = async (username: string, password: string, name: string) => {
     try {
-      setIsLoading(true);
       const authResponse = await apiService.register({ username, password, name });
       const userData = await apiService.getCurrentUser();
-      
       await storeAuth(authResponse, userData);
       setUser(userData);
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
