@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { apiService, Team } from '../services/api';
+import { apiService, Team } from '../../services/api';
 
 interface GroupStats {
   total_predictions: number;

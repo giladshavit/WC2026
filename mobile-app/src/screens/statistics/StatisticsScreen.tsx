@@ -7,9 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { apiService } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
-import { useToast } from '../components/Toast';
+import { apiService } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../components/toast/Toast';
 
 interface ProfilePerGroup {
   group_id: number;

@@ -18,11 +18,11 @@ import {
   LeagueStandingsResponse,
   LeagueMatchPredictionsResponse,
   MemberMatchPrediction,
-} from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+} from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import * as Clipboard from 'expo-clipboard';
-import { LeaveLeagueModal, ErrorModal } from '../components/CustomModals';
-import { useToast } from '../components/Toast';
+import { LeaveLeagueModal, ErrorModal } from '../../components/modals/CustomModals';
+import { useToast } from '../../components/toast/Toast';
 
 type SortKey = 'total' | 'matches' | 'groups' | 'knockout' | 'fine';
 

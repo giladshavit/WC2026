@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
-import { apiService, MatchStats } from '../services/api';
+import { apiService, MatchStats } from '../../services/api';
 
 const flagUrl = (code: string) =>
   `https://flagcdn.com/w40/${code.toLowerCase()}.png`;

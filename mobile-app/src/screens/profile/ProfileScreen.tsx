@@ -10,10 +10,10 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useAuth } from '../contexts/AuthContext';
-import { apiService } from '../services/api';
-import { useToast } from '../components/Toast';
-import { ConfirmationModal } from '../components/CustomModals';
+import { useAuth } from '../../contexts/AuthContext';
+import { apiService } from '../../services/api';
+import { useToast } from '../../components/toast/Toast';
+import { ConfirmationModal } from '../../components/modals/CustomModals';
 
 export default function ProfileScreen() {
   const { user, logout, getCurrentUserId } = useAuth();

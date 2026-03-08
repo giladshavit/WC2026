@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { apiService, KnockoutStats } from '../services/api';
+import { apiService, KnockoutStats } from '../../services/api';
 
 interface Props {
   visible: boolean;

@@ -1,12 +1,12 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/HomeScreen';
-import ProfileScreen from '../screens/ProfileScreen';
+import ProfileScreen from '../screens/profile/ProfileScreen';
 import MatchesScreen from '../screens/predictions/MatchesScreen';
-import PredictionsMenuScreen from '../screens/PredictionsMenuScreen';
+import PredictionsMenuScreen from '../screens/predictions/PredictionsMenuScreen';
 import PredictionsTopTabs from './PredictionsTopTabs';
 import LeagueStack from './LeagueStack';
-import StatisticsScreen from '../screens/StatisticsScreen';
+import StatisticsScreen from '../screens/statistics/StatisticsScreen';
 import BracketScreen from '../screens/predictions/BracketScreen';
 import AdminNavigator from './AdminNavigator';
 

@@ -4,11 +4,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation, useFocusEffect, useIsFocused } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GroupPrediction, apiService, GroupsResponse } from '../../services/api';
-import GroupCard from '../../components/GroupCard';
+import GroupCard from '../../components/cards/GroupCard';
 import { useTournament } from '../../contexts/TournamentContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { FineConfirmationModal, UnsavedChangesModal, ErrorModal, ValidationModal } from '../../components/CustomModals';
-import { useToast } from '../../components/Toast';
+import { FineConfirmationModal, UnsavedChangesModal, ErrorModal, ValidationModal } from '../../components/modals/CustomModals';
+import { useToast } from '../../components/toast/Toast';
 
 export default function GroupsScreen() {
   const { showToast } = useToast();

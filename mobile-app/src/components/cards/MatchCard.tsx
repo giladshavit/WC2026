@@ -1,9 +1,9 @@
 import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Animated } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import MatchStatsModal from './MatchStatsModal';
+import MatchStatsModal from '../stats/MatchStatsModal';
 import type { TextInput as RNTextInput } from 'react-native';
-import { Match } from '../services/api';
+import { Match } from '../../services/api';
 
 type ScoreField = 'home' | 'away';
 

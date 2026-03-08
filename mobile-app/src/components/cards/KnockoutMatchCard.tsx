@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { KnockoutPrediction } from '../services/api';
-import KnockoutStatsModal from './KnockoutStatsModal';
+import { KnockoutPrediction } from '../../services/api';
+import KnockoutStatsModal from '../stats/KnockoutStatsModal';
 
 interface KnockoutMatchCardProps {
   prediction: KnockoutPrediction;

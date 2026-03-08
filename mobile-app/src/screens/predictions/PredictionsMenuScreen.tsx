@@ -7,11 +7,11 @@ import {
   ScrollView,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import BracketIcon from '../components/icons/BracketIcon';
+import BracketIcon from '../../components/icons/BracketIcon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { MainStackParamList } from '../navigation/MainNavigator';
+import { MainStackParamList } from '../../navigation/MainNavigator';
 
 type NavigationProp = StackNavigationProp<MainStackParamList, 'PredictionsMenu'>;
 

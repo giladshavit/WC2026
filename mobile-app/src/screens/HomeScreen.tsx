@@ -13,7 +13,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path } from 'react-native-svg';
-import PredictOLogo from '../components/PredictOLogo';
+import PredictOLogo from '../components/shared/PredictOLogo';
 import { MainStackParamList } from '../navigation/MainNavigator';
 import { useAuth } from '../contexts/AuthContext';
 

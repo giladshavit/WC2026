@@ -1,9 +1,9 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import LeaguesScreen from '../screens/LeaguesScreen';
-import CreateLeagueScreen from '../screens/CreateLeagueScreen';
-import JoinLeagueScreen from '../screens/JoinLeagueScreen';
-import LeagueDetailsScreen from '../screens/LeagueDetailsScreen';
+import LeaguesScreen from '../screens/leagues/LeaguesScreen';
+import CreateLeagueScreen from '../screens/leagues/CreateLeagueScreen';
+import JoinLeagueScreen from '../screens/leagues/JoinLeagueScreen';
+import LeagueDetailsScreen from '../screens/leagues/LeagueDetailsScreen';
 
 const Stack = createStackNavigator();
 

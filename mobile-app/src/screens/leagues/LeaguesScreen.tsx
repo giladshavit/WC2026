@@ -14,9 +14,9 @@ import * as Clipboard from 'expo-clipboard';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
-import { apiService, League } from '../services/api';
-import { useToast } from '../components/Toast';
-import { ErrorModal } from '../components/CustomModals';
+import { apiService, League } from '../../services/api';
+import { useToast } from '../../components/toast/Toast';
+import { ErrorModal } from '../../components/modals/CustomModals';
 
 const AVATAR_COLORS = ['#2563eb', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 

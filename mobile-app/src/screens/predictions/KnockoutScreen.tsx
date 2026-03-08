@@ -4,12 +4,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KnockoutPrediction, apiService } from '../../services/api';
-import KnockoutMatchCard from '../../components/KnockoutMatchCard';
+import KnockoutMatchCard from '../../components/cards/KnockoutMatchCard';
 import BracketIcon from '../../components/icons/BracketIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTournament } from '../../contexts/TournamentContext';
-import { useToast } from '../../components/Toast';
-import { ErrorModal, InfoModal } from '../../components/CustomModals';
+import { useToast } from '../../components/toast/Toast';
+import { ErrorModal, InfoModal } from '../../components/modals/CustomModals';
 
 interface KnockoutScreenProps {}
 

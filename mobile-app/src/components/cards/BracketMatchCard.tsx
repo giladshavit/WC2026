@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { BracketMatch } from '../utils/bracketCalculator';
+import { BracketMatch } from '../../utils/bracketCalculator';
 
-const TROPHY_IMAGE = require('../../assets/trophy.png');
+const TROPHY_IMAGE = require('../../../assets/trophy.png');
 
 interface BracketMatchCardProps {
   match: BracketMatch;

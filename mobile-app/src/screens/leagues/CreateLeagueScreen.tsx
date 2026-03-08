@@ -13,10 +13,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { apiService } from '../services/api';
+import { apiService } from '../../services/api';
 import * as Clipboard from 'expo-clipboard';
-import { useToast } from '../components/Toast';
-import { ErrorModal } from '../components/CustomModals';
+import { useToast } from '../../components/toast/Toast';
+import { ErrorModal } from '../../components/modals/CustomModals';
 
 export default function CreateLeagueScreen() {
   const navigation = useNavigation();

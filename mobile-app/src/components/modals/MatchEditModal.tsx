@@ -10,7 +10,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { BracketMatch } from '../utils/bracketCalculator';
+import { BracketMatch } from '../../utils/bracketCalculator';
 
 interface MatchEditModalProps {
   visible: boolean;

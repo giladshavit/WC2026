@@ -8,7 +8,7 @@ import AuthScreen from './src/screens/auth/AuthScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import { TournamentProvider } from './src/contexts/TournamentContext';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
-import { ToastProvider } from './src/components/Toast';
+import { ToastProvider } from './src/components/toast/Toast';
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();

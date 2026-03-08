@@ -12,9 +12,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { apiService } from '../services/api';
-import { ErrorModal } from '../components/CustomModals';
-import { useToast } from '../components/Toast';
+import { apiService } from '../../services/api';
+import { ErrorModal } from '../../components/modals/CustomModals';
+import { useToast } from '../../components/toast/Toast';
 
 const CONFETTI = [
   { color: '#2563eb', style: { top: -4, left: -4 } },

@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { apiService, ThirdPlaceStats } from '../services/api';
+import { apiService, ThirdPlaceStats } from '../../services/api';
 
 interface Props {
   visible: boolean;

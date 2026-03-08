@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import ThirdPlaceStatsModal from '../../components/ThirdPlaceStatsModal';
+import ThirdPlaceStatsModal from '../../components/stats/ThirdPlaceStatsModal';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image, Dimensions, BackHandler, Modal, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -8,8 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThirdPlaceTeam, apiService } from '../../services/api';
 import { useTournament } from '../../contexts/TournamentContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useToast } from '../../components/Toast';
-import { FineConfirmationModal, UnsavedChangesModal, MaximumReachedModal, ErrorModal, ValidationModal } from '../../components/CustomModals';
+import { useToast } from '../../components/toast/Toast';
+import { FineConfirmationModal, UnsavedChangesModal, MaximumReachedModal, ErrorModal, ValidationModal } from '../../components/modals/CustomModals';
 
 interface ThirdPlaceScreenProps {}
 

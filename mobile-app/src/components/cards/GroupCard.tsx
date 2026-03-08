@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import GroupStatsModal from './GroupStatsModal';
-import { GroupPrediction } from '../services/api';
+import GroupStatsModal from '../stats/GroupStatsModal';
+import { GroupPrediction } from '../../services/api';
 
 interface GroupCardProps {
   group: GroupPrediction;

@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Platform, Dimensions, Keyboard } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Match, apiService, MatchesResponse } from '../../services/api';
-import MatchCard, { MatchCardHandle } from '../../components/MatchCard';
+import MatchCard, { MatchCardHandle } from '../../components/cards/MatchCard';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
-import { useToast } from '../../components/Toast';
-import { ErrorModal, LockedMatchModal } from '../../components/CustomModals';
+import { useToast } from '../../components/toast/Toast';
+import { ErrorModal, LockedMatchModal } from '../../components/modals/CustomModals';
 
 const DEBOUNCE_MS = 800;
 
