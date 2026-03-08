@@ -28,6 +28,8 @@ export default function GroupsScreen() {
   const [autoSaving, setAutoSaving] = useState(false);
   const [incompleteGroups, setIncompleteGroups] = useState<number[]>([]);
   const [groupsScore, setGroupsScore] = useState<number | null>(null);
+  const [groupsPenalty, setGroupsPenalty] = useState<number>(0);
+  const [showNetScore, setShowNetScore] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Map<number, {
     first_place: number | null;
     second_place: number | null;
@@ -150,6 +152,7 @@ export default function GroupsScreen() {
       
       setGroups(sortedGroups);
       setGroupsScore(data.groups_score);
+      setGroupsPenalty(data.groups_penalty ?? 0);
     } catch (error) {
       console.error('Error fetching groups:', error);
       setErrorModal({ title: 'Error', message: 'Could not load groups. Please check your connection.', goBack: true });
@@ -570,6 +573,22 @@ export default function GroupsScreen() {
     g => g.result !== null && g.result !== undefined
   );
   const showPoints = hasAnyGroupResult && groupsScore !== null;
+  const showNetScoreToggle = hasAnyGroupResult;
+
+  const netTotal = showNetScore && groupsScore !== null
+    ? (groupsScore ?? 0) - groupsPenalty
+    : null;
+  const getPointsPillStyle = () => {
+    if (!showNetScore || netTotal === null) {
+      return styles.pointsContainer;
+    }
+    if (netTotal > 0) return styles.pointsContainer;
+    if (netTotal === 0) return styles.pointsContainerZero;
+    return styles.pointsContainerNegative;
+  };
+  const displayPoints = showNetScore && netTotal !== null
+    ? netTotal
+    : (groupsScore ?? 0);
 
   return (
     <View style={styles.container}>
@@ -590,17 +609,35 @@ export default function GroupsScreen() {
             )}
           </View>
           <View style={styles.headerRight}>
-            {numberOfChanges > 0 && (
-              <View style={styles.changesCounter}>
-                <Ionicons name="create-outline" size={13} color="#16a34a" />
-                <Text style={styles.changesCounterText}>{numberOfChanges} total changes</Text>
-              </View>
-            )}
-            {showPoints && (
-              <View style={styles.pointsContainer}>
-                <Text style={styles.totalPoints}>{groupsScore} pts</Text>
-              </View>
-            )}
+            <View style={styles.headerRightRow}>
+              {numberOfChanges > 0 && (
+                <View style={styles.changesCounter}>
+                  <Ionicons name="create-outline" size={13} color="#f97316" />
+                  <Text style={styles.changesCounterText}>{numberOfChanges} total changes</Text>
+                </View>
+              )}
+              {showNetScoreToggle && (
+                <TouchableOpacity
+                  style={[styles.netScoreToggle, showNetScore && styles.netScoreToggleActive]}
+                  onPress={() => setShowNetScore(prev => !prev)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="swap-horizontal-outline"
+                    size={14}
+                    color={showNetScore ? '#16a34a' : '#64748b'}
+                  />
+                  <Text style={[styles.netScoreToggleText, showNetScore && styles.netScoreToggleTextActive]}>
+                    Net Score
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {showPoints && (
+                <View style={[styles.pointsContainer, getPointsPillStyle()]}>
+                  <Text style={styles.totalPoints}>{displayPoints} pts</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
       )}
@@ -624,6 +661,7 @@ export default function GroupsScreen() {
               onTeamPress={handleTeamPress}
               isIncomplete={incompleteGroups.includes(item.group_id)}
               hasPendingChanges={!!pendingChange}
+              showNetScore={showNetScore}
             />
           );
         }}
@@ -706,9 +744,9 @@ const styles = StyleSheet.create({
   changesCounter: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#fff7ed',
     borderWidth: 1,
-    borderColor: '#16a34a',
+    borderColor: '#f97316',
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 5,
@@ -718,11 +756,44 @@ const styles = StyleSheet.create({
   changesCounterText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#16a34a',
+    color: '#f97316',
   },
   headerRight: {
     flex: 1,
     alignItems: 'flex-end',
+  },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  netScoreToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#94a3b8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  netScoreToggleActive: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#16a34a',
+  },
+  netScoreToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  netScoreToggleTextActive: {
+    color: '#16a34a',
   },
   pointsContainer: {
     backgroundColor: '#48bb78',
@@ -730,6 +801,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     marginRight: 4,
+  },
+  pointsContainerZero: {
+    backgroundColor: '#f59e0b',
+  },
+  pointsContainerNegative: {
+    backgroundColor: '#ef4444',
   },
   totalPoints: {
     fontSize: 14,

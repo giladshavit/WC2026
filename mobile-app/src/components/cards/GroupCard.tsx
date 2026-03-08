@@ -9,9 +9,10 @@ interface GroupCardProps {
   onTeamPress: (groupId: number, teamId: number) => void;
   isIncomplete?: boolean;
   hasPendingChanges?: boolean;
+  showNetScore?: boolean;
 }
 
-export default function GroupCard({ group, onTeamPress, isIncomplete = false, hasPendingChanges = false }: GroupCardProps) {
+export default function GroupCard({ group, onTeamPress, isIncomplete = false, hasPendingChanges = false, showNetScore = false }: GroupCardProps) {
   // Helper function to get position for a team
   const getTeamPosition = (teamId: number): number | null => {
     if (group.first_place === teamId) return 1;
@@ -82,11 +83,27 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
         <Text style={styles.groupName}>Group {group.group_name}</Text>
         <View style={styles.headerRight}>
           {hasResult && (
-            <View style={[styles.pointsContainer, group.points === 0 && styles.pointsContainerZero]}>
-              <Text style={styles.pointsText}>
-                {group.points} pts
-              </Text>
-            </View>
+            (() => {
+              const points = group.points ?? 0;
+              const penaltyPoints = group.penalty_points ?? 0;
+              const displayPoints = showNetScore ? points - penaltyPoints : points;
+              const badgeStyle = showNetScore
+                ? displayPoints > 0
+                  ? styles.pointsContainer
+                  : displayPoints === 0
+                    ? styles.pointsContainerZero
+                    : styles.pointsContainerNegative
+                : points === 0
+                  ? styles.pointsContainerZero
+                  : styles.pointsContainer;
+              return (
+                <View style={[styles.pointsContainer, badgeStyle]}>
+                  <Text style={styles.pointsText}>
+                    {displayPoints} pts
+                  </Text>
+                </View>
+              );
+            })()
           )}
         </View>
       </View>
@@ -254,7 +271,10 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   pointsContainerZero: {
-    backgroundColor: '#FF9800',
+    backgroundColor: '#f59e0b',
+  },
+  pointsContainerNegative: {
+    backgroundColor: '#ef4444',
   },
   pointsText: {
     fontSize: 12,
