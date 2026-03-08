@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
@@ -13,9 +12,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
+import { useToast } from '../components/Toast';
+import { ConfirmationModal } from '../components/CustomModals';
 
 export default function ProfileScreen() {
   const { user, logout, getCurrentUserId } = useAuth();
+  const { showToast } = useToast();
+  const [signOutModal, setSignOutModal] = useState(false);
   const [totalPoints, setTotalPoints] = useState<number>(user?.total_points ?? 0);
   const [pointsLoading, setPointsLoading] = useState(true);
 
@@ -33,6 +36,7 @@ export default function ProfileScreen() {
           setTotalPoints(data.total_points);
         } catch (error) {
           console.error('Error fetching profile:', error);
+          showToast('Could not load profile data', 'error');
         } finally {
           setPointsLoading(false);
         }
@@ -42,18 +46,7 @@ export default function ProfileScreen() {
   );
 
   const handleLogout = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: logout,
-        },
-      ]
-    );
+    setSignOutModal(true);
   };
 
   return (
@@ -105,6 +98,19 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
+      <ConfirmationModal
+        visible={signOutModal}
+        title="Sign Out"
+        message="Are you sure you want to sign out?"
+        confirmLabel="Sign Out"
+        cancelLabel="Cancel"
+        destructive={true}
+        onConfirm={() => {
+          setSignOutModal(false);
+          logout();
+        }}
+        onCancel={() => setSignOutModal(false)}
+      />
     </SafeAreaView>
   );
 }

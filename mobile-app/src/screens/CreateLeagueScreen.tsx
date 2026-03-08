@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -16,32 +15,37 @@ import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService } from '../services/api';
 import * as Clipboard from 'expo-clipboard';
+import { useToast } from '../components/Toast';
+import { ErrorModal } from '../components/CustomModals';
 
 export default function CreateLeagueScreen() {
   const navigation = useNavigation();
+  const { showToast } = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [createdLeague, setCreatedLeague] = useState<any>(null);
   const [nameFocused, setNameFocused] = useState(false);
   const [descFocused, setDescFocused] = useState(false);
-  const [toastVisible, setToastVisible] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
 
   const handleCreateLeague = async () => {
+    setNameError(null);
     if (!name.trim()) {
-      Alert.alert('Error', 'League name is required');
+      setNameError('League name is required');
       return;
     }
     if (name.trim().length < 3) {
-      Alert.alert('Error', 'League name must be at least 3 characters long');
+      setNameError('League name must be at least 3 characters');
       return;
     }
     if (name.trim().length > 100) {
-      Alert.alert('Error', 'League name must be less than 100 characters');
+      setNameError('League name must be less than 100 characters');
       return;
     }
     if (description && description.length > 500) {
-      Alert.alert('Error', 'Description must be less than 500 characters');
+      setNameError('Description must be less than 500 characters');
       return;
     }
 
@@ -58,7 +62,7 @@ export default function CreateLeagueScreen() {
       if (msg.includes('400')) userMessage = 'Invalid league details. Please check and try again.';
       else if (msg.includes('409')) userMessage = 'A league with this name already exists.';
       else if (msg.includes('401') || msg.includes('403')) userMessage = 'You must be logged in to create a league.';
-      Alert.alert('Could not create league', userMessage);
+      setErrorModal({ title: 'Could not create league', message: userMessage });
     } finally {
       setLoading(false);
     }
@@ -67,8 +71,7 @@ export default function CreateLeagueScreen() {
   const handleCopyInviteCode = async () => {
     if (createdLeague?.invite_code) {
       await Clipboard.setStringAsync(createdLeague.invite_code);
-      setToastVisible(true);
-      setTimeout(() => setToastVisible(false), 1500);
+      showToast('Code copied!', 'success');
     }
   };
 
@@ -127,7 +130,7 @@ export default function CreateLeagueScreen() {
           <View style={styles.successButtons}>
             <TouchableOpacity
               style={styles.doneButton}
-              onPress={() => navigation.goBack()}
+              onPress={() => (navigation as any).navigate('LeaguesMain', { showToast: 'League created successfully!' })}
               activeOpacity={0.8}
             >
               <Text style={styles.doneButtonText}>Done</Text>
@@ -142,14 +145,6 @@ export default function CreateLeagueScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
-        {toastVisible && (
-          <View style={styles.toastWrapper} pointerEvents="box-none">
-            <View style={styles.toast}>
-              <Ionicons name="checkmark-circle" size={16} color="#ffffff" />
-              <Text style={styles.toastText}>Code copied!</Text>
-            </View>
-          </View>
-        )}
       </SafeAreaView>
     );
   }
@@ -170,7 +165,7 @@ export default function CreateLeagueScreen() {
               <TextInput
                 style={[styles.input, nameFocused && styles.inputFocused]}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(t) => { setName(t); setNameError(null); }}
                 placeholder="Enter league name"
                 placeholderTextColor="#9ca3af"
                 maxLength={100}
@@ -179,7 +174,12 @@ export default function CreateLeagueScreen() {
                 onFocus={() => setNameFocused(true)}
                 onBlur={() => setNameFocused(false)}
               />
-              <Text style={styles.characterCount}>{name.length}/100</Text>
+              <View style={styles.inputFooterRow}>
+                <Text style={[styles.fieldError, !nameError && styles.fieldErrorHidden]}>
+                  {nameError ?? ' '}
+                </Text>
+                <Text style={styles.characterCount}>{name.length}/100</Text>
+              </View>
             </View>
 
             <View style={[styles.inputGroup, { marginBottom: 0 }]}>
@@ -213,6 +213,12 @@ export default function CreateLeagueScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+      <ErrorModal
+        visible={!!errorModal}
+        title={errorModal?.title}
+        message={errorModal?.message ?? ''}
+        onClose={() => setErrorModal(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -274,7 +280,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#94a3b8',
     textAlign: 'right',
-    marginTop: 4,
   },
   createButton: {
     backgroundColor: '#2563eb',
@@ -420,34 +425,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  toastWrapper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 120,
-    zIndex: 999,
-  },
-  toast: {
+  inputFooterRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#1e293b',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 8,
+    marginTop: 4,
   },
-  toastText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ffffff',
+  fieldError: {
+    fontSize: 12,
+    color: '#dc2626',
+    marginLeft: 4,
+  },
+  fieldErrorHidden: {
+    color: 'transparent',
   },
 });

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   RefreshControl,
   StatusBar,
 } from 'react-native';
@@ -16,17 +15,24 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiService, League } from '../services/api';
+import { useToast } from '../components/Toast';
+import { ErrorModal } from '../components/CustomModals';
 
 const AVATAR_COLORS = ['#2563eb', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function LeaguesScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const { showToast } = useToast();
   const [leagues, setLeagues] = useState<League[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [copiedLeagueId, setCopiedLeagueId] = useState<number | null>(null);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [errorModal, setErrorModal] = useState<{
+    title: string;
+    message: string;
+    goBack?: boolean;
+  } | null>(null);
 
   const fetchLeagues = async () => {
     try {
@@ -34,7 +40,7 @@ export default function LeaguesScreen() {
       setLeagues(userLeagues);
     } catch (error) {
       console.error('Error fetching leagues:', error);
-      Alert.alert('Error', 'Failed to load leagues');
+      setErrorModal({ title: 'Failed to Load', message: 'Could not load leagues. Please try again.', goBack: true });
     } finally {
       setLoading(false);
     }
@@ -55,17 +61,11 @@ export default function LeaguesScreen() {
       fetchLeagues();
       const params = (route.params as { showToast?: string }) || {};
       if (params.showToast) {
-        setToastMsg(params.showToast);
+        showToast(params.showToast, 'success');
         (navigation as any).setParams({ showToast: undefined });
       }
-    }, [route.params])
+    }, [route.params, showToast])
   );
-
-  useEffect(() => {
-    if (!toastMsg) return;
-    const t = setTimeout(() => setToastMsg(null), 1500);
-    return () => clearTimeout(t);
-  }, [toastMsg]);
 
   const handleGlobalLeague = () => {
     (navigation as any).navigate('LeagueDetails', { leagueId: 'global' });
@@ -166,24 +166,19 @@ export default function LeaguesScreen() {
   );
 
   const renderEmptyState = () => (
-    <>
-      <View style={styles.emptyState}>
-        <View style={styles.emptyStateIconCircle}>
-          <Ionicons name="people-outline" size={60} color="#93c5fd" />
-        </View>
-        <Text style={styles.emptyTitle}>No private leagues yet</Text>
-        <Text style={styles.emptySubtitle}>
-          Create your own or join friends with an invite code
-        </Text>
+    <View style={styles.emptyState}>
+      <View style={styles.emptyStateIconCircle}>
+        <Ionicons name="people-outline" size={60} color="#93c5fd" />
       </View>
-      <View style={styles.inlineButtonsWrapper}>
-        {renderButtons(true)}
-      </View>
-    </>
+      <Text style={styles.emptyTitle}>No private leagues yet</Text>
+      <Text style={styles.emptySubtitle}>
+        Create your own or join friends with an invite code
+      </Text>
+    </View>
   );
 
-  const renderButtons = (inline: boolean) => (
-    <View style={inline ? styles.inlineButtons : styles.bottomButtons}>
+  const renderButtons = () => (
+    <View style={styles.bottomButtons}>
       <TouchableOpacity
         style={[styles.emptyButton, styles.emptyButtonCreate]}
         onPress={handleCreateLeague}
@@ -203,7 +198,7 @@ export default function LeaguesScreen() {
 
   const renderFixedBottomBar = () => (
     <View style={styles.bottomBarContainer}>
-      {renderButtons(false)}
+      {renderButtons()}
     </View>
   );
 
@@ -283,20 +278,26 @@ export default function LeaguesScreen() {
           }
           contentContainerStyle={[
             styles.listContainer,
-            leagues.length > 0 && styles.listContainerWithBottomBar,
+            styles.listContainerWithBottomBar,
           ]}
           showsVerticalScrollIndicator={false}
         />
-        {leagues.length > 0 && renderFixedBottomBar()}
+        {renderFixedBottomBar()}
       </View>
-        {toastMsg && (
-        <View style={styles.toast} pointerEvents="none">
-          <View style={styles.toastContent}>
-            <Ionicons name="checkmark-circle" size={32} color="#2563eb" />
-            <Text style={styles.toastText}>{toastMsg}</Text>
-          </View>
-        </View>
-        )}
+        <ErrorModal
+          visible={!!errorModal}
+          title={errorModal?.title}
+          message={errorModal?.message ?? ''}
+          onClose={() => {
+            setErrorModal(null);
+            if (errorModal?.goBack) navigation.goBack();
+          }}
+          onGoBack={errorModal?.goBack ? () => {
+            setErrorModal(null);
+            navigation.goBack();
+          } : undefined}
+          goBackLabel="Go Back"
+        />
       </SafeAreaView>
     </View>
   );
@@ -522,6 +523,10 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     textAlign: 'center',
   },
+  bottomButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   bottomBarContainer: {
     position: 'absolute',
     bottom: 0,
@@ -537,17 +542,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 12,
     justifyContent: 'center',
-  },
-  inlineButtonsWrapper: {
-    paddingTop: 16,
-  },
-  inlineButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  bottomButtons: {
-    flexDirection: 'row',
-    gap: 12,
   },
   emptyButton: {
     flex: 1,
@@ -583,29 +577,5 @@ const styles = StyleSheet.create({
   skeletonTall: {
     height: 100,
     marginBottom: 16,
-  },
-  toast: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 9999,
-  },
-  toastContent: {
-    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 10,
-  },
-  toastText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '500',
   },
 });

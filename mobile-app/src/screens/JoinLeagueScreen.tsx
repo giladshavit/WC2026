@@ -5,8 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Modal,
-  Pressable,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService } from '../services/api';
+import { ErrorModal } from '../components/CustomModals';
+import { useToast } from '../components/Toast';
 
 const CONFETTI = [
   { color: '#2563eb', style: { top: -4, left: -4 } },
@@ -25,6 +25,7 @@ const CONFETTI = [
 
 export default function JoinLeagueScreen() {
   const navigation = useNavigation();
+  const { showToast } = useToast();
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [codeFocused, setCodeFocused] = useState(false);
@@ -87,7 +88,9 @@ export default function JoinLeagueScreen() {
           </Text>
           <TouchableOpacity
             style={styles.doneButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => (navigation as any).navigate('LeaguesMain', {
+              showToast: 'Joined league successfully!'
+            })}
             activeOpacity={0.8}
           >
             <Text style={styles.doneButtonText}>Let's Go!</Text>
@@ -163,38 +166,12 @@ export default function JoinLeagueScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal
-        visible={errorModal !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setErrorModal(null)}
-      >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center' }}
-          onPress={() => setErrorModal(null)}
-        >
-          <Pressable
-            style={{ backgroundColor: '#fff', borderRadius: 20, padding: 28, width: '82%', maxWidth: 340, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 16, elevation: 12 }}
-            onPress={() => {}}
-          >
-            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#fee2e2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
-              <Ionicons name="alert-circle-outline" size={28} color="#ef4444" />
-            </View>
-            <Text style={{ fontSize: 19, fontWeight: '700', color: '#111827', marginBottom: 8, textAlign: 'center' }}>
-              {errorModal?.title}
-            </Text>
-            <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', lineHeight: 21, marginBottom: 20 }}>
-              {errorModal?.message}
-            </Text>
-            <Pressable
-              style={{ backgroundColor: '#2563eb', width: '100%', paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
-              onPress={() => setErrorModal(null)}
-            >
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>OK</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <ErrorModal
+        visible={!!errorModal}
+        title={errorModal?.title ?? 'Error'}
+        message={errorModal?.message ?? ''}
+        onClose={() => setErrorModal(null)}
+      />
     </SafeAreaView>
   );
 }

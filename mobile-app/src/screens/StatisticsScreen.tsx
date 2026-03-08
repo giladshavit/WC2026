@@ -9,6 +9,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../components/Toast';
 
 interface ProfilePerGroup {
   group_id: number;
@@ -67,6 +68,7 @@ function getGroupBlockColor(correctPositions: number | null): string {
 }
 
 export default function StatisticsScreen() {
+  const { showToast } = useToast();
   const [profile, setProfile] = useState<UserFullProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -80,6 +82,7 @@ export default function StatisticsScreen() {
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
+      showToast('Could not load statistics', 'error');
     } finally {
       setLoading(false);
       setRefreshing(false);

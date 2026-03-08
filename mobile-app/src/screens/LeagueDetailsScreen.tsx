@@ -5,7 +5,6 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
-  Alert,
   ScrollView,
   Animated,
 } from 'react-native';
@@ -22,7 +21,8 @@ import {
 } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import * as Clipboard from 'expo-clipboard';
-import { LeaveLeagueModal } from '../components/CustomModals';
+import { LeaveLeagueModal, ErrorModal } from '../components/CustomModals';
+import { useToast } from '../components/Toast';
 
 type SortKey = 'total' | 'matches' | 'groups' | 'knockout' | 'fine';
 
@@ -281,8 +281,14 @@ export default function LeagueDetailsScreen() {
   const navigation = useNavigation();
   const { leagueId } = route.params as RouteParams;
   const { getCurrentUserId } = useAuth();
+  const { showToast } = useToast();
 
   const [standingsData, setStandingsData] = useState<LeagueStandingsResponse | null>(null);
+  const [errorModal, setErrorModal] = useState<{
+    title: string;
+    message: string;
+    goBack?: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<SortKey>('total');
@@ -354,11 +360,16 @@ export default function LeagueDetailsScreen() {
 
       setStandingsData(data);
       await fetchAndSetupLiveMatches();
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching standings:', error);
-      Alert.alert('Error', 'Failed to load league standings');
-    } finally {
       setLoading(false);
+      setErrorModal({
+        title: 'Failed to Load',
+        message: 'Could not load league standings. Please try again.',
+        goBack: true,
+      });
+      return;
     }
   };
 
@@ -388,7 +399,7 @@ export default function LeagueDetailsScreen() {
   const handleCopyInviteCode = async () => {
     if (standingsData?.league_info?.invite_code) {
       await Clipboard.setStringAsync(standingsData.league_info.invite_code);
-      Alert.alert('Copied!', 'Invite code copied to clipboard');
+      showToast('Invite code copied!', 'success');
     }
   };
 
@@ -396,7 +407,7 @@ export default function LeagueDetailsScreen() {
     setMenuVisible(false);
     const id = Number(leagueId);
     if (isNaN(id)) {
-      Alert.alert('Error', 'Invalid league');
+      setErrorModal({ title: 'Invalid League', message: 'Could not identify this league.' });
       return;
     }
     setLeaveModalVisible(true);
@@ -410,7 +421,10 @@ export default function LeagueDetailsScreen() {
       await apiService.leaveLeague(id);
       (navigation as any).navigate('LeaguesMain', { showToast: 'Left league successfully' });
     } catch (error) {
-      Alert.alert('Error', 'Failed to leave league. Please try again.');
+      setErrorModal({
+        title: 'Failed to Leave',
+        message: 'Could not leave the league. Please try again.',
+      });
     } finally {
       setLeaving(false);
     }
@@ -476,6 +490,20 @@ export default function LeagueDetailsScreen() {
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Failed to load league data</Text>
         </View>
+        <ErrorModal
+          visible={!!errorModal}
+          title={errorModal?.title}
+          message={errorModal?.message ?? ''}
+          onClose={() => {
+            setErrorModal(null);
+            navigation.goBack();
+          }}
+          onGoBack={() => {
+            setErrorModal(null);
+            navigation.goBack();
+          }}
+          goBackLabel="Go Back"
+        />
       </SafeAreaView>
     );
   }
@@ -794,6 +822,14 @@ export default function LeagueDetailsScreen() {
         leagueName={leagueName}
         onConfirm={handleLeaveConfirm}
         onCancel={() => setLeaveModalVisible(false)}
+      />
+      <ErrorModal
+        visible={!!errorModal}
+        title={errorModal?.title}
+        message={errorModal?.message ?? ''}
+        onClose={() => setErrorModal(null)}
+        onGoBack={errorModal?.goBack ? () => { setErrorModal(null); navigation.goBack(); } : undefined}
+        goBackLabel="Go Back"
       />
     </SafeAreaView>
   );
