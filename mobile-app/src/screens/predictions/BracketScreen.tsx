@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
   useWindowDimensions,
   TouchableOpacity,
   Platform,
@@ -25,6 +24,8 @@ import ConfirmResetModal from '../../components/ConfirmResetModal';
 import ConfirmExitModal from '../../components/ConfirmExitModal';
 import { organizeBracketMatches, BracketMatch, OrganizedBracket } from '../../utils/bracketCalculator';
 import { useTournament } from '../../contexts/TournamentContext';
+import { useToast } from '../../components/Toast';
+import { ErrorModal } from '../../components/CustomModals';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -60,6 +61,13 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [showExitModal, setShowExitModal] = useState(false);
   const [showNotEditableModal, setShowNotEditableModal] = useState(false);
   const [saveSuccessInfo, setSaveSuccessInfo] = useState<{ changes_count: number; penalty_applied: number } | null>(null);
+  
+  const { showToast } = useToast();
+  const [errorModal, setErrorModal] = useState<{
+    title: string;
+    message: string;
+    goBack?: boolean;
+  } | null>(null);
   
   // Get current user ID
   const { getCurrentUserId } = useAuth();
@@ -123,7 +131,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       // Get current user ID
       const userId = getCurrentUserId();
       if (!userId) {
-        Alert.alert('Error', 'User not authenticated');
+        setErrorModal({ title: 'Error', message: 'User not authenticated', goBack: true });
         return;
       }
       
@@ -144,7 +152,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       
     } catch (error) {
       console.error('Error fetching bracket predictions:', error);
-      Alert.alert('Error', 'Error loading bracket');
+      setErrorModal({ title: 'Error', message: 'Could not load bracket. Please try again.', goBack: true });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -326,14 +334,14 @@ export default function BracketScreen({}: BracketScreenProps) {
   const handleEditModeToggle = async () => {
     if (!editMode) {
       if (!canEditDrafts) {
-        Alert.alert('Cannot Edit', 'Cannot edit predictions while knockout stage is active');
+        setErrorModal({ title: 'Cannot Edit', message: 'Predictions cannot be edited while the knockout stage is active.' });
         return;
       }
       // Entering edit mode - create all drafts
       try {
         const userId = getCurrentUserId();
         if (!userId) {
-          Alert.alert('Error', 'User not authenticated');
+          setErrorModal({ title: 'Error', message: 'User not authenticated', goBack: true });
           return;
         }
         
@@ -343,7 +351,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         // fetchPredictions and refreshFineCount will be called by useFocusEffect when editMode changes
       } catch (error) {
         console.error('Error creating drafts:', error);
-        Alert.alert('Error', 'Cannot enter edit mode. Try again.');
+        setErrorModal({ title: 'Error', message: 'Cannot enter edit mode. Please try again.' });
       } finally {
         setLoading(false);
       }
@@ -351,26 +359,27 @@ export default function BracketScreen({}: BracketScreenProps) {
       // Exiting edit mode - check for unsaved changes first
       const userId = getCurrentUserId();
       if (!userId) return;
-
-      const countResult = await apiService.getDraftChangesCount(userId);
-
-      if (countResult.changes_count === 0) {
-        // No changes - exit directly
-        try {
-          setLoading(true);
-          await apiService.deleteAllDrafts(userId);
-          setEditMode(false);
-          setFineInfo(null);
-        } catch (error) {
-          console.error('Error exiting edit mode:', error);
-          Alert.alert('Error', 'Could not exit edit mode. Try again.');
-        } finally {
-          setLoading(false);
+      try {
+        const countResult = await apiService.getDraftChangesCount(userId);
+        if (countResult.changes_count === 0) {
+          try {
+            setLoading(true);
+            await apiService.deleteAllDrafts(userId);
+            setEditMode(false);
+            setFineInfo(null);
+          } catch (error) {
+            console.error('Error exiting edit mode:', error);
+            setErrorModal({ title: 'Error', message: 'Could not exit edit mode. Please try again.' });
+          } finally {
+            setLoading(false);
+          }
+        } else {
+          setFineInfo(countResult);
+          setShowExitModal(true);
         }
-      } else {
-        // Has changes - show confirm modal
-        setFineInfo(countResult);
-        setShowExitModal(true);
+      } catch (error) {
+        console.error('Error checking draft changes:', error);
+        setErrorModal({ title: 'Error', message: 'Could not exit edit mode. Please try again.' });
       }
     }
   };
@@ -388,7 +397,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       }
     } catch (error) {
       console.error('Error exiting edit mode:', error);
-      Alert.alert('Error', 'Could not exit. Try again.');
+      setErrorModal({ title: 'Error', message: 'Could not exit edit mode. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -397,7 +406,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const handleEnterEditMode = async () => {
     setIsEnterEditModeModalVisible(false);
     if (!canEditDrafts) {
-      Alert.alert('Cannot Edit', 'Cannot edit predictions while knockout stage is active');
+      setErrorModal({ title: 'Cannot Edit', message: 'Predictions cannot be edited while the knockout stage is active.' });
       return;
     }
     try {
@@ -408,7 +417,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       setEditMode(true);
     } catch (error) {
       console.error('Error creating drafts:', error);
-      Alert.alert('Error', 'Cannot enter edit mode. Try again.');
+      setErrorModal({ title: 'Error', message: 'Cannot enter edit mode. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -417,16 +426,18 @@ export default function BracketScreen({}: BracketScreenProps) {
   const handleResetDrafts = async () => {
     const userId = getCurrentUserId();
     if (!userId) return;
-
-    const countResult = await apiService.getDraftChangesCount(userId);
-
-    if (countResult.changes_count === 0) {
-      setToastMsg('No changes to reset');
-      return;
+    try {
+      const countResult = await apiService.getDraftChangesCount(userId);
+      if (countResult.changes_count === 0) {
+        showToast('No changes to reset', 'info');
+        return;
+      }
+      setFineInfo(countResult);
+      setShowResetModal(true);
+    } catch (error) {
+      console.error('Error checking draft changes:', error);
+      setErrorModal({ title: 'Error', message: 'Could not reset. Please try again.' });
     }
-
-        setFineInfo(countResult);
-    setShowResetModal(true);
   };
 
   const executeReset = async () => {
@@ -439,7 +450,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       setFineInfo({ changes_count: 0, penalty_per_change: 0, total_penalty: 0 });
     } catch (error) {
       console.error('Error resetting drafts:', error);
-      Alert.alert('Error', 'Could not reset. Try again.');
+      setErrorModal({ title: 'Error', message: 'Could not reset changes. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -458,7 +469,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       });
     } catch (error) {
       console.error('Error committing drafts:', error);
-      Alert.alert('Error', 'Save failed. Try again.');
+      setErrorModal({ title: 'Error', message: 'Save failed. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -472,7 +483,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       const countResult = await apiService.getDraftChangesCount(userId);
 
       if (countResult.changes_count === 0) {
-        setToastMsg('No changes to save');
+        showToast('No changes to save', 'info');
         return;
       }
 
@@ -480,7 +491,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       setIsConfirmSaveModalVisible(true);
     } catch (error) {
       console.error('Error in save press:', error);
-      Alert.alert('Error', 'Cannot save. Try again.');
+      setErrorModal({ title: 'Error', message: 'Cannot save at this time. Please try again.' });
     }
   };
 
@@ -520,7 +531,7 @@ export default function BracketScreen({}: BracketScreenProps) {
 
   const captureBracket = async () => {
     if (!bracketRef.current) {
-      Alert.alert('Error', 'Cannot capture bracket');
+      setErrorModal({ title: 'Error', message: 'Cannot capture bracket at this time.' });
       return;
     }
 
@@ -530,7 +541,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       // Request permission to save to photos
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Error', 'Permission required to save images');
+        setErrorModal({ title: 'Permission Required', message: 'Photo library access is required to save bracket images.' });
         return;
       }
 
@@ -545,10 +556,10 @@ export default function BracketScreen({}: BracketScreenProps) {
       const asset = await MediaLibrary.createAssetAsync(uri);
       await MediaLibrary.createAlbumAsync('Bracket Screenshots', asset, false);
 
-      Alert.alert('Success', 'Bracket saved to photos successfully!');
+      showToast('Bracket saved to photos!', 'success');
     } catch (error) {
       console.error('Error capturing bracket:', error);
-      Alert.alert('Error', 'Error saving bracket');
+      setErrorModal({ title: 'Error', message: 'Could not save bracket to photos. Please try again.' });
     } finally {
       setIsCapturing(false);
     }
@@ -621,20 +632,45 @@ export default function BracketScreen({}: BracketScreenProps) {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
         <Text style={styles.loadingText}>Loading bracket...</Text>
+        <ErrorModal
+          visible={!!errorModal}
+          title={errorModal?.title ?? 'Error'}
+          message={errorModal?.message ?? ''}
+          onClose={() => setErrorModal(null)}
+          {...(errorModal?.goBack && {
+            onGoBack: () => { setErrorModal(null); navigation.goBack(); },
+            goBackLabel: 'Go Back',
+          })}
+        />
       </View>
     );
   }
 
   if (!organizedBracket) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Error loading bracket</Text>
-      </View>
+      <>
+        <View style={styles.errorContainer}>
+          <Ionicons name="cloud-offline-outline" size={56} color="#f87171" />
+          <Text style={styles.emptyTitle}>Could not load bracket</Text>
+          <Text style={styles.emptySubtitle}>Please check your connection and try again</Text>
+        </View>
+        <ErrorModal
+          visible={!!errorModal}
+          title={errorModal?.title ?? 'Error'}
+          message={errorModal?.message ?? ''}
+          onClose={() => setErrorModal(null)}
+          {...(errorModal?.goBack && {
+            onGoBack: () => { setErrorModal(null); navigation.goBack(); },
+            goBackLabel: 'Go Back',
+          })}
+        />
+      </>
     );
   }
 
   return (
-    <View style={[styles.container, { pointerEvents: 'box-none' }]}>
+    <>
+      <View style={[styles.container, { pointerEvents: 'box-none' }]}>
       {/* Subtle dot-grid background */}
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
         {Array.from({ length: Math.ceil(screenHeight / 28) }).map((_, row) =>
@@ -962,14 +998,25 @@ export default function BracketScreen({}: BracketScreenProps) {
             console.log('✅ Match updated successfully');
           } catch (error) {
             console.error('❌ Error updating match:', error);
-            Alert.alert('Error', 'Cannot update match. Try again.');
+            setErrorModal({ title: 'Error', message: 'Could not update match. Please try again.' });
           } finally {
             // Close the modal only after the save operation completes (success or error)
             setIsModalVisible(false);
           }
         }}
       />
-    </View>
+      </View>
+      <ErrorModal
+        visible={!!errorModal}
+        title={errorModal?.title ?? 'Error'}
+        message={errorModal?.message ?? ''}
+        onClose={() => setErrorModal(null)}
+        {...(errorModal?.goBack && {
+          onGoBack: () => { setErrorModal(null); navigation.goBack(); },
+          goBackLabel: 'Go Back',
+        })}
+      />
+    </>
   );
 }
 
@@ -1007,6 +1054,19 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     color: '#e53e3e',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#4a5568',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#718096',
+    textAlign: 'center',
   },
   column: {
     marginRight: 20,
