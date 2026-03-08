@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import ThirdPlaceStatsModal from '../../components/ThirdPlaceStatsModal';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, Image, Dimensions, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image, Dimensions, BackHandler, Modal, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useFocusEffect, useIsFocused } from '@react-navigation/native';
@@ -8,7 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThirdPlaceTeam, apiService } from '../../services/api';
 import { useTournament } from '../../contexts/TournamentContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { FineConfirmationModal, UnsavedChangesModal, MaximumReachedModal } from '../../components/CustomModals';
+import { useToast } from '../../components/Toast';
+import { FineConfirmationModal, UnsavedChangesModal, MaximumReachedModal, ErrorModal, ValidationModal } from '../../components/CustomModals';
 
 interface ThirdPlaceScreenProps {}
 
@@ -29,7 +30,15 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const [exitModalVisible, setExitModalVisible] = useState(false);
   const [pendingNavAction, setPendingNavAction] = useState<any>(null);
   const [maxReachedModalVisible, setMaxReachedModalVisible] = useState(false);
+  const [errorModal, setErrorModal] = useState<{
+    title: string;
+    message: string;
+    goBack?: boolean;
+  } | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
 
+  const { showToast } = useToast();
   const hasStartedEditing = useRef(false);
 
   const insets = useSafeAreaInsets();
@@ -71,7 +80,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     selectedTeams.size === 8 &&
     (calculateThirdPlaceChanges > 0 || selectedTeams.size !== originallySelectedCount);
   const hasUnsavedChanges = isThirdPlaceManualSave && hasChanges;
-  const showSaveButton = isThirdPlaceEditable && hasChanges;
+  const showSaveButton = isThirdPlaceEditable;
   const showPoints =
     thirdPlaceScore !== null &&
     thirdPlaceResult !== null;
@@ -100,13 +109,16 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     return Math.max(cardHeight, 80); // Minimum height of 80px
   };
 
-  const fetchData = async () => {
+  const fetchData = async (): Promise<{ selectedCount: number }> => {
+    let freshSelectedCount = 0;
     try {
       const userId = getCurrentUserId();
       if (!userId) {
-        Alert.alert('Error', 'User not authenticated');
-        return;
+        setErrorModal({ title: 'Error', message: 'User not authenticated', goBack: true });
+        setLoading(false);
+        return { selectedCount: 0 };
       }
+      setLoadError(false);
       
       const data = await apiService.getThirdPlacePredictionsData(userId);
       
@@ -117,7 +129,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         setTeams([]);
         setSelectedTeams(new Set());
         setChangedGroups([]);
-        return;
+        return { selectedCount: 0 };
       }
       
       // Handle case where eligible_teams might be undefined or empty
@@ -132,6 +144,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         }
       });
       setSelectedTeams(selectedSet);
+      freshSelectedCount = selectedSet.size;
       
       // Initialize changed groups from prediction data
       setChangedGroups(data.prediction?.changed_groups || []);
@@ -146,11 +159,18 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       setThirdPlaceScore(data.third_place_score);
     } catch (error) {
       console.error('Error fetching third place data:', error);
-      Alert.alert('Error', 'Could not load third place teams. Please check that the server is running.');
+      setLoadError(true);
+      setErrorModal({ title: 'Error', message: 'Could not load third place teams. Please check your connection.', goBack: true });
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
+    return { selectedCount: freshSelectedCount };
+  };
+
+  const checkAllThirdPlaceComplete = (teamList: ThirdPlaceTeam[]) => {
+    const filled = teamList.filter(t => t.is_selected);
+    return filled.length >= 8;
   };
 
   const autoSave = async (teamIds: number[]) => {
@@ -166,8 +186,10 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         stage: 'third_place',
         timestamp: Date.now()
       }));
-      // Refresh data silently
-      await fetchData();
+      const { selectedCount } = await fetchData();
+      if (selectedCount >= 8) {
+        setShowCompletionModal(true);
+      }
     } catch (error) {
       console.error('Error auto-saving third place:', error);
     }
@@ -257,7 +279,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
 
   const performSave = async () => {
     if (selectedTeams.size !== 8) {
-      Alert.alert('Incomplete Selection', 'Please select exactly 8 teams to advance.');
+      showToast('Please select exactly 8 teams', 'error');
       return;
     }
 
@@ -265,7 +287,8 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     try {
       const userId = getCurrentUserId();
       if (!userId) {
-        Alert.alert('Error', 'User not authenticated');
+        setErrorModal({ title: 'Error', message: 'User not authenticated' });
+        setSaving(false);
         return;
       }
       
@@ -280,13 +303,15 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       }));
       console.log('✅ Third place stage updated - marked for knockout refresh');
       
-      Alert.alert('Success', 'Third place prediction saved successfully!');
+      showToast('Prediction saved!', 'success');
       
-      // Refresh data to get updated prediction info
-      await fetchData();
+      const { selectedCount } = await fetchData();
+      if (selectedCount >= 8) {
+        setShowCompletionModal(true);
+      }
     } catch (error) {
       console.error('Error saving third place prediction:', error);
-      Alert.alert('Error', 'Could not save prediction. Please try again.');
+      setErrorModal({ title: 'Error', message: 'Could not save prediction. Please try again.' });
     } finally {
       setSaving(false);
       hasStartedEditing.current = false;
@@ -296,7 +321,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const handleSave = async () => {
     if (!isThirdPlaceEditable) return;
     if (calculateThirdPlaceChanges === 0) {
-      Alert.alert('No Changes', 'No changes to save');
+      showToast('No changes to save', 'info');
       return;
     }
     setFineModalVisible(true);
@@ -391,6 +416,16 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#16a34a" />
         <Text style={styles.loadingText}>Loading third place teams...</Text>
+        <ErrorModal
+          visible={!!errorModal}
+          title={errorModal?.title ?? 'Error'}
+          message={errorModal?.message ?? ''}
+          onClose={() => setErrorModal(null)}
+          {...(errorModal?.goBack && {
+            onGoBack: () => { setErrorModal(null); navigation.goBack(); },
+            goBackLabel: 'Go Back',
+          })}
+        />
       </View>
     );
   }
@@ -398,9 +433,30 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   // Show message if no teams available (user hasn't completed group predictions)
   if (teams.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Please complete your group predictions first</Text>
-        <Text style={styles.subtitle}>You need to predict all 12 groups before you can select 3rd place teams</Text>
+      <View style={styles.emptyStateContainer}>
+        <Ionicons
+          name={loadError ? "cloud-offline-outline" : "football-outline"}
+          size={56}
+          color={loadError ? "#f87171" : "#86efac"}
+        />
+        <Text style={styles.emptyStateTitle}>
+          {loadError ? 'Could not load data' : 'Complete Group Stage First'}
+        </Text>
+        <Text style={styles.emptyStateSubtitle}>
+          {loadError
+            ? 'Please check your connection and try again'
+            : 'Predict all 12 groups before selecting 3rd place teams'}
+        </Text>
+        <ErrorModal
+          visible={!!errorModal}
+          title={errorModal?.title ?? 'Error'}
+          message={errorModal?.message ?? ''}
+          onClose={() => setErrorModal(null)}
+          {...(errorModal?.goBack && {
+            onGoBack: () => { setErrorModal(null); navigation.goBack(); },
+            goBackLabel: 'Go Back',
+          })}
+        />
       </View>
     );
   }
@@ -452,9 +508,9 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
               </View>
             ) : showSaveButton ? (
               <TouchableOpacity
-                style={[styles.saveButton, (saving || selectedTeams.size !== 8) && styles.saveButtonDisabled]}
+                style={[styles.saveButton, (saving || selectedTeams.size !== 8 || !hasChanges) && styles.saveButtonDisabled]}
                 onPress={handleSave}
-                disabled={saving || selectedTeams.size !== 8}
+                disabled={saving || selectedTeams.size !== 8 || !hasChanges}
                 activeOpacity={0.85}
               >
                 <Text style={styles.saveButtonText}>
@@ -516,6 +572,56 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         visible={maxReachedModalVisible}
         onClose={() => setMaxReachedModalVisible(false)}
       />
+
+      <ErrorModal
+        visible={!!errorModal}
+        title={errorModal?.title ?? 'Error'}
+        message={errorModal?.message ?? ''}
+        onClose={() => setErrorModal(null)}
+        {...(errorModal?.goBack && {
+          onGoBack: () => { setErrorModal(null); navigation.goBack(); },
+          goBackLabel: 'Go Back',
+        })}
+      />
+
+      {/* Third Place Completion Modal */}
+      <Modal visible={showCompletionModal} transparent animationType="fade">
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowCompletionModal(false)}
+        >
+          <Pressable onPress={e => e.stopPropagation()}>
+            <View style={styles.completionCard}>
+              <Text style={styles.completionTitle}>All 8 Groups Done!</Text>
+              <Text style={styles.completionSubtitle}>
+                You've selected your third-place team from every group.
+                Ready to predict the knockout stage?
+              </Text>
+              <View style={styles.completionButtons}>
+                <TouchableOpacity
+                  style={styles.completionStayButton}
+                  onPress={() => setShowCompletionModal(false)}
+                >
+                  <Text style={styles.completionStayText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                    Stay Here
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.completionKnockoutButton}
+                  onPress={() => {
+                    setShowCompletionModal(false);
+                    navigation.navigate('Knockout' as never);
+                  }}
+                >
+                  <Text style={styles.completionKnockoutText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                    Knockout
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -618,11 +724,6 @@ const styles = StyleSheet.create({
   headerRightSpacer: {
     minWidth: 90,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#4a5568',
-    marginBottom: 8,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -633,6 +734,27 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#4a5568',
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 32,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#374151',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   listContainer: {
     padding: 8,
@@ -740,5 +862,76 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  completionCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 28,
+    alignItems: 'center',
+    marginHorizontal: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  completionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1e293b',
+    marginTop: 8,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  completionSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  completionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  completionStayButton: {
+    flex: 1,
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  completionStayText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  completionKnockoutButton: {
+    flex: 1,
+    backgroundColor: '#16a34a',
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completionKnockoutText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#ffffff',
+    textAlign: 'center',
   },
 });
