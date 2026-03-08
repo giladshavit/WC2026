@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Modal, Pressable, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Modal, TouchableOpacity } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -8,6 +8,8 @@ import KnockoutMatchCard from '../../components/KnockoutMatchCard';
 import BracketIcon from '../../components/icons/BracketIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTournament } from '../../contexts/TournamentContext';
+import { useToast } from '../../components/Toast';
+import { ErrorModal, InfoModal } from '../../components/CustomModals';
 
 interface KnockoutScreenProps {}
 
@@ -81,9 +83,14 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     return predStageValue > currentValue;
   }, [currentStage]);
 
-  const [showBracketPrompt, setShowBracketPrompt] = useState(false);
-  const [showReadOnlyPrompt, setShowReadOnlyPrompt] = useState(false);
+  const { showToast } = useToast();
+  const [errorModal, setErrorModal] = useState<{
+    title: string;
+    message: string;
+    goBack?: boolean;
+  } | null>(null);
   const [hasEverPredictedFinal, setHasEverPredictedFinal] = useState(false);
+  const [showBracketCompleteModal, setShowBracketCompleteModal] = useState(false);
 
   const [predictionsByStage, setPredictionsByStage] = useState<Record<string, KnockoutPrediction[]>>({
     round32: [],
@@ -141,6 +148,8 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
 
       const userId = getCurrentUserId();
       if (!userId) {
+        setErrorModal({ title: 'Error', message: 'User not authenticated', goBack: true });
+        setLoading(false);
         return;
       }
 
@@ -191,6 +200,11 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
       }
     } catch (error) {
       console.error('Error fetching knockout predictions:', error);
+      setErrorModal({
+        title: 'Error',
+        message: 'Could not load predictions. Please check your connection.',
+        goBack: true,
+      });
     } finally {
       setLoading(false);
       if (!hasAutoScrolledRef.current) {
@@ -258,7 +272,10 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     teamId: number
   ) => {
     if (!prediction.is_editable) {
-      setShowReadOnlyPrompt(true);
+      setErrorModal({
+        title: 'Edit via Bracket',
+        message: 'To edit knockout predictions, use the Bracket screen to manage the full tournament path.',
+      });
       return;
     }
 
@@ -276,32 +293,24 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
           false
         );
 
-        setPredictionsByStage(prev => {
-          const updated = { ...prev };
-          updated[prediction.stage] = (prev[prediction.stage] || []).map(p => {
-            if (p.id !== prediction.id) return p;
-            return { ...p, winner_team_id: teamId };
-          });
-          return updated;
-        });
+        await fetchAllStages(true);
 
-        setOriginalWinners(prev => ({ ...prev, [prediction.id]: teamId }));
-
-        setUnlockedStages(prev => {
-          const next = new Set(prev);
-          STAGES.forEach(({ key }) => {
-            if (computeIsStageVisible(key, predictionsByStage, { ...originalWinners, [prediction.id]: teamId })) {
-              next.add(key);
-            }
-          });
-          return next;
-        });
+        if (prediction.stage === 'final') {
+          setShowBracketCompleteModal(true);
+        }
 
       } catch (error) {
         console.error('Error updating knockout prediction:', error);
+        setErrorModal({
+          title: 'Could not save',
+          message: 'Failed to save your prediction. Please check your connection and try again.',
+        });
       }
     } else {
-      setShowReadOnlyPrompt(true);
+      setErrorModal({
+        title: 'Edit via Bracket',
+        message: 'To edit knockout predictions, use the Bracket screen to manage the full tournament path.',
+      });
     }
   };
 
@@ -388,6 +397,16 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
         <Text style={styles.loadingText}>Loading knockout predictions...</Text>
+        <ErrorModal
+          visible={!!errorModal}
+          title={errorModal?.title ?? 'Error'}
+          message={errorModal?.message ?? ''}
+          onClose={() => setErrorModal(null)}
+          {...(errorModal?.goBack && {
+            onGoBack: () => { setErrorModal(null); navigation.goBack(); },
+            goBackLabel: 'Go Back',
+          })}
+        />
       </View>
     );
   }
@@ -403,9 +422,8 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
               style={styles.bracketButton}
               onPress={() => navigation.navigate('Bracket' as never)}
             >
-              <View style={styles.bracketButtonIcon}>
-                <BracketIcon size={18} color="#ffffff" />
-              </View>
+              <BracketIcon size={16} color="#ffffff" />
+              <Text style={styles.bracketButtonText}>Bracket</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.headerRight}>
@@ -433,52 +451,51 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         {STAGES.map(({ key, name }) => renderStageSection(key, name))}
       </ScrollView>
 
-      <Modal visible={showBracketPrompt} transparent animationType="fade">
-        <Pressable
+      <ErrorModal
+        visible={!!errorModal}
+        title={errorModal?.title ?? 'Error'}
+        message={errorModal?.message ?? ''}
+        onClose={() => setErrorModal(null)}
+        {...(errorModal?.goBack && {
+          onGoBack: () => { setErrorModal(null); navigation.goBack(); },
+          goBackLabel: 'Go Back',
+        })}
+      />
+
+      <Modal
+        visible={showBracketCompleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBracketCompleteModal(false)}
+      >
+        <TouchableOpacity
           style={styles.modalOverlay}
-          onPress={() => setShowBracketPrompt(false)}
+          activeOpacity={1}
+          onPress={() => setShowBracketCompleteModal(false)}
         >
-          <View style={styles.modalCard}>
+          <TouchableOpacity style={styles.modalCard} activeOpacity={1} onPress={() => {}}>
             <BracketIcon size={48} color="#16a34a" />
             <Text style={styles.modalTitle}>Bracket Complete!</Text>
             <Text style={styles.modalSubtitle}>
               Your full tournament bracket is ready. Want to view it?
             </Text>
-            <TouchableOpacity style={styles.modalButton} onPress={() => {
-              setShowBracketPrompt(false);
-              navigation.navigate('Bracket' as never);
-            }}>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setShowBracketCompleteModal(false);
+                navigation.navigate('Bracket' as never);
+              }}
+            >
               <Text style={styles.modalButtonText}>View Bracket</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.modalButtonSecondary} onPress={() => setShowBracketPrompt(false)}>
+            <TouchableOpacity
+              style={styles.modalButtonSecondary}
+              onPress={() => setShowBracketCompleteModal(false)}
+            >
               <Text style={styles.modalButtonSecondaryText}>Later</Text>
             </TouchableOpacity>
-          </View>
-        </Pressable>
-      </Modal>
-
-      <Modal visible={showReadOnlyPrompt} transparent animationType="fade">
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowReadOnlyPrompt(false)}
-        >
-          <View style={styles.modalCard}>
-            <BracketIcon size={48} color="#64748b" />
-            <Text style={styles.modalTitle}>Edit via Bracket</Text>
-            <Text style={styles.modalSubtitle}>
-              To edit your knockout predictions, use the Bracket screen where you can manage the full tournament path.
-            </Text>
-            <TouchableOpacity style={styles.modalButton} onPress={() => {
-              setShowReadOnlyPrompt(false);
-              navigation.navigate('Bracket' as never);
-            }}>
-              <Text style={styles.modalButtonText}>Open Bracket</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.modalButtonSecondary} onPress={() => setShowReadOnlyPrompt(false)}>
-              <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </Pressable>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -506,16 +523,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   bracketButton: {
-    backgroundColor: '#7c3aed',
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    justifyContent: 'center',
+    backgroundColor: '#0284c7',
+    flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 6,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  bracketButtonIcon: {
-    marginLeft: 6,
+  bracketButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   pointsContainer: {
     backgroundColor: '#48bb78',
