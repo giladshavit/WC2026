@@ -65,14 +65,17 @@ class KnockoutService:
         ]
 
         knockout_score = None
+        knockout_penalty = 0
         if not is_draft:
             user_scores = DBReader.get_user_scores(db, user_id)
             knockout_score = user_scores.knockout_score if user_scores else None
+            knockout_penalty = user_scores.knockout_penalty if user_scores else 0
 
         stage = StageManager.get_current_stage(db)
         return {
             "predictions": result,
             "knockout_score": knockout_score,
+            "knockout_penalty": knockout_penalty,
             "can_edit_drafts": stage.can_create_knockout_drafts(),
         }
 
@@ -1092,6 +1095,7 @@ class KnockoutService:
         """Add additional fields to item based on is_draft flag."""
         if not is_draft:
             item["points"] = prediction.points
+            item["penalty_points"] = prediction.penalty_points or 0
             item["is_editable"] = prediction.is_editable
             item["created_at"] = prediction.created_at
             item["updated_at"] = prediction.updated_at

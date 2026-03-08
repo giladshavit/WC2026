@@ -389,6 +389,7 @@ class ThirdPlacePredictionService:
             "eligible_teams": third_place_teams,
             "prediction": prediction_info,
             "third_place_score": user_scores.third_place_score if user_scores else None,
+            "third_place_penalty": user_scores.third_place_penalty if user_scores else 0,
             "result": result_data
         }
     

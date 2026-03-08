@@ -310,6 +310,7 @@ class GroupPredictionService:
                 "third_place": prediction.third_place,
                 "fourth_place": prediction.fourth_place,
                 "points": prediction.points,
+                "penalty_points": getattr(prediction, "penalty_points", 0) or 0,
                 "is_editable": prediction.is_editable,
                 "created_at": prediction.created_at.isoformat(),
                 "updated_at": prediction.updated_at.isoformat()
@@ -322,6 +323,7 @@ class GroupPredictionService:
                 "third_place": None,
                 "fourth_place": None,
                 "points": 0,
+                "penalty_points": 0,
                 "is_editable": True,
                 "created_at": None,
                 "updated_at": None
@@ -362,7 +364,8 @@ class GroupPredictionService:
         
         return {
             "groups": result,
-            "groups_score": user_scores.groups_score if user_scores else None
+            "groups_score": user_scores.groups_score if user_scores else None,
+            "groups_penalty": user_scores.groups_penalty if user_scores else 0
         }
     
     @staticmethod
