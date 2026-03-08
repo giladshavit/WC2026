@@ -103,6 +103,8 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [originalWinners, setOriginalWinners] = useState<{ [predictionId: number]: number }>({});
   const [knockoutScore, setKnockoutScore] = useState<number | null>(null);
+  const [knockoutPenalty, setKnockoutPenalty] = useState<number>(0);
+  const [showNetScore, setShowNetScore] = useState(false);
   const [unlockedStages, setUnlockedStages] = useState<Set<string>>(new Set(['round32']));
   const [touchedPredictions, setTouchedPredictions] = useState<Set<number>>(new Set());
 
@@ -188,6 +190,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
 
       const lastResult = results[results.length - 1];
       setKnockoutScore(lastResult?.knockout_score ?? null);
+      setKnockoutPenalty(lastResult?.knockout_penalty ?? 0);
 
       const bracketUpdatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';
       const bracketUpdatedMatches = JSON.parse(bracketUpdatedMatchesStr);
@@ -327,14 +330,28 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         isTouched={touchedPredictions.has(prediction.id)}
         isPreTournament={isPreTournament}
         isLocked={!prediction.is_editable}
+        showNetScore={showNetScore}
       />
     );
-  }, [originalWinners, touchedPredictions, isPreTournament]);
+  }, [originalWinners, touchedPredictions, isPreTournament, showNetScore]);
 
   const hasAnyResult = Object.values(predictionsByStage).flat().some(
     p => p.is_correct !== null && p.is_correct !== undefined
   );
   const showPoints = hasAnyResult && knockoutScore !== null;
+
+  const netTotal = showNetScore && knockoutScore !== null
+    ? (knockoutScore ?? 0) - knockoutPenalty
+    : null;
+  const getPointsPillStyle = () => {
+    if (!showNetScore || netTotal === null) return {};
+    if (netTotal > 0) return {};
+    if (netTotal === 0) return styles.pointsContainerZero;
+    return styles.pointsContainerNegative;
+  };
+  const displayPoints = showNetScore && netTotal !== null
+    ? netTotal
+    : (knockoutScore ?? 0);
 
   const renderSectionHeader = (stageName: string, isFirst: boolean = false, isLocked: boolean = false) => (
     <View style={[
@@ -428,9 +445,25 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
           </View>
           <View style={styles.headerRight}>
             {showPoints && (
-              <View style={styles.pointsContainer}>
-                <Text style={styles.totalPoints}>{knockoutScore} pts</Text>
-              </View>
+              <>
+                <TouchableOpacity
+                  style={[styles.netScoreToggle, showNetScore && styles.netScoreToggleActive, { marginRight: 4 }]}
+                  onPress={() => setShowNetScore(prev => !prev)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="swap-horizontal-outline"
+                    size={14}
+                    color={showNetScore ? '#16a34a' : '#64748b'}
+                  />
+                  <Text style={[styles.netScoreToggleText, showNetScore && styles.netScoreToggleTextActive]}>
+                    Net Score
+                  </Text>
+                </TouchableOpacity>
+                <View style={[styles.pointsContainer, getPointsPillStyle()]}>
+                  <Text style={styles.totalPoints}>{displayPoints} pts</Text>
+                </View>
+              </>
             )}
           </View>
         </View>
@@ -520,7 +553,44 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     flex: 1,
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  netScoreToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 4,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#94a3b8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  netScoreToggleActive: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#16a34a',
+  },
+  netScoreToggleText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  netScoreToggleTextActive: {
+    color: '#16a34a',
+  },
+  pointsContainerZero: {
+    backgroundColor: '#f59e0b',
+  },
+  pointsContainerNegative: {
+    backgroundColor: '#ef4444',
   },
   bracketButton: {
     backgroundColor: '#0284c7',

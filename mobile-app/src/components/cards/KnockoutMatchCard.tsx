@@ -11,9 +11,10 @@ interface KnockoutMatchCardProps {
   isTouched?: boolean;
   isPreTournament?: boolean;
   isLocked?: boolean;
+  showNetScore?: boolean;
 }
 
-const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner, isTouched, isPreTournament, isLocked }: KnockoutMatchCardProps) => {
+const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner, isTouched, isPreTournament, isLocked, showNetScore = false }: KnockoutMatchCardProps) => {
   const [showStats, setShowStats] = useState(false);
 
   const isTBD = (name?: string | null) => !name || name === 'TBD' || name.trim() === '';
@@ -47,9 +48,13 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
   );
 
   const scoreBadgeColor =
-    statusUpper === 'CORRECT_FULL' ? '#16a34a' :    // green
-    statusUpper === 'CORRECT_PARTIAL' ? '#f97316' : // orange
-    '#ef4444';                                       // red
+    statusUpper === 'CORRECT_FULL' ? '#16a34a' :
+    statusUpper === 'CORRECT_PARTIAL' ? '#f97316' :
+    '#ef4444';
+
+  const scoreBadgeValue = showNetScore && showScoreBadge
+    ? (prediction.points ?? 0) - (prediction.penalty_points ?? 0)
+    : (prediction.points !== undefined ? prediction.points : '?');
 
   const hasResult = showScoreBadge;
   const team1Invalid = hasResult ? false : (prediction.team1_is_valid === false);
@@ -150,7 +155,7 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
         {showScoreBadge ? (
           <View style={[styles.scoreBadge, { backgroundColor: scoreBadgeColor }]}>
             <Text style={styles.scoreBadgeText}>
-              {prediction.points !== undefined ? prediction.points : '?'}
+              {scoreBadgeValue}
             </Text>
           </View>
         ) : isUnreachable ? (
