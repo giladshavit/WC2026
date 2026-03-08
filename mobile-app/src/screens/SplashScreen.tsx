@@ -1,39 +1,61 @@
 import * as React from 'react';
 import { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+
+const TROPHY_IMAGE = require('../../assets/trophy.png');
 
 interface SplashScreenProps {
   onAnimationComplete: () => void;
 }
 
 export default function SplashScreen({ onAnimationComplete }: SplashScreenProps) {
-  const letterOPosition = useRef(new Animated.Value(-150)).current; // starts from top
+  const letterOPosition = useRef(new Animated.Value(-500)).current; // starts from top of screen
   const letterOOpacity = useRef(new Animated.Value(0)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.8)).current;
+  const textScale = useRef(new Animated.Value(0.85)).current;
+  const trophyOpacity = useRef(new Animated.Value(0)).current;
+  const trophyScale = useRef(new Animated.Value(0.6)).current;
 
   useEffect(() => {
-    // Text animation
-    Animated.timing(textOpacity, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    }).start();
+    // 1. t=0: Trophy pops in (scale 0.6→1, opacity 0→1, 700ms)
+    Animated.parallel([
+      Animated.timing(trophyOpacity, {
+        toValue: 1,
+        duration: 700,
+        useNativeDriver: true,
+      }),
+      Animated.timing(trophyScale, {
+        toValue: 1,
+        duration: 700,
+        easing: Easing.out(Easing.back(1.5)),
+        useNativeDriver: true,
+      }),
+    ]).start();
 
-    Animated.timing(scale, {
-      toValue: 1,
-      duration: 600,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
+    // 2. t=300ms: Title + tagline fade in (opacity 0→1, scale 0.85→1, 600ms)
+    Animated.sequence([
+      Animated.delay(300),
+      Animated.parallel([
+        Animated.timing(textOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(textScale, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
 
-    // Letter O drop animation
+    // 3. t=0: Football O drop (translateY -150→0, 1400ms, Easing.bounce)
     Animated.parallel([
       Animated.timing(letterOPosition, {
-        toValue: 0, // lands on final position
-        duration: 1400,
-        easing: Easing.bounce, // bounce effect
+        toValue: 0,
+        duration: 2000,
+        easing: Easing.bounce,
         useNativeDriver: true,
       }),
       Animated.timing(letterOOpacity, {
@@ -42,7 +64,7 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
         useNativeDriver: true,
       }),
     ]).start(() => {
-      // After animation ends, wait a bit then call callback
+      // After all animations complete: wait 1000ms then call onAnimationComplete
       setTimeout(() => {
         onAnimationComplete();
       }, 1000);
@@ -50,8 +72,8 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
   }, []);
 
   const letterOTranslateY = letterOPosition.interpolate({
-    inputRange: [-150, 0],
-    outputRange: [-150, 0],
+    inputRange: [-500, 0],
+    outputRange: [-500, 0],
   });
 
   return (
@@ -65,28 +87,51 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
       <View style={styles.decorativeCircle2} />
       <View style={styles.decorativeCircle3} />
 
-      <Animated.View
-        style={[
-          styles.contentContainer,
-          {
-            opacity: textOpacity,
-            transform: [{ scale }],
-          },
-        ]}
-      >
-        <View style={styles.textContainer}>
-          <Text style={styles.text}>PREDICTO</Text>
+      <View style={styles.contentContainer}>
+        {/* Trophy with glow and pop-in animation */}
+        <View style={styles.trophyWrapper}>
+          <View style={styles.trophyGlow} />
           <Animated.View
-            style={{
-              transform: [{ translateY: letterOTranslateY }],
-              opacity: letterOOpacity,
-            }}
+            style={[
+              styles.trophyImageWrapper,
+              {
+                opacity: trophyOpacity,
+                transform: [{ scale: trophyScale }],
+              },
+            ]}
           >
-            <Text style={styles.footballEmoji}>⚽</Text>
+            <Image
+              source={TROPHY_IMAGE}
+              style={[styles.trophyImage, { opacity: 0.82 }]}
+              resizeMode="contain"
+            />
           </Animated.View>
         </View>
-        <Text style={styles.tagline}>World Cup 2026 Predictions</Text>
-      </Animated.View>
+
+        {/* Title + football emoji + tagline */}
+        <Animated.View
+          style={[
+            styles.titleTaglineWrapper,
+            {
+              opacity: textOpacity,
+              transform: [{ scale: textScale }],
+            },
+          ]}
+        >
+          <View style={styles.textContainer}>
+            <Text style={styles.text}>PREDICTO</Text>
+            <Animated.View
+              style={{
+                transform: [{ translateY: letterOTranslateY }],
+                opacity: letterOOpacity,
+              }}
+            >
+              <Text style={styles.footballEmoji}>⚽</Text>
+            </Animated.View>
+          </View>
+          <Text style={styles.tagline}>World Cup 2026 Predictions</Text>
+        </Animated.View>
+      </View>
     </LinearGradient>
   );
 }
@@ -97,6 +142,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    overflow: 'visible',
   },
   decorativeCircle1: {
     position: 'absolute',
@@ -129,13 +175,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    marginBottom: 60,
+    gap: 16,
+    overflow: 'visible',
+  },
+  trophyWrapper: {
+    width: 140,
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  trophyGlow: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  trophyImageWrapper: {
+    width: 120,
+    height: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  trophyImage: {
+    width: 120,
+    height: 120,
+  },
+  titleTaglineWrapper: {
+    alignItems: 'center',
+    overflow: 'visible',
   },
   textContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    overflow: 'visible',
   },
   text: {
     fontSize: 52,
@@ -151,13 +229,12 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(255, 255, 255, 0.85)',
     fontWeight: '500',
     letterSpacing: 1,
-    marginTop: 10,
+    marginTop: 8,
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
 });
-
