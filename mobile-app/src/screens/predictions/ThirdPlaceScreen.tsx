@@ -22,9 +22,10 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const [changedGroups, setChangedGroups] = useState<string[]>([]);
   const [thirdPlaceResult, setThirdPlaceResult] = useState<any>(null);
   const [thirdPlaceScore, setThirdPlaceScore] = useState<number | null>(null);
+  const [thirdPlacePenalty, setThirdPlacePenalty] = useState<number>(0);
+  const [showNetScore, setShowNetScore] = useState(false);
   const [isEditable, setIsEditable] = useState(true);
   const [headerHeight, setHeaderHeight] = useState(0);
-  const [counterHeight, setCounterHeight] = useState(0);
   const [showStats, setShowStats] = useState(false);
   const [fineModalVisible, setFineModalVisible] = useState(false);
   const [exitModalVisible, setExitModalVisible] = useState(false);
@@ -94,7 +95,6 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     const reservedSpace = 
       insets.top + // Safe area top
       headerHeight + // Header with "Predictions" title
-      counterHeight + // "Selected: X/8" counter
       tabBarHeight + // Bottom tab bar
       150; // Additional padding
     
@@ -155,8 +155,9 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       // Store is_editable status
       setIsEditable(data.prediction?.is_editable ?? true);
       
-      // Store third place score
+      // Store third place score and penalty
       setThirdPlaceScore(data.third_place_score);
+      setThirdPlacePenalty(data.third_place_penalty ?? 0);
     } catch (error) {
       console.error('Error fetching third place data:', error);
       setLoadError(true);
@@ -464,6 +465,15 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   // Calculate number of correct predictions if there are results
   const hasResult = thirdPlaceResult !== null;
   let correctCount = 0;
+
+  const netScore = showNetScore ? (thirdPlaceScore ?? 0) - thirdPlacePenalty : null;
+  const getPointsPillStyle = () => {
+    if (!showNetScore || netScore === null) return {};
+    if (netScore > 0) return {};
+    if (netScore === 0) return styles.pointsContainerZero;
+    return styles.pointsContainerNegative;
+  };
+  const displayPoints = showNetScore && netScore !== null ? netScore : (thirdPlaceScore ?? 0);
   if (hasResult && thirdPlaceResult.result_groups) {
     // Count how many selected teams have groups that appear in result_groups
     teams.forEach(team => {
@@ -480,20 +490,19 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
       >
         <View style={styles.headerTop}>
-          {/* Left: Stats button */}
+          {/* LEFT: Stats button (icon-only circle) */}
           <View style={styles.headerLeft}>
             <TouchableOpacity
               onPress={() => setShowStats(true)}
               style={styles.statsButton}
-              activeOpacity={0.8}
+              activeOpacity={0.75}
             >
-              <Ionicons name="stats-chart" size={14} color="#ffffff" />
-              <Text style={styles.statsButtonText}>Stats</Text>
+              <Ionicons name="stats-chart" size={16} color="#ffffff" />
             </TouchableOpacity>
           </View>
 
-          {/* Center: Counter badge - absolutely positioned */}
-          <View style={styles.counterBadgeWrapper} pointerEvents="none" onLayout={(event) => setCounterHeight(event.nativeEvent.layout.height)}>
+          {/* CENTER: Counter badge */}
+          <View style={styles.headerCenter}>
             <View style={styles.counterBadge}>
               <Text style={styles.counterBadgeText}>
                 {hasResult ? `Correct: ${correctCount}/8` : `Selected: ${selectedTeams.size}/8`}
@@ -501,12 +510,28 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
             </View>
           </View>
 
-          {/* Right: Points badge or Save button or empty */}
+          {/* RIGHT: Net Score toggle + Points pill, or Save button, or empty */}
           <View style={styles.headerRight}>
             {showPoints ? (
-              <View style={styles.pointsContainer}>
-                <Text style={styles.totalPoints}>{thirdPlaceScore} pts</Text>
-              </View>
+              <>
+                <TouchableOpacity
+                  style={[styles.netScoreToggle, showNetScore && styles.netScoreToggleActive]}
+                  onPress={() => setShowNetScore(prev => !prev)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="swap-horizontal-outline"
+                    size={14}
+                    color={showNetScore ? '#16a34a' : '#64748b'}
+                  />
+                  <Text style={[styles.netScoreToggleText, showNetScore && styles.netScoreToggleTextActive]}>
+                    Net Score
+                  </Text>
+                </TouchableOpacity>
+                <View style={[styles.pointsContainer, getPointsPillStyle()]}>
+                  <Text style={styles.totalPoints}>{displayPoints} pts</Text>
+                </View>
+              </>
             ) : showSaveButton ? (
               <TouchableOpacity
                 style={[styles.saveButton, (saving || selectedTeams.size !== 8 || !hasChanges) && styles.saveButtonDisabled]}
@@ -519,7 +544,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
                 </Text>
               </TouchableOpacity>
             ) : (
-              <View style={{ minWidth: 90 }} />
+              <View style={{ minWidth: 36 }} />
             )}
           </View>
         </View>
@@ -640,27 +665,23 @@ const styles = StyleSheet.create({
   },
   headerTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 4,
   },
   headerLeft: {
-    minWidth: 100,
+    flex: 0,
     alignItems: 'flex-start',
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
   headerRight: {
-    minWidth: 100,
+    flex: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
     gap: 8,
-  },
-  counterBadgeWrapper: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 1,
   },
   counterBadge: {
     backgroundColor: '#e2e8f0',
@@ -690,6 +711,40 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
   },
+  pointsContainerZero: {
+    backgroundColor: '#f59e0b',
+  },
+  pointsContainerNegative: {
+    backgroundColor: '#ef4444',
+  },
+  netScoreToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 4,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#94a3b8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  netScoreToggleActive: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#16a34a',
+  },
+  netScoreToggleText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  netScoreToggleTextActive: {
+    color: '#16a34a',
+  },
   totalPoints: {
     fontSize: 14,
     fontWeight: 'bold',
@@ -714,19 +769,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   statsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#0284c7',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    gap: 4,
-    marginLeft: 8,
-  },
-  statsButtonText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
+    borderWidth: 1.5,
+    borderColor: '#0369a1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 3,
   },
   headerRightSpacer: {
     minWidth: 90,
