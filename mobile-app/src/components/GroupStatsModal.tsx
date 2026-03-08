@@ -6,7 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Image,
+  ScrollView,
 } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService, Team } from '../services/api';
 
 interface GroupStats {
@@ -63,39 +66,77 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
     return teams.find(t => t.id === id)?.name || 'Unknown';
   };
 
+  const getRankColor = (rank: number) => {
+    if (rank === 4) return '#ef4444'; // red for 4th
+    return '#16a34a'; // green for 1st, 2nd, 3rd
+  };
+
   const renderPreResult = () => {
     if (!stats || !stats.consensus_table || !stats.position_distribution) return null;
 
     return (
       <View>
-        <Text style={styles.sectionTitle}>Consensus Ranking</Text>
-        {stats.consensus_table.map((entry) => (
-          <View key={entry.team_id} style={styles.consensusRow}>
-            <Text style={styles.rankBadge}>{entry.rank}</Text>
-            <Text style={styles.teamNameText}>{teamName(entry.team_id)}</Text>
-          </View>
-        ))}
+        <Text style={styles.sectionTitle}>Weighted Consensus Ranking</Text>
+        {stats.consensus_table.map((entry) => {
+          const team = teams.find(t => t.id === entry.team_id);
+          return (
+            <View key={entry.team_id} style={styles.consensusRow}>
+              <View style={[styles.rankBadge, { backgroundColor: getRankColor(entry.rank) }]}>
+                <Text style={styles.rankBadgeText}>{entry.rank}</Text>
+              </View>
+              {team?.flag_url ? (
+                <Image source={{ uri: team.flag_url }} style={styles.teamFlag} />
+              ) : null}
+              <Text style={styles.teamNameText}>{teamName(entry.team_id)}</Text>
+            </View>
+          );
+        })}
 
         <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Position Distribution</Text>
         <View style={styles.tableHeader}>
           <Text style={[styles.tableCell, styles.tableHeaderText, { flex: 2 }]}>Team</Text>
-          <Text style={[styles.tableCell, styles.tableHeaderText]}>1st</Text>
-          <Text style={[styles.tableCell, styles.tableHeaderText]}>2nd</Text>
-          <Text style={[styles.tableCell, styles.tableHeaderText]}>3rd</Text>
-          <Text style={[styles.tableCell, styles.tableHeaderText]}>4th</Text>
+          <Text style={[styles.tableCell, styles.tableHeaderText, { color: '#16a34a' }]}>1st</Text>
+          <Text style={[styles.tableCell, styles.tableHeaderText, { color: '#16a34a' }]}>2nd</Text>
+          <Text style={[styles.tableCell, styles.tableHeaderText, { color: '#16a34a' }]}>3rd</Text>
+          <Text style={[styles.tableCell, styles.tableHeaderText, { color: '#ef4444' }]}>4th</Text>
         </View>
-        {stats.consensus_table.map((entry) => {
-          const dist = stats.position_distribution![String(entry.team_id)];
-          if (!dist) return null;
+        {Object.entries(stats!.position_distribution!)
+          .sort((a, b) => {
+            const rankA = stats!.consensus_table?.find(e => String(e.team_id) === a[0])?.rank ?? 99;
+            const rankB = stats!.consensus_table?.find(e => String(e.team_id) === b[0])?.rank ?? 99;
+            return rankA - rankB;
+          })
+          .map(([teamIdStr, dist]) => {
+          const teamId = parseInt(teamIdStr);
+          const team = teams.find(t => t.id === teamId) ?? teams.find(t => String(t.id) === teamIdStr);
+          const displayName = team?.name ?? `Team ${teamId}`;
+          const flagUrl = team?.flag_url;
+          const maxPct = Math.max(dist.first_pct, dist.second_pct, dist.third_pct, dist.fourth_pct);
+          const pctCells = [
+            { key: 'first', pct: dist.first_pct },
+            { key: 'second', pct: dist.second_pct },
+            { key: 'third', pct: dist.third_pct },
+            { key: 'fourth', pct: dist.fourth_pct },
+          ];
           return (
-            <View key={entry.team_id} style={styles.tableRow}>
-              <Text style={[styles.tableCell, { flex: 2 }]} numberOfLines={1}>
-                {teamName(entry.team_id)}
-              </Text>
-              <Text style={styles.tableCell}>{dist.first_pct}%</Text>
-              <Text style={styles.tableCell}>{dist.second_pct}%</Text>
-              <Text style={styles.tableCell}>{dist.third_pct}%</Text>
-              <Text style={styles.tableCell}>{dist.fourth_pct}%</Text>
+            <View key={teamIdStr} style={styles.tableRow}>
+              <View style={[styles.tableCell, { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                {flagUrl ? (
+                  <Image source={{ uri: flagUrl }} style={{ width: 20, height: 14, borderRadius: 2 }} />
+                ) : null}
+                <Text numberOfLines={1} style={{ fontSize: 12, color: '#374151', flex: 1 }}>{displayName}</Text>
+              </View>
+              {pctCells.map(({ key, pct }) => (
+                <Text
+                  key={key}
+                  style={[
+                    styles.tableCell,
+                    (pct === maxPct && maxPct > 0) && { fontWeight: 'bold', color: '#1f2937' },
+                  ]}
+                >
+                  {pct}%
+                </Text>
+              ))}
             </View>
           );
         })}
@@ -116,22 +157,33 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
     return (
       <View>
         <Text style={styles.sectionTitle}>Who Got It Right?</Text>
-        {Object.entries(stats.position_accuracy).map(([pos, data]) => (
-          <View key={pos} style={styles.accuracyRow}>
-            <Text style={styles.posLabel}>{positionLabels[pos] || pos}</Text>
-            <Text style={styles.accuracyTeam}>{data.team_name}</Text>
-            <Text style={styles.accuracyPct}>{data.correct_pct}%</Text>
-          </View>
-        ))}
+        {Object.entries(stats.position_accuracy).map(([pos, data]) => {
+          const team = teams.find(t => t.name === data.team_name);
+          return (
+            <View key={pos} style={styles.accuracyRow}>
+              <Text style={styles.posLabel}>{positionLabels[pos] || pos}</Text>
+              {team?.flag_url ? (
+                <Image source={{ uri: team.flag_url }} style={styles.teamFlag} />
+              ) : null}
+              <Text style={styles.accuracyTeam}>{data.team_name}</Text>
+              <Text style={styles.accuracyPct}>{data.correct_pct}%</Text>
+            </View>
+          );
+        })}
 
         <Text style={[styles.sectionTitle, { marginTop: 16 }]}>How Many Positions Right?</Text>
         <View style={styles.distContainer}>
-          {[0, 1, 2, 3, 4].map((n) => {
+          {[
+            { n: 0, color: '#fee2e2', textColor: '#dc2626' },  // red - worst
+            { n: 1, color: '#ffedd5', textColor: '#ea580c' },  // orange
+            { n: 2, color: '#fef9c3', textColor: '#b45309' },   // yellow
+            { n: 4, color: '#dcfce7', textColor: '#16a34a' },   // green - best
+          ].map(({ n, color, textColor }) => {
             const count = stats.accuracy_distribution![String(n)] || 0;
             return (
-              <View key={n} style={styles.distItem}>
-                <Text style={styles.distCount}>{count}</Text>
-                <Text style={styles.distLabel}>{n}/4</Text>
+              <View key={n} style={[styles.distItem, { backgroundColor: color }]}>
+                <Text style={[styles.distCount, { color: textColor }]}>{count}%</Text>
+                <Text style={[styles.distLabel, { color: textColor }]}>{n}/4</Text>
               </View>
             );
           })}
@@ -145,9 +197,9 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity style={styles.modalContent} activeOpacity={1} onPress={() => {}}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Group {groupName}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={styles.closeButton}>✕</Text>
+            <Text style={[styles.modalTitle, { flex: 1, textAlign: 'center' }]}>Group {groupName}</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButtonWrapper}>
+              <Ionicons name="close" size={22} color="#9ca3af" />
             </TouchableOpacity>
           </View>
 
@@ -155,10 +207,13 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
           {error && <Text style={styles.errorText}>{error}</Text>}
 
           {stats && !loading && (
-            <View>
-              <Text style={styles.totalText}>{stats.total_predictions} predictions</Text>
+            <ScrollView
+              style={{ maxHeight: 400 }}
+              contentContainerStyle={{ paddingBottom: 16 }}
+              showsVerticalScrollIndicator={true}
+            >
               {stats.has_result ? renderPostResult() : renderPreResult()}
-            </View>
+            </ScrollView>
           )}
         </TouchableOpacity>
       </TouchableOpacity>
@@ -179,28 +234,25 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '90%',
     maxWidth: 380,
-    maxHeight: '80%',
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+    position: 'relative',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1f2937',
   },
-  closeButton: {
-    fontSize: 20,
-    color: '#9ca3af',
-    paddingLeft: 12,
-  },
-  totalText: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginBottom: 12,
+  closeButtonWrapper: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    padding: 4,
   },
   sectionTitle: {
     fontSize: 14,
@@ -219,14 +271,21 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#16a34a',
-    color: '#fff',
-    textAlign: 'center',
-    lineHeight: 24,
-    fontSize: 13,
-    fontWeight: 'bold',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 10,
     overflow: 'hidden',
+  },
+  rankBadgeText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  teamFlag: {
+    width: 20,
+    height: 14,
+    borderRadius: 2,
+    marginRight: 8,
   },
   teamNameText: {
     fontSize: 15,
@@ -281,25 +340,30 @@ const styles = StyleSheet.create({
   },
   distContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 4,
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingHorizontal: 4,
+    gap: 8,
   },
   distItem: {
+    flex: 1,
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    padding: 8,
-    minWidth: 48,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    minWidth: 0,
   },
   distCount: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: '#1f2937',
+    textAlign: 'center',
+    flexShrink: 1,
   },
   distLabel: {
     fontSize: 11,
-    color: '#9ca3af',
     marginTop: 2,
+    textAlign: 'center',
+    flexShrink: 1,
   },
   errorText: {
     color: '#ef4444',

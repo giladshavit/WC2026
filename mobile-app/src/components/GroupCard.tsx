@@ -66,10 +66,11 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
           <View style={styles.headerLeftRow}>
             <TouchableOpacity
               onPress={() => setShowStats(true)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={styles.statsIconButton}
+              style={styles.statsButton}
+              activeOpacity={0.8}
             >
-              <Ionicons name="stats-chart" size={18} color="#ffffff" />
+              <Ionicons name="stats-chart" size={14} color="#ffffff" />
+              <Text style={styles.statsButtonText}>Stats</Text>
             </TouchableOpacity>
             {isLocked && (
               <View style={styles.lockIconWrapper}>
@@ -225,13 +226,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'flex-end',
   },
-  statsIconButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#0284c7',
-    justifyContent: 'center',
+  statsButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 4,
+  },
+  statsButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   groupName: {
     fontSize: 16,
