@@ -252,6 +252,55 @@ export interface LeagueMatchPredictionsResponse {
   predictions: MemberMatchPrediction[];
 }
 
+export interface MatchStats {
+  match_id?: number;
+  total_predictions: number;
+  has_result: boolean;
+  winner_distribution?: {
+    home_pct: number;
+    draw_pct: number;
+    away_pct: number;
+  };
+  popular_scores?: Array<{ home: number; away: number; count: number }>;
+  accuracy?: {
+    exact_pct: number;
+    correct_pct: number;
+    wrong_pct: number;
+  };
+  error?: string;
+}
+
+export interface ThirdPlaceStats {
+  total_predictions: number;
+  has_result: boolean;
+  group_pick_pct?: Record<string, number>;
+  group_accuracy?: Record<string, number>;
+  accuracy_distribution?: Record<string, number>;
+}
+
+export interface KnockoutStats {
+  template_match_id?: number;
+  total_predictions: number;
+  has_result: boolean;
+  winner_name?: string;
+  winner_flag?: string;
+  team1_name?: string;
+  team1_flag?: string;
+  team2_name?: string;
+  team2_flag?: string;
+  top_matchups?: Array<{
+    team_a: { id: number; name: string; flag_url?: string };
+    team_b: { id: number; name: string; flag_url?: string };
+    matchup_pct: number;
+    team_a_winner_pct: number;
+    team_b_winner_pct: number;
+  }>;
+  exact_winner_pct?: number;
+  partial_winner_pct?: number;
+  correct_matchup_pct?: number;
+  error?: string;
+}
+
 export class ApiService {
   private baseUrl: string;
   private accessToken: string | null = null;
@@ -1225,7 +1274,7 @@ export class ApiService {
     }
   }
 
-  async getMatchStatistics(matchId: number): Promise<any> {
+  async getMatchStatistics(matchId: number): Promise<MatchStats> {
     try {
       const timestamp = new Date().getTime();
       const response = await fetch(`${this.baseUrl}/api/stats/matches/${matchId}?_t=${timestamp}`);
@@ -1253,7 +1302,7 @@ export class ApiService {
     }
   }
 
-  async getThirdPlaceStatistics(): Promise<any> {
+  async getThirdPlaceStatistics(): Promise<ThirdPlaceStats> {
     try {
       const timestamp = new Date().getTime();
       const response = await fetch(`${this.baseUrl}/api/stats/third-place?_t=${timestamp}`);
@@ -1267,7 +1316,7 @@ export class ApiService {
     }
   }
 
-  async getKnockoutMatchStatistics(templateMatchId: number): Promise<any> {
+  async getKnockoutMatchStatistics(templateMatchId: number): Promise<KnockoutStats> {
     try {
       const timestamp = new Date().getTime();
       const response = await fetch(`${this.baseUrl}/api/stats/knockout/${templateMatchId}?_t=${timestamp}`);
@@ -1296,7 +1345,7 @@ export class ApiService {
   }
 
   // Stats aliases (used by modals)
-  async getMatchStats(matchId: number): Promise<any> {
+  async getMatchStats(matchId: number): Promise<MatchStats> {
     return this.getMatchStatistics(matchId);
   }
 
@@ -1304,11 +1353,11 @@ export class ApiService {
     return this.getGroupStatistics(groupId);
   }
 
-  async getThirdPlaceStats(): Promise<any> {
+  async getThirdPlaceStats(): Promise<ThirdPlaceStats> {
     return this.getThirdPlaceStatistics();
   }
 
-  async getKnockoutMatchStats(templateMatchId: number): Promise<any> {
+  async getKnockoutMatchStats(templateMatchId: number): Promise<KnockoutStats> {
     return this.getKnockoutMatchStatistics(templateMatchId);
   }
 
