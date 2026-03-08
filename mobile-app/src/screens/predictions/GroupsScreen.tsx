@@ -563,7 +563,8 @@ export default function GroupsScreen() {
     );
   }
 
-  const hasChanges = calculateGroupChanges() > 0;
+  const numberOfChanges = calculateGroupChanges();
+  const hasChanges = numberOfChanges > 0;
   const showSaveButton = isActiveGroupCycle;
   const hasAnyGroupResult = groups.some(
     g => g.result !== null && g.result !== undefined
@@ -589,6 +590,12 @@ export default function GroupsScreen() {
             )}
           </View>
           <View style={styles.headerRight}>
+            {numberOfChanges > 0 && (
+              <View style={styles.changesCounter}>
+                <Ionicons name="create-outline" size={13} color="#16a34a" />
+                <Text style={styles.changesCounterText}>{numberOfChanges} total changes</Text>
+              </View>
+            )}
             {showPoints && (
               <View style={styles.pointsContainer}>
                 <Text style={styles.totalPoints}>{groupsScore} pts</Text>
@@ -695,6 +702,23 @@ const styles = StyleSheet.create({
   headerLeft: {
     flex: 1,
     alignItems: 'flex-start',
+  },
+  changesCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#16a34a',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    gap: 4,
+    marginBottom: 6,
+  },
+  changesCounterText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#16a34a',
   },
   headerRight: {
     flex: 1,
