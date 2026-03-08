@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "make-trophy-transparent": "node scripts/make-trophy-transparent.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "jimp": "^0.22.12",
     "typescript": "~5.9.2"
   },
   "private": true

@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     width: 80,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'transparent',
     marginBottom: 12,
     marginTop: 8,
   },
