@@ -192,7 +192,16 @@ function AnimatedPlayerRow({
     if (rank === 1) return <Ionicons name="medal" size={14} color="#D4AF37" />;
     if (rank === 2) return <Ionicons name="medal" size={14} color="#A8A9AD" />;
     if (rank === 3) return <Ionicons name="medal" size={14} color="#AD6F3B" />;
-    return <Text style={styles.rankNumber}>{rank}</Text>;
+    return (
+      <Text
+        style={styles.rankNumber}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.6}
+      >
+        {rank}
+      </Text>
+    );
   };
 
   if (side === 'left') {
@@ -881,7 +890,14 @@ export default function LeagueDetailsScreen() {
                 <View style={[styles.playerRow, styles.playerRowContent, { minHeight: 52, borderBottomWidth: 0 }]}>
                   <View style={styles.colPlayer}>
                     <View style={styles.rankNameRow}>
-                      <Text style={styles.stickyRankNumber}>{currentUserRank}</Text>
+                      <Text
+                        style={styles.stickyRankNumber}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.6}
+                      >
+                        {currentUserRank}
+                      </Text>
                       <Text style={[styles.cellName, styles.cellLeft, styles.cellBold]} numberOfLines={1}>
                         {truncateName(currentUserStanding.name ?? (currentUserStanding as any).username ?? 'You')}
                       </Text>
@@ -1305,11 +1321,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   stickyRankNumber: {
-    fontSize: 12,
+    width: 36,
+    fontSize: 14,
+    fontWeight: '700',
     color: '#3b82f6',
-    fontWeight: 'bold',
-    width: 22,
-    textAlign: 'center',
+    textAlign: 'right',
+    flexShrink: 0,
   },
   playerRowContent: {
     flexDirection: 'row',
@@ -1325,10 +1342,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   rankNumber: {
-    fontSize: 12,
+    width: 36,
+    fontSize: 14,
+    fontWeight: '500',
     color: '#94a3b8',
-    width: 22,
-    textAlign: 'center',
+    textAlign: 'right',
+    flexShrink: 0,
   },
   colNum: {
     width: 36,
