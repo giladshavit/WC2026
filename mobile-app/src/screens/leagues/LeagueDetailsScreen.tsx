@@ -64,6 +64,29 @@ function getLivePredBadgeColor(
   return '#334155';
 }
 
+function BlinkingDot({ active }: { active: boolean }) {
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!active) {
+      opacity.setValue(0.3);
+      return;
+    }
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.2, duration: 600, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [active]);
+
+  return (
+    <Animated.View style={[styles.liveDot, { opacity }, !active && { backgroundColor: '#64748b' }]} />
+  );
+}
+
 function LiveHeaderCell({ liveMatchPredictions }: { liveMatchPredictions: LeagueMatchPredictionsResponse }) {
   const scoreText = liveMatchPredictions.actual_result
     ? `${liveMatchPredictions.actual_result.home_score}:${liveMatchPredictions.actual_result.away_score}`
@@ -135,6 +158,8 @@ function AnimatedPlayerRow({
   truncateName,
   liveMatchPredictionsList,
   side,
+  scoreMode,
+  showOnlyTotalColumn,
 }: {
   item: StandingWithFine;
   index: number;
@@ -142,6 +167,8 @@ function AnimatedPlayerRow({
   truncateName: (name: string) => string;
   liveMatchPredictionsList: LeagueMatchPredictionsResponse[];
   side: 'left' | 'middle' | 'right';
+  scoreMode?: 'weighted' | 'matches';
+  showOnlyTotalColumn?: boolean;
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -236,7 +263,11 @@ function AnimatedPlayerRow({
         { opacity: fadeAnim },
       ]}
     >
-      <View style={[styles.playerRowContent, styles.playerRowContentRight]}>
+      <View style={[
+        styles.playerRowContent,
+        styles.playerRowContentRight,
+        showOnlyTotalColumn && { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
+      ]}>
         {liveMatchPredictionsList.map((liveData) => {
           const memberPred = liveData.predictions.find((p) => p.user_id === item.user_id) ?? null;
           const scoreDisplay =
@@ -265,15 +296,15 @@ function AnimatedPlayerRow({
                 styles.cellTotal,
                 styles.cellCenter,
                 isCurrentUser && styles.cellBold,
-                (item.total_points ?? 0) >= 100 && styles.cellTotalLarge,
-                (item.total_points ?? 0) >= 1000 && styles.cellTotalXLarge,
-                (item.total_points ?? 0) < 0 && styles.cellTotalNegative,
+                ((scoreMode === 'matches' ? item.matches_points : item.total_points) ?? 0) >= 100 && styles.cellTotalLarge,
+                ((scoreMode === 'matches' ? item.matches_points : item.total_points) ?? 0) >= 1000 && styles.cellTotalXLarge,
+                ((scoreMode === 'matches' ? item.matches_points : item.total_points) ?? 0) < 0 && styles.cellTotalNegative,
               ]}
               numberOfLines={1}
               adjustsFontSizeToFit={true}
               minimumFontScale={0.5}
             >
-              {item.total_points ?? 0}
+              {scoreMode === 'matches' ? (item.matches_points ?? 0) : (item.total_points ?? 0)}
             </Text>
           </View>
         </View>
@@ -304,6 +335,9 @@ export default function LeagueDetailsScreen() {
   const [liveMatchPredictionsList, setLiveMatchPredictionsList] = useState<LeagueMatchPredictionsResponse[]>([]);
   const liveRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const liveMatchIdsRef = useRef<number[]>([]);
+  const [scoreMode, setScoreMode] = useState<'weighted' | 'matches'>('weighted');
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  const [userDismissedLive, setUserDismissedLive] = useState(false);
 
   const isGlobalLeague = leagueId === 'global';
   const currentUserId = getCurrentUserId();
@@ -403,6 +437,15 @@ export default function LeagueDetailsScreen() {
   useEffect(() => {
     fetchStandings();
   }, [leagueId]);
+
+  useEffect(() => {
+    if (liveMatchPredictionsList.length > 0 && !userDismissedLive) {
+      setIsLiveMode(true);
+    } else if (liveMatchPredictionsList.length === 0) {
+      setIsLiveMode(false);
+      setUserDismissedLive(false);
+    }
+  }, [liveMatchPredictionsList.length]);
 
   const leagueName = !standingsData ? 'League' : (isGlobalLeague ? 'Global League' : standingsData.league_info?.name || 'League');
 
@@ -519,6 +562,8 @@ export default function LeagueDetailsScreen() {
   }
 
   const memberCount = standingsData.standings.length;
+  const effectiveLiveList = isLiveMode ? liveMatchPredictionsList : [];
+  const showOnlyTotalColumn = isLiveMode || scoreMode === 'matches';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -554,10 +599,7 @@ export default function LeagueDetailsScreen() {
               {memberCount} {memberCount === 1 ? 'member' : 'members'}
             </Text>
             {!isGlobalLeague && standingsData.league_info?.invite_code && (
-              <TouchableOpacity
-                style={styles.invitePill}
-                onPress={handleCopyInviteCode}
-              >
+              <TouchableOpacity style={styles.invitePill} onPress={handleCopyInviteCode}>
                 <Text style={styles.invitePillText}>{standingsData.league_info.invite_code}</Text>
                 <Ionicons name="copy-outline" size={14} color="#94a3b8" />
               </TouchableOpacity>
@@ -565,6 +607,57 @@ export default function LeagueDetailsScreen() {
           </View>
         </View>
       </LinearGradient>
+
+      <View style={styles.headerControlsBar}>
+        {liveMatchPredictionsList.length > 0 && (
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 5,
+              paddingHorizontal: 10,
+              paddingVertical: 5,
+              borderRadius: 20,
+              borderWidth: 1,
+              backgroundColor: isLiveMode ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.12)',
+              borderColor: isLiveMode ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.3)',
+            }}
+            onPress={() => {
+              if (isLiveMode) {
+                setIsLiveMode(false);
+                setUserDismissedLive(true);
+              } else {
+                setIsLiveMode(true);
+                setUserDismissedLive(false);
+              }
+            }}
+          >
+            <BlinkingDot active={isLiveMode} />
+            <Text style={{ fontSize: 11, fontWeight: '600', color: isLiveMode ? '#ef4444' : '#cbd5e1' }}>
+              Live
+            </Text>
+          </TouchableOpacity>
+        )}
+        {liveMatchPredictionsList.length === 0 && <View />}
+        <View style={styles.scoreModeToggle}>
+          <TouchableOpacity
+            style={[styles.scoreModeBtn, scoreMode === 'weighted' && styles.scoreModeBtnActive]}
+            onPress={() => { setSortBy('total'); setScoreMode('weighted'); }}
+          >
+            <Text style={[styles.scoreModeBtnText, scoreMode === 'weighted' && styles.scoreModeBtnTextActive]}>
+              All
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.scoreModeBtn, scoreMode === 'matches' && styles.scoreModeBtnActive]}
+            onPress={() => { setSortBy('matches'); setScoreMode('matches'); }}
+          >
+            <Text style={[styles.scoreModeBtnText, scoreMode === 'matches' && styles.scoreModeBtnTextActive]}>
+              Matches
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <View style={styles.content}>
         {topThree.length >= 3 && (
@@ -631,9 +724,11 @@ export default function LeagueDetailsScreen() {
                     truncateName={truncateName}
                     liveMatchPredictionsList={liveMatchPredictionsList}
                     side="left"
+                    scoreMode={scoreMode}
                   />
                 ))}
               </View>
+              {!isLiveMode && scoreMode === 'weighted' && (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -692,27 +787,47 @@ export default function LeagueDetailsScreen() {
                       truncateName={truncateName}
                     liveMatchPredictionsList={liveMatchPredictionsList}
                     side="middle"
+                    scoreMode={scoreMode}
                     />
                   ))}
                 </View>
               </ScrollView>
-              <View style={[styles.tableFixedRight, { width: 54 + liveMatchPredictionsList.length * 50, backgroundColor: '#0f172a', alignSelf: 'stretch' }]}>
-                <View style={[styles.tableHeader, styles.tableHeaderRight, { height: 46, backgroundColor: '#334155' }]}>
-                  {liveMatchPredictionsList.map((liveData) => (
+              )}
+              <View style={[
+                styles.tableFixedRight,
+                showOnlyTotalColumn
+                  ? { flex: 1, backgroundColor: '#0f172a' }
+                  : { width: 54 + effectiveLiveList.length * 50, backgroundColor: '#0f172a', alignSelf: 'stretch' }
+              ]}>
+                <View style={[
+                  styles.tableHeader,
+                  styles.tableHeaderRight,
+                  { height: 46, backgroundColor: '#334155' },
+                  showOnlyTotalColumn && { justifyContent: 'flex-end' },
+                ]}>
+                  {effectiveLiveList.map((liveData) => (
                     <View key={liveData.match_id} style={[styles.colLive, styles.headerIconCell]}>
                       <LiveHeaderCell liveMatchPredictions={liveData} />
                     </View>
                   ))}
-                  <TouchableOpacity
-                    style={[styles.colTotal, styles.headerIconCell]}
-                    onPress={() => setSortBy('total')}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.headerIconWrapper}>
-                      <Ionicons name={sortBy === 'total' ? 'star' : 'star-outline'} size={14} color={sortBy === 'total' ? '#fbbf24' : 'rgba(251,191,36,0.4)'} />
-                      <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'total' ? '#fbbf24' : 'transparent' }]} />
+                  {scoreMode === 'matches' ? (
+                    <View style={[styles.colTotal, styles.headerIconCell]}>
+                      <View style={styles.headerIconWrapper}>
+                        <Ionicons name="star" size={14} color="#fbbf24" />
+                      </View>
                     </View>
-                  </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.colTotal, styles.headerIconCell]}
+                      onPress={() => setSortBy('total')}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.headerIconWrapper}>
+                        <Ionicons name={sortBy === 'total' ? 'star' : 'star-outline'} size={14} color={sortBy === 'total' ? '#fbbf24' : 'rgba(251,191,36,0.4)'} />
+                        <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'total' ? '#fbbf24' : 'transparent' }]} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 {restStandings.map((item, index) => (
                   <AnimatedPlayerRow
@@ -721,8 +836,10 @@ export default function LeagueDetailsScreen() {
                     index={index}
                     currentUserId={currentUserId}
                     truncateName={truncateName}
-                    liveMatchPredictionsList={liveMatchPredictionsList}
+                    liveMatchPredictionsList={effectiveLiveList}
                     side="right"
+                    scoreMode={scoreMode}
+                    showOnlyTotalColumn={showOnlyTotalColumn}
                   />
                 ))}
               </View>
@@ -732,7 +849,7 @@ export default function LeagueDetailsScreen() {
           {currentUserStanding && currentUserRank && currentUserRank > 3 && (
             <View style={styles.stickyUserRow}>
               <View style={[styles.tableFixedLeft, { backgroundColor: '#1a2744' }]}>
-                <View style={[styles.playerRowContent, { paddingLeft: 14 }]}>
+                <View style={[styles.playerRow, styles.playerRowContent, { minHeight: 52, borderBottomWidth: 0 }]}>
                   <View style={styles.colPlayer}>
                     <View style={styles.rankNameRow}>
                       <Text style={styles.stickyRankNumber}>{currentUserRank}</Text>
@@ -743,66 +860,88 @@ export default function LeagueDetailsScreen() {
                   </View>
                 </View>
               </View>
+              {!isLiveMode && scoreMode === 'weighted' && (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 style={styles.tableScrollMiddle}
                 contentContainerStyle={styles.tableScrollMiddleContent}
               >
-                <View style={{ backgroundColor: '#1a2744', flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={styles.playerRowContent}>
-                    <View style={styles.colNum}>
-                      <Text style={[styles.cellText, styles.cellCenter]}>
-                        {currentUserStanding.matches_points ?? 0}
-                      </Text>
-                    </View>
-                    <View style={styles.colNum}>
-                      <Text style={[styles.cellText, styles.cellCenter]}>
-                        {(currentUserStanding.groups_points ?? 0) + (currentUserStanding.third_place_points ?? 0)}
-                      </Text>
-                    </View>
-                    <View style={styles.colNum}>
-                      <Text style={[styles.cellText, styles.cellCenter]}>
-                        {currentUserStanding.knockout_points ?? 0}
-                      </Text>
-                    </View>
-                    <View style={styles.colFine}>
-                      {(currentUserStanding.penalty ?? 0) > 0 && (
-                        <View style={styles.fineBadge}>
-                          <Text style={styles.fineBadgeText}>
-                            {currentUserStanding.penalty}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
+                <View style={[styles.playerRow, styles.playerRowContent, { minHeight: 52, borderBottomWidth: 0, paddingHorizontal: 14, backgroundColor: '#1a2744' }]}>
+                  <View style={styles.colNum}>
+                    <Text style={[styles.cellText, styles.cellCenter]}>
+                      {currentUserStanding.matches_points ?? 0}
+                    </Text>
+                  </View>
+                  <View style={styles.colNum}>
+                    <Text style={[styles.cellText, styles.cellCenter]}>
+                      {(currentUserStanding.groups_points ?? 0) + (currentUserStanding.third_place_points ?? 0)}
+                    </Text>
+                  </View>
+                  <View style={styles.colNum}>
+                    <Text style={[styles.cellText, styles.cellCenter]}>
+                      {currentUserStanding.knockout_points ?? 0}
+                    </Text>
+                  </View>
+                  <View style={styles.colFine}>
+                    {(currentUserStanding.penalty ?? 0) > 0 ? (
+                      <View style={styles.fineBadge}>
+                        <Text style={styles.fineBadgeText}>-{currentUserStanding.penalty}</Text>
+                      </View>
+                    ) : (
+                      <Text style={[styles.cellText, styles.cellCenter]}>0</Text>
+                    )}
                   </View>
                 </View>
               </ScrollView>
-              <View style={[styles.tableFixedRight, styles.stickyUserRowRight, { width: 54 + liveMatchPredictionsList.length * 50, backgroundColor: '#1a2744' }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 0 }}>
-                  {liveMatchPredictionsList.map((liveData) => {
-                    const memberPred = liveData.predictions.find((p) => p.user_id === currentUserStanding.user_id) ?? null;
-                    const hasScore = memberPred && memberPred.home_score != null && memberPred.away_score != null;
-                    const scoreDisplay = hasScore ? `${memberPred!.home_score}:${memberPred!.away_score}` : '—';
-                    return (
-                      <View key={liveData.match_id} style={styles.colLive}>
-                        <View
-                          style={[
-                            styles.livePredBadge,
-                            { backgroundColor: getLivePredBadgeColor(memberPred, !!liveData.actual_result, liveData.actual_result ?? undefined) },
-                            memberPred?.is_tempted && styles.livePredBadgeTempted,
-                          ]}
-                        >
-                          <Text style={styles.livePredText}>{scoreDisplay}</Text>
+              )}
+              <View style={[
+                styles.tableFixedRight,
+                styles.stickyUserRowRight,
+                showOnlyTotalColumn
+                  ? { flex: 1, backgroundColor: '#1a2744' }
+                  : { width: 54 + effectiveLiveList.length * 50, backgroundColor: '#1a2744' }
+              ]}>
+                <View style={[
+                  styles.playerRow,
+                  styles.playerRowRight,
+                  { minHeight: 52, borderBottomWidth: 0, backgroundColor: '#1a2744' },
+                  showOnlyTotalColumn && { flex: 1, justifyContent: 'flex-end' },
+                ]}>
+                  <View style={[
+                    styles.playerRowContent,
+                    styles.playerRowContentRight,
+                    showOnlyTotalColumn && { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
+                  ]}>
+                    {effectiveLiveList.map((liveData) => {
+                      const memberPred = liveData.predictions.find((p) => p.user_id === currentUserStanding.user_id) ?? null;
+                      const hasScore = memberPred && memberPred.home_score != null && memberPred.away_score != null;
+                      const scoreDisplay = hasScore ? `${memberPred!.home_score}:${memberPred!.away_score}` : '—';
+                      return (
+                        <View key={liveData.match_id} style={styles.colLive}>
+                          <View
+                            style={[
+                              styles.livePredBadge,
+                              { backgroundColor: getLivePredBadgeColor(memberPred, !!liveData.actual_result, liveData.actual_result ?? undefined) },
+                              memberPred?.is_tempted && styles.livePredBadgeTempted,
+                            ]}
+                          >
+                            <Text style={styles.livePredText}>{scoreDisplay}</Text>
+                          </View>
                         </View>
+                      );
+                    })}
+                    <View style={styles.colTotal}>
+                      <View style={[styles.ptsBadge, styles.ptsBadgeCurrentUser]}>
+                        <Text
+                          style={[styles.cellTotal, styles.cellCenter, styles.cellBold]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.5}
+                        >
+                          {scoreMode === 'matches' ? (currentUserStanding.matches_points ?? 0) : (currentUserStanding.total_points ?? 0)}
+                        </Text>
                       </View>
-                    );
-                  })}
-                  <View style={styles.colTotal}>
-                    <View style={[styles.ptsBadge, styles.ptsBadgeCurrentUser]}>
-                      <Text style={[styles.cellTotal, styles.cellCenter, styles.cellBold]}>
-                        {currentUserStanding.total_points ?? 0}
-                      </Text>
                     </View>
                   </View>
                 </View>
@@ -1028,6 +1167,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#ffffff',
+  },
+  headerControlsBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: '#0f172a',
+  },
+  scoreModeToggle: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 20,
+    padding: 3,
+    gap: 2,
+  },
+  scoreModeBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 17,
+  },
+  scoreModeBtnActive: {
+    backgroundColor: '#475569',
+  },
+  scoreModeBtnText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
+  scoreModeBtnTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#ef4444',
   },
   tableSection: {
     flex: 1,
