@@ -24,6 +24,7 @@ class MatchPrediction(Base):
         default=MatchPredictionStatus.PENDING,
     )
     is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
+    is_tempted = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

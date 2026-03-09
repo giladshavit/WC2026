@@ -191,6 +191,7 @@ class DBWriter:
                 "home_score": None,
                 "away_score": None,
                 "predicted_winner": None,
+                "is_tempted": False,
             }
             for match_id in match_ids
         ]
@@ -285,26 +286,36 @@ class DBWriter:
         Caller must commit.
         """
         rows = db.execute(text("""
+            WITH base AS (
+                SELECT
+                    mp.id                          AS pred_id,
+                    mp.user_id,
+                    COALESCE(mp.points, 0)         AS old_points,
+                    mp.is_tempted,
+                    CASE
+                        WHEN mp.home_score IS NULL OR mp.away_score IS NULL THEN 0
+                        WHEN mp.home_score = :home AND mp.away_score = :away THEN 3
+                        WHEN :winner_id IS NOT NULL
+                         AND mp.predicted_winner = :winner_id               THEN 1
+                        ELSE 0
+                    END                            AS base_points,
+                    CASE
+                        WHEN mp.home_score IS NULL OR mp.away_score IS NULL THEN 'pending'
+                        WHEN mp.home_score = :home AND mp.away_score = :away THEN 'exact'
+                        WHEN :winner_id IS NOT NULL
+                         AND mp.predicted_winner = :winner_id               THEN 'correct_outcome'
+                        ELSE 'wrong'
+                    END                            AS new_status
+                FROM match_predictions mp
+                WHERE mp.match_id = :match_id
+            )
             SELECT
-                mp.id                          AS pred_id,
-                mp.user_id,
-                COALESCE(mp.points, 0)         AS old_points,
-                CASE
-                    WHEN mp.home_score IS NULL OR mp.away_score IS NULL THEN 0
-                    WHEN mp.home_score = :home AND mp.away_score = :away THEN 3
-                    WHEN :winner_id IS NOT NULL
-                     AND mp.predicted_winner = :winner_id               THEN 1
-                    ELSE 0
-                END                            AS new_points,
-                CASE
-                    WHEN mp.home_score IS NULL OR mp.away_score IS NULL THEN 'pending'
-                    WHEN mp.home_score = :home AND mp.away_score = :away THEN 'exact'
-                    WHEN :winner_id IS NOT NULL
-                     AND mp.predicted_winner = :winner_id               THEN 'correct_outcome'
-                    ELSE 'wrong'
-                END                            AS new_status
-            FROM match_predictions mp
-            WHERE mp.match_id = :match_id
+                pred_id,
+                user_id,
+                old_points,
+                CASE WHEN is_tempted = TRUE AND base_points > 0 THEN base_points * 2 ELSE base_points END AS new_points,
+                new_status
+            FROM base
         """), {
             "match_id": match_id,
             "home": home,

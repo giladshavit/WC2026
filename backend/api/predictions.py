@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from dataclasses import dataclass
 
@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 from services.database import DBReader, DBUtils
 from services.stage_manager import StageManager, Stage
 from services.predictions.match_prediction_service import MatchPredictionService
+from services.temptation_service import get_temptation_suggestions
 from database import get_db
 
 router = APIRouter()
@@ -21,8 +22,19 @@ class MatchPredictionRequest(BaseModel):
     away_score: int = None
     predicted_winner: int = None  # Optional, will be calculated automatically
 
+
+class MatchPredictionBatchItem(BaseModel):
+    match_id: int
+    home_score: Optional[int] = None
+    away_score: Optional[int] = None
+    is_tempted: Optional[bool] = False
+
+    class Config:
+        extra = "allow"  # Allow extra fields for backward compatibility
+
+
 class BatchPredictionRequest(BaseModel):
-    predictions: List[Dict[str, Any]]
+    predictions: List[MatchPredictionBatchItem]
     user_id: int
 
 class GroupPredictionRequest(BaseModel):
@@ -66,6 +78,23 @@ def get_matches_with_predictions(user_id: int, db: Session = Depends(get_db)):
     logger.info(f"[DEBUG] get_matches_with_predictions CALLED user_id={user_id}")
     return MatchPredictionService.get_all_matches_with_predictions(db, user_id)
 
+
+@router.get("/predictions/matches/{match_id}/temptation-suggestions", response_model=Dict[str, Any])
+def get_temptation_suggestions_endpoint(
+    match_id: int,
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get temptation suggestions for a match (statistically rare predicted outcomes).
+    Returns up to 3 suggested scores if the feature is available (>= 100 predictions).
+    """
+    suggestions = get_temptation_suggestions(db, match_id)
+    if suggestions is None:
+        return {"available": False, "suggestions": []}
+    return {"available": True, "suggestions": suggestions}
+
+
 @router.post("/predictions/matches/batch", response_model=Dict[str, Any])
 def create_or_update_batch_match_predictions(
     batch_request: BatchPredictionRequest,
@@ -78,8 +107,10 @@ def create_or_update_batch_match_predictions(
     print(f"User ID: {batch_request.user_id}")
     print(f"Predictions: {batch_request.predictions}")
     
+    # Convert to list of dicts for service (includes is_tempted)
+    predictions_data = [p.model_dump() for p in batch_request.predictions]
     result = PredictionService.create_or_update_batch_predictions(
-        db, batch_request.user_id, batch_request.predictions
+        db, batch_request.user_id, predictions_data
     )
     
     if "error" in result:

@@ -64,6 +64,29 @@ def create_test_users(db: Session, count: int = 50) -> List[int]:
 
 # ── Match Predictions ────────────────────────────────────────────
 
+DRAW_SCORES = [(0, 0), (1, 1), (2, 2), (3, 3)]
+
+
+def _fill_match_predictions_draws_only_for_user(db: Session, user_id: int) -> None:
+    """
+    For every group-stage match, set a draw prediction:
+    predicted_winner = None (draw), scores randomly from [(0,0), (1,1), (2,2), (3,3)].
+    """
+    predictions = DBReader.get_match_predictions_by_user(db, user_id)
+    for pred in predictions:
+        match = pred.match
+        if not match or not match.home_team_id or not match.away_team_id:
+            continue
+        home_score, away_score = random.choice(DRAW_SCORES)
+        DBWriter.update_match_prediction(
+            db, pred,
+            home_score=home_score,
+            away_score=away_score,
+            predicted_winner=0  # draw: 0 means draw, None means no prediction
+        )
+    DBUtils.commit(db)
+
+
 def _fill_match_predictions_for_user(db: Session, user_id: int) -> None:
     """
     For every group-stage match, set a random score for each team
@@ -173,6 +196,30 @@ def _fill_knockout_predictions_for_user(db: Session, user_id: int) -> None:
 
 # ── Orchestrator ─────────────────────────────────────────────────
 
+def fill_draw_predictions_for_user(db: Session, user_id: int) -> None:
+    """
+    Fill all predictions for a single user with DRAW match predictions only.
+    Match predictions: draws only (scores from 0-0, 1-1, 2-2, 3-3).
+    Group, third place, knockout: same as random (unchanged).
+    """
+    try:
+        _fill_match_predictions_draws_only_for_user(db, user_id)
+    except Exception:
+        DBUtils.rollback(db)
+    try:
+        _fill_group_predictions_for_user(db, user_id)
+    except Exception:
+        DBUtils.rollback(db)
+    try:
+        _pick_third_place_advancing(db, user_id)
+    except Exception:
+        DBUtils.rollback(db)
+    try:
+        _fill_knockout_predictions_for_user(db, user_id)
+    except Exception:
+        DBUtils.rollback(db)
+
+
 def fill_random_predictions_for_user(db: Session, user_id: int) -> None:
     """
     Fill all predictions for a single user in the correct order:
@@ -215,6 +262,36 @@ def generate_test_users_with_predictions(db: Session, count: int = 50) -> dict:
     for user_id in user_ids:
         try:
             fill_random_predictions_for_user(db, user_id)
+            predictions_filled += 1
+        except Exception:
+            errors += 1
+            DBUtils.rollback(db)
+            continue
+
+    return {
+        "created": created,
+        "predictions_filled": predictions_filled,
+        "errors": errors,
+    }
+
+
+def generate_test_users_with_draw_predictions(db: Session, count: int = 50) -> dict:
+    """
+    Creates users + fills their match predictions with draws only.
+    Match predictions: all draws (0-0, 1-1, 2-2, 3-3).
+    Group, third place, knockout: same as random variant.
+    Returns a summary dict: {created, predictions_filled, errors}
+    """
+    created = 0
+    predictions_filled = 0
+    errors = 0
+
+    user_ids = create_test_users(db, count)
+    created = len(user_ids)
+
+    for user_id in user_ids:
+        try:
+            fill_draw_predictions_for_user(db, user_id)
             predictions_filled += 1
         except Exception:
             errors += 1

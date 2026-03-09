@@ -987,6 +987,22 @@ def generate_test_users(
     return result
 
 
+@router.post("/admin/create-test-users-draws", response_model=Dict[str, Any])
+def create_test_users_draw_predictions(
+    count: int = 50,
+    db: Session = Depends(get_db)
+):
+    """
+    Generate `count` fake test users with draw-only match predictions.
+    All match predictions are draws (0-0, 1-1, 2-2, 3-3).
+    Group, third place, knockout predictions: same as random variant.
+    Intended for local testing only.
+    """
+    from services.test_data_service import generate_test_users_with_draw_predictions
+    result = generate_test_users_with_draw_predictions(db, count)
+    return result
+
+
 @router.post("/admin/create-random-group-and-third-place-results", response_model=Dict[str, Any])
 def create_random_group_and_third_place_results(
     request: CreateRandomResultsRequest,

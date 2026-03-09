@@ -10,6 +10,7 @@ from models.user_scores import UserScores
 from models.results import MatchResult
 from services.database import DBReader, DBWriter, DBUtils
 from services.scoring_service import ScoringService
+from services.temptation_service import apply_temptation_flag
 
 
 class MatchPredictionService:
@@ -111,6 +112,7 @@ class MatchPredictionService:
                 "predicted_winner": prediction.predicted_winner if prediction else None,
                 "points": prediction.points if prediction else None,
                 "is_editable": prediction.is_editable if prediction else None,
+                "is_tempted": prediction.is_tempted if prediction else False,
                 "status": prediction.status.value if prediction and prediction.status else None,
             },
             "can_edit": match.is_editable,
@@ -195,8 +197,9 @@ class MatchPredictionService:
     # ========================================  
 
     @staticmethod
-    def create_or_update_match_prediction(db: Session, user_id: int, match_id: int, 
-                                         home_score: Optional[int], away_score: Optional[int]) -> Dict[str, Any]:
+    def create_or_update_match_prediction(db: Session, user_id: int, match_id: int,
+                                         home_score: Optional[int], away_score: Optional[int],
+                                         is_tempted: bool = False) -> Dict[str, Any]:
         """
         Create or update a single match prediction
         """
@@ -204,22 +207,22 @@ class MatchPredictionService:
         match, error = MatchPredictionService._get_editable_match_or_error(db, match_id)
         if error:
             return error
-        
+
         # Calculate predicted winner based on scores
         predicted_winner = MatchPredictionService._calculate_predicted_winner(match, home_score, away_score)
-        
+
         # Check if prediction already exists for this match
         existing_prediction = DBReader.get_match_prediction(db, user_id, match_id)
-        
+
         if existing_prediction:
             return MatchPredictionService._update_existing_prediction(
-                db, user_id, match_id, match, existing_prediction, 
-                home_score, away_score, predicted_winner
+                db, user_id, match_id, match, existing_prediction,
+                home_score, away_score, predicted_winner, is_tempted
             )
         else:
             return MatchPredictionService._create_new_prediction(
-                db, user_id, match_id, match, 
-                home_score, away_score, predicted_winner
+                db, user_id, match_id, match,
+                home_score, away_score, predicted_winner, is_tempted
             )
     
     @staticmethod
@@ -233,13 +236,14 @@ class MatchPredictionService:
             match_id = prediction_data.get("match_id")
             home_score = prediction_data.get("home_score")
             away_score = prediction_data.get("away_score")
-            
+            is_tempted = prediction_data.get("is_tempted", False)
+
             if not match_id:
                 return {"error": f"Missing match_id"}
-            
+
             # Use existing function for each prediction
             result = MatchPredictionService.create_or_update_match_prediction(
-                db, user_id, match_id, home_score, away_score
+                db, user_id, match_id, home_score, away_score, is_tempted=is_tempted
             )
             results.append(result)
             
@@ -304,8 +308,9 @@ class MatchPredictionService:
     
     @staticmethod
     def _update_existing_prediction(db: Session, user_id: int, match_id: int, match: Any,
-                                   existing_prediction: Any, home_score: Optional[int], 
-                                   away_score: Optional[int], predicted_winner: Optional[int]) -> Dict[str, Any]:
+                                   existing_prediction: Any, home_score: Optional[int],
+                                   away_score: Optional[int], predicted_winner: Optional[int],
+                                   is_tempted: bool = False) -> Dict[str, Any]:
         """
         Update an existing match prediction
         """
@@ -314,7 +319,8 @@ class MatchPredictionService:
             existing_prediction,
             home_score=home_score,
             away_score=away_score,
-            predicted_winner=predicted_winner
+            predicted_winner=predicted_winner,
+            is_tempted=is_tempted
         )
         DBUtils.commit(db)
         
@@ -332,14 +338,16 @@ class MatchPredictionService:
     
     @staticmethod
     def _create_new_prediction(db: Session, user_id: int, match_id: int, match: Any,
-                              home_score: Optional[int], away_score: Optional[int], 
-                              predicted_winner: Optional[int]) -> Dict[str, Any]:
+                              home_score: Optional[int], away_score: Optional[int],
+                              predicted_winner: Optional[int], is_tempted: bool = False) -> Dict[str, Any]:
         """
         Create a new match prediction
         """
         new_prediction = DBWriter.create_match_prediction(
             db, user_id, match_id, home_score, away_score, predicted_winner
         )
+        if is_tempted:
+            apply_temptation_flag(db, new_prediction, True)
         DBUtils.commit(db)
         
         penalty_applied = MatchPredictionService._apply_penalty_if_needed(db, user_id, match)

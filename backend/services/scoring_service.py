@@ -209,6 +209,9 @@ class ScoringService:
                 if update_status:
                     DBWriter.update_match_prediction_status(db, prediction, status)
                 new_points = ScoringService.match_status_to_points(status)
+                # Double points if this prediction used the temptation feature
+                if getattr(prediction, 'is_tempted', False) and new_points > 0:
+                    new_points = new_points * 2
                 DBWriter.update_match_prediction(db, prediction, points=new_points)
                 if new_points - old_points != 0:
                     ScoringService._apply_score_delta(db, prediction.user_id, "matches_score", new_points - old_points)

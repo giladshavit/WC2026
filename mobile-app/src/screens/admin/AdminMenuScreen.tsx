@@ -52,6 +52,7 @@ export default function AdminMenuScreen() {
   const [creatingRandom, setCreatingRandom] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
   const [generatingUsers, setGeneratingUsers] = useState(false);
+  const [generatingDrawUsers, setGeneratingDrawUsers] = useState(false);
 
   const handleCreateRandomResults = (updateExisting: boolean) => {
     const action = updateExisting ? 'update' : 'create';
@@ -194,6 +195,40 @@ export default function AdminMenuScreen() {
     );
   };
 
+  const handleGenerateDrawUsers = () => {
+    Alert.alert(
+      '🎯 Generate Draw Users',
+      'Creates 50 fake users with draw-only match predictions.\n\n' +
+      '• All match predictions are draws (0-0, 1-1, 2-2, 3-3)\n' +
+      '• Groups, third place, and knockout cascade automatically\n\n' +
+      '⚠️ Use only in development!',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Generate',
+          style: 'default',
+          onPress: async () => {
+            setGeneratingDrawUsers(true);
+            try {
+              const result = await apiService.generateTestUsersDraws(50);
+              Alert.alert(
+                '✅ Done!',
+                `👤 Users created: ${result.created}\n` +
+                `🎯 Predictions filled: ${result.predictions_filled}\n` +
+                `❌ Errors: ${result.errors}`,
+                [{ text: 'OK' }]
+              );
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Could not generate draw test users');
+            } finally {
+              setGeneratingDrawUsers(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleDeleteAllResults = () => {
     Alert.alert(
       '⚠️ Delete All Results',
@@ -272,9 +307,9 @@ export default function AdminMenuScreen() {
           <Text style={styles.quickActionsTitle}>Quick Actions</Text>
           
           <TouchableOpacity
-            style={[styles.quickActionButton, styles.generateTestUsersButton, (generatingUsers || deleting || creatingRandom || rebuilding) && styles.buttonDisabled]}
+            style={[styles.quickActionButton, styles.generateTestUsersButton, (generatingUsers || generatingDrawUsers || deleting || creatingRandom || rebuilding) && styles.buttonDisabled]}
             onPress={handleGenerateTestUsers}
-            disabled={generatingUsers || deleting || creatingRandom || rebuilding}
+            disabled={generatingUsers || generatingDrawUsers || deleting || creatingRandom || rebuilding}
             activeOpacity={0.7}
           >
             <Text style={styles.quickActionButtonText}>
@@ -283,9 +318,20 @@ export default function AdminMenuScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.quickActionButton, styles.createRandomButton, (creatingRandom || deleting || rebuilding || generatingUsers) && styles.buttonDisabled]}
+            style={[styles.quickActionButton, styles.generateDrawUsersButton, (generatingDrawUsers || generatingUsers || deleting || creatingRandom || rebuilding) && styles.buttonDisabled]}
+            onPress={handleGenerateDrawUsers}
+            disabled={generatingDrawUsers || generatingUsers || deleting || creatingRandom || rebuilding}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.quickActionButtonText}>
+              {generatingDrawUsers ? 'Generating...' : '🎯 Generate 50 Draw Users'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.quickActionButton, styles.createRandomButton, (creatingRandom || deleting || rebuilding || generatingUsers || generatingDrawUsers) && styles.buttonDisabled]}
             onPress={() => handleCreateRandomResults(false)}
-            disabled={creatingRandom || deleting || rebuilding || generatingUsers}
+            disabled={creatingRandom || deleting || rebuilding || generatingUsers || generatingDrawUsers}
             activeOpacity={0.7}
           >
             <Text style={styles.quickActionButtonText}>
@@ -294,9 +340,9 @@ export default function AdminMenuScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.quickActionButton, styles.rebuildButton, (rebuilding || deleting || creatingRandom || generatingUsers) && styles.buttonDisabled]}
+            style={[styles.quickActionButton, styles.rebuildButton, (rebuilding || deleting || creatingRandom || generatingUsers || generatingDrawUsers) && styles.buttonDisabled]}
             onPress={handleRebuildRound32}
-            disabled={rebuilding || deleting || creatingRandom || generatingUsers}
+            disabled={rebuilding || deleting || creatingRandom || generatingUsers || generatingDrawUsers}
             activeOpacity={0.7}
           >
             <Text style={styles.quickActionButtonText}>
@@ -306,9 +352,9 @@ export default function AdminMenuScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.deleteButton, (deleting || generatingUsers) && styles.deleteButtonDisabled]}
+          style={[styles.deleteButton, (deleting || generatingUsers || generatingDrawUsers) && styles.deleteButtonDisabled]}
           onPress={handleDeleteAllResults}
-          disabled={deleting || generatingUsers}
+          disabled={deleting || generatingUsers || generatingDrawUsers}
           activeOpacity={0.7}
         >
           <Text style={styles.deleteButtonText}>
@@ -374,6 +420,9 @@ const styles = StyleSheet.create({
   },
   generateTestUsersButton: {
     backgroundColor: '#0d9488',
+  },
+  generateDrawUsersButton: {
+    backgroundColor: '#0891b2',
   },
   createRandomButton: {
     backgroundColor: '#9333ea',

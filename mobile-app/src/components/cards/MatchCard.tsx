@@ -1,9 +1,11 @@
-import React, { forwardRef, useImperativeHandle, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Animated } from 'react-native';
+import React, { forwardRef, useImperativeHandle, useRef, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Animated, Modal, Pressable, Dimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MatchStatsModal from '../stats/MatchStatsModal';
 import type { TextInput as RNTextInput } from 'react-native';
-import { Match } from '../../services/api';
+import { Match, apiService } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../toast/Toast';
 
 type ScoreField = 'home' | 'away';
 
@@ -13,7 +15,7 @@ export interface MatchCardHandle {
 
 interface MatchCardProps {
   match: Match;
-  onScoreChange: (matchId: number, homeScore: number | null, awayScore: number | null) => void;
+  onScoreChange: (matchId: number, homeScore: number | null, awayScore: number | null, isTempted?: boolean) => void;
   onInputFocus?: (matchId: number) => void;
 }
 
@@ -155,6 +157,8 @@ const BlinkingCursor = () => {
 const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
   function MatchCard({ match, onScoreChange, onInputFocus }, ref) {
   const rootRef = useRef<View>(null);
+  const { getCurrentUserId } = useAuth();
+  const { showToast } = useToast();
 
   useImperativeHandle(ref, () => ({
     measureCard: () =>
@@ -179,6 +183,9 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
   const homeInputRef = React.useRef<RNTextInput | null>(null);
   const awayInputRef = React.useRef<RNTextInput | null>(null);
   const [showStats, setShowStats] = React.useState(false);
+  const [showTemptationSuggestions, setShowTemptationSuggestions] = React.useState(false);
+  const [temptationSuggestions, setTemptationSuggestions] = React.useState<Array<{ home_score: number; away_score: number }>>([]);
+  const [optimisticTempted, setOptimisticTempted] = useState<boolean | null>(null);
   const originalScoreRef = React.useRef<Record<ScoreField, string | null>>({
     home: null,
     away: null,
@@ -190,6 +197,12 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
 
   const isEditable =
     match.can_edit && match.status !== 'live' && match.status !== 'finished';
+  const isTempted = optimisticTempted ?? match.user_prediction?.is_tempted ?? false;
+
+  useEffect(() => {
+    setOptimisticTempted(null);
+  }, [match.id, match.user_prediction?.is_tempted]);
+
   const separatorChar = ':';
   const homeName = match.home_team.name || '';
   const isLive = match.status === 'live';
@@ -213,7 +226,8 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
     const originalAway = match.user_prediction.away_score;
     
     if (home !== originalHome || away !== originalAway) {
-      onScoreChange(match.id, home, away);
+      setOptimisticTempted(false);
+      onScoreChange(match.id, home, away, false);
     }
   }, [homeScore, awayScore, match.id, onScoreChange, match.user_prediction.home_score, match.user_prediction.away_score]);
 
@@ -310,6 +324,34 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
     overwriteRef.current[field] = false;
   }, [awayScore, handleScoreChange, homeScore]);
 
+  const handleTemptationPress = React.useCallback(async () => {
+    const userId = getCurrentUserId();
+    if (!userId) return;
+    try {
+      const result = await apiService.getTemptationSuggestions(match.id, userId);
+      if (!result.available) {
+        showToast('Not enough data yet', 'info');
+        return;
+      }
+      setTemptationSuggestions(result.suggestions);
+      setShowTemptationSuggestions(true);
+    } catch (error) {
+      console.error('Error fetching temptation suggestions:', error);
+      showToast('Could not load suggestions', 'error');
+    }
+  }, [match.id, getCurrentUserId, showToast]);
+
+  const handleTemptationSuggestionTap = React.useCallback(
+    (home: number, away: number) => {
+      setHomeScore(home.toString());
+      setAwayScore(away.toString());
+      setOptimisticTempted(true);
+      onScoreChange(match.id, home, away, true);
+      setShowTemptationSuggestions(false);
+    },
+    [match.id, onScoreChange]
+  );
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const day = date.getDate().toString().padStart(2, '0');
@@ -382,6 +424,8 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
 
     // Live match: color score box by prediction accuracy (only when not focused and has score)
     const showLiveColor = liveColor && isLive && scoreValue && !isFieldFocused;
+    // Temptation: purple border when is_tempted (replaces green when active)
+    const showTemptedBorder = isTempted && isEditable && !showLiveColor;
 
     return (
       <View
@@ -390,6 +434,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
           isEditable ? styles.scoreBoxEditable : styles.scoreBoxLocked,
           isFieldFocused && isEditable && styles.scoreBoxFocused,
           showLiveColor && { borderColor: liveColor, borderWidth: 2 },
+          showTemptedBorder && { borderColor: '#7c3aed', borderWidth: 2 },
         ]}
       >
         <TextInput
@@ -487,6 +532,106 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
         <Ionicons name="stats-chart" size={13} color="#0284c7" />
         <Text style={styles.statsButtonText}>Stats</Text>
       </TouchableOpacity>
+
+      {/* Temptation button - bottom right (only when editable) */}
+      {isEditable && (
+        <TouchableOpacity
+          style={[
+            styles.temptationButton,
+            isTempted && styles.temptationButtonActive,
+          ]}
+          onPress={handleTemptationPress}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="dice-outline"
+            size={13}
+            color={isTempted ? '#ffffff' : '#7c3aed'}
+          />
+          <Text
+            style={[
+              styles.temptationButtonText,
+              isTempted && styles.temptationButtonTextActive,
+            ]}
+          >
+            Temptation
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Temptation suggestions modal */}
+      <Modal
+        visible={showTemptationSuggestions}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTemptationSuggestions(false)}
+      >
+        <Pressable
+          style={styles.temptationOverlay}
+          onPress={() => setShowTemptationSuggestions(false)}
+        >
+          <Pressable
+            style={[styles.temptationModal, { width: Dimensions.get('window').width * 0.85 }]}
+            onPress={() => {}}
+          >
+            <TouchableOpacity
+              style={styles.temptationModalClose}
+              onPress={() => setShowTemptationSuggestions(false)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Ionicons name="close" size={22} color="#9ca3af" />
+            </TouchableOpacity>
+            <Text style={styles.temptationModalTitle}>Temptation Offer</Text>
+            <View style={styles.temptationModalSubtitleWrap}>
+              <Text style={styles.temptationModalSubtitle}>Pick one of the rare predictions below.</Text>
+              <Text style={styles.temptationModalSubtitleLine2}>
+                <Text style={styles.temptationModalSubtitleGray}>If correct, you earn </Text>
+                <Text style={styles.temptationModalSubtitlePurple}>×2 points!</Text>
+              </Text>
+            </View>
+            <View style={styles.temptationModalDivider} />
+            {temptationSuggestions.map((s, i) => (
+              <TouchableOpacity
+                key={`${s.home_score}-${s.away_score}-${i}`}
+                style={[
+                  styles.temptationSuggestionRow,
+                  i < temptationSuggestions.length - 1 && styles.temptationSuggestionRowGap,
+                ]}
+                onPress={() => handleTemptationSuggestionTap(s.home_score, s.away_score)}
+                activeOpacity={0.7}
+              >
+                {/* Left column: home flag, fixed width, right-aligned */}
+                <View style={styles.temptationFlagCol}>
+                  {match.home_team?.flag_url && (
+                    <Image source={{ uri: match.home_team.flag_url }} style={styles.temptationRowFlag} />
+                  )}
+                </View>
+
+                {/* Center column: score display, fixed width, centered */}
+                <View style={styles.temptationScoreCol}>
+                  <Text style={styles.temptationRowScore}>{s.home_score}</Text>
+                  <Text style={styles.temptationRowSeparator}>-</Text>
+                  <Text style={styles.temptationRowScore}>{s.away_score}</Text>
+                </View>
+
+                {/* Right column: away flag, fixed width, left-aligned */}
+                <View style={styles.temptationFlagCol}>
+                  {match.away_team?.flag_url && (
+                    <Image source={{ uri: match.away_team.flag_url }} style={styles.temptationRowFlag} />
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.temptationCancelButton}
+              onPress={() => setShowTemptationSuggestions(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.temptationCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Stats Modal */}
       <MatchStatsModal
@@ -749,6 +894,146 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#ffffff',
+  },
+  // Temptation button - bottom right
+  temptationButton: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#7c3aed',
+    backgroundColor: '#faf5ff',
+  },
+  temptationButtonActive: {
+    backgroundColor: '#7c3aed',
+    borderColor: '#7c3aed',
+  },
+  temptationButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#7c3aed',
+  },
+  temptationButtonTextActive: {
+    color: '#ffffff',
+  },
+  temptationOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  temptationModal: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    position: 'relative',
+  },
+  temptationModalClose: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 1,
+  },
+  temptationModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 8,
+    textAlign: 'center',
+    paddingRight: 28,
+  },
+  temptationModalSubtitleWrap: {
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  temptationModalSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  temptationModalSubtitleLine2: {
+    textAlign: 'center',
+  },
+  temptationModalSubtitleGray: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  temptationModalSubtitlePurple: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#7c3aed',
+  },
+  temptationModalDivider: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
+    marginBottom: 20,
+  },
+  temptationSuggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#faf5ff',
+    borderWidth: 1.5,
+    borderColor: '#e9d5ff',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  temptationFlagCol: {
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  temptationScoreCol: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  temptationSuggestionRowGap: {
+    marginBottom: 12,
+  },
+  temptationRowFlag: {
+    width: 28,
+    height: 20,
+    borderRadius: 3,
+  },
+  temptationRowScore: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#7c3aed',
+  },
+  temptationRowSeparator: {
+    fontSize: 20,
+    color: '#9ca3af',
+    marginHorizontal: 8,
+  },
+  temptationCancelButton: {
+    marginTop: 8,
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 32,
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
+    borderRadius: 20,
+  },
+  temptationCancelText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6b7280',
   },
   // Cursor styles
   cursorContainer: {

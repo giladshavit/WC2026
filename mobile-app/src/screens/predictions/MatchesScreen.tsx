@@ -140,7 +140,7 @@ export default function MatchesScreen() {
   }, [loading, matches]);
 
   const saveMatch = useCallback(
-    async (matchId: number, homeScore: number, awayScore: number) => {
+    async (matchId: number, homeScore: number, awayScore: number, isTempted: boolean = false) => {
       const userId = getCurrentUserId();
       if (!userId) return;
 
@@ -158,7 +158,7 @@ export default function MatchesScreen() {
 
       try {
         await apiService.updateBatchMatchPredictions(userId, [
-          { match_id: matchId, home_score: homeScore, away_score: awayScore },
+          { match_id: matchId, home_score: homeScore, away_score: awayScore, is_tempted: isTempted },
         ]);
         await fetchMatches();
       } catch (error) {
@@ -171,7 +171,7 @@ export default function MatchesScreen() {
   );
 
   const handleScoreChange = useCallback(
-    (matchId: number, homeScore: number | null, awayScore: number | null) => {
+    (matchId: number, homeScore: number | null, awayScore: number | null, isTempted: boolean = false) => {
       const existingTimer = debounceTimersRef.current.get(matchId);
       if (existingTimer) {
         clearTimeout(existingTimer);
@@ -181,7 +181,7 @@ export default function MatchesScreen() {
       if (homeScore !== null && awayScore !== null) {
         const timer = setTimeout(() => {
           debounceTimersRef.current.delete(matchId);
-          saveMatch(matchId, homeScore, awayScore);
+          saveMatch(matchId, homeScore, awayScore, isTempted);
         }, DEBOUNCE_MS);
         debounceTimersRef.current.set(matchId, timer);
       }
