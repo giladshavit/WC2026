@@ -160,6 +160,7 @@ function AnimatedPlayerRow({
   side,
   scoreMode,
   showOnlyTotalColumn,
+  onRowPress,
 }: {
   item: StandingWithFine;
   index: number;
@@ -169,6 +170,7 @@ function AnimatedPlayerRow({
   side: 'left' | 'middle' | 'right';
   scoreMode?: 'weighted' | 'matches';
   showOnlyTotalColumn?: boolean;
+  onRowPress?: () => void;
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -194,7 +196,7 @@ function AnimatedPlayerRow({
   };
 
   if (side === 'left') {
-    return (
+    const leftContent = (
       <Animated.View
         style={[
           styles.playerRow,
@@ -219,10 +221,18 @@ function AnimatedPlayerRow({
         </View>
       </Animated.View>
     );
+    if (onRowPress) {
+      return (
+        <TouchableOpacity onPress={onRowPress} activeOpacity={0.8}>
+          {leftContent}
+        </TouchableOpacity>
+      );
+    }
+    return leftContent;
   }
 
   if (side === 'middle') {
-    return (
+    const middleContent = (
       <Animated.View
         style={[
           styles.playerRow,
@@ -251,9 +261,17 @@ function AnimatedPlayerRow({
         </View>
       </Animated.View>
     );
+    if (onRowPress) {
+      return (
+        <TouchableOpacity onPress={onRowPress} activeOpacity={0.8}>
+          {middleContent}
+        </TouchableOpacity>
+      );
+    }
+    return middleContent;
   }
 
-  return (
+  const rightContent = (
     <Animated.View
       style={[
         styles.playerRow,
@@ -311,6 +329,14 @@ function AnimatedPlayerRow({
       </View>
     </Animated.View>
   );
+  if (onRowPress) {
+    return (
+      <TouchableOpacity onPress={onRowPress} activeOpacity={0.8}>
+        {rightContent}
+      </TouchableOpacity>
+    );
+  }
+  return rightContent;
 }
 
 export default function LeagueDetailsScreen() {
@@ -725,6 +751,7 @@ export default function LeagueDetailsScreen() {
                     liveMatchPredictionsList={liveMatchPredictionsList}
                     side="left"
                     scoreMode={scoreMode}
+                    onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('UserProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
                   />
                 ))}
               </View>
@@ -785,9 +812,10 @@ export default function LeagueDetailsScreen() {
                       index={index}
                       currentUserId={currentUserId}
                       truncateName={truncateName}
-                    liveMatchPredictionsList={liveMatchPredictionsList}
-                    side="middle"
-                    scoreMode={scoreMode}
+                      liveMatchPredictionsList={liveMatchPredictionsList}
+                      side="middle"
+                      scoreMode={scoreMode}
+                      onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('UserProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
                     />
                   ))}
                 </View>
@@ -840,6 +868,7 @@ export default function LeagueDetailsScreen() {
                     side="right"
                     scoreMode={scoreMode}
                     showOnlyTotalColumn={showOnlyTotalColumn}
+                    onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('UserProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
                   />
                 ))}
               </View>

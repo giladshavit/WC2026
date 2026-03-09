@@ -9,6 +9,7 @@ import LeagueStack from './LeagueStack';
 import StatisticsScreen from '../screens/statistics/StatisticsScreen';
 import BracketScreen from '../screens/predictions/BracketScreen';
 import AdminNavigator from './AdminNavigator';
+import UserProfileScreen from '../screens/UserProfileScreen';
 
 export type MainStackParamList = {
   Home: undefined;
@@ -20,6 +21,7 @@ export type MainStackParamList = {
   Leagues: undefined;
   Statistics: undefined;
   Admin: undefined;
+  UserProfile: { userId: number; username: string };
 };
 
 const Stack = createStackNavigator<MainStackParamList>();
@@ -102,6 +104,13 @@ export default function MainNavigator() {
       <Stack.Screen
         name="Admin"
         component={AdminNavigator}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="UserProfile"
+        component={UserProfileScreen}
         options={{
           headerShown: false,
         }}

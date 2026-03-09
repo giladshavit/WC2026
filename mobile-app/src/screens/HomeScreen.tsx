@@ -26,7 +26,7 @@ const actions: Array<{
   title: string;
   subtitle: string;
   icon: string;
-  navigateTo: keyof MainStackParamList;
+  navigateTo: Exclude<keyof MainStackParamList, 'UserProfile'>;
 }> = [
   {
     title: 'Profile',

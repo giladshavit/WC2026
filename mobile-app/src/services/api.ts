@@ -1420,3 +1420,66 @@ export class ApiService {
 }
 
 export const apiService = new ApiService();
+
+// ===== User View (other user's predictions) =====
+
+export interface UserProfileView {
+  user_id: number;
+  username: string;
+  name: string | null;
+  total_points: number;
+  matches_score: number;
+  groups_score: number;
+  third_place_score: number;
+  knockout_score: number;
+  penalty: number;
+}
+
+export interface UserMatchPredictionsView {
+  matches: Match[];
+  matches_score: number | null;
+}
+
+export interface UserGroupPredictionsView {
+  groups: GroupPrediction[];
+  groups_score: number | null;
+  groups_penalty: number;
+}
+
+export interface UserThirdPlacePredictionsView {
+  available: boolean;
+  eligible_teams?: any[];
+  prediction?: any;
+  third_place_score?: number | null;
+  third_place_penalty?: number;
+  result?: any;
+}
+
+export interface UserKnockoutPredictionsView {
+  predictions: KnockoutPrediction[];
+  knockout_score: number | null;
+  knockout_penalty: number;
+}
+
+async function apiRequest<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}/api${path}`);
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+}
+
+export const getUserProfile = (userId: number): Promise<UserProfileView> =>
+  apiRequest(`/users/${userId}/profile`);
+
+export const getUserMatchPredictions = (userId: number): Promise<UserMatchPredictionsView> =>
+  apiRequest(`/users/${userId}/predictions/matches`);
+
+export const getUserGroupPredictions = (userId: number): Promise<UserGroupPredictionsView> =>
+  apiRequest(`/users/${userId}/predictions/groups`);
+
+export const getUserThirdPlacePredictions = (userId: number): Promise<UserThirdPlacePredictionsView> =>
+  apiRequest(`/users/${userId}/predictions/third-place`);
+
+export const getUserKnockoutPredictions = (userId: number): Promise<UserKnockoutPredictionsView> =>
+  apiRequest(`/users/${userId}/predictions/knockout`);
