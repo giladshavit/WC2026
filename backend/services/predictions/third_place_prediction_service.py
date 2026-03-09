@@ -2,7 +2,7 @@ from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
 from services.database import DBReader, DBWriter, DBUtils
 from services.scoring_service import ScoringService
-from .enums import PredictionType
+from .enums import PredictionType, ThirdPlacePredictionStatus
 
 
 class ThirdPlacePredictionService:
@@ -194,11 +194,13 @@ class ThirdPlacePredictionService:
             db,
             user_id=user_id,
             team_ids=[None, None, None, None, None, None, None, None],
+            status=ThirdPlacePredictionStatus.PENDING,
         )
 
         # Mark as incorrect (red) if third place result already finalized
         third_place_result = DBReader.get_third_place_result(db)
         if third_place_result:
+            DBWriter.set_third_place_prediction_status(db, prediction, ThirdPlacePredictionStatus.SETTLED)
             DBWriter.update_third_place_prediction_fields(
                 db, prediction, correct_groups_count=0, points=0, is_editable=False
             )

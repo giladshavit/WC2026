@@ -2,6 +2,7 @@ from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
 from services.database import DBReader, DBWriter, DBUtils
 from .shared import PlacesPredictions
+from .enums import GroupPredictionStatus
 from .knockout_service import KnockoutService
 
 
@@ -131,12 +132,14 @@ class GroupPredictionService:
                 second=None,
                 third=None,
                 fourth=None,
+                status=GroupPredictionStatus.PENDING,
             )
             created += 1
 
             # Mark as incorrect (red) if group result already finalized
             group_result = DBReader.get_group_stage_result(db, group.id)
             if group_result:
+                DBWriter.set_group_prediction_status(db, prediction, GroupPredictionStatus.SETTLED)
                 DBWriter.update_group_prediction_accuracy(
                     db, prediction,
                     first_correct=False,

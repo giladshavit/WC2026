@@ -25,5 +25,15 @@ class KnockoutPredictionStatus(Enum):
     CORRECT_FULL = "correct_full"
     CORRECT_PARTIAL = "correct_partial"
     INCORRECT = "incorrect"
-    # Special
-    PENDING_RESULT = "pending_result"
+
+
+class GroupPredictionStatus(str, Enum):
+    """Status of a group stage prediction."""
+    PENDING = "pending"    # No result yet for this group
+    SETTLED = "settled"    # Group result has been entered
+
+
+class ThirdPlacePredictionStatus(str, Enum):
+    """Status of a third place prediction."""
+    PENDING = "pending"    # No third place result yet
+    SETTLED = "settled"    # Third place result has been entered

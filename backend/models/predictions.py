@@ -55,6 +55,7 @@ class GroupStagePrediction(Base):
     second_correct = Column(Boolean, nullable=True, default=None)
     third_correct = Column(Boolean, nullable=True, default=None)
     fourth_correct = Column(Boolean, nullable=True, default=None)
+    status = Column(String, nullable=False, default="pending")
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -88,6 +89,7 @@ class ThirdPlacePrediction(Base):
 
     # How many groups (0-8) user got right. None = not yet judged
     correct_groups_count = Column(Integer, nullable=True, default=None)
+    status = Column(String, nullable=False, default="pending")
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

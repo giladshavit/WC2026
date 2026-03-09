@@ -33,7 +33,12 @@ from models.results import (
 from models.league import League, LeagueMembership
 from models.tournament_config import TournamentConfig
 from models.statistics import ThirdPlaceGroupCounts
-from services.predictions.enums import MatchPredictionStatus, PredictionType
+from services.predictions.enums import (
+    MatchPredictionStatus,
+    PredictionType,
+    GroupPredictionStatus,
+    ThirdPlacePredictionStatus,
+)
 
 
 class DBWriter:
@@ -376,14 +381,16 @@ class DBWriter:
     @staticmethod
     def create_group_prediction(db: Session, user_id: int, group_id: int,
                                 first: Optional[int], second: Optional[int],
-                                third: Optional[int], fourth: Optional[int]) -> GroupStagePrediction:
+                                third: Optional[int], fourth: Optional[int],
+                                status: str = "pending") -> GroupStagePrediction:
         prediction = GroupStagePrediction(
             user_id=user_id,
             group_id=group_id,
             first_place=first,
             second_place=second,
             third_place=third,
-            fourth_place=fourth
+            fourth_place=fourth,
+            status=status
         )
         db.add(prediction)
         db.flush()
@@ -440,11 +447,21 @@ class DBWriter:
     def set_group_predictions_editable(db: Session, is_editable: bool) -> int:
         return db.query(GroupStagePrediction).update({GroupStagePrediction.is_editable: is_editable})
 
+    @staticmethod
+    def set_group_prediction_status(
+        db: Session, prediction: GroupStagePrediction, status: Union[str, GroupPredictionStatus]
+    ) -> GroupStagePrediction:
+        """Set the status field on a group prediction."""
+        prediction.status = status
+        db.flush()
+        return prediction
+
     # ═══════════════════════════════════════════════════════
     # PREDICTIONS - Third Place
     # ═══════════════════════════════════════════════════════
     @staticmethod
-    def create_third_place_prediction(db: Session, user_id: int, team_ids: List[Optional[int]]) -> ThirdPlacePrediction:
+    def create_third_place_prediction(db: Session, user_id: int, team_ids: List[Optional[int]],
+                                     status: str = "pending") -> ThirdPlacePrediction:
         prediction = ThirdPlacePrediction(
             user_id=user_id,
             first_team_qualifying=team_ids[0],
@@ -454,7 +471,8 @@ class DBWriter:
             fifth_team_qualifying=team_ids[4],
             sixth_team_qualifying=team_ids[5],
             seventh_team_qualifying=team_ids[6],
-            eighth_team_qualifying=team_ids[7]
+            eighth_team_qualifying=team_ids[7],
+            status=status
         )
         db.add(prediction)
         db.flush()
@@ -532,6 +550,15 @@ class DBWriter:
     @staticmethod
     def set_third_place_predictions_editable(db: Session, is_editable: bool) -> int:
         return db.query(ThirdPlacePrediction).update({ThirdPlacePrediction.is_editable: is_editable})
+
+    @staticmethod
+    def set_third_place_prediction_status(
+        db: Session, prediction: ThirdPlacePrediction, status: Union[str, ThirdPlacePredictionStatus]
+    ) -> ThirdPlacePrediction:
+        """Set the status field on a third place prediction."""
+        prediction.status = status
+        db.flush()
+        return prediction
 
     @staticmethod
     def increment_third_place_group_count(db: Session, row: ThirdPlaceGroupCounts, group_letter: str) -> None:
