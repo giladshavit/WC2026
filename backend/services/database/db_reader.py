@@ -682,6 +682,16 @@ class DBReader:
         return dist
 
     @staticmethod
+    def get_bonus_interim_values_dict(db: Session) -> dict[str, str | None]:
+        """Read all interim values from bonus_results table."""
+        from models.results import BonusResults
+        fields = ["g1", "g2", "g3", "g4", "g5", "k1", "k2", "k3", "t1", "t2"]
+        row = db.query(BonusResults).filter_by(id=1).first()
+        if not row:
+            return {f: None for f in fields}
+        return {f: getattr(row, f"{f}_interim", None) for f in fields}
+
+    @staticmethod
     def get_third_place_group_counts(db: Session) -> ThirdPlaceGroupCounts:
         """Get the singleton row. Creates it if missing."""
         row = db.query(ThirdPlaceGroupCounts).first()

@@ -108,6 +108,10 @@ export default function AdminBonusScreen() {
     g1: '', g2: '', g3: '', g4: '', g5: '',
     k1: '', k2: '', k3: '', t1: '', t2: '',
   });
+  const [selectedInterim, setSelectedInterim] = useState<Record<QuestionId, string>>({
+    g1: '', g2: '', g3: '', g4: '', g5: '',
+    k1: '', k2: '', k3: '', t1: '', t2: '',
+  });
   const [loading, setLoading] = useState<Record<QuestionId, boolean>>({
     g1: false, g2: false, g3: false, g4: false, g5: false,
     k1: false, k2: false, k3: false, t1: false, t2: false,
@@ -147,6 +151,19 @@ export default function AdminBonusScreen() {
           t1: toVal(existing.t1_correct),
           t2: toVal(existing.t2_correct),
         }));
+        setSelectedInterim((prev) => ({
+          ...prev,
+          g1: toVal(existing.g1_interim),
+          g2: toVal(existing.g2_interim),
+          g3: toVal(existing.g3_interim),
+          g4: toVal(existing.g4_interim),
+          g5: toVal(existing.g5_interim),
+          k1: toVal(existing.k1_interim),
+          k2: toVal(existing.k2_interim),
+          k3: toVal(existing.k3_interim),
+          t1: toVal(existing.t1_interim),
+          t2: toVal(existing.t2_interim),
+        }));
       } catch (e) {
         console.error('Failed to load bonus results:', e);
       } finally {
@@ -157,6 +174,25 @@ export default function AdminBonusScreen() {
   }, []);
 
   const allTeams = groups.flatMap((g) => (g.teams || []).map((t) => ({ ...t, groupId: g.group_id })));
+
+  const [savingInterim, setSavingInterim] = useState(false);
+
+  const handleSaveInterim = async () => {
+    setSavingInterim(true);
+    try {
+      const payload: Record<string, string | null> = {};
+      (Object.keys(selectedInterim) as QuestionId[]).forEach((id) => {
+        payload[`${id}_interim`] = selectedInterim[id] || null;
+      });
+      await apiService.updateBonusInterim(payload);
+      Alert.alert('Success', 'Interim values saved.');
+    } catch (e: any) {
+      console.error('Failed to save interim values:', e);
+      Alert.alert('Error', e?.message || 'Failed to save interim values.');
+    } finally {
+      setSavingInterim(false);
+    }
+  };
 
   const handleSaveAll = async () => {
     setSavingAll(true);
@@ -227,24 +263,32 @@ export default function AdminBonusScreen() {
     );
   };
 
-  const renderPicker = (q: Question) => {
+  const renderPicker = (q: Question, isInterim = false) => {
+    const sel = isInterim ? selectedInterim : selected;
+    const setSel = isInterim ? setSelectedInterim : setSelected;
+    const accentColor = isInterim ? '#f59e0b' : '#16a34a';
+    const accentBg = isInterim ? 'rgba(245,158,11,0.15)' : 'rgba(22,163,74,0.15)';
+
     if (q.id === 'g2') {
-      if (loadingGroups) return <ActivityIndicator color="#16a34a" style={{ marginVertical: 12 }} />;
+      if (loadingGroups) return <ActivityIndicator color={accentColor} style={{ marginVertical: 12 }} />;
       const CARD_W = Math.floor((screenWidth - 40 - 24) / 3);
       const FLAG_W = Math.floor((CARD_W - 20) / 2);
       const FLAG_H = Math.floor(FLAG_W * 0.65);
       return (
         <View style={styles.flagGrid}>
           {groups.map((g) => {
-            const isSelected = selected[q.id] === String(g.group_id);
+            const isSelected = sel[q.id] === String(g.group_id);
             const teams = (g.teams || []).slice(0, 4);
             return (
               <TouchableOpacity
                 key={g.group_id}
-                style={[styles.groupCard, isSelected && styles.groupCardSelected]}
-                onPress={() => setSelected((prev) => ({ ...prev, [q.id]: String(g.group_id) }))}
+                style={[
+                  styles.groupCard,
+                  isSelected && (isInterim ? { backgroundColor: accentBg, borderColor: accentColor } : styles.groupCardSelected),
+                ]}
+                onPress={() => setSel((prev) => ({ ...prev, [q.id]: String(g.group_id) }))}
               >
-                <Text style={[styles.groupName, isSelected && styles.groupNameSelected]}>{g.group_name}</Text>
+                <Text style={[styles.groupName, isSelected && { color: accentColor }]}>{g.group_name}</Text>
                 <View style={styles.flagRow}>
                   {teams.map((t) =>
                     t.flag_url ? (
@@ -262,7 +306,7 @@ export default function AdminBonusScreen() {
     }
 
     if (q.id === 'g3') {
-      if (loadingGroups) return <ActivityIndicator color="#16a34a" style={{ marginVertical: 12 }} />;
+      if (loadingGroups) return <ActivityIndicator color={accentColor} style={{ marginVertical: 12 }} />;
       const GAP = 6;
       const COLS = 6;
       const CELL_W = Math.floor((screenWidth - 40 - (COLS - 1) * GAP) / COLS);
@@ -272,12 +316,16 @@ export default function AdminBonusScreen() {
         <ScrollView horizontal={false} showsVerticalScrollIndicator style={{ maxHeight: 220 }}>
           <View style={[styles.flagGrid, { gap: GAP }]}>
             {allTeams.map((t) => {
-              const isSelected = selected[q.id] === String(t.id);
+              const isSelected = sel[q.id] === String(t.id);
               return (
                 <TouchableOpacity
                   key={t.id}
-                  style={[styles.teamCell, isSelected && styles.teamCellSelected, { width: CELL_W }]}
-                  onPress={() => setSelected((prev) => ({ ...prev, [q.id]: String(t.id) }))}
+                  style={[
+                    styles.teamCell,
+                    isSelected && (isInterim ? { backgroundColor: accentBg, borderColor: accentColor } : styles.teamCellSelected),
+                    { width: CELL_W },
+                  ]}
+                  onPress={() => setSel((prev) => ({ ...prev, [q.id]: String(t.id) }))}
                 >
                   {t.flag_url ? (
                     <Image source={{ uri: t.flag_url }} style={{ width: FLAG_W, height: FLAG_H, borderRadius: 4 }} resizeMode="contain" />
@@ -295,14 +343,17 @@ export default function AdminBonusScreen() {
     return (
       <View style={styles.pillRow}>
         {q.options.map((opt) => {
-          const isSelected = selected[q.id] === opt.value;
+          const isSelected = sel[q.id] === opt.value;
           return (
             <TouchableOpacity
               key={opt.value}
-              style={[styles.pill, isSelected && styles.pillSelected]}
-              onPress={() => setSelected((prev) => ({ ...prev, [q.id]: opt.value }))}
+              style={[
+                styles.pill,
+                isSelected && (isInterim ? { backgroundColor: accentBg, borderColor: accentColor } : styles.pillSelected),
+              ]}
+              onPress={() => setSel((prev) => ({ ...prev, [q.id]: opt.value }))}
             >
-              <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>{opt.label}</Text>
+              <Text style={[styles.pillText, isSelected && { color: accentColor }]}>{opt.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -321,17 +372,30 @@ export default function AdminBonusScreen() {
         {loadingExisting ? (
           <ActivityIndicator color="#16a34a" style={{ marginVertical: 16 }} />
         ) : (
-          <TouchableOpacity
-            style={[styles.saveAllBtn, savingAll && styles.settleBtnDisabled]}
-            onPress={handleSaveAll}
-            disabled={savingAll}
-          >
-            {savingAll ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.settleBtnText}>Save All Results</Text>
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+            <TouchableOpacity
+              style={[styles.saveAllBtn, savingAll && styles.settleBtnDisabled, { flex: 1 }]}
+              onPress={handleSaveAll}
+              disabled={savingAll}
+            >
+              {savingAll ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.settleBtnText}>Save All Results</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.saveInterimBtn, savingInterim && styles.settleBtnDisabled, { flex: 1 }]}
+              onPress={handleSaveInterim}
+              disabled={savingInterim}
+            >
+              {savingInterim ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.settleBtnText}>Save Interim Values</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         )}
 
         {sections.map((section) => (
@@ -348,6 +412,11 @@ export default function AdminBonusScreen() {
                 </View>
 
                 {renderPicker(q)}
+
+                <View style={styles.interimSection}>
+                  <Text style={styles.interimLabel}>⚡ Current / Interim</Text>
+                  {renderPicker(q, true)}
+                </View>
 
                 <TouchableOpacity
                   style={[styles.settleBtn, loading[q.id] && styles.settleBtnDisabled]}
@@ -433,7 +502,18 @@ const styles = StyleSheet.create({
   saveAllBtn: {
     backgroundColor: '#16a34a', borderRadius: 10,
     paddingHorizontal: 16, paddingVertical: 12,
-    alignItems: 'center', marginBottom: 16,
+    alignItems: 'center',
+  },
+  saveInterimBtn: {
+    backgroundColor: '#f59e0b', borderRadius: 10,
+    paddingHorizontal: 16, paddingVertical: 12,
+    alignItems: 'center',
+  },
+  interimSection: {
+    marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#e2e8f0',
+  },
+  interimLabel: {
+    fontSize: 12, fontWeight: '700', color: '#f59e0b', marginBottom: 10,
   },
   settleBtn: {
     backgroundColor: '#16a34a', borderRadius: 10,

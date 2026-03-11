@@ -548,6 +548,19 @@ class BonusResultsRequest(BaseModel):
     t2_correct: Optional[str] = None
 
 
+class BonusInterimRequest(BaseModel):
+    g1_interim: Optional[str] = None
+    g2_interim: Optional[str] = None
+    g3_interim: Optional[str] = None
+    g4_interim: Optional[str] = None
+    g5_interim: Optional[str] = None
+    k1_interim: Optional[str] = None
+    k2_interim: Optional[str] = None
+    k3_interim: Optional[str] = None
+    t1_interim: Optional[str] = None
+    t2_interim: Optional[str] = None
+
+
 @router.post("/admin/bonus/settle-groups", response_model=Dict[str, Any])
 def settle_bonus_groups(
     body: BonusSettleGroupsRequest,
@@ -630,13 +643,20 @@ def settle_bonus_question(
 
 @router.get("/admin/bonus/results", response_model=Dict[str, Any])
 def get_bonus_results(db: Session = Depends(get_db)):
-    """Get currently stored correct answers for all bonus questions (admin only)."""
+    """Get currently stored correct answers and interim values for all bonus questions (admin only)."""
     from models.results import BonusResults
     row = db.query(BonusResults).filter_by(id=1).first()
     fields = ["g1", "g2", "g3", "g4", "g5", "k1", "k2", "k3", "t1", "t2"]
+    result = {}
     if not row:
-        return {f"{f}_correct": None for f in fields}
-    return {f"{f}_correct": getattr(row, f"{f}_correct", None) for f in fields}
+        for f in fields:
+            result[f"{f}_correct"] = None
+            result[f"{f}_interim"] = None
+    else:
+        for f in fields:
+            result[f"{f}_correct"] = getattr(row, f"{f}_correct", None)
+            result[f"{f}_interim"] = getattr(row, f"{f}_interim", None)
+    return result
 
 
 @router.put("/admin/bonus/results", response_model=Dict[str, Any])
@@ -688,6 +708,26 @@ def update_bonus_results(
         "fields_updated": len(updated_fields),
         "details": updated_fields,
     }
+
+
+@router.put("/admin/bonus/interim", response_model=Dict[str, Any])
+def update_bonus_interim(
+    request: BonusInterimRequest,
+    db: Session = Depends(get_db),
+):
+    """Update interim (live/current) values for bonus questions. Display-only, no scoring."""
+    from services.database import DBWriter, DBUtils
+    fields = ["g1", "g2", "g3", "g4", "g5", "k1", "k2", "k3", "t1", "t2"]
+    updates = {}
+    request_dict = request.model_dump()
+    for f in fields:
+        val = request_dict.get(f"{f}_interim")
+        if val is not None:  # only update provided fields (None means "don't touch")
+            updates[f] = val if val != "" else None
+    if updates:
+        DBWriter.set_bonus_interim_values_bulk(db, updates)
+        DBUtils.commit(db)
+    return {"updated": True, "fields_updated": len(updates), "updates": updates}
 
 
 @router.post("/admin/reset-all-results", response_model=Dict[str, Any])

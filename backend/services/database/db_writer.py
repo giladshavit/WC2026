@@ -756,6 +756,29 @@ class DBWriter:
         return count
 
     @staticmethod
+    def set_bonus_interim_value(db: Session, field_key: str, value: str | None) -> None:
+        """Set a single interim value on bonus_results row (id=1)."""
+        from models.results import BonusResults
+        row = db.query(BonusResults).filter_by(id=1).first()
+        if not row:
+            row = BonusResults(id=1)
+            db.add(row)
+        setattr(row, f"{field_key}_interim", value)
+        db.flush()
+
+    @staticmethod
+    def set_bonus_interim_values_bulk(db: Session, updates: dict[str, str | None]) -> None:
+        """Set multiple interim values at once."""
+        from models.results import BonusResults
+        row = db.query(BonusResults).filter_by(id=1).first()
+        if not row:
+            row = BonusResults(id=1)
+            db.add(row)
+        for field_key, value in updates.items():
+            setattr(row, f"{field_key}_interim", value)
+        db.flush()
+
+    @staticmethod
     def reset_bonus_prediction_penalties(db: Session) -> int:
         """Reset penalty_points and changes_count to 0 for all bonus predictions."""
         count = db.query(BonusPrediction).update({

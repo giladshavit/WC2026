@@ -228,6 +228,7 @@ class BonusPredictionService:
     @staticmethod
     def _to_response(pred: BonusPrediction, db: Session) -> Dict[str, Any]:
         correct_values = BonusPredictionService.get_correct_values_dict(db)
+        interim_values = DBReader.get_bonus_interim_values_dict(db)
         return {
             "id": pred.id,
             "user_id": pred.user_id,
@@ -262,6 +263,7 @@ class BonusPredictionService:
             "q_t1_status": getattr(pred, "q_t1_status", "pending") or "pending",
             "q_t2_status": getattr(pred, "q_t2_status", "pending") or "pending",
             "correct_values": correct_values,
+            "interim_values": interim_values,
         }
 
     @staticmethod

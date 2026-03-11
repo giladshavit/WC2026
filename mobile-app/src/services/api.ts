@@ -252,6 +252,7 @@ export interface BonusPrediction {
   knockout_status: string;
   tournament_status: string;
   correct_values?: Record<string, string | null>;
+  interim_values?: Record<string, string | null>;
 }
 
 export interface LeagueStanding {
@@ -1129,6 +1130,15 @@ export class ApiService {
     const response = await fetch(`${this.baseUrl}/api/admin/bonus/results`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
+  }
+
+  async updateBonusInterim(payload: Record<string, string | null>): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/admin/bonus/interim`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
   }
 
   async updateBonusResults(
