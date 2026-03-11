@@ -216,7 +216,7 @@ class UserProfileStatisticsService:
         )
         incorrect_count = sum(
             1 for col in UserProfileStatisticsService.BONUS_STATUS_COLS
-            if getattr(pred, col, "pending") == "incorrect"
+            if getattr(pred, col, "pending") in ("incorrect", "wrong")
         )
         has_any_judged = correct_count + incorrect_count > 0
         return {

@@ -135,7 +135,7 @@ class BonusStatisticsService:
             if status == "correct":
                 correct += 1
                 settled = True
-            elif status == "incorrect":
+            elif status in ("incorrect", "wrong"):
                 incorrect += 1
                 settled = True
         total = correct + incorrect

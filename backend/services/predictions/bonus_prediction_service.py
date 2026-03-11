@@ -265,22 +265,34 @@ class BonusPredictionService:
         }
 
     @staticmethod
-    def settle_bonus_question(db: Session, field_key: str, correct_values: list[str], force: bool = False) -> dict:
+    def settle_bonus_question(
+        db: Session,
+        field_key: str,
+        correct_values: list[str],
+        force: bool = False,
+    ) -> dict:
         """
-        Grade all users' bonus predictions for a single question.
-        Sets per-question status (q_*_status) and updates bonus_score.
-        Does NOT commit - caller must commit.
+        Grade all users' BonusPrediction rows for one bonus question.
+        Updates every prediction that has a non-null answer for this field.
+        No skipping based on current status — always re-grades everyone.
         """
+        POINTS = 8
+        CORRECT = "correct"
+        WRONG = "wrong"
+        PENDING = "pending"
+
+        ALL_STATUS_FIELDS = [
+            "q_g1_status", "q_g2_status", "q_g3_status", "q_g4_status", "q_g5_status",
+            "q_k1_status", "q_k2_status", "q_k3_status", "q_t1_status", "q_t2_status",
+        ]
+
         entry = BonusPredictionService.QUESTION_FIELD_MAP.get(field_key)
         if not entry:
-            logger.warning("Unknown bonus field_key: %s, skipping settle", field_key)
-            correct_values_str = ",".join(str(v) for v in correct_values)
+            logger.warning("settle_bonus_question: unknown field_key=%s", field_key)
             return {
                 "field_key": field_key,
-                "correct_value": correct_values_str,
-                "correct": 0,
-                "incorrect": 0,
-                "skipped_already_settled": 0,
+                "correct_value": ",".join(str(v) for v in correct_values),
+                "correct": 0, "incorrect": 0,
             }
 
         answer_field, status_field, _is_int_fk = entry
@@ -289,56 +301,60 @@ class BonusPredictionService:
         predictions = db.query(BonusPrediction).all()
 
         correct_count = 0
-        incorrect_count = 0
-        skipped_count = 0
+        wrong_count = 0
 
         for pred in predictions:
-            current_status = getattr(pred, status_field, "pending") or "pending"
-
-            if current_status != "pending" and not force:
-                skipped_count += 1
-                continue
-
-            # --- STATUS UPDATE ---
             user_answer = getattr(pred, answer_field, None)
 
+            # No answer → set to pending, skip scoring
             if user_answer is None:
-                new_q_status = "pending"
-            else:
-                if str(user_answer) in correct_set:
-                    new_q_status = "correct"
-                else:
-                    new_q_status = "incorrect"
+                setattr(pred, status_field, PENDING)
+                continue
 
-            setattr(pred, status_field, new_q_status)
-            db.flush()
-            # --- END STATUS UPDATE ---
+            # Determine correct/wrong
+            new_status = CORRECT if str(user_answer) in correct_set else WRONG
 
-            is_correct = new_q_status == "correct"
+            # Calculate delta vs current status (normalize legacy "incorrect" → "wrong")
+            raw_current = getattr(pred, status_field, None) or PENDING
+            current = WRONG if raw_current == "incorrect" else raw_current
+            old_points = POINTS if current == CORRECT else 0
+            new_points = POINTS if new_status == CORRECT else 0
+            delta = new_points - old_points
 
-            if force and current_status != "pending":
-                old_delta = BONUS_POINTS_PER_QUESTION if current_status == "correct" else 0
-                new_delta = BONUS_POINTS_PER_QUESTION if is_correct else 0
-                net_delta = new_delta - old_delta
-                DBWriter.update_bonus_question_status(db, pred.id, status_field, new_q_status, net_delta)
-            else:
-                new_delta = BONUS_POINTS_PER_QUESTION if is_correct else 0
-                DBWriter.update_bonus_question_status(db, pred.id, status_field, new_q_status, new_delta)
+            # Write new status
+            setattr(pred, status_field, new_status)
 
-            if is_correct:
+            # Recompute absolute bonus_score AFTER setting new status
+            new_bonus_score = sum(
+                POINTS
+                for sf in ALL_STATUS_FIELDS
+                if (getattr(pred, sf, None) or "") == CORRECT
+            )
+            pred.bonus_score = new_bonus_score
+
+            # Apply delta to UserScores only if changed
+            if delta != 0:
+                ScoringService._apply_score_delta(db, pred.user_id, "bonus_score", delta)
+
+            if new_status == CORRECT:
                 correct_count += 1
-            elif new_q_status == "incorrect":
-                incorrect_count += 1
+            else:
+                wrong_count += 1
 
+        # Flush all status + bonus_score changes at once
+        db.flush()
+
+        # Save correct answer to BonusResults table
         BonusPredictionService.set_correct_value(db, field_key, correct_values)
 
-        correct_values_str = ",".join(str(v) for v in correct_values)
+        DBUtils.commit(db)
+
         return {
             "field_key": field_key,
-            "correct_value": correct_values_str,
+            "correct_value": ",".join(str(v) for v in correct_values),
             "correct": correct_count,
-            "incorrect": incorrect_count,
-            "skipped_already_settled": skipped_count,
+            "incorrect": wrong_count,
+            "skipped_already_settled": 0,  # Always re-grades; kept for API compatibility
         }
 
     @staticmethod

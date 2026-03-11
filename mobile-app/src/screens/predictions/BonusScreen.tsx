@@ -195,7 +195,7 @@ function BonusStatsModal({
     const statusKey = `q_${field}_status` as keyof typeof prediction;
     const s = (prediction as any)?.[statusKey] as string | undefined;
     if (s === 'correct') return 'correct';
-    if (s === 'incorrect') return 'incorrect';
+    if (s === 'incorrect' || s === 'wrong') return 'incorrect';  // handle both (DB stores 'wrong')
     return null;
   };
 
@@ -996,7 +996,7 @@ export default function BonusScreen() {
     if (!key) return 'pending';
     const val = (prediction as any)[key];
     if (val === 'correct') return 'correct';
-    if (val === 'incorrect') return 'incorrect';
+    if (val === 'incorrect' || val === 'wrong') return 'incorrect';  // handle both (DB stores 'wrong')
     return 'pending';
   };
 
@@ -1637,7 +1637,7 @@ export default function BonusScreen() {
     if (!statusKey) return 'pending';
     const val = (prediction as any)[statusKey];
     if (val === 'correct') return 'correct';
-    if (val === 'incorrect') return 'incorrect';
+    if (val === 'incorrect' || val === 'wrong') return 'incorrect';  // handle both (DB stores 'wrong')
     return 'pending';
   };
 

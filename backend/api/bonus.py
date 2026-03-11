@@ -108,7 +108,7 @@ def get_bonus_result_statistics(field_key: str, db: Session = Depends(get_db)):
         status_val = getattr(pred, status_col, "pending") or "pending"
         if status_val == "correct":
             correct += 1
-        elif status_val == "incorrect":
+        elif status_val in ("incorrect", "wrong"):
             incorrect += 1
         else:
             pending += 1
