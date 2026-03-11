@@ -206,6 +206,54 @@ export interface League {
   joined_at?: string;
 }
 
+export interface BonusOptions {
+  g1: Array<{ value: string; label: string }>;
+  g2: Array<{ value: string; label: string }>;
+  g3: Array<{ value: string; label: string }>;
+  g4: Array<{ value: string; label: string }>;
+  g5: Array<{ value: string; label: string }>;
+  k1: Array<{ value: string; label: string }>;
+  k2: Array<{ value: string; label: string }>;
+  k3: Array<{ value: string; label: string }>;
+  t1: Array<{ value: string; label: string }>;
+  t2: Array<{ value: string; label: string }>;
+}
+
+export interface BonusOutcomeStatsResponse {
+  field_key: string;
+  settled: boolean;
+  correct: number;
+  incorrect: number;
+  total_answered: number;
+  correct_pct: number;
+  incorrect_pct: number;
+}
+
+export interface BonusPrediction {
+  id: number;
+  user_id: number;
+  g1_total_goals_group: string | null;
+  g2_top_group_id: number | null;
+  g3_top_team_id: number | null;
+  g4_perfect_teams: string | null;
+  g5_clean_sheet_teams: string | null;
+  k1_total_goals_knockout: string | null;
+  k2_penalty_shootouts: string | null;
+  k3_third_place_quarters: string | null;
+  t1_total_goals_tournament: string | null;
+  t2_scoreless_draws: string | null;
+  points: number;
+  penalty_points: number;
+  changes_count: number;
+  groups_is_editable: boolean;
+  knockout_is_editable: boolean;
+  tournament_is_editable: boolean;
+  groups_status: string;
+  knockout_status: string;
+  tournament_status: string;
+  correct_values?: Record<string, string | null>;
+}
+
 export interface LeagueStanding {
   rank: number;
   user_id: number;
@@ -216,6 +264,7 @@ export interface LeagueStanding {
   groups_points: number;
   third_place_points: number;
   knockout_points: number;
+  bonus_points?: number;
   joined_at?: string;
 }
 
@@ -546,6 +595,12 @@ export class ApiService {
       console.error('Error fetching group predictions:', error);
       throw error;
     }
+  }
+
+  /** Get groups with teams (for bonus g2/g3). Uses getGroupPredictions. */
+  async getGroups(userId: number = 1): Promise<GroupPrediction[]> {
+    const data = await this.getGroupPredictions(userId);
+    return data.groups || [];
   }
 
     async updateBatchGroupPredictions(
@@ -1070,6 +1125,26 @@ export class ApiService {
     }
   }
 
+  async getAdminBonusResults(): Promise<Record<string, string | null>> {
+    const response = await fetch(`${this.baseUrl}/api/admin/bonus/results`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  }
+
+  async updateBonusResults(
+    results: Partial<Record<'g1_correct' | 'g2_correct' | 'g3_correct' | 'g4_correct' |
+      'g5_correct' | 'k1_correct' | 'k2_correct' | 'k3_correct' | 't1_correct' | 't2_correct',
+      string | null>>
+  ): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/api/admin/bonus/results`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(results),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  }
+
   async createRandomGroupAndThirdPlaceResults(updateExisting: boolean = false): Promise<any> {
     try {
       const response = await fetch(`${this.baseUrl}/api/admin/create-random-group-and-third-place-results`, {
@@ -1083,6 +1158,22 @@ export class ApiService {
       console.error('Error creating random results:', error);
       throw error;
     }
+  }
+
+  async settleBonusQuestion(
+    fieldKey: string,
+    correctValue: string,
+  ): Promise<{ correct: number; incorrect: number; skipped_already_settled: number }> {
+    const response = await fetch(`${this.baseUrl}/api/admin/bonus/settle-question`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ field_key: fieldKey, correct_value: correctValue }),
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.detail || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
   }
 
   async generateTestUsers(count: number = 50): Promise<{ created: number; predictions_filled: number; errors: number }> {
@@ -1415,6 +1506,71 @@ export class ApiService {
 
   async getKnockoutMatchStats(templateMatchId: number): Promise<KnockoutStats> {
     return this.getKnockoutMatchStatistics(templateMatchId);
+  }
+
+  // Bonus predictions
+  async getBonusPrediction(): Promise<BonusPrediction> {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+    const response = await fetch(`${this.baseUrl}/api/predictions/bonus`, { headers });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  }
+
+  async getBonusOptions(): Promise<BonusOptions> {
+    const headers: HeadersInit = {};
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+    const response = await fetch(`${this.baseUrl}/api/predictions/bonus/options`, { headers });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  }
+
+  async updateBonusPrediction(updates: Partial<BonusPrediction>): Promise<BonusPrediction> {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+    const response = await fetch(`${this.baseUrl}/api/predictions/bonus`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  }
+
+  async getBonusStatistics(fieldKey: string): Promise<{
+    field_key: string;
+    total_answered: number;
+    distribution: Array<{ value: string; count: number; pct: number }>;
+  }> {
+    const response = await fetch(`${this.baseUrl}/api/predictions/bonus/statistics/${fieldKey}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  }
+
+  async getBonusOutcomeStats(fieldKey: string): Promise<BonusOutcomeStatsResponse> {
+    const response = await fetch(`${this.baseUrl}/api/predictions/bonus/statistics/${fieldKey}/outcomes`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
   }
 
 }

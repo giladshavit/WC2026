@@ -31,6 +31,7 @@ from models.results import (
     KnockoutStageResult,
 )
 from models.league import League, LeagueMembership
+from models.predictions import BonusPrediction
 from models.tournament_config import TournamentConfig
 from models.statistics import ThirdPlaceGroupCounts
 from services.predictions.enums import (
@@ -98,6 +99,8 @@ class DBWriter:
             groups_score=0,
             third_place_score=0,
             knockout_score=0,
+            bonus_score=0,
+            bonus_penalty=0,
             penalty=0,
             total_points=0
         )
@@ -120,7 +123,12 @@ class DBWriter:
         scores.groups_score = 0
         scores.third_place_score = 0
         scores.knockout_score = 0
+        scores.bonus_score = 0
         scores.penalty = 0
+        scores.groups_penalty = 0
+        scores.third_place_penalty = 0
+        scores.knockout_penalty = 0
+        scores.bonus_penalty = 0
         scores.total_points = 0
         db.flush()
         return scores
@@ -256,6 +264,8 @@ class DBWriter:
             model = ThirdPlacePrediction
         elif prediction_type == PredictionType.KNOCKOUT:
             model = KnockoutStagePrediction
+        elif prediction_type == PredictionType.BONUS:
+            model = BonusPrediction
         else:
             logging.warning("add_prediction_penalty: unknown prediction_type=%s", prediction_type)
             return
@@ -446,6 +456,53 @@ class DBWriter:
     @staticmethod
     def set_group_predictions_editable(db: Session, is_editable: bool) -> int:
         return db.query(GroupStagePrediction).update({GroupStagePrediction.is_editable: is_editable})
+
+    @staticmethod
+    def set_bonus_groups_editable(db: Session, is_editable: bool) -> None:
+        from models.predictions import BonusPrediction
+        db.query(BonusPrediction).update({BonusPrediction.groups_is_editable: is_editable})
+        db.flush()
+
+    @staticmethod
+    def set_bonus_knockout_editable(db: Session, is_editable: bool) -> None:
+        from models.predictions import BonusPrediction
+        db.query(BonusPrediction).update({BonusPrediction.knockout_is_editable: is_editable})
+        db.flush()
+
+    @staticmethod
+    def set_bonus_tournament_editable(db: Session, is_editable: bool) -> None:
+        from models.predictions import BonusPrediction
+        db.query(BonusPrediction).update({BonusPrediction.tournament_is_editable: is_editable})
+        db.flush()
+
+    @staticmethod
+    def update_bonus_question_status(
+        db: Session,
+        prediction_id: int,
+        q_field: str,
+        status: str,
+        score_delta: int,
+    ) -> None:
+        from models.predictions import BonusPrediction
+        from models.user_scores import UserScores
+
+        pred = db.query(BonusPrediction).filter(BonusPrediction.id == prediction_id).first()
+        if not pred:
+            return
+        setattr(pred, q_field, status)
+        pred.bonus_score = (pred.bonus_score or 0) + score_delta
+        db.flush()
+
+        if score_delta != 0:
+            score_row = db.query(UserScores).filter(UserScores.user_id == pred.user_id).first()
+            if score_row:
+                new_bonus = (score_row.bonus_score or 0) + score_delta
+                new_total = (score_row.total_points or 0) + score_delta
+                DBWriter.update_user_scores(
+                    db, score_row,
+                    bonus_score=new_bonus,
+                    total_points=new_total,
+                )
 
     @staticmethod
     def set_group_prediction_status(
@@ -669,6 +726,44 @@ class DBWriter:
         return db.query(KnockoutStagePrediction).filter(
             KnockoutStagePrediction.stage == stage
         ).update({KnockoutStagePrediction.is_editable: is_editable})
+
+    # ═══════════════════════════════════════════════════════
+    # BONUS PREDICTIONS
+    # ═══════════════════════════════════════════════════════
+    @staticmethod
+    def create_bonus_prediction(db: Session, user_id: int) -> BonusPrediction:
+        """Create empty bonus prediction for a user."""
+        pred = BonusPrediction(user_id=user_id)
+        db.add(pred)
+        db.flush()
+        db.refresh(pred)
+        return pred
+
+    @staticmethod
+    def update_bonus_prediction(db: Session, pred: BonusPrediction, **kwargs) -> BonusPrediction:
+        """Update bonus prediction fields. Uses generic **kwargs pattern like other update methods."""
+        for key, value in kwargs.items():
+            if hasattr(pred, key) and value is not None:
+                setattr(pred, key, value)
+        db.flush()
+        return pred
+
+    @staticmethod
+    def reset_bonus_prediction_points(db: Session) -> int:
+        """Reset points to 0 for all bonus predictions. Returns count updated."""
+        count = db.query(BonusPrediction).update({BonusPrediction.points: 0})
+        db.flush()
+        return count
+
+    @staticmethod
+    def reset_bonus_prediction_penalties(db: Session) -> int:
+        """Reset penalty_points and changes_count to 0 for all bonus predictions."""
+        count = db.query(BonusPrediction).update({
+            BonusPrediction.penalty_points: 0,
+            BonusPrediction.changes_count: 0
+        })
+        db.flush()
+        return count
 
     # ═══════════════════════════════════════════════════════
     # RESULTS

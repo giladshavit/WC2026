@@ -18,20 +18,26 @@ class UserProfileStatisticsService:
         if not user_scores:
             return {"error": "User scores not found"}
 
+        bonus_prediction = UserProfileStatisticsService._get_bonus_profile(db, user_id, user_scores)
+
         return {
             "user_id": user_id,
             "total_points": user_scores.total_points,
             "penalty": user_scores.penalty,
+            "bonus_score": getattr(user_scores, 'bonus_score', 0) or 0,
+            "bonus_penalty": getattr(user_scores, 'bonus_penalty', 0) or 0,
             "penalty_breakdown": {
                 "groups": user_scores.groups_penalty or 0,
                 "third_place": user_scores.third_place_penalty or 0,
                 "knockout": user_scores.knockout_penalty or 0,
+                "bonus": user_scores.bonus_penalty or 0,
             },
 
             "matches": UserProfileStatisticsService._get_matches_profile(db, user_id, user_scores),
             "groups": UserProfileStatisticsService._get_groups_profile(db, user_id, user_scores),
             "third_place": UserProfileStatisticsService._get_third_place_profile(db, user_id, user_scores),
             "knockout": UserProfileStatisticsService._get_knockout_profile(db, user_id, user_scores),
+            "bonus": bonus_prediction,
         }
 
     # ═══════════════════════════════════════════════════════
@@ -181,4 +187,42 @@ class UserProfileStatisticsService:
             "valid": status_counts.get(KnockoutPredictionStatus.VALID.value, 0),
             "invalid": status_counts.get(KnockoutPredictionStatus.INVALID.value, 0),
             "unreachable": status_counts.get(KnockoutPredictionStatus.UNREACHABLE.value, 0),
+        }
+
+    # ═══════════════════════════════════════════════════════
+    # BONUS
+    # ═══════════════════════════════════════════════════════
+
+    BONUS_STATUS_COLS = [
+        "q_g1_status", "q_g2_status", "q_g3_status", "q_g4_status", "q_g5_status",
+        "q_k1_status", "q_k2_status", "q_k3_status", "q_t1_status", "q_t2_status",
+    ]
+
+    @staticmethod
+    def _get_bonus_profile(db: Session, user_id: int, user_scores) -> Dict[str, Any]:
+        """Bonus prediction stats: score, penalty, correct/incorrect counts from q_*_status columns."""
+        pred = DBReader.get_bonus_prediction(db, user_id)
+        if not pred:
+            return {
+                "score": user_scores.bonus_score or 0,
+                "penalty": user_scores.bonus_penalty or 0,
+                "correct_count": 0,
+                "incorrect_count": 0,
+                "has_any_judged": False,
+            }
+        correct_count = sum(
+            1 for col in UserProfileStatisticsService.BONUS_STATUS_COLS
+            if getattr(pred, col, "pending") == "correct"
+        )
+        incorrect_count = sum(
+            1 for col in UserProfileStatisticsService.BONUS_STATUS_COLS
+            if getattr(pred, col, "pending") == "incorrect"
+        )
+        has_any_judged = correct_count + incorrect_count > 0
+        return {
+            "score": user_scores.bonus_score or 0,
+            "penalty": user_scores.bonus_penalty or 0,
+            "correct_count": correct_count,
+            "incorrect_count": incorrect_count,
+            "has_any_judged": has_any_judged,
         }

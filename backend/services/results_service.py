@@ -445,7 +445,96 @@ class ResultsService:
             "eighth_team_qualifying": result.eighth_team_qualifying,
             "message": "Third place qualifying results updated successfully"
         }
-    
+
+    @staticmethod
+    def settle_bonus_question(
+        db: Session,
+        field_key: str,
+        correct_values: list[str],
+        force: bool = False,
+    ) -> dict:
+        """
+        Grade all users' BonusPrediction rows for one bonus question.
+        Updates: q_{key}_status, bonus_score on BonusPrediction,
+                 bonus_score on UserScores (via _apply_score_delta).
+        """
+        import logging
+        from models.predictions import BonusPrediction
+        from services.predictions.enums import BonusQuestionField, BonusQuestionStatus
+        from services.predictions.bonus_service import BonusService
+        from services.scoring_service import ScoringService
+        from services.database import DBReader, DBWriter
+
+        POINTS_PER_QUESTION = 8
+
+        try:
+            question = BonusQuestionField.from_key(field_key)
+        except ValueError:
+            logging.warning("settle_bonus_question: unknown field_key=%s", field_key)
+            return {
+                "field_key": field_key,
+                "correct_value": ",".join(str(v) for v in correct_values),
+                "correct": 0,
+                "incorrect": 0,
+                "skipped_already_settled": 0,
+                "error": f"Unknown field_key: {field_key}",
+            }
+
+        correct_set = {str(v) for v in correct_values}
+        predictions = db.query(BonusPrediction).all()
+        updated = 0
+
+        for pred in predictions:
+            # --- Determine new status ---
+            user_answer = getattr(pred, question.prediction_field, None)
+
+            if user_answer is None:
+                new_status = BonusQuestionStatus.PENDING.value
+            else:
+                answer_str = str(user_answer) if question.is_int_fk else user_answer
+                if str(answer_str) in correct_set:
+                    new_status = BonusQuestionStatus.CORRECT.value
+                else:
+                    new_status = BonusQuestionStatus.WRONG.value
+
+            old_status = getattr(pred, question.status_field, "pending") or "pending"
+
+            # Skip if already settled and not forced
+            if old_status != BonusQuestionStatus.PENDING.value and not force:
+                continue
+
+            # --- Update status on prediction ---
+            setattr(pred, question.status_field, new_status)
+
+            # --- Recalculate bonus_score from all q_*_status fields ---
+            old_bonus = pred.bonus_score or 0
+            new_bonus = sum(
+                POINTS_PER_QUESTION
+                for q in BonusQuestionField
+                if getattr(pred, q.status_field, "") == BonusQuestionStatus.CORRECT.value
+            )
+            pred.bonus_score = new_bonus
+            db.flush()
+
+            # --- Delta update on UserScores ---
+            delta = new_bonus - old_bonus
+            if delta != 0:
+                ScoringService._apply_score_delta(db, pred.user_id, 'bonus_score', delta)
+
+            updated += 1
+
+        BonusService.set_correct_value(db, field_key, correct_values)
+
+        DBUtils.commit(db)
+        return {
+            "field_key": field_key,
+            "correct_value": ",".join(str(v) for v in correct_values),
+            "correct": sum(1 for p in predictions if getattr(p, question.status_field, "") == BonusQuestionStatus.CORRECT.value),
+            "incorrect": sum(1 for p in predictions if getattr(p, question.status_field, "") == BonusQuestionStatus.WRONG.value),
+            "skipped_already_settled": len(predictions) - updated,
+            "updated_predictions": updated,
+        }
+
     @staticmethod
     def get_third_place_teams_from_groups(db: Session) -> List[Dict[str, Any]]:
         """
@@ -746,9 +835,11 @@ class ResultsService:
                     groups_penalty=0,
                     third_place_penalty=0,
                     knockout_penalty=0,
+                    bonus_score=0,
+                    bonus_penalty=0,
                 )
                 count += 1
-            
+
             # Reset all prediction points and match prediction statuses
             match_pred_count = DBWriter.reset_match_prediction_points(db)
             DBWriter.reset_match_prediction_statuses(db)
@@ -760,16 +851,21 @@ class ResultsService:
             DBWriter.reset_group_prediction_penalties(db)
             DBWriter.reset_third_place_prediction_penalties(db)
             DBWriter.reset_knockout_prediction_penalties(db)
+
+            # Reset bonus predictions
+            bonus_pred_count = DBWriter.reset_bonus_prediction_points(db)
+            DBWriter.reset_bonus_prediction_penalties(db)
             
             DBUtils.commit(db)
             
             return {
-                "message": f"Successfully reset scores for {count} users and {match_pred_count + group_pred_count + third_place_pred_count + knockout_pred_count} predictions",
+                "message": f"Successfully reset scores for {count} users and {match_pred_count + group_pred_count + third_place_pred_count + knockout_pred_count + bonus_pred_count} predictions",
                 "users_reset": count,
                 "match_predictions_reset": match_pred_count,
                 "group_predictions_reset": group_pred_count,
                 "third_place_predictions_reset": third_place_pred_count,
                 "knockout_predictions_reset": knockout_pred_count,
+                "bonus_predictions_reset": bonus_pred_count,
                 "penalties_reset": True,
             }
         except Exception as e:

@@ -134,6 +134,16 @@ class AuthService:
             DBUtils.rollback(db)
             print(f"Warning: Failed to create match predictions for user {new_user.id}: {e}")
 
+        # Create empty bonus prediction for the new user
+        try:
+            from services.predictions.bonus_prediction_service import BonusPredictionService
+            BonusPredictionService.get_or_create_bonus_prediction(db, new_user.id)
+            DBUtils.commit(db)
+            print(f"Created bonus prediction for user {new_user.id}")
+        except Exception as e:
+            DBUtils.rollback(db)
+            print(f"Warning: Failed to create bonus prediction for user {new_user.id}: {e}")
+
         # Create access token
         access_token = AuthService.create_access_token(new_user.id, new_user.username)
         

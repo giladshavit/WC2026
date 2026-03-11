@@ -7,7 +7,7 @@ from .results import GroupStageResult, ThirdPlaceResult, KnockoutStageResult
 from .groups import Group
 from .group_template import GroupTemplate
 from .matches import Match, MatchStatus
-from .predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
+from .predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction, BonusPrediction
 from .tournament_config import TournamentConfig
 from .team import Team
 from .user import User
@@ -34,6 +34,7 @@ __all__ = [
     'Team',
     'User',
     'UserScores',
+    'BonusPrediction',
     'League',
     'ThirdPlaceGroupCounts',
     'LeagueMembership'

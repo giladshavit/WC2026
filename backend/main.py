@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from api import predictions, admin, auth, leagues
+from api import bonus as bonus_router
 from api import scoring, config
 from api.statistics import router as statistics_router
 from api.user_view import router as user_view_router
@@ -40,6 +41,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(leagues.router, prefix="/api", tags=["leagues"])
 app.include_router(predictions.router, prefix="/api", tags=["predictions"])
+app.include_router(bonus_router.router, prefix="/api", tags=["Bonus Predictions"])
 app.include_router(admin.router, prefix="/api", tags=["admin"])
 app.include_router(scoring.router, prefix="/api/scoring", tags=["scoring"])
 app.include_router(config.router, prefix="/api/app", tags=["app"])

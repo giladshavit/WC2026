@@ -24,7 +24,7 @@ import * as Clipboard from 'expo-clipboard';
 import { LeaveLeagueModal, ErrorModal } from '../../components/modals/CustomModals';
 import { useToast } from '../../components/toast/Toast';
 
-type SortKey = 'total' | 'matches' | 'groups' | 'knockout' | 'fine';
+type SortKey = 'total' | 'matches' | 'groups' | 'knockout' | 'bonus' | 'fine';
 
 interface RouteParams {
   leagueId: string | number;
@@ -259,6 +259,9 @@ function AnimatedPlayerRow({
           </View>
           <View style={styles.colNum}>
             <Text style={[styles.cellText, styles.cellCenter]}>{item.knockout_points ?? 0}</Text>
+          </View>
+          <View style={styles.colNum}>
+            <Text style={[styles.cellText, styles.cellCenter]}>{item.bonus_points ?? 0}</Text>
           </View>
           <View style={styles.colFine}>
             {fineVal > 0 ? (
@@ -535,6 +538,8 @@ export default function LeagueDetailsScreen() {
           return groupsPlusThird(b) - groupsPlusThird(a);
         case 'knockout':
           return (b.knockout_points ?? 0) - (a.knockout_points ?? 0);
+        case 'bonus':
+          return (b.bonus_points ?? 0) - (a.bonus_points ?? 0);
         case 'fine':
           return fine(b) - fine(a);
         default:
@@ -804,6 +809,16 @@ export default function LeagueDetailsScreen() {
                       </View>
                     </TouchableOpacity>
                     <TouchableOpacity
+                      style={[styles.colNum, styles.headerIconCell]}
+                      onPress={() => setSortBy('bonus')}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.headerIconWrapper}>
+                        <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? '#16a34a' : '#94a3b8'} />
+                        <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? '#16a34a' : 'transparent' }]} />
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity
                       style={[styles.colFine, styles.headerIconCell]}
                       onPress={() => setSortBy('fine')}
                       activeOpacity={0.7}
@@ -926,6 +941,11 @@ export default function LeagueDetailsScreen() {
                   <View style={styles.colNum}>
                     <Text style={[styles.cellText, styles.cellCenter]}>
                       {currentUserStanding.knockout_points ?? 0}
+                    </Text>
+                  </View>
+                  <View style={styles.colNum}>
+                    <Text style={[styles.cellText, styles.cellCenter]}>
+                      {currentUserStanding.bonus_points ?? 0}
                     </Text>
                   </View>
                   <View style={styles.colFine}>

@@ -39,6 +39,12 @@ const adminOptions: Array<{
     description: 'Update knockout matches with extra time & penalties',
   },
   {
+    title: 'Bonus Results',
+    emoji: '🎯',
+    navigateTo: 'AdminBonus',
+    description: 'Enter correct answers and grade bonus predictions',
+  },
+  {
     title: 'Stage Management',
     emoji: '📅',
     navigateTo: 'AdminStage',

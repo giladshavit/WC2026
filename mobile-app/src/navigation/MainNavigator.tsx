@@ -8,6 +8,7 @@ import PredictionsTopTabs from './PredictionsTopTabs';
 import LeagueStack from './LeagueStack';
 import StatisticsScreen from '../screens/statistics/StatisticsScreen';
 import BracketScreen from '../screens/predictions/BracketScreen';
+import BonusScreen from '../screens/predictions/BonusScreen';
 import AdminNavigator from './AdminNavigator';
 import UserProfileScreen from '../screens/UserProfileScreen';
 
@@ -18,6 +19,7 @@ export type MainStackParamList = {
   MatchPredictions: undefined;
   RoutePredictions: undefined;
   Bracket: undefined;
+  BonusPredictions: undefined;
   Leagues: undefined;
   Statistics: undefined;
   Admin: undefined;
@@ -85,6 +87,13 @@ export default function MainNavigator() {
         options={{
           title: 'Full Bracket',
           headerBackTitle: 'back',
+        }}
+      />
+      <Stack.Screen
+        name="BonusPredictions"
+        component={BonusScreen}
+        options={{
+          headerShown: false,
         }}
       />
       <Stack.Screen

@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Boolean, Enum
 from sqlalchemy.orm import relationship
 
-from services.predictions.enums import MatchPredictionStatus
+from services.predictions.enums import MatchPredictionStatus, BonusSectionStatus
 
 from .team import Team
 from .base import Base
@@ -164,3 +164,64 @@ class KnockoutStagePredictionDraft(Base):
     team2 = relationship("Team", foreign_keys=[team2_id])
     winner_team = relationship("Team", foreign_keys=[winner_team_id])
     current_winner_team = relationship("Team", foreign_keys=[current_winner_team_id])
+
+
+class BonusPrediction(Base):
+    __tablename__ = "bonus_predictions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+
+    # Group Stage answers
+    g1_total_goals_group = Column(String, nullable=True)  # G1GoalsRange value
+    g2_top_group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
+    g3_top_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    g4_perfect_teams = Column(String, nullable=True)  # G4PerfectTeams value
+    g5_clean_sheet_teams = Column(String, nullable=True)  # G5CleanSheetTeams value
+
+    # Knockout answers
+    k1_total_goals_knockout = Column(String, nullable=True)  # K1GoalsRange value
+    k2_penalty_shootouts = Column(String, nullable=True)  # K2ShootoutsRange value
+    k3_third_place_quarters = Column(String, nullable=True)  # K3ThirdPlaceQuarters value
+
+    # Tournament answers
+    t1_total_goals_tournament = Column(String, nullable=True)  # T1GoalsRange value
+    t2_scoreless_draws = Column(String, nullable=True)  # T2ScorelessRange value
+
+    # Scoring & Meta
+    points = Column(Integer, default=0, nullable=False)
+    penalty_points = Column(Integer, default=0, nullable=False)
+    changes_count = Column(Integer, default=0, nullable=False)
+
+    # Editable flags per section
+    groups_is_editable = Column(Boolean, default=True, nullable=False)
+    knockout_is_editable = Column(Boolean, default=True, nullable=False)
+    tournament_is_editable = Column(Boolean, default=True, nullable=False)
+
+    # Status per section (BonusSectionStatus values) — controls editability lock
+    groups_status = Column(String, default=BonusSectionStatus.PENDING.value, nullable=False)
+    knockout_status = Column(String, default=BonusSectionStatus.PENDING.value, nullable=False)
+    tournament_status = Column(String, default=BonusSectionStatus.PENDING.value, nullable=False)
+
+    # Per-question scoring status (BonusQuestionStatus values)
+    q_g1_status = Column(String, default="pending", nullable=False)
+    q_g2_status = Column(String, default="pending", nullable=False)
+    q_g3_status = Column(String, default="pending", nullable=False)
+    q_g4_status = Column(String, default="pending", nullable=False)
+    q_g5_status = Column(String, default="pending", nullable=False)
+    q_k1_status = Column(String, default="pending", nullable=False)
+    q_k2_status = Column(String, default="pending", nullable=False)
+    q_k3_status = Column(String, default="pending", nullable=False)
+    q_t1_status = Column(String, default="pending", nullable=False)
+    q_t2_status = Column(String, default="pending", nullable=False)
+
+    # Per-prediction total score tracking
+    bonus_score = Column(Integer, default=0, nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")
+    top_group = relationship("Group", foreign_keys=[g2_top_group_id])
+    top_team = relationship("Team", foreign_keys=[g3_top_team_id])

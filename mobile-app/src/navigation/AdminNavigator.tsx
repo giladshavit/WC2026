@@ -5,6 +5,7 @@ import AdminMatchesScreen from '../screens/admin/AdminMatchesScreen';
 import AdminGroupsScreen from '../screens/admin/AdminGroupsScreen';
 import AdminThirdPlaceScreen from '../screens/admin/AdminThirdPlaceScreen';
 import AdminKnockoutScreen from '../screens/admin/AdminKnockoutScreen';
+import AdminBonusScreen from '../screens/admin/AdminBonusScreen';
 import AdminStageScreen from '../screens/admin/AdminStageScreen';
 
 export type AdminStackParamList = {
@@ -13,6 +14,7 @@ export type AdminStackParamList = {
   AdminGroups: undefined;
   AdminThirdPlace: undefined;
   AdminKnockout: undefined;
+  AdminBonus: undefined;
   AdminStage: undefined;
 };
 
@@ -66,6 +68,13 @@ export default function AdminNavigator() {
         component={AdminKnockoutScreen}
         options={{
           title: 'Knockout Results',
+        }}
+      />
+      <Stack.Screen
+        name="AdminBonus"
+        component={AdminBonusScreen}
+        options={{
+          title: 'Bonus Results',
         }}
       />
       <Stack.Screen

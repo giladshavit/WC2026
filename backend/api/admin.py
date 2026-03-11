@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
@@ -514,6 +514,181 @@ def rebuild_round32_bracket(db: Session = Depends(get_db)):
         from services.database import DBUtils
         DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+# Bonus prediction settle endpoints (admin only)
+class BonusSettleGroupsRequest(BaseModel):
+    total_goals_group: int
+    top_group_id: int
+    top_team_id: int
+    perfect_teams_count: int
+    clean_sheet_teams_count: int
+
+
+class BonusSettleKnockoutRequest(BaseModel):
+    total_goals_knockout: int
+    penalty_shootouts: int
+    third_place_quarters: int
+
+
+class BonusSettleTournamentRequest(BaseModel):
+    total_goals_tournament: int
+    scoreless_draws: int
+
+
+class BonusResultsRequest(BaseModel):
+    g1_correct: Optional[str] = None
+    g2_correct: Optional[str] = None
+    g3_correct: Optional[str] = None
+    g4_correct: Optional[str] = None
+    g5_correct: Optional[str] = None
+    k1_correct: Optional[str] = None
+    k2_correct: Optional[str] = None
+    k3_correct: Optional[str] = None
+    t1_correct: Optional[str] = None
+    t2_correct: Optional[str] = None
+
+
+@router.post("/admin/bonus/settle-groups", response_model=Dict[str, Any])
+def settle_bonus_groups(
+    body: BonusSettleGroupsRequest,
+    db: Session = Depends(get_db),
+):
+    """Settle group stage bonus questions (admin only)."""
+    from services.predictions.bonus_prediction_service import (
+        BonusPredictionService,
+        BonusGroupActual,
+    )
+    actual = BonusGroupActual(
+        total_goals_group=body.total_goals_group,
+        top_group_id=body.top_group_id,
+        top_team_id=body.top_team_id,
+        perfect_teams_count=body.perfect_teams_count,
+        clean_sheet_teams_count=body.clean_sheet_teams_count,
+    )
+    return BonusPredictionService.settle_group_questions(db, actual)
+
+
+@router.post("/admin/bonus/settle-knockout", response_model=Dict[str, Any])
+def settle_bonus_knockout(
+    body: BonusSettleKnockoutRequest,
+    db: Session = Depends(get_db),
+):
+    """Settle knockout bonus questions (admin only)."""
+    from services.predictions.bonus_prediction_service import (
+        BonusPredictionService,
+        BonusKnockoutActual,
+    )
+    actual = BonusKnockoutActual(
+        total_goals_knockout=body.total_goals_knockout,
+        penalty_shootouts=body.penalty_shootouts,
+        third_place_quarters=body.third_place_quarters,
+    )
+    return BonusPredictionService.settle_knockout_questions(db, actual)
+
+
+@router.post("/admin/bonus/settle-tournament", response_model=Dict[str, Any])
+def settle_bonus_tournament(
+    body: BonusSettleTournamentRequest,
+    db: Session = Depends(get_db),
+):
+    """Settle tournament bonus questions (admin only)."""
+    from services.predictions.bonus_prediction_service import (
+        BonusPredictionService,
+        BonusTournamentActual,
+    )
+    actual = BonusTournamentActual(
+        total_goals_tournament=body.total_goals_tournament,
+        scoreless_draws=body.scoreless_draws,
+    )
+    return BonusPredictionService.settle_tournament_questions(db, actual)
+
+
+@router.post("/admin/bonus/settle-question", response_model=Dict[str, Any])
+def settle_bonus_question(
+    field_key: str = Body(...),
+    correct_value: Optional[str] = Body(None),
+    correct_values: Optional[list[str]] = Body(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Grade all users for a single bonus question.
+    field_key: g1..t2
+    correct_values: list of correct answer strings (e.g. ["3"] or ["3","7"] for ties)
+    correct_value: deprecated, use correct_values; if correct_values not provided, wraps this in a list
+    """
+    from services.predictions import BonusService
+
+    if correct_values is not None:
+        values = correct_values
+    elif correct_value is not None:
+        values = [correct_value]
+    else:
+        raise HTTPException(status_code=400, detail="Either correct_value or correct_values required")
+    result = BonusService.settle_bonus_question(db, field_key, values)
+    return result
+
+
+@router.get("/admin/bonus/results", response_model=Dict[str, Any])
+def get_bonus_results(db: Session = Depends(get_db)):
+    """Get currently stored correct answers for all bonus questions (admin only)."""
+    from models.results import BonusResults
+    row = db.query(BonusResults).filter_by(id=1).first()
+    fields = ["g1", "g2", "g3", "g4", "g5", "k1", "k2", "k3", "t1", "t2"]
+    if not row:
+        return {f"{f}_correct": None for f in fields}
+    return {f"{f}_correct": getattr(row, f"{f}_correct", None) for f in fields}
+
+
+@router.put("/admin/bonus/results", response_model=Dict[str, Any])
+def update_bonus_results(
+    request: BonusResultsRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Update correct answers for bonus questions and re-settle all predictions.
+    Only fields provided in the request body are updated.
+    Calls settle_bonus_question with force=True so corrections overwrite previous settlements.
+    """
+    from models.results import BonusResults
+    from services.predictions import BonusService
+
+    fields = ["g1", "g2", "g3", "g4", "g5", "k1", "k2", "k3", "t1", "t2"]
+
+    row = db.query(BonusResults).filter_by(id=1).first()
+    if not row:
+        row = BonusResults(id=1)
+        db.add(row)
+        db.flush()
+
+    updated_fields = []
+    request_dict = request.model_dump()
+
+    for field in fields:
+        new_val = request_dict.get(f"{field}_correct")
+        if new_val is None or new_val == "":
+            continue  # skip fields not provided
+
+        old_val = getattr(row, f"{field}_correct", None)
+        setattr(row, f"{field}_correct", new_val)
+        db.flush()
+
+        correct_values = [v.strip() for v in new_val.split(",")]
+        BonusService.settle_bonus_question(db, field, correct_values, force=True)
+
+        updated_fields.append({
+            "field": field,
+            "old_value": old_val,
+            "new_value": new_val,
+        })
+
+    DBUtils.commit(db)
+    db.refresh(row)
+    return {
+        "updated": True,
+        "fields_updated": len(updated_fields),
+        "details": updated_fields,
+    }
+
 
 @router.post("/admin/reset-all-results", response_model=Dict[str, Any])
 def reset_all_results_and_scores(db: Session = Depends(get_db)):

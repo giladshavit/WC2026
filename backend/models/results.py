@@ -84,3 +84,18 @@ class KnockoutStageResult(Base):
     team_1_obj = relationship("Team", foreign_keys=[team_1])
     team_2_obj = relationship("Team", foreign_keys=[team_2])
     winner_team = relationship("Team", foreign_keys=[winner_team_id])
+
+
+class BonusResults(Base):
+    __tablename__ = "bonus_results"
+    id = Column(Integer, primary_key=True, default=1)
+    g1_correct = Column(String, nullable=True)   # e.g. "140_159"
+    g2_correct = Column(String, nullable=True)   # e.g. "3" (group_id)
+    g3_correct = Column(String, nullable=True)   # e.g. "15" (team_id)
+    g4_correct = Column(String, nullable=True)   # e.g. "2"
+    g5_correct = Column(String, nullable=True)   # e.g. "4_5"
+    k1_correct = Column(String, nullable=True)
+    k2_correct = Column(String, nullable=True)
+    k3_correct = Column(String, nullable=True)
+    t1_correct = Column(String, nullable=True)
+    t2_correct = Column(String, nullable=True)

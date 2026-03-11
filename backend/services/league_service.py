@@ -152,7 +152,8 @@ class LeagueService:
                 groups_points = scores.groups_score if scores else 0
                 third_place_points = scores.third_place_score if scores else 0
                 knockout_points = scores.knockout_score if scores else 0
-                
+                bonus_points = getattr(scores, 'bonus_score', 0) if scores else 0
+
                 result.append({
                     "rank": rank,
                     "user_id": user.id,
@@ -163,6 +164,7 @@ class LeagueService:
                     "groups_points": groups_points,
                     "third_place_points": third_place_points,
                     "knockout_points": knockout_points,
+                    "bonus_points": bonus_points,
                     "penalty": scores.penalty if scores else 0
                 })
             
@@ -198,7 +200,8 @@ class LeagueService:
                 groups_points = scores.groups_score if scores else 0
                 third_place_points = scores.third_place_score if scores else 0
                 knockout_points = scores.knockout_score if scores else 0
-                
+                bonus_points = getattr(scores, 'bonus_score', 0) if scores else 0
+
                 result.append({
                     "rank": rank,
                     "user_id": user.id,
@@ -209,6 +212,7 @@ class LeagueService:
                     "groups_points": groups_points,
                     "third_place_points": third_place_points,
                     "knockout_points": knockout_points,
+                    "bonus_points": bonus_points,
                     "penalty": scores.penalty if scores else 0,
                     "joined_at": membership.joined_at.isoformat()
                 })

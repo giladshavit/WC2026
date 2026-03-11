@@ -144,6 +144,9 @@ class StageManager:
             DBWriter.set_group_predictions_editable(db, True)
             DBWriter.set_third_place_predictions_editable(db, True)
             DBWriter.set_knockout_predictions_editable(db, True)
+            DBWriter.set_bonus_groups_editable(db, True)
+            DBWriter.set_bonus_knockout_editable(db, True)
+            DBWriter.set_bonus_tournament_editable(db, True)
 
         elif current_stage in (Stage.GROUP_CYCLE_1, Stage.GROUP_CYCLE_2):
             print(f"[DEBUG] _update_prediction_editability: {current_stage.name} - no changes")
@@ -155,6 +158,7 @@ class StageManager:
             # Close groups and third place only
             DBWriter.set_group_predictions_editable(db, False)
             DBWriter.set_third_place_predictions_editable(db, False)
+            DBWriter.set_bonus_groups_editable(db, False)
 
         elif current_stage == Stage.PRE_ROUND32:
             print(f"[DEBUG] _update_prediction_editability: PRE_ROUND32 - no changes")
@@ -166,6 +170,9 @@ class StageManager:
             DBWriter.set_group_predictions_editable(db, False)
             DBWriter.set_third_place_predictions_editable(db, False)
             DBWriter.set_knockout_predictions_editable(db, False)
+            DBWriter.set_bonus_groups_editable(db, False)
+            DBWriter.set_bonus_knockout_editable(db, False)
+            DBWriter.set_bonus_tournament_editable(db, False)
 
         elif current_stage == Stage.PRE_ROUND16:
             print(f"[DEBUG] _update_prediction_editability: PRE_ROUND16 - close round32, open rest")
@@ -175,6 +182,8 @@ class StageManager:
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'quarter', True)
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'semi', True)
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'final', True)
+            DBWriter.set_bonus_knockout_editable(db, True)
+            DBWriter.set_bonus_tournament_editable(db, True)
 
         elif current_stage == Stage.PRE_QUARTER:
             print(f"[DEBUG] _update_prediction_editability: PRE_QUARTER - close round32+round16, open rest")
@@ -184,6 +193,9 @@ class StageManager:
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'quarter', True)
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'semi', True)
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'final', True)
+            DBWriter.set_bonus_groups_editable(db, False)
+            DBWriter.set_bonus_knockout_editable(db, False)
+            DBWriter.set_bonus_tournament_editable(db, False)
 
         DBUtils.commit(db)
     

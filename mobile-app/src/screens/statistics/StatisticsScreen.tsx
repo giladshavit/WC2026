@@ -21,10 +21,13 @@ interface ProfilePerGroup {
 interface UserFullProfile {
   total_points: number;
   penalty: number; // API field; displayed as "Fine"
+  bonus_score?: number;
+  bonus_penalty?: number;
   penalty_breakdown?: {
     groups: number;
     third_place: number;
     knockout: number;
+    bonus?: number;
   };
   matches: { score: number; exact: number; correct_outcome: number; wrong: number; pending: number; total_judged: number };
   groups: {
@@ -50,6 +53,13 @@ interface UserFullProfile {
     valid: number;
     invalid: number;
     unreachable: number;
+  };
+  bonus?: {
+    score: number;
+    penalty: number;
+    correct_count: number;
+    incorrect_count: number;
+    has_any_judged: boolean;
   };
 }
 
@@ -190,7 +200,12 @@ export default function StatisticsScreen() {
 
   const { matches, groups, third_place, knockout } = profile;
   const bracketPts = groups.score + third_place.score + knockout.score;
+  const bonusScore = profile.bonus?.score ?? 0;
   const judgedKnockout = knockout.correct_full + knockout.correct_partial + knockout.incorrect;
+
+  // Total penalty = sum of all breakdown items (groups + third_place + knockout + bonus)
+  const breakdown = profile.penalty_breakdown;
+  const totalPenalty = (breakdown?.groups ?? 0) + (breakdown?.third_place ?? 0) + (breakdown?.knockout ?? 0) + (breakdown?.bonus ?? 0);
 
   const perGroupMap = new Map<string, { correct_positions_count: number | null; points: number }>();
   groups.per_group.forEach((g: ProfilePerGroup) => {
@@ -235,9 +250,15 @@ export default function StatisticsScreen() {
             </View>
             <View style={styles.pointsStatSeparator} />
             <View style={styles.pointsStatBlock}>
+              <Ionicons name="gift-outline" size={20} color="#a7f3d0" />
+              <Text style={styles.pointsStatNumber}>{bonusScore}</Text>
+              <Text style={styles.pointsStatLabel}>Bonus</Text>
+            </View>
+            <View style={styles.pointsStatSeparator} />
+            <View style={styles.pointsStatBlock}>
               <Ionicons name="warning-outline" size={20} color="#a7f3d0" />
-              <Text style={[styles.pointsStatNumber, profile.penalty > 0 && styles.pointsStatNumberFine]}>
-                {profile.penalty}
+              <Text style={[styles.pointsStatNumber, totalPenalty > 0 && styles.pointsStatNumberFine]}>
+                {totalPenalty}
               </Text>
               <Text style={styles.pointsStatLabel}>Fine</Text>
             </View>
@@ -473,13 +494,41 @@ export default function StatisticsScreen() {
           )}
         </View>
 
-        {/* 7. Fine Breakdown card */}
+        {/* 7. Bonus Predictions card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Bonus Predictions</Text>
+            <View style={styles.cardScoreCircle}>
+              <Text style={styles.cardScoreCircleText}>{profile.bonus?.score ?? 0}</Text>
+            </View>
+          </View>
+          {!profile.bonus?.has_any_judged ? (
+            <Text style={styles.noDataText}>No results yet</Text>
+          ) : (
+            <View style={styles.bonusResultRow}>
+              <View style={[styles.bonusResultChip, { backgroundColor: '#dcfce7' }]}>
+                <Text style={[styles.bonusResultCount, { color: '#16a34a' }]}>
+                  ✓ {profile.bonus.correct_count}
+                </Text>
+                <Text style={[styles.bonusResultLabel, { color: '#16a34a' }]}>correct</Text>
+              </View>
+              <View style={[styles.bonusResultChip, { backgroundColor: '#fee2e2' }]}>
+                <Text style={[styles.bonusResultCount, { color: '#dc2626' }]}>
+                  ✗ {profile.bonus.incorrect_count}
+                </Text>
+                <Text style={[styles.bonusResultLabel, { color: '#dc2626' }]}>wrong</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* 8. Fine Breakdown card */}
         <View style={[styles.card, styles.cardLast]}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Fines</Text>
             <View style={styles.cardScoreCircleRed}>
               <Text style={styles.cardScoreCircleText}>
-                {profile.penalty}
+                {totalPenalty}
               </Text>
             </View>
           </View>
@@ -488,12 +537,14 @@ export default function StatisticsScreen() {
             const groups   = breakdown?.groups      ?? 0;
             const thirdPl  = breakdown?.third_place ?? 0;
             const knockout = breakdown?.knockout    ?? 0;
-            const total    = groups + thirdPl + knockout;
+            const bonus    = breakdown?.bonus       ?? 0;
+            const total    = groups + thirdPl + knockout + bonus;
 
             const allSegments = [
               { value: groups,   color: '#f59e0b', label: 'Groups' },
               { value: thirdPl,  color: '#f97316', label: 'Third Place' },
               { value: knockout, color: '#92400e', label: 'Knockout' },
+              { value: bonus,    color: '#2563eb', label: 'Bonus' },
             ];
 
             const size = 160;
@@ -556,8 +607,12 @@ export default function StatisticsScreen() {
                   {allSegments.map(({ label, value, color }) => (
                     <View key={label} style={[styles.fineChip, { backgroundColor: color + '18' }]}>
                       <View style={[styles.statChipDot, styles.fineChipDot, { backgroundColor: color }]} />
-                      <Text style={[styles.fineChipLabel, { color }]}>{label}</Text>
-                      <Text style={[styles.fineChipValue, { color }]}>{value}</Text>
+                      <View style={styles.fineChipLabelWrap}>
+                        <Text style={[styles.fineChipLabel, { color }]} numberOfLines={1}>{label}</Text>
+                      </View>
+                      <View style={styles.fineChipValueWrap}>
+                        <Text style={[styles.fineChipValue, { color }]}>{value}</Text>
+                      </View>
                     </View>
                   ))}
                 </View>
@@ -609,37 +664,70 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
   },
   cardLast: { marginBottom: 32 },
+  bonusResultRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+  },
+  bonusResultChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  bonusResultCount: {
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  bonusResultLabel: {
+    fontSize: 12,
+    marginTop: 2,
+  },
   fineDonutWrapper: {
     alignItems: 'center',
     marginTop: 4,
   },
   fineLegendChips: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginTop: 16,
-    paddingHorizontal: 4,
+    gap: 12,
+    marginTop: 20,
+    paddingHorizontal: 8,
   },
   fineChip: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingRight: 20,
     borderRadius: 20,
-    gap: 4,
-    marginHorizontal: 4,
+    gap: 8,
+    width: '47%',
+    minHeight: 44,
   },
   fineChipDot: {
     marginRight: 0,
   },
+  fineChipLabelWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  fineChipValueWrap: {
+    marginLeft: 8,
+    paddingLeft: 8,
+    flexShrink: 0,
+  },
   fineChipLabel: {
     fontSize: 12,
     fontWeight: '600',
+    flexShrink: 0,
   },
   fineChipValue: {
     fontSize: 13,
     fontWeight: 'bold',
+    flexShrink: 0,
   },
   cardHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,

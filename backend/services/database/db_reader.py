@@ -31,6 +31,7 @@ from models.third_place_combinations import ThirdPlaceCombination
 from models.tournament_config import TournamentConfig
 from models.statistics import ThirdPlaceGroupCounts
 from models.league import League, LeagueMembership
+from models.predictions import BonusPrediction
 
 
 class DBReader:
@@ -94,6 +95,16 @@ class DBReader:
     @staticmethod
     def get_all_user_scores(db: Session) -> List[UserScores]:
         return db.query(UserScores).all()
+
+    @staticmethod
+    def get_bonus_prediction(db: Session, user_id: int) -> Optional[BonusPrediction]:
+        """Get bonus prediction for a user. Returns None if not exists."""
+        return db.query(BonusPrediction).filter(BonusPrediction.user_id == user_id).first()
+
+    @staticmethod
+    def get_all_bonus_predictions(db: Session) -> List[BonusPrediction]:
+        """Get all bonus predictions."""
+        return db.query(BonusPrediction).all()
 
     # ═══════════════════════════════════════════════════════
     # GROUPS

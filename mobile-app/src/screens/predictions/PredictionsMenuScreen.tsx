@@ -15,11 +15,13 @@ import { MainStackParamList } from '../../navigation/MainNavigator';
 
 type NavigationProp = StackNavigationProp<MainStackParamList, 'PredictionsMenu'>;
 
+type PredictionsScreenName = 'MatchPredictions' | 'RoutePredictions' | 'Bracket' | 'BonusPredictions';
+
 const options: Array<{
   title: string;
   subtitle: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
-  navigateTo: keyof MainStackParamList;
+  navigateTo: PredictionsScreenName;
 }> = [
   {
     title: 'Match Predictions',
@@ -32,6 +34,12 @@ const options: Array<{
     subtitle: 'Groups, 3rd place & knockout bracket',
     icon: 'git-branch-outline',
     navigateTo: 'RoutePredictions',
+  },
+  {
+    title: 'Bonus Predictions',
+    subtitle: 'Special tournament questions',
+    icon: 'gift-outline',
+    navigateTo: 'BonusPredictions',
   },
   {
     title: 'Full Bracket',

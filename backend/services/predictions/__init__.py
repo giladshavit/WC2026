@@ -12,6 +12,7 @@ All services use DBReader/DBWriter/DBUtils for database operations.
 
 from .shared import PlacesPredictions
 from .enums import KnockoutPredictionStatus, PredictionType
+from .bonus_service import BonusService
 
 
 def __getattr__(name: str):
@@ -133,6 +134,7 @@ __all__ = [
     'GroupPredictionService',
     'ThirdPlacePredictionService',
     'KnockoutService',
+    'BonusService',
     'KnockoutPredictionStatus',
     'PredictionType',
     'PlacesPredictions',
