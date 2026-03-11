@@ -648,6 +648,7 @@ export default function BonusScreen() {
     incorrect_pct: number;
   } | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [showNetScore, setShowNetScore] = useState(false);
 
   const isDirty = Object.keys(localAnswers).some(
     (k) => String(localAnswers[k] ?? '') !== String(savedAnswers[k] ?? '')
@@ -1641,6 +1642,18 @@ export default function BonusScreen() {
     return 'pending';
   };
 
+  const hasAnySettledQuestion = ALL_FIELDS.some((f) => getQuestionStatus(f) !== 'pending');
+  const bonusScore = prediction?.bonus_score ?? 0;
+  const bonusPenalty = prediction?.penalty_points ?? 0;
+  const bonusNetTotal = showNetScore ? bonusScore - bonusPenalty : null;
+  const getBonusPointsPillStyle = () => {
+    if (!showNetScore || bonusNetTotal === null) return styles.bonusPointsContainer;
+    if (bonusNetTotal > 0) return styles.bonusPointsContainer;
+    if (bonusNetTotal === 0) return styles.bonusPointsContainerZero;
+    return styles.bonusPointsContainerNegative;
+  };
+  const displayBonusPoints = showNetScore && bonusNetTotal !== null ? bonusNetTotal : bonusScore;
+
   const renderSummarySection = (
     title: string,
     icon: string,
@@ -1658,7 +1671,7 @@ export default function BonusScreen() {
             if (score) {
               return (
                 <View style={styles.sectionScoreChip}>
-                  <Text style={styles.sectionScoreText}>{score.earned}/{score.possible} pts</Text>
+                  <Text style={styles.sectionScoreText}>{score.earned} pts</Text>
                 </View>
               );
             }
@@ -1792,6 +1805,28 @@ export default function BonusScreen() {
             >
               {penaltyPoints > 0 ? `Fine: -${penaltyPoints} pts` : '✓ No fine'}
             </Text>
+          </View>
+        </View>
+      )}
+
+      {hasAnySettledQuestion && (
+        <View style={styles.bonusScoreRow}>
+          <TouchableOpacity
+            style={[styles.bonusNetScoreToggle, showNetScore && styles.bonusNetScoreToggleActive]}
+            onPress={() => setShowNetScore((prev) => !prev)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="swap-horizontal-outline"
+              size={14}
+              color={showNetScore ? '#16a34a' : '#94a3b8'}
+            />
+            <Text style={[styles.bonusNetScoreToggleText, showNetScore && styles.bonusNetScoreToggleTextActive]}>
+              Net Score
+            </Text>
+          </TouchableOpacity>
+          <View style={[styles.bonusPointsContainer, getBonusPointsPillStyle()]}>
+            <Text style={styles.bonusTotalPoints}>{displayBonusPoints} pts</Text>
           </View>
         </View>
       )}
@@ -2202,7 +2237,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    marginRight: 8,
+
+    marginRight: 4,
+    marginLeft: 'auto',
     borderWidth: 1,
     borderColor: 'rgba(22,163,74,0.3)',
   },
@@ -2252,6 +2289,55 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
     fontWeight: '500',
+  },
+  bonusScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginBottom: 16,
+    gap: 12,
+  },
+  bonusNetScoreToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+    backgroundColor: '#1e293b',
+    borderWidth: 1.5,
+    borderColor: '#334155',
+  },
+  bonusNetScoreToggleActive: {
+    backgroundColor: 'rgba(22,163,74,0.15)',
+    borderColor: '#16a34a',
+  },
+  bonusNetScoreToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94a3b8',
+  },
+  bonusNetScoreToggleTextActive: {
+    color: '#16a34a',
+  },
+  bonusPointsContainer: {
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  bonusPointsContainerZero: {
+    backgroundColor: '#f59e0b',
+  },
+  bonusPointsContainerNegative: {
+    backgroundColor: '#ef4444',
+  },
+  bonusTotalPoints: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
   },
   sectionTitle: {
     fontSize: 18,

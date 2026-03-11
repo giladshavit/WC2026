@@ -242,7 +242,6 @@ class BonusPredictionService:
             "k3_third_place_quarters": pred.k3_third_place_quarters,
             "t1_total_goals_tournament": pred.t1_total_goals_tournament,
             "t2_scoreless_draws": pred.t2_scoreless_draws,
-            "points": pred.points or 0,
             "penalty_points": pred.penalty_points or 0,
             "changes_count": pred.changes_count or 0,
             "groups_is_editable": pred.groups_is_editable,

@@ -242,7 +242,7 @@ export interface BonusPrediction {
   k3_third_place_quarters: string | null;
   t1_total_goals_tournament: string | null;
   t2_scoreless_draws: string | null;
-  points: number;
+  bonus_score: number;
   penalty_points: number;
   changes_count: number;
   groups_is_editable: boolean;
