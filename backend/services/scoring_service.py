@@ -20,50 +20,70 @@ class ScoringService:
     
     # Scoring rules constants
     MATCH_PREDICTION_RULES = {
-        'exact_score': 3,      # Exact score prediction
-        'correct_winner': 1,   # Correct winner/draw prediction
+        'exact_score': 5,      # Exact score prediction
+        'correct_winner': 2,   # Correct winner/draw prediction
         'wrong': 0            # Wrong prediction
     }
-    
+
+    # Stage-aware match scoring: {stage_name: {"exact": int, "correct_winner": int}}
+    # stage_name matches Match.stage values: "group", "round32", "round16", "quarter", "semi", "third_place", "final"
+    MATCH_STAGE_SCORING: Dict[str, Dict[str, int]] = {
+        "group":       {"exact": 5, "correct_winner": 2},
+        "round32":     {"exact": 5, "correct_winner": 2},
+        "round16":     {"exact": 7, "correct_winner": 3},
+        "quarter":     {"exact": 9, "correct_winner": 4},
+        "semi":        {"exact": 10, "correct_winner": 5},
+        "third_place": {"exact": 10, "correct_winner": 5},
+        "final":       {"exact": 15, "correct_winner": 7},
+    }
+
+    # Default fallback (used when stage is unknown)
+    _DEFAULT_MATCH_SCORING = {"exact": 5, "correct_winner": 2}
+
     # חוקי ניקוד לניחושי בתים
     GROUP_PREDICTION_RULES = {
-        'first_place': 5,     # פגיעה מדויקת במקום 1
-        'second_place': 4,    # פגיעה מדויקת במקום 2  
-        'third_place': 3,     # פגיעה מדויקת במקום 3
-        'fourth_place': 0,    # מקום 4 - אין ניקוד
+        'first_place': 6,     # פגיעה מדויקת במקום 1
+        'second_place': 5,    # פגיעה מדויקת במקום 2  
+        'third_place': 4,     # פגיעה מדויקת במקום 3
+        'fourth_place': 1,    # מקום 4 - אין ניקוד
         'wrong': 0           # קבוצה לא נכונה
     }
     
     # חוקי ניקוד לעולות ממקום 3 - לפי דיוק בתים
     THIRD_PLACE_RULES = {
-        'bonus_per_extra_group': 5,  # 5 נקודות לכל בית נוסף מעבר ל-4 בתים נכונים
+        'bonus_per_extra_group': 6,  # 5 נקודות לכל בית נוסף מעבר ל-4 בתים נכונים
         'minimum_groups_for_points': 4  # צריך לפחות 5 בתים נכונים כדי לקבל נקודות
     }
 
     # חוקי ניקוד למשחקי נוקאאוט - לפי שלב
     KNOCKOUT_SCORING_RULES = {
-        "round32": 10,    # 32 הגדולות - 10 נקודות למנצח נכון
-        "round16": 15,    # 16 הגדולות - 15 נקודות למנצח נכון
-        "quarter": 20,    # רבע גמר - 20 נקודות למנצח נכון
-        "semi": 30,       # חצי גמר - 30 נקודות למנצח נכון
-        "final": 40       # גמר - 40 נקודות למנצח נכון
+        "round32": 6,    # 32 הגדולות - 10 נקודות למנצח נכון
+        "round16": 8,    # 16 הגדולות - 15 נקודות למנצח נכון
+        "quarter": 10,    # רבע גמר - 20 נקודות למנצח נכון
+        "semi": 12,       # חצי גמר - 30 נקודות למנצח נכון
+        "final": 15       # גמר - 40 נקודות למנצח נכון
     }
 
     # Full (correct path) vs partial (correct winner, wrong path) points per stage
     KNOCKOUT_SCORING = {
-        "round32": {"full": 10, "partial": 5},
-        "round16": {"full": 15, "partial": 7},
-        "quarter": {"full": 20, "partial": 10},
-        "semi": {"full": 30, "partial": 15},
-        "final": {"full": 40, "partial": 20},
+        "round32": {"full": 6, "partial": 3},
+        "round16": {"full": 8, "partial": 4},
+        "quarter": {"full": 10, "partial": 5},
+        "semi": {"full": 12, "partial": 6},
+        "final": {"full": 15, "partial": 8},
     }
 
-    MATCH_STATUS_POINTS = {
-        MatchPredictionStatus.EXACT: 3,
-        MatchPredictionStatus.CORRECT_OUTCOME: 1,
-        MatchPredictionStatus.WRONG: 0,
-        MatchPredictionStatus.PENDING: 0,
-    }
+    @staticmethod
+    def _get_match_scoring_for_stage(stage: Optional[str]) -> Dict[str, int]:
+        """Return scoring config for a given match stage. Falls back to default."""
+        if stage is None:
+            scoring = ScoringService._DEFAULT_MATCH_SCORING
+        else:
+            scoring = ScoringService.MATCH_STAGE_SCORING.get(
+                stage, ScoringService._DEFAULT_MATCH_SCORING
+            )
+        print(f"[DEBUG] _get_match_scoring_for_stage: stage={stage!r} → {scoring}")
+        return scoring
 
     @staticmethod
     def _apply_score_delta(db: Session, user_id: int, score_field: str, delta: int) -> None:
@@ -95,9 +115,14 @@ class ScoringService:
         return MatchPredictionStatus.WRONG
 
     @staticmethod
-    def match_status_to_points(status: MatchPredictionStatus) -> int:
-        """Convert match status enum to points. Pure function, no DB access."""
-        return ScoringService.MATCH_STATUS_POINTS.get(status, 0)
+    def match_status_to_points(status: MatchPredictionStatus, stage: Optional[str] = None) -> int:
+        """Convert match status enum to points. Stage-aware."""
+        scoring = ScoringService._get_match_scoring_for_stage(stage)
+        if status == MatchPredictionStatus.EXACT:
+            return scoring["exact"]
+        if status == MatchPredictionStatus.CORRECT_OUTCOME:
+            return scoring["correct_winner"]
+        return 0  # WRONG, PENDING
 
     @staticmethod
     def is_correct_winner(prediction: MatchPrediction, result: MatchResult) -> bool:
@@ -140,16 +165,15 @@ class ScoringService:
     @staticmethod
     def calculate_match_prediction_points(
         prediction: MatchPrediction,
-        result: MatchResult
+        result: MatchResult,
+        stage: Optional[str] = None,
     ) -> tuple[int, MatchPredictionStatus]:
-        """LEGACY - kept for backward compat. Main flow uses _determine_match_status + match_status_to_points."""
+        """Calculate points and status for a match prediction. Stage-aware."""
         if not result:
             return 0, MatchPredictionStatus.PENDING
-        if not ScoringService.is_correct_winner(prediction, result):
-            return ScoringService.MATCH_PREDICTION_RULES['wrong'], MatchPredictionStatus.WRONG
-        if ScoringService.is_exact_scores(prediction, result):
-            return ScoringService.MATCH_PREDICTION_RULES['exact_score'], MatchPredictionStatus.EXACT
-        return ScoringService.MATCH_PREDICTION_RULES['correct_winner'], MatchPredictionStatus.CORRECT_OUTCOME
+        status = ScoringService._determine_match_status(prediction, result)
+        points = ScoringService.match_status_to_points(status, stage)
+        return points, status
     
     @staticmethod
     def get_leaderboard(db: Session, limit: int = 50) -> List[Dict[str, Any]]:
@@ -201,6 +225,8 @@ class ScoringService:
             )
         else:
             # SQLite fallback (dev/tests) — no unnest/UPDATE FROM
+            match = DBReader.get_match(db, result.match_id)
+            match_stage = match.stage if match else None
             predictions = DBReader.get_match_predictions_by_match(db, result.match_id)
             updated_user_ids = set()
             for prediction in predictions:
@@ -208,7 +234,7 @@ class ScoringService:
                 status = ScoringService._determine_match_status(prediction, result)
                 if update_status:
                     DBWriter.update_match_prediction_status(db, prediction, status)
-                new_points = ScoringService.match_status_to_points(status)
+                new_points = ScoringService.match_status_to_points(status, match_stage)
                 # Double points if this prediction used the temptation feature
                 if getattr(prediction, 'is_tempted', False) and new_points > 0:
                     new_points = new_points * 2

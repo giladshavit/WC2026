@@ -159,7 +159,8 @@ class ResultsService:
                 ResultsService.update_knockout_result(
                     db, match_id, match.home_team_id, match.away_team_id, winner_team_id
                 )
-            # During live knockout match: skip knockout result update
+            # Score MatchPredictions (exact score / correct winner) for this match
+            ScoringService.update_match_scoring_for_all_users(db, result, update_status=is_final)
             return {
                 "match_id": match_id,
                 "home_team_score": home_team_score,
