@@ -58,6 +58,7 @@ export default function MainNavigator() {
         component={ProfileScreen}
         options={{
           title: 'Profile',
+          headerStyle: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0, borderBottomWidth: 0 },
         }}
       />
       <Stack.Screen
@@ -65,6 +66,7 @@ export default function MainNavigator() {
         component={PredictionsMenuScreen}
         options={{
           title: 'My Predictions',
+          headerStyle: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0, borderBottomWidth: 0 },
         }}
       />
       <Stack.Screen
@@ -72,6 +74,8 @@ export default function MainNavigator() {
         component={MatchesScreen}
         options={{
           title: 'Match Predictions',
+          headerStyle: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0, borderBottomWidth: 0 },
+          headerTintColor: '#e2e8f0',
         }}
       />
       <Stack.Screen
@@ -79,6 +83,8 @@ export default function MainNavigator() {
         component={PredictionsTopTabs}
         options={{
           title: 'Route Predictions',
+          headerStyle: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0, borderBottomWidth: 0 },
+          headerTintColor: '#e2e8f0',
         }}
       />
       <Stack.Screen
@@ -87,6 +93,8 @@ export default function MainNavigator() {
         options={{
           title: 'Full Bracket',
           headerBackTitle: 'back',
+          headerStyle: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0, borderBottomWidth: 0 },
+          headerTintColor: '#e2e8f0',
         }}
       />
       <Stack.Screen
@@ -108,6 +116,7 @@ export default function MainNavigator() {
         component={StatisticsScreen}
         options={{
           title: 'Statistics',
+          headerStyle: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0, borderBottomWidth: 0 },
         }}
       />
       <Stack.Screen

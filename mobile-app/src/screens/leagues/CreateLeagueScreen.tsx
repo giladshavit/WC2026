@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Share,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -85,10 +86,12 @@ export default function CreateLeagueScreen() {
 
   if (createdLeague) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <>
+        <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
+        <SafeAreaView style={styles.container} edges={['bottom']}>
         <ScrollView contentContainerStyle={styles.successContainer}>
           <View style={styles.successIconCircle}>
-            <Ionicons name="checkmark-circle" size={64} color="#2563eb" />
+            <Ionicons name="checkmark-circle" size={64} color="#22c55e" />
           </View>
           <Text style={styles.successTitle}>League Created!</Text>
           <Text style={styles.successSubtitle}>
@@ -107,7 +110,7 @@ export default function CreateLeagueScreen() {
                   activeOpacity={0.7}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Ionicons name="copy-outline" size={20} color="#1e40af" />
+                  <Ionicons name="copy-outline" size={20} color="#93c5fd" />
                 </TouchableOpacity>
                 <View style={styles.inviteCodeTextCenter}>
                   <Text
@@ -145,12 +148,15 @@ export default function CreateLeagueScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </SafeAreaView>
+        </SafeAreaView>
+      </>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
+      <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
@@ -167,7 +173,7 @@ export default function CreateLeagueScreen() {
                 value={name}
                 onChangeText={(t) => { setName(t); setNameError(null); }}
                 placeholder="Enter league name"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#64748b"
                 maxLength={100}
                 autoCapitalize="words"
                 autoCorrect={false}
@@ -189,7 +195,7 @@ export default function CreateLeagueScreen() {
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Enter league description"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#64748b"
                 maxLength={500}
                 multiline
                 numberOfLines={4}
@@ -219,14 +225,15 @@ export default function CreateLeagueScreen() {
         message={errorModal?.message ?? ''}
         onClose={() => setErrorModal(null)}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -238,7 +245,7 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   formCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1e3a5f',
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -247,6 +254,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: 8,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: '#2d4a6e',
   },
   inputGroup: {
     marginBottom: 20,
@@ -254,19 +263,19 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#94a3b8',
     marginBottom: 6,
     marginLeft: 4,
   },
   input: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0f2744',
     borderWidth: 1.5,
-    borderColor: '#e2e8f0',
+    borderColor: '#2d4a6e',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#1e293b',
+    color: '#f1f5f9',
     letterSpacing: 0,
   },
   inputFocused: {
@@ -278,7 +287,7 @@ const styles = StyleSheet.create({
   },
   characterCount: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: '#64748b',
     textAlign: 'right',
   },
   createButton: {
@@ -310,9 +319,9 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#334155',
     borderWidth: 2,
-    borderColor: '#93c5fd',
+    borderColor: '#475569',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -320,20 +329,20 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#f1f5f9',
     marginBottom: 8,
     textAlign: 'center',
   },
   successSubtitle: {
     fontSize: 16,
-    color: '#64748b',
+    color: '#94a3b8',
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 24,
   },
   leagueNameHighlight: {
     fontWeight: '700',
-    color: '#1e3a5f',
+    color: '#93c5fd',
   },
   inviteCodeSection: {
     flex: 1,
@@ -348,18 +357,18 @@ const styles = StyleSheet.create({
   inviteCodeLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1e40af',
+    color: '#93c5fd',
     letterSpacing: 2,
     marginBottom: 10,
     textAlign: 'center',
   },
   inviteCodeBox: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#334155',
     borderRadius: 12,
     paddingVertical: 20,
     paddingHorizontal: 24,
     borderWidth: 2,
-    borderColor: '#93c5fd',
+    borderColor: '#475569',
     width: '100%',
     minHeight: 100,
     position: 'relative',
@@ -385,12 +394,12 @@ const styles = StyleSheet.create({
     letterSpacing: 6,
     textAlign: 'center',
     width: '100%',
-    color: '#1e3a5f',
+    color: '#f1f5f9',
     fontFamily: 'monospace',
   },
   shareText: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#94a3b8',
     textAlign: 'center',
     marginBottom: 28,
     lineHeight: 20,
@@ -418,7 +427,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: '#93c5fd',
+    borderColor: '#475569',
   },
   shareButtonText: {
     color: '#1d4ed8',

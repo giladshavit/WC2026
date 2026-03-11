@@ -63,9 +63,9 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
     isWinner: boolean,
     isInvalid: boolean
   ): string => {
-    if (isInvalid) return '#f9fafb';
-    if (isWinner) return '#f0fdf4';
-    return '#fafafa';
+    if (isInvalid) return '#152a45';
+    if (isWinner) return 'rgba(22,163,74,0.2)';
+    return '#1e3a5f';
   };
 
   const team1Bg = getHalfBackground(isTeam1Winner, team1Invalid);
@@ -280,13 +280,13 @@ const styles = StyleSheet.create({
   },
   shadowWrapper: {
     borderRadius: 20,
-    backgroundColor: '#fafafa',
+    backgroundColor: '#1e3a5f',
     marginVertical: 1,
     marginHorizontal: 1,
     alignSelf: 'center',
   },
   container: {
-    backgroundColor: '#fafafa',
+    backgroundColor: '#1e3a5f',
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 2.5,
@@ -330,11 +330,11 @@ const styles = StyleSheet.create({
   teamName: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#374151',
+    color: '#e2e8f0',
     flex: 1,
   },
   teamNameInvalid: {
-    color: '#cbd5e1',
+    color: '#475569',
   },
   teamNameStrikethrough: {
     textDecorationLine: 'line-through',
@@ -342,13 +342,13 @@ const styles = StyleSheet.create({
   },
   halfDivider: {
     height: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#2d4a6e',
   },
   finalCardContainer: {
     width: 130,
     height: 220,
     padding: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1e3a5f',
     borderRadius: 20,
     borderWidth: 2.5,
     justifyContent: 'center',
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   finalTeamName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#f1f5f9',
     textAlign: 'center',
     marginVertical: 2,
     letterSpacing: 0.3,
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   finalVsText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#6b7280',
+    color: '#64748b',
     marginVertical: 2,
     letterSpacing: 2,
   },
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     fontStyle: 'italic',
-    color: '#6b7280',
+    color: '#94a3b8',
     letterSpacing: 4,
     textTransform: 'uppercase',
     marginBottom: 10,
@@ -482,9 +482,9 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#d1d5db',
+    borderColor: '#2d4a6e',
     borderStyle: 'dashed',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#152a45',
   },
   winnerPlaceholder: {
     height: 80,

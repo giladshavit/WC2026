@@ -145,7 +145,7 @@ export default function ThirdPlaceStatsModal({ visible, onClose }: Props) {
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { flex: 1, textAlign: 'center' }]}>3rd Place Statistics</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButtonWrapper}>
-              <Ionicons name="close" size={22} color="#9ca3af" />
+              <Ionicons name="close" size={22} color="#64748b" />
             </TouchableOpacity>
           </View>
 
@@ -171,11 +171,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 20,
     width: '90%',
     maxWidth: 380,
+    borderWidth: 1,
+    borderColor: '#2d4a6e',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -187,7 +189,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#f1f5f9',
   },
   closeButtonWrapper: {
     position: 'absolute',
@@ -198,7 +200,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#94a3b8',
     marginBottom: 8,
   },
   sortRow: {
@@ -228,7 +230,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 6,
     borderRadius: 8,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#0f172a',
   },
   groupLabel: {
     width: 60,
@@ -239,7 +241,7 @@ const styles = StyleSheet.create({
   barWrapper: {
     flex: 1,
     height: 20,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#152a45',
     borderRadius: 4,
     overflow: 'hidden',
     marginHorizontal: 8,
@@ -255,7 +257,7 @@ const styles = StyleSheet.create({
   pctText: {
     width: 42,
     fontSize: 12,
-    color: '#6b7280',
+    color: '#94a3b8',
     textAlign: 'right',
   },
   distContainer: {

@@ -463,8 +463,8 @@ class ScoringService:
     
     @staticmethod
     def get_total_penalties(user_scores: UserScores) -> int:
-        """Get total penalty points for user (includes bonus_penalty)."""
-        return (user_scores.penalty or 0) + (user_scores.bonus_penalty or 0)
+        """Get total penalty points for user. penalty already includes all categories."""
+        return user_scores.penalty or 0
 
     @staticmethod
     def update_total_points(user_scores: UserScores) -> int:
@@ -493,10 +493,7 @@ class ScoringService:
         
         # Add penalty points to accumulated penalty
         new_penalty = (user_scores.penalty or 0) + penalty_points
-        bonus_penalty = user_scores.bonus_penalty or 0
-        new_total_points = (
-            ScoringService.get_total_scores(user_scores) - new_penalty - bonus_penalty
-        )
+        new_total_points = ScoringService.get_total_scores(user_scores) - new_penalty
         DBWriter.update_user_scores(
             db,
             user_scores,
@@ -564,13 +561,8 @@ class ScoringService:
             **{category_field: (getattr(user_scores, category_field) or 0) + penalty},
         )
 
-        # Update total penalty and total_points
-        if prediction_type == PredictionType.BONUS:
-            # For bonus: total = scores - penalty - bonus_penalty (bonus_penalty already updated above)
-            new_total = ScoringService.update_total_points(user_scores)
-            DBWriter.update_user_scores(db, user_scores, total_points=new_total)
-        else:
-            ScoringService.apply_penalty_to_user(db, user_id, penalty)
+        # Update total penalty and total_points — same path for all prediction types
+        ScoringService.apply_penalty_to_user(db, user_id, penalty)
 
         return penalty
 

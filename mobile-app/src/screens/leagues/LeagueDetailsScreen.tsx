@@ -189,18 +189,20 @@ function AnimatedPlayerRow({
   const rank = index + 1;
 
   const renderRankIcon = () => {
-    if (rank === 1) return <Ionicons name="medal" size={14} color="#D4AF37" />;
-    if (rank === 2) return <Ionicons name="medal" size={14} color="#A8A9AD" />;
-    if (rank === 3) return <Ionicons name="medal" size={14} color="#AD6F3B" />;
+    if (rank === 1) return <View style={styles.rankIconContainer}><Ionicons name="medal" size={14} color="#D4AF37" /></View>;
+    if (rank === 2) return <View style={styles.rankIconContainer}><Ionicons name="medal" size={14} color="#A8A9AD" /></View>;
+    if (rank === 3) return <View style={styles.rankIconContainer}><Ionicons name="medal" size={14} color="#AD6F3B" /></View>;
     return (
-      <Text
-        style={styles.rankNumber}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.6}
-      >
-        {rank}
-      </Text>
+      <View style={styles.rankIconContainer}>
+        <Text
+          style={styles.rankNumber}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+        >
+          {rank}
+        </Text>
+      </View>
     );
   };
 
@@ -905,14 +907,16 @@ export default function LeagueDetailsScreen() {
                 <View style={[styles.playerRow, styles.playerRowContent, { minHeight: 52, borderBottomWidth: 0 }]}>
                   <View style={styles.colPlayer}>
                     <View style={styles.rankNameRow}>
-                      <Text
-                        style={styles.stickyRankNumber}
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                        minimumFontScale={0.6}
-                      >
-                        {currentUserRank}
-                      </Text>
+                      <View style={styles.rankIconContainer}>
+                        <Text
+                          style={styles.stickyRankNumber}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.7}
+                        >
+                          {currentUserRank}
+                        </Text>
+                      </View>
                       <Text style={[styles.cellName, styles.cellLeft, styles.cellBold]} numberOfLines={1}>
                         {truncateName(currentUserStanding.name ?? (currentUserStanding as any).username ?? 'You')}
                       </Text>
@@ -1341,12 +1345,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   stickyRankNumber: {
-    width: 36,
     fontSize: 14,
     fontWeight: '700',
     color: '#3b82f6',
-    textAlign: 'right',
-    flexShrink: 0,
+    textAlign: 'center',
+    width: '100%',
   },
   playerRowContent: {
     flexDirection: 'row',
@@ -1361,13 +1364,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  rankIconContainer: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
   rankNumber: {
-    width: 36,
     fontSize: 14,
     fontWeight: '500',
     color: '#94a3b8',
-    textAlign: 'right',
-    flexShrink: 0,
+    textAlign: 'center',
+    width: '100%',
   },
   colNum: {
     width: 36,

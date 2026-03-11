@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -67,7 +68,9 @@ export default function JoinLeagueScreen() {
 
   if (joinedLeague) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <>
+        <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
+        <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.successContainer}>
           <View style={styles.successIconCircle}>
             {CONFETTI.map((c, i) => (
@@ -76,7 +79,7 @@ export default function JoinLeagueScreen() {
                 style={[styles.confettiDot, { backgroundColor: c.color }, c.style]}
               />
             ))}
-            <Ionicons name="checkmark-circle" size={64} color="#2563eb" />
+            <Ionicons name="checkmark-circle" size={64} color="#22c55e" />
           </View>
           <Text style={styles.successTitle}>Joined Successfully!</Text>
           <Text style={styles.successSubtitle}>
@@ -96,12 +99,15 @@ export default function JoinLeagueScreen() {
             <Text style={styles.doneButtonText}>Let's Go!</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
+      <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
@@ -112,7 +118,7 @@ export default function JoinLeagueScreen() {
         >
           {/* Banner card */}
           <View style={styles.bannerCard}>
-            <Ionicons name="people-circle-outline" size={52} color="#2563eb" />
+            <Ionicons name="people-circle-outline" size={52} color="#93c5fd" />
             <Text style={styles.bannerTitle}>Enter your invite code</Text>
             <Text style={styles.bannerSubtitle}>
               Get the 8-character code from your league creator
@@ -172,14 +178,15 @@ export default function JoinLeagueScreen() {
         message={errorModal?.message ?? ''}
         onClose={() => setErrorModal(null)}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -192,24 +199,24 @@ const styles = StyleSheet.create({
   },
   // Banner
   bannerCard: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: 'rgba(51,65,85,0.6)',
     borderRadius: 20,
     padding: 20,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#93c5fd',
+    borderColor: '#475569',
     alignItems: 'center',
   },
   bannerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#ffffff',
     marginTop: 10,
     textAlign: 'center',
   },
   bannerSubtitle: {
     fontSize: 13,
-    color: '#64748b',
+    color: '#cbd5e1',
     textAlign: 'center',
     marginTop: 4,
     lineHeight: 18,
@@ -219,22 +226,22 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   input: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0f2744',
     borderWidth: 2,
-    borderColor: '#e2e8f0',
+    borderColor: '#2d4a6e',
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 22,
     fontSize: 32,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#f1f5f9',
     fontFamily: 'monospace',
     textAlign: 'center',
     letterSpacing: 6,
   },
   inputFocused: {
     borderColor: '#2563eb',
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#0d1f3c',
   },
   dotsRow: {
     flexDirection: 'row',
@@ -284,9 +291,9 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#eff6ff',
+    backgroundColor: 'rgba(51,65,85,0.6)',
     borderWidth: 2,
-    borderColor: '#93c5fd',
+    borderColor: '#475569',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -300,13 +307,13 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#ffffff',
     marginBottom: 8,
     textAlign: 'center',
   },
   successSubtitle: {
     fontSize: 16,
-    color: '#64748b',
+    color: '#cbd5e1',
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 24,

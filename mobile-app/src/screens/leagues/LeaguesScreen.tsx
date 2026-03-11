@@ -107,7 +107,7 @@ export default function LeaguesScreen() {
         <View style={styles.leagueCardCenter}>
           <Text style={styles.leagueName}>{item.name}</Text>
           <View style={styles.memberRow}>
-            <Ionicons name="people-outline" size={14} color="#64748b" />
+            <Ionicons name="people-outline" size={14} color="#94a3b8" />
             <Text style={styles.memberCount}>{item.member_count} members</Text>
           </View>
         </View>
@@ -117,7 +117,7 @@ export default function LeaguesScreen() {
               <Text style={styles.rankPillText}>#{leagueWithRank.user_rank}</Text>
             </View>
           )}
-          <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          <Ionicons name="chevron-forward" size={20} color="#64748b" />
         </View>
       </View>
       <View style={styles.leagueCardBottom}>
@@ -126,7 +126,7 @@ export default function LeaguesScreen() {
           onPress={(e) => handleCopyInviteCode(e, item)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="lock-closed-outline" size={12} color="#9ca3af" />
+          <Ionicons name="lock-closed-outline" size={12} color="#64748b" />
           <Text style={styles.inviteCodeLabel}>Code:</Text>
           <Text style={styles.inviteCode}>{item.invite_code}</Text>
           {copiedLeagueId === item.id ? (
@@ -134,7 +134,7 @@ export default function LeaguesScreen() {
           ) : null}
         </TouchableOpacity>
         <View style={styles.dateRow}>
-          <Ionicons name="calendar-outline" size={14} color="#64748b" />
+          <Ionicons name="calendar-outline" size={14} color="#94a3b8" />
           <Text style={styles.joinedDate}>
             {new Date(item.joined_at || item.created_at).toLocaleDateString()}
           </Text>
@@ -168,7 +168,7 @@ export default function LeaguesScreen() {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <View style={styles.emptyStateIconCircle}>
-        <Ionicons name="people-outline" size={60} color="#93c5fd" />
+        <Ionicons name="people-outline" size={60} color="#64748b" />
       </View>
       <Text style={styles.emptyTitle}>No private leagues yet</Text>
       <Text style={styles.emptySubtitle}>
@@ -232,7 +232,7 @@ export default function LeaguesScreen() {
         >
           <Path
             d="M0,0 C97.5,28 292.5,28 390,0 L390,0 L0,0 Z"
-            fill="#f1f5f9"
+            fill="#1e293b"
           />
         </Svg>
       </View>
@@ -242,7 +242,7 @@ export default function LeaguesScreen() {
   if (loading) {
     return (
       <View style={styles.statusBarFill}>
-        <StatusBar barStyle="light-content" backgroundColor="#1e40af" />
+        <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
         <SafeAreaView style={styles.container} edges={['top']}>
           {renderHeader()}
         <View style={styles.mainContent}>
@@ -257,7 +257,7 @@ export default function LeaguesScreen() {
 
   return (
     <View style={styles.statusBarFill}>
-      <StatusBar barStyle="light-content" backgroundColor="#1e40af" />
+      <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
       <SafeAreaView style={styles.container} edges={['top']}>
         {renderHeader()}
       <View style={styles.mainContent}>
@@ -306,14 +306,14 @@ export default function LeaguesScreen() {
 const styles = StyleSheet.create({
   statusBarFill: {
     flex: 1,
-    backgroundColor: '#1e40af',
+    backgroundColor: '#1e293b',
   },
   container: {
     flex: 1,
     backgroundColor: 'transparent',
   },
   headerWrapper: {
-    backgroundColor: '#1e40af',
+    backgroundColor: '#1e293b',
     overflow: 'visible',
   },
   header: {
@@ -354,11 +354,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 24,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
   },
   list: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
   },
   listContainer: {
     paddingHorizontal: 24,
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   leagueCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1e3a5f',
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#2d4a6e',
   },
   leagueCardTop: {
     flexDirection: 'row',
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   leagueName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#f1f5f9',
     marginBottom: 4,
   },
   memberRow: {
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   },
   memberCount: {
     fontSize: 13,
-    color: '#64748b',
+    color: '#94a3b8',
   },
   leagueCardRight: {
     flexDirection: 'row',
@@ -473,11 +473,11 @@ const styles = StyleSheet.create({
   },
   inviteCodeLabel: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: '#94a3b8',
   },
   inviteCode: {
     fontSize: 13,
-    color: '#64748b',
+    color: '#cbd5e1',
     fontFamily: 'monospace',
   },
   copiedText: {
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
   },
   joinedDate: {
     fontSize: 12,
-    color: '#64748b',
+    color: '#94a3b8',
   },
   emptyState: {
     alignItems: 'center',
@@ -505,22 +505,22 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#eff6ff',
+    backgroundColor: 'rgba(51,65,85,0.6)',
     borderWidth: 1,
-    borderColor: '#93c5fd',
+    borderColor: '#475569',
     justifyContent: 'center',
     alignItems: 'center',
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#cbd5e1',
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#94a3b8',
     textAlign: 'center',
   },
   bottomButtons: {
@@ -535,7 +535,7 @@ const styles = StyleSheet.create({
     height: 120,
     paddingHorizontal: 16,
     paddingBottom: 20,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.12,
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
   emptyButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1d4ed8',
+    color: '#93c5fd',
   },
   emptyButtonCreateText: {
     color: '#ffffff',

@@ -10,6 +10,7 @@ import {
   Platform,
   Modal,
   Pressable,
+  StatusBar,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -670,6 +671,7 @@ export default function BracketScreen({}: BracketScreenProps) {
 
   return (
     <>
+      <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
       <View style={[styles.container, { pointerEvents: 'box-none' }]}>
       {/* Subtle dot-grid background */}
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
@@ -684,7 +686,7 @@ export default function BracketScreen({}: BracketScreenProps) {
                 width: 2,
                 height: 2,
                 borderRadius: 1,
-                backgroundColor: 'rgba(148, 163, 184, 0.25)',
+                backgroundColor: 'rgba(148, 163, 184, 0.12)',
               }}
             />
           ))
@@ -1023,7 +1025,7 @@ export default function BracketScreen({}: BracketScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
   },
   scrollView: {
     flex: 1,
@@ -1038,18 +1040,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#86efac',
+    color: '#94a3b8',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
   },
   errorText: {
     fontSize: 16,
@@ -1058,14 +1060,14 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#4a5568',
+    color: '#e2e8f0',
     marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#718096',
+    color: '#94a3b8',
     textAlign: 'center',
   },
   column: {
@@ -1208,23 +1210,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#152a45',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     gap: 6,
     marginLeft: 4,
     borderWidth: 1.5,
-    borderColor: '#86efac',
+    borderColor: '#2d4a6e',
   },
   knockoutScoreLabel: {
     fontSize: 11,
-    color: '#15803d',
+    color: '#94a3b8',
     fontWeight: '500',
   },
   knockoutScoreValue: {
     fontSize: 16,
-    color: '#166534',
+    color: '#e2e8f0',
     fontWeight: '700',
   },
   fineStat: {
@@ -1270,7 +1272,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -10000, // Hide off-screen
     left: -10000,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
   },
   hiddenScrollView: {
     flex: 1,

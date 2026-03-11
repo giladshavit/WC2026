@@ -63,12 +63,12 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
   const team1Eliminated = prediction.team1_is_eliminated === true;
   const team2Eliminated = prediction.team2_is_eliminated === true;
 
-  const cardBackground = '#ffffff';
+  const cardBackground = '#1e3a5f';
 
-  const team1Bg = isTeam1Winner ? '#bbf7d0' : '#ffffff';
-  const team2Bg = isTeam2Winner ? '#bbf7d0' : '#ffffff';
-  const team1TextColor = isTeam1Winner ? '#16a34a' : '#374151';
-  const team2TextColor = isTeam2Winner ? '#16a34a' : '#374151';
+  const team1Bg = isTeam1Winner ? 'rgba(22,163,74,0.12)' : '#1e3a5f';
+  const team2Bg = isTeam2Winner ? 'rgba(22,163,74,0.12)' : '#1e3a5f';
+  const team1TextColor = isTeam1Winner ? '#16a34a' : '#e2e8f0';
+  const team2TextColor = isTeam2Winner ? '#16a34a' : '#e2e8f0';
 
   const renderTeamHalf = (
     teamId: number,
@@ -132,7 +132,7 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
       {
         backgroundColor: cardBackground,
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: '#2d4a6e',
       },
     ]}>
       {/* Stats button — always full opacity, rendered outside the blurred layer */}
@@ -146,7 +146,7 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
         activeOpacity={0.8}
       >
         <View style={styles.statsButtonInner}>
-          <Ionicons name="stats-chart" size={14} color="#ffffff" />
+          <Ionicons name="stats-chart" size={14} color="#38bdf8" />
         </View>
       </TouchableOpacity>
 
@@ -205,13 +205,13 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
 
 const styles = StyleSheet.create({
   matchCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1e3a5f',
     borderRadius: 16,
     overflow: 'hidden',
     marginHorizontal: 12,
     marginBottom: 12,
     borderWidth: 1.5,
-    borderColor: '#d1d5db',
+    borderColor: '#2d4a6e',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
@@ -232,14 +232,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 10,
     paddingVertical: 0,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#1e3a5f',
   },
   teamHalfSelected: {
     backgroundColor: '#dcfce7',
   },
   teamHalfLeft: {
     borderRightWidth: 1,
-    borderRightColor: '#e9ecef',
+    borderRightColor: '#2d4a6e',
   },
   teamHalfContent: {
     alignItems: 'center',
@@ -327,7 +327,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   statsButtonInner: {
-    backgroundColor: '#0284c7',
+    backgroundColor: 'rgba(2,132,199,0.3)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(2,132,199,0.6)',
     borderRadius: 14,
     width: 28,
     height: 28,

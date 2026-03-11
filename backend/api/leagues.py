@@ -61,6 +61,7 @@ class LeagueStanding(BaseModel):
     groups_points: int
     third_place_points: int
     knockout_points: int
+    bonus_points: int = 0
     penalty: int = 0
     joined_at: Optional[str] = None
 

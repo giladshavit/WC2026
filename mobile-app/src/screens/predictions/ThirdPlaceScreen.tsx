@@ -497,7 +497,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
               style={styles.statsButton}
               activeOpacity={0.75}
             >
-              <Ionicons name="stats-chart" size={16} color="#ffffff" />
+              <Ionicons name="stats-chart" size={16} color="#38bdf8" />
             </TouchableOpacity>
           </View>
 
@@ -655,13 +655,13 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1e293b',
   },
   header: {
     paddingHorizontal: 16,
     paddingTop: 4,
     paddingBottom: 8,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1e293b',
   },
   headerTop: {
     flexDirection: 'row',
@@ -684,7 +684,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   counterBadge: {
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#152a45',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -692,7 +692,7 @@ const styles = StyleSheet.create({
   counterBadgeText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#94a3b8',
   },
   totalScoreContainer: {
     backgroundColor: '#48bb78',
@@ -724,9 +724,9 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 20,
     gap: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#152a45',
     borderWidth: 1.5,
-    borderColor: '#94a3b8',
+    borderColor: '#2d4a6e',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
@@ -734,13 +734,13 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   netScoreToggleActive: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: 'rgba(22,163,74,0.15)',
     borderColor: '#16a34a',
   },
   netScoreToggleText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#94a3b8',
   },
   netScoreToggleTextActive: {
     color: '#16a34a',
@@ -772,9 +772,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#0284c7',
+    backgroundColor: 'rgba(2,132,199,0.3)',
     borderWidth: 1.5,
-    borderColor: '#0369a1',
+    borderColor: 'rgba(2,132,199,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -790,31 +790,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1e293b',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#4a5568',
+    color: '#94a3b8',
   },
   emptyStateContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1e293b',
     paddingHorizontal: 32,
   },
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#374151',
+    color: '#e2e8f0',
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateSubtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#94a3b8',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -825,7 +825,7 @@ const styles = StyleSheet.create({
     flex: 1,
     margin: 4,
     padding: 8,
-    backgroundColor: '#fff',
+    backgroundColor: '#1e3a5f',
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -843,10 +843,10 @@ const styles = StyleSheet.create({
   },
   teamCardSelected: {
     borderColor: '#48bb78',
-    backgroundColor: '#f0fff4',
+    backgroundColor: 'rgba(72,187,120,0.1)',
   },
   teamCardCorrectPick: {
-    backgroundColor: '#f0fff4',
+    backgroundColor: 'rgba(22,163,74,0.15)',
     borderColor: '#16a34a',
     borderWidth: 2,
   },
@@ -854,14 +854,14 @@ const styles = StyleSheet.create({
     borderColor: '#f6ad55',
   },
   teamCardIncorrect: {
-    backgroundColor: '#fee2e2', // Light red background for incorrect predictions
+    backgroundColor: 'rgba(239,68,68,0.15)',
   },
   teamCardMissed: {
     borderColor: '#16a34a',
     borderWidth: 2,
   },
   teamFlagWrapper: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'transparent',
     borderRadius: 6,
     padding: 4,
     alignItems: 'center',
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
   teamName: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#2d3748',
+    color: '#e2e8f0',
     textAlign: 'center',
     flex: 1,
     textAlignVertical: 'center',
@@ -885,7 +885,7 @@ const styles = StyleSheet.create({
   },
   groupName: {
     fontSize: 12,
-    color: '#718096',
+    color: '#94a3b8',
     textAlign: 'center',
     marginBottom: 6, // Further reduced distance from bottom
   },

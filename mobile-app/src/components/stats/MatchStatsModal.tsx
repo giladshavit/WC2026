@@ -203,11 +203,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 20,
     width: '85%',
     maxWidth: 350,
+    borderWidth: 1,
+    borderColor: '#2d4a6e',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -219,7 +221,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#111827',
+    color: '#f1f5f9',
     textAlign: 'center',
     flex: 1,
   },
@@ -231,12 +233,12 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     fontSize: 20,
-    color: '#9ca3af',
+    color: '#64748b',
   },
   sectionLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#6b7280',
+    color: '#94a3b8',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     textAlign: 'center',
@@ -316,10 +318,10 @@ const styles = StyleSheet.create({
   },
   popularCard: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#0f172a',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#2d4a6e',
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',

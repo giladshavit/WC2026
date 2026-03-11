@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   StyleSheet, View, Text, ActivityIndicator, RefreshControl,
-  ScrollView,
+  ScrollView, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -103,21 +103,27 @@ export default function StatisticsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#16a34a" />
-        </View>
-      </SafeAreaView>
+      <>
+        <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color="#22c55e" />
+          </View>
+        </SafeAreaView>
+      </>
     );
   }
 
   if (!profile) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.centered}>
-          <Text style={styles.emptyText}>No statistics available yet</Text>
-        </View>
-      </SafeAreaView>
+      <>
+        <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.centered}>
+            <Text style={styles.emptyText}>No statistics available yet</Text>
+          </View>
+        </SafeAreaView>
+      </>
     );
   }
 
@@ -220,7 +226,9 @@ export default function StatisticsScreen() {
   const orderedGroups = [...groupsArray].sort((a, b) => b.points - a.points);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -294,7 +302,7 @@ export default function StatisticsScreen() {
           )}
         </View>
 
-        {/* 3. Group Stage card */}
+        {/* 3. Group Stage + Position Accuracy card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Group Stage</Text>
@@ -303,48 +311,41 @@ export default function StatisticsScreen() {
             </View>
           </View>
           {groups.judged_groups > 0 ? (
-            <View style={styles.groupsGrid}>
-              {[0, 1, 2].map((rowIdx) => (
-                <View key={rowIdx} style={styles.groupsGridRow}>
-                  {orderedGroups.slice(rowIdx * 4, rowIdx * 4 + 4).map(({ letter, correct_positions_count, points }) => (
-                    <View
-                      key={letter}
-                      style={[
-                        styles.groupBlock,
-                        { backgroundColor: getGroupBlockColor(correct_positions_count) },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.groupBlockLetter,
-                          correct_positions_count === null && styles.groupBlockLetterGray,
-                        ]}
-                      >
-                        {letter}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.groupBlockPoints,
-                          correct_positions_count === null && styles.groupBlockPointsGray,
-                        ]}
-                      >
-                        {points} pts
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.noDataText}>No results yet</Text>
-          )}
-        </View>
-
-        {/* 4. Position Accuracy card */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Position Accuracy</Text>
-          {groups.judged_groups > 0 ? (
             <>
+              <View style={styles.groupsGrid}>
+                {[0, 1, 2].map((rowIdx) => (
+                  <View key={rowIdx} style={styles.groupsGridRow}>
+                    {orderedGroups.slice(rowIdx * 4, rowIdx * 4 + 4).map(({ letter, correct_positions_count, points }) => (
+                      <View
+                        key={letter}
+                        style={[
+                          styles.groupBlock,
+                          { backgroundColor: getGroupBlockColor(correct_positions_count) },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.groupBlockLetter,
+                            correct_positions_count === null && styles.groupBlockLetterGray,
+                          ]}
+                        >
+                          {letter}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.groupBlockPoints,
+                            correct_positions_count === null && styles.groupBlockPointsGray,
+                          ]}
+                        >
+                          {points} pts
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+              <View style={styles.sectionDivider} />
+              <Text style={styles.sectionTitle}>Position Accuracy</Text>
               {[
                 { label: '1st', correct: groups.position_totals.first, color: '#16a34a' },
                 { label: '2nd', correct: groups.position_totals.second, color: '#22c55e' },
@@ -627,17 +628,18 @@ export default function StatisticsScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f0f4f0' },
+  safeArea: { flex: 1, backgroundColor: '#1e293b' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollContent: { padding: 16 },
   emptyText: { fontSize: 16, color: '#9ca3af' },
 
   pointsCard: {
-    backgroundColor: '#16a34a', borderRadius: 20, padding: 24,
+    backgroundColor: '#166534', borderRadius: 20, padding: 24,
     alignItems: 'center', marginBottom: 16,
   },
   pointsValue: { fontSize: 48, fontWeight: 'bold', color: '#fff' },
@@ -766,9 +768,15 @@ const styles = StyleSheet.create({
   },
   matchesFooterText: { fontSize: 13, color: '#9ca3af' },
 
-  groupsGrid: { gap: 8 },
+  groupsGrid: { gap: 8, alignItems: 'center' },
   groupsGridRow: {
-    flexDirection: 'row', gap: 8, marginBottom: 8,
+    flexDirection: 'row', gap: 8, marginBottom: 8, justifyContent: 'center', alignSelf: 'center',
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
+    marginVertical: 16,
+    width: '100%',
   },
   groupBlock: {
     flex: 1, aspectRatio: 1, maxWidth: 72, borderRadius: 10,

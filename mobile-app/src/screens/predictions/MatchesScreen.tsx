@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Platform, Dimensions, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Platform, Dimensions, Keyboard, StatusBar } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Match, apiService, MatchesResponse } from '../../services/api';
 import MatchCard, { MatchCardHandle } from '../../components/cards/MatchCard';
@@ -251,6 +251,7 @@ export default function MatchesScreen() {
 
   return (
     <View style={styles.flex}>
+      <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
       <View style={styles.container}>
         <View style={styles.header}>
           {matchesScore !== null && (
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
   },
   header: {
     flexDirection: 'row',
@@ -317,14 +318,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#1e293b',
   },
   pointsBadge: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1e293b',
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: '#334155',
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
@@ -338,31 +337,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#4a5568',
+    color: '#94a3b8',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
     padding: 20,
   },
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#4a5568',
+    color: '#e2e8f0',
     marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#718096',
+    color: '#94a3b8',
     textAlign: 'center',
   },
   listContainer: {

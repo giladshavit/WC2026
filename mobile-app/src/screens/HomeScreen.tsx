@@ -12,7 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Rect } from 'react-native-svg';
 import PredictOLogo from '../components/shared/PredictOLogo';
 import { MainStackParamList } from '../navigation/MainNavigator';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,35 +22,77 @@ type NavigationProp = StackNavigationProp<MainStackParamList, 'Home'>;
 const screenWidth = Dimensions.get('window').width;
 const buttonSize = (screenWidth - 24 * 2 - 16) / 2;
 
+function StatsBarChartIcon({ size = 36 }: { size?: number }) {
+  const bars = [
+    { fill: '#f87171', h: 22 },  // red
+    { fill: '#60a5fa', h: 14 },  // blue
+    { fill: '#4ade80', h: 26 },  // green
+    { fill: '#facc15', h: 18 },  // yellow
+  ];
+  const w = 5;
+  const gap = 2;
+  const pad = 5;
+  const baseY = 28;
+  return (
+    <Svg width={size} height={size} viewBox="0 0 36 36">
+      {bars.map((b, i) => (
+        <Rect
+          key={i}
+          x={pad + i * (w + gap)}
+          y={baseY - b.h}
+          width={w}
+          height={b.h}
+          rx={2}
+          fill={b.fill}
+        />
+      ))}
+    </Svg>
+  );
+}
+
 const actions: Array<{
   title: string;
   subtitle: string;
   icon: string;
   navigateTo: Exclude<keyof MainStackParamList, 'UserProfile'>;
+  accent: string | null;
+  accentBorder: string | null;
+  iconColor?: string;
 }> = [
-  {
-    title: 'Profile',
-    subtitle: 'Account & preferences',
-    icon: 'person-circle-outline',
-    navigateTo: 'Profile',
-  },
   {
     title: 'My Predictions',
     subtitle: 'Matches & bracket picks',
     icon: 'help-circle-outline',
     navigateTo: 'PredictionsMenu',
+    accent: '#162444',
+    accentBorder: '#16a34a',
+    iconColor: '#4ade80',
   },
   {
     title: 'Leagues',
     subtitle: 'Compete with friends',
     icon: 'trophy-outline',
     navigateTo: 'Leagues',
+    accent: '#162444',
+    accentBorder: '#1e3a8a',
+    iconColor: '#fbbf24',
   },
   {
     title: 'Statistics',
     subtitle: 'Standings & insights',
-    icon: 'bar-chart-outline',
+    icon: 'stats-chart',
     navigateTo: 'Statistics',
+    accent: null,
+    accentBorder: null,
+  },
+  {
+    title: 'Profile',
+    subtitle: 'Account & preferences',
+    icon: 'person-circle-outline',
+    navigateTo: 'Profile',
+    accent: null,
+    accentBorder: null,
+    iconColor: '#94a3b8',
   },
 ];
 
@@ -63,26 +105,60 @@ export default function HomeScreen() {
     (user?.user_id != null && user.user_id >= 1 && user.user_id <= 10) ||
     user?.is_admin === true;
 
-  const renderButton = (
-    action: (typeof actions)[0],
-    isPrimary: boolean
-  ) => (
+  const renderButton = (action: (typeof actions)[0]) => {
+    const glowStyle =
+      action.navigateTo === 'PredictionsMenu'
+        ? {
+            backgroundColor: '#162444' as const,
+            borderWidth: 3,
+            borderColor: '#4ade80' as const,
+            shadowColor: '#16a34a' as const,
+            shadowOpacity: 0.7,
+            shadowRadius: 24,
+            shadowOffset: { width: 0 as const, height: 0 as const },
+            elevation: 16,
+          }
+        : action.navigateTo === 'Leagues'
+          ? {
+              backgroundColor: '#162444' as const,
+              borderWidth: 3,
+              borderColor: '#fbbf24' as const,
+              shadowColor: '#f59e0b' as const,
+              shadowOpacity: 0.65,
+              shadowRadius: 24,
+              shadowOffset: { width: 0 as const, height: 0 as const },
+              elevation: 16,
+            }
+          : null;
+    return (
     <TouchableOpacity
       key={action.title}
-      style={[styles.circleButton, isPrimary && styles.primaryButton]}
+      style={[
+        styles.circleButton,
+        { width: buttonSize, height: buttonSize, borderRadius: buttonSize / 2 },
+        glowStyle ?? styles.secondaryButton,
+        action.navigateTo === 'Statistics' && styles.statsButton,
+        action.navigateTo === 'Profile' && styles.profileButton,
+      ]}
       onPress={() => navigation.navigate(action.navigateTo)}
       activeOpacity={0.8}
     >
-      <Ionicons
-        name={action.icon}
-        size={36}
-        color={isPrimary ? '#ffffff' : '#16a34a'}
-        style={styles.icon}
-      />
+      {action.navigateTo === 'Statistics' ? (
+        <View style={styles.icon}>
+          <StatsBarChartIcon size={38} />
+        </View>
+      ) : (
+        <Ionicons
+          name={action.icon}
+          size={action.navigateTo === 'Leagues' ? 40 : 36}
+          color={action.iconColor ?? (action.accent ? '#ffffff' : '#94a3b8')}
+          style={styles.icon}
+        />
+      )}
       <Text
         style={[
           styles.buttonTitle,
-          isPrimary && styles.primaryButtonTitle,
+          action.accent && styles.accentButtonTitle,
         ]}
       >
         {action.title}
@@ -90,17 +166,18 @@ export default function HomeScreen() {
       <Text
         style={[
           styles.buttonSubtitle,
-          isPrimary && styles.primaryButtonSubtitle,
+          action.accent && styles.accentButtonSubtitle,
         ]}
       >
         {action.subtitle}
       </Text>
     </TouchableOpacity>
   );
+  };
 
   return (
     <View style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+      <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={styles.logoContainer}>
           <PredictOLogo size="small" variant="light" />
@@ -120,7 +197,7 @@ export default function HomeScreen() {
           >
             <Path
               d="M0,0 C97.5,32 292.5,32 390,0 L390,0 L0,0 Z"
-              fill="#16a34a"
+              fill="#0f172a"
             />
           </Svg>
         </View>
@@ -132,9 +209,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.buttonsGrid}>
-          {actions.map((action) =>
-            renderButton(action, action.navigateTo === 'PredictionsMenu')
-          )}
+          {actions.map((action) => renderButton(action))}
         </View>
         {isAdmin && (
           <TouchableOpacity
@@ -154,7 +229,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
   },
   scrollView: {
     flex: 1,
@@ -165,7 +240,7 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   header: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#0f172a',
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 20,
@@ -205,29 +280,37 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
   circleButton: {
-    width: buttonSize,
-    height: buttonSize,
-    borderRadius: buttonSize / 2,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
     padding: 16,
     marginBottom: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    borderWidth: 1,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
   },
-  primaryButton: {
-    backgroundColor: '#16a34a',
-    borderColor: '#15803d',
-    shadowColor: '#16a34a',
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderColor: '#334155',
+    borderWidth: 1,
+    shadowOpacity: 0,
+  },
+  statsButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#3b82f6',
+    shadowColor: '#3b82f6',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
+  },
+  profileButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#475569',
+    shadowColor: 'transparent',
+    elevation: 0,
   },
   adminPill: {
     flexDirection: 'row',
@@ -237,14 +320,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#334155',
     marginTop: 8,
   },
   adminPillText: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: '#64748b',
     fontWeight: '500',
   },
   icon: {
@@ -253,18 +336,18 @@ const styles = StyleSheet.create({
   buttonTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#f1f5f9',
   },
-  primaryButtonTitle: {
+  accentButtonTitle: {
     color: '#ffffff',
   },
   buttonSubtitle: {
     fontSize: 11,
-    color: '#64748b',
+    color: '#94a3b8',
     textAlign: 'center',
     marginTop: 4,
   },
-  primaryButtonSubtitle: {
+  accentButtonSubtitle: {
     color: 'rgba(255,255,255,0.8)',
   },
 });

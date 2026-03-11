@@ -420,7 +420,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
     const shouldShowCursor = hasNoResult && isEditable && !scoreValue && isFieldFocused;
 
     const displayValue = scoreValue || (isEditable ? (isFieldFocused ? '' : '+') : '-');
-    const placeholderColor = isEditable ? '#111827' : '#a0aec0';
+    const placeholderColor = isEditable ? '#94a3b8' : '#475569';
 
     // Live match: color score box by prediction accuracy (only when not focused and has score)
     const showLiveColor = liveColor && isLive && scoreValue && !isFieldFocused;
@@ -529,7 +529,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
         onPress={() => setShowStats(true)}
         activeOpacity={0.7}
       >
-        <Ionicons name="stats-chart" size={13} color="#0284c7" />
+        <Ionicons name="stats-chart" size={13} color="#38bdf8" />
         <Text style={styles.statsButtonText}>Stats</Text>
       </TouchableOpacity>
 
@@ -658,7 +658,7 @@ export default MatchCard;
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fafafa',
+    backgroundColor: '#1e3a5f',
     marginHorizontal: 16,
     marginVertical: 8,
     paddingTop: 12,
@@ -670,12 +670,12 @@ const styles = StyleSheet.create({
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 8,
     minHeight: 145,
     borderWidth: 1,
-    borderColor: '#e5e7eb', // Light gray border
+    borderColor: '#2d4a6e',
   },
   containerPending: {
     borderColor: '#fbbf24',
@@ -695,7 +695,7 @@ const styles = StyleSheet.create({
   stageText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#2d3748',
+    color: '#94a3b8',
   },
   timeContainer: {
     flex: 1,
@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
   kickoffText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2d3748',
+    color: '#94a3b8',
   },
   statusWrapper: {
     flex: 1,
@@ -726,7 +726,7 @@ const styles = StyleSheet.create({
   teamFlagWrapper: {
     height: 40,
     justifyContent: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'transparent',
     borderRadius: 10,
     padding: 4,
   },
@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
   teamName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#e2e8f0',
     textAlign: 'center',
     marginTop: 0,
   },
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0f2744',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -788,7 +788,7 @@ const styles = StyleSheet.create({
   },
   scoreBoxLocked: {
     borderWidth: 2,
-    borderColor: '#a0aec0',
+    borderColor: '#334155',
   },
   scoreBoxFocused: {
     borderColor: '#15803d',
@@ -797,15 +797,19 @@ const styles = StyleSheet.create({
   scoreInput: {
     borderWidth: 0,
     textAlign: 'center',
+    textAlignVertical: 'center',
+    lineHeight: 24,
+    paddingTop: 0,
+    paddingBottom: 0,
     fontSize: 20,
     fontWeight: 'bold',
     includeFontPadding: false,
   },
   scoreInputEditable: {
-    color: '#111827',
+    color: '#f1f5f9',
   },
   scoreInputDisabled: {
-    color: '#a0aec0',
+    color: '#475569',
   },
   hiddenInput: {
     position: 'absolute',
@@ -820,6 +824,8 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   scoreSeparator: {
     fontSize: 22,
@@ -827,10 +833,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   scoreSeparatorEditable: {
-    color: '#374151',
+    color: '#cbd5e1',
   },
   scoreSeparatorLocked: {
-    color: '#a0aec0',
+    color: '#475569',
   },
   // Status indicator styles
   liveContainer: {
@@ -858,7 +864,7 @@ const styles = StyleSheet.create({
   actualResultScore: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#1976D2',
+    color: '#60a5fa',
   },
   // Stats button - bottom left
   statsButton: {
@@ -872,13 +878,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: '#bae6fd',
-    backgroundColor: '#f0f9ff',
+    borderColor: 'rgba(2,132,199,0.6)',
+    backgroundColor: 'rgba(2,132,199,0.3)',
   },
   statsButtonText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#0284c7',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#38bdf8',
   },
   // Points display styles - bottom right
   pointsContainer: {
@@ -1045,6 +1051,6 @@ const styles = StyleSheet.create({
   cursor: {
     width: 2,
     height: 24,
-    backgroundColor: '#111827',
+    backgroundColor: '#f1f5f9',
   },
 });

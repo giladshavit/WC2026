@@ -25,11 +25,11 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
   // Get subtle background color based on group number for visual separation
   const getGroupBackgroundColor = () => {
     const groupNum = parseInt(group.group_name) || 0;
-    // Alternate between subtle warm shades (less white)
+    // Alternate between subtle navy shades
     if (groupNum % 2 === 0) {
-      return '#f8f9fa'; // Very light gray
+      return '#1e3a5f';
     } else {
-      return '#f5f6f7'; // Slightly darker light gray
+      return '#1a3458';
     }
   };
 
@@ -70,7 +70,7 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
               style={styles.statsButton}
               activeOpacity={0.8}
             >
-              <Ionicons name="stats-chart" size={14} color="#ffffff" />
+              <Ionicons name="stats-chart" size={14} color="#38bdf8" />
               <Text style={styles.statsButtonText}>Stats</Text>
             </TouchableOpacity>
             {isLocked && (
@@ -189,7 +189,7 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#ffffff', // White background for better contrast
+    backgroundColor: '#1e3a5f',
     marginHorizontal: 16,
     marginVertical: 8, // Spacing between groups
     borderRadius: 16,
@@ -206,24 +206,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   containerDefault: {
-    borderColor: '#e2e8f0', // Light gray border for default state
+    borderColor: '#2d4a6e',
   },
   containerPending: {
     borderColor: '#f6ad55',
-    backgroundColor: '#fff9e6', // Light yellow background for pending
+    backgroundColor: 'rgba(246,173,85,0.1)',
   },
   containerIncomplete: {
     borderColor: '#f6ad55',
-    backgroundColor: '#fff9e6', // Light yellow background for incomplete
+    backgroundColor: 'rgba(246,173,85,0.1)',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: '#f7fafc', // Very light gray-blue for header
+    backgroundColor: '#152a45',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#2d4a6e',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
@@ -246,21 +246,23 @@ const styles = StyleSheet.create({
   statsButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0284c7',
+    backgroundColor: 'rgba(2,132,199,0.3)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(2,132,199,0.6)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
     gap: 4,
   },
   statsButtonText: {
-    color: '#ffffff',
+    color: '#38bdf8',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   groupName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#f1f5f9',
     textAlign: 'center',
     flex: 1,
   },
@@ -291,10 +293,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 8,
     marginBottom: 4,
-    backgroundColor: '#f8fafc', // Light gray so white flags don't bleed
+    backgroundColor: 'transparent',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
   teamRowLocked: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'transparent',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
   positionBadge: {
     width: 28,
@@ -404,7 +410,7 @@ const styles = StyleSheet.create({
   teamName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2d3748',
+    color: '#e2e8f0',
     flex: 1,
   },
 });

@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -50,8 +51,10 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
+      <SafeAreaView style={styles.container}>
+        <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
         {/* Green header with avatar */}
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
@@ -97,7 +100,7 @@ export default function ProfileScreen() {
           <Ionicons name="log-out-outline" size={18} color="#ef4444" />
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
-      </ScrollView>
+        </ScrollView>
       <ConfirmationModal
         visible={signOutModal}
         title="Sign Out"
@@ -111,17 +114,18 @@ export default function ProfileScreen() {
         }}
         onCancel={() => setSignOutModal(false)}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
   },
   header: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#1e293b',
     paddingTop: 24,
     paddingBottom: 24,
     paddingHorizontal: 24,

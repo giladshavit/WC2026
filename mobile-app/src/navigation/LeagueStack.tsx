@@ -12,7 +12,7 @@ export default function LeagueStack() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#1e40af',
+          backgroundColor: '#1e293b',
         },
         headerTintColor: '#ffffff',
         headerTitleStyle: {

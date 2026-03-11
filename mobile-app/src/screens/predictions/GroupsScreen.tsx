@@ -724,7 +724,7 @@ export default function GroupsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1e293b',
   },
   header: {
     flexDirection: 'row',
@@ -733,9 +733,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 4,
     paddingBottom: 8,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1e293b',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#2d4a6e',
   },
   headerLeft: {
     flex: 1,
@@ -744,7 +744,7 @@ const styles = StyleSheet.create({
   changesCounter: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff7ed',
+    backgroundColor: 'rgba(249,115,22,0.15)',
     borderWidth: 1,
     borderColor: '#f97316',
     borderRadius: 20,
@@ -774,9 +774,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     gap: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#152a45',
     borderWidth: 1.5,
-    borderColor: '#94a3b8',
+    borderColor: '#2d4a6e',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
@@ -784,13 +784,13 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   netScoreToggleActive: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: 'rgba(22,163,74,0.15)',
     borderColor: '#16a34a',
   },
   netScoreToggleText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#94a3b8',
   },
   netScoreToggleTextActive: {
     color: '#16a34a',
@@ -837,31 +837,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1e293b',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#4a5568',
+    color: '#94a3b8',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1e293b',
     padding: 20,
   },
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#4a5568',
+    color: '#e2e8f0',
     marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#718096',
+    color: '#94a3b8',
     textAlign: 'center',
   },
   listContainer: {

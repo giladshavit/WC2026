@@ -5,6 +5,7 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  StatusBar,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import BracketIcon from '../../components/icons/BracketIcon';
@@ -60,7 +61,9 @@ export default function PredictionsMenuScreen() {
   const navigation = useNavigation<NavigationProp>();
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
+      <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -80,18 +83,19 @@ export default function PredictionsMenuScreen() {
               <Text style={styles.cardTitle}>{option.title}</Text>
               <Text style={styles.cardSubtitle}>{option.subtitle}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
+            <Ionicons name="chevron-forward" size={20} color="#475569" />
           </TouchableOpacity>
         ))}
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1e293b',
   },
   scroll: {
     flex: 1,
@@ -103,22 +107,24 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1e3a5f',
     borderRadius: 16,
     paddingHorizontal: 20,
-    paddingVertical: 28,
+    paddingVertical: 22,
     gap: 16,
+    borderWidth: 1,
+    borderColor: '#2d4a6e',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 3,
   },
   iconContainer: {
     width: 52,
     height: 52,
-    borderRadius: 14,
-    backgroundColor: '#f0fdf4',
+    borderRadius: 12,
+    backgroundColor: 'rgba(22, 163, 74, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -128,12 +134,12 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#f1f5f9',
     marginBottom: 3,
   },
   cardSubtitle: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: '#64748b',
     fontWeight: '400',
   },
 });

@@ -9,7 +9,7 @@ export default function GroupsContainerScreen() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('groups');
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f0fdf4' }}>
+    <View style={{ flex: 1, backgroundColor: '#1e293b' }}>
       
       {/* Pill switcher — reduce top padding */}
       <View style={[styles.switcherContainer, { paddingTop: 6, paddingBottom: 6 }]}>
@@ -44,18 +44,18 @@ export default function GroupsContainerScreen() {
 
 const styles = StyleSheet.create({
   switcherContainer: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1e293b',
     paddingVertical: 8,
     paddingHorizontal: 16,
     alignItems: 'center',
   },
   switcher: {
     flexDirection: 'row',
-    backgroundColor: '#dcfce7',
+    backgroundColor: '#152a45',
     borderRadius: 999,
     padding: 4,
     borderWidth: 1,
-    borderColor: '#cbd5e0',
+    borderColor: '#2d4a6e',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#16a34a',
   },
   pillText: {
-    color: '#64748b',
+    color: '#94a3b8',
     fontWeight: '600',
     fontSize: 14,
   },

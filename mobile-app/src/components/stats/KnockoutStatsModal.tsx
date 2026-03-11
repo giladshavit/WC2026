@@ -55,7 +55,7 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
         {stats.top_matchups.map((matchup, index) => (
           <View key={index} style={styles.matchupCard}>
             <Text style={styles.matchupSubtitle}>
-              <Text style={{ fontWeight: '800', color: '#374151' }}>{matchup.matchup_pct}%</Text>
+              <Text style={styles.matchupPctHighlight}>{matchup.matchup_pct}%</Text>
               {' of predictions'}
             </Text>
             <View style={styles.teamsRow}>
@@ -102,7 +102,7 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
       {
         icon: 'trophy-outline' as const,
         iconColor: '#16a34a',
-        bgColor: '#f0fdf4',
+        bgColor: 'rgba(22,163,74,0.12)',
         pct: stats.exact_winner_pct || 0,
         barColor: '#16a34a',
         labelParts: [
@@ -113,7 +113,7 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
       {
         icon: 'shuffle-outline' as const,
         iconColor: '#f59e0b',
-        bgColor: '#fffbeb',
+        bgColor: 'rgba(245,158,11,0.12)',
         pct: stats.partial_winner_pct || 0,
         barColor: '#f59e0b',
         labelParts: [
@@ -124,7 +124,7 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
       {
         icon: 'people-outline' as const,
         iconColor: '#3b82f6',
-        bgColor: '#eff6ff',
+        bgColor: 'rgba(59,130,246,0.12)',
         pct: stats.correct_matchup_pct || 0,
         barColor: '#3b82f6',
         labelParts: [
@@ -207,11 +207,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 20,
     width: '90%',
     maxWidth: 380,
+    borderWidth: 1,
+    borderColor: '#2d4a6e',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -224,7 +226,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#f1f5f9',
     textAlign: 'center',
   },
   closeButtonWrapper: {
@@ -235,26 +237,33 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     fontSize: 20,
-    color: '#9ca3af',
+    color: '#64748b',
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#94a3b8',
     marginBottom: 8,
   },
   matchupCard: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#0f172a',
     borderRadius: 8,
     padding: 14,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#2d4a6e',
   },
   matchupSubtitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#64748b',
     textAlign: 'center',
     marginBottom: 8,
+  },
+  matchupPctHighlight: {
+    fontWeight: '800',
+    fontSize: 14,
+    color: '#ffffff',
   },
   teamsRow: {
     flexDirection: 'row',
@@ -269,7 +278,7 @@ const styles = StyleSheet.create({
   vsLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#9ca3af',
+    color: '#64748b',
     marginHorizontal: 4,
   },
   teamFlagPlaceholder: {
@@ -288,7 +297,7 @@ const styles = StyleSheet.create({
   teamNameInCard: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#e2e8f0',
     textAlign: 'center',
   },
   winnerBar: {
@@ -315,13 +324,13 @@ const styles = StyleSheet.create({
   winnerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0fdf4',
+    backgroundColor: 'rgba(22,163,74,0.15)',
     borderRadius: 10,
     padding: 12,
     marginBottom: 14,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: '#16a34a',
   },
   winnerFlag: {
     width: 44,
@@ -330,13 +339,13 @@ const styles = StyleSheet.create({
   },
   winnerLabel: {
     fontSize: 11,
-    color: '#6b7280',
+    color: '#94a3b8',
     fontWeight: '500',
   },
   winnerName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#15803d',
+    color: '#16a34a',
   },
   statCard: {
     borderRadius: 10,
@@ -359,7 +368,7 @@ const styles = StyleSheet.create({
   },
   statCardLabel: {
     fontSize: 12,
-    color: '#374151',
+    color: '#94a3b8',
     fontWeight: '500',
   },
   inlineFlag: {
@@ -373,7 +382,7 @@ const styles = StyleSheet.create({
   },
   statBarWrapper: {
     height: 6,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#0f172a',
     borderRadius: 3,
     overflow: 'hidden',
   },

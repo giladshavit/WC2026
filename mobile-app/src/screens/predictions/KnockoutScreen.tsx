@@ -537,7 +537,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1e293b',
   },
   header: {
     flexDirection: 'row',
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1e293b',
   },
   headerLeft: {
     flex: 1,
@@ -565,9 +565,9 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 20,
     gap: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#152a45',
     borderWidth: 1.5,
-    borderColor: '#94a3b8',
+    borderColor: '#2d4a6e',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
@@ -575,13 +575,13 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   netScoreToggleActive: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: 'rgba(22,163,74,0.15)',
     borderColor: '#16a34a',
   },
   netScoreToggleText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#94a3b8',
   },
   netScoreToggleTextActive: {
     color: '#16a34a',
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionHeaderPill: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     paddingHorizontal: 20,
     paddingVertical: 7,
     borderRadius: 20,
@@ -651,9 +651,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: '#cbd5e1',
+    borderColor: '#2d4a6e',
     borderStyle: 'dashed',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#152a45',
     paddingVertical: 24,
     paddingHorizontal: 20,
     alignItems: 'center',
@@ -662,14 +662,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#1e3a5f',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
   lockedPlaceholderTitle: {
     fontSize: 14,
-    color: '#475569',
+    color: '#94a3b8',
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 4,
@@ -684,12 +684,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1e293b',
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#718096',
+    color: '#94a3b8',
   },
   modalOverlay: {
     flex: 1,

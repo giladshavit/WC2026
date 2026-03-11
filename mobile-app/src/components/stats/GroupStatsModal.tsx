@@ -77,10 +77,12 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
     return (
       <View>
         <Text style={styles.sectionTitle}>Weighted Consensus Ranking</Text>
-        {stats.consensus_table.map((entry) => {
+        <View style={styles.consensusTableWrapper}>
+        {stats.consensus_table.map((entry, idx) => {
           const team = teams.find(t => t.id === entry.team_id);
+          const isLastConsensusRow = idx === stats.consensus_table!.length - 1;
           return (
-            <View key={entry.team_id} style={styles.consensusRow}>
+            <View key={entry.team_id} style={[styles.consensusRow, isLastConsensusRow && styles.consensusRowLast]}>
               <View style={[styles.rankBadge, { backgroundColor: getRankColor(entry.rank) }]}>
                 <Text style={styles.rankBadgeText}>{entry.rank}</Text>
               </View>
@@ -91,8 +93,10 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
             </View>
           );
         })}
+        </View>
 
         <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Position Distribution</Text>
+        <View style={styles.consensusTableWrapper}>
         <View style={styles.tableHeader}>
           <Text style={[styles.tableCell, styles.tableHeaderText, { flex: 2 }]}>Team</Text>
           <Text style={[styles.tableCell, styles.tableHeaderText, { color: '#16a34a' }]}>1st</Text>
@@ -106,7 +110,7 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
             const rankB = stats!.consensus_table?.find(e => String(e.team_id) === b[0])?.rank ?? 99;
             return rankA - rankB;
           })
-          .map(([teamIdStr, dist]) => {
+          .map(([teamIdStr, dist], idx, arr) => {
           const teamId = parseInt(teamIdStr);
           const team = teams.find(t => t.id === teamId) ?? teams.find(t => String(t.id) === teamIdStr);
           const displayName = team?.name ?? `Team ${teamId}`;
@@ -118,20 +122,21 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
             { key: 'third', pct: dist.third_pct },
             { key: 'fourth', pct: dist.fourth_pct },
           ];
+          const isLastRow = idx === arr.length - 1;
           return (
-            <View key={teamIdStr} style={styles.tableRow}>
+            <View key={teamIdStr} style={[styles.tableRow, isLastRow && styles.tableRowLast]}>
               <View style={[styles.tableCell, { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
                 {flagUrl ? (
                   <Image source={{ uri: flagUrl }} style={{ width: 20, height: 14, borderRadius: 2 }} />
                 ) : null}
-                <Text numberOfLines={1} style={{ fontSize: 12, color: '#374151', flex: 1 }}>{displayName}</Text>
+                <Text numberOfLines={1} style={{ fontSize: 12, color: '#e2e8f0', flex: 1 }}>{displayName}</Text>
               </View>
               {pctCells.map(({ key, pct }) => (
                 <Text
                   key={key}
                   style={[
-                    styles.tableCell,
-                    (pct === maxPct && maxPct > 0) && { fontWeight: 'bold', color: '#1f2937' },
+                    styles.tableCellPct,
+                    (pct === maxPct && maxPct > 0) && styles.tableCellPctEmphasized,
                   ]}
                 >
                   {pct}%
@@ -140,6 +145,7 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
             </View>
           );
         })}
+        </View>
       </View>
     );
   };
@@ -199,7 +205,7 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { flex: 1, textAlign: 'center' }]}>Group {groupName}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButtonWrapper}>
-              <Ionicons name="close" size={22} color="#9ca3af" />
+              <Ionicons name="close" size={22} color="#64748b" />
             </TouchableOpacity>
           </View>
 
@@ -229,12 +235,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 20,
     width: '90%',
     maxWidth: 380,
     maxHeight: '85%',
+    borderWidth: 1,
+    borderColor: '#2d4a6e',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -246,7 +254,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#f1f5f9',
   },
   closeButtonWrapper: {
     position: 'absolute',
@@ -257,7 +265,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#94a3b8',
     marginBottom: 8,
   },
   consensusRow: {
@@ -265,7 +273,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#2d4a6e',
+  },
+  consensusRowLast: {
+    borderBottomWidth: 0,
   },
   rankBadge: {
     width: 24,
@@ -289,54 +300,75 @@ const styles = StyleSheet.create({
   },
   teamNameText: {
     fontSize: 15,
-    color: '#1f2937',
+    color: '#e2e8f0',
   },
   tableHeader: {
     flexDirection: 'row',
     borderBottomWidth: 2,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#2d4a6e',
     paddingBottom: 4,
     marginBottom: 4,
   },
   tableHeaderText: {
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#64748b',
     fontSize: 12,
   },
   tableRow: {
     flexDirection: 'row',
     paddingVertical: 4,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#2d4a6e',
+  },
+  tableRowLast: {
+    borderBottomWidth: 0,
   },
   tableCell: {
     flex: 1,
     fontSize: 13,
-    color: '#374151',
+    color: '#e2e8f0',
     textAlign: 'center',
+  },
+  tableCellPct: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  tableCellPctEmphasized: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#f1f5f9',
   },
   accuracyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#2d4a6e',
   },
   posLabel: {
     width: 32,
     fontSize: 13,
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#64748b',
   },
   accuracyTeam: {
     flex: 1,
     fontSize: 14,
-    color: '#1f2937',
+    color: '#e2e8f0',
   },
   accuracyPct: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#16a34a',
+  },
+  consensusTableWrapper: {
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    padding: 8,
+    marginBottom: 8,
   },
   distContainer: {
     flexDirection: 'row',

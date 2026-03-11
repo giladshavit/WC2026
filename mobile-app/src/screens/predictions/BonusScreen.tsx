@@ -943,9 +943,9 @@ export default function BonusScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#16a34a' }}>
-        <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#16a34a' }} edges={['top']}>
+      <View style={{ flex: 1, backgroundColor: '#1e293b' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#1e293b' }} edges={['top']}>
           <View style={{ flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' }}>
             <ActivityIndicator size="large" color="#16a34a" />
           </View>
@@ -1047,9 +1047,9 @@ export default function BonusScreen() {
             let cardStyle: object = {
               width: cardWidth,
               height: cardHeight,
-              backgroundColor: selected ? 'rgba(22,163,74,0.15)' : '#1e293b',
+              backgroundColor: selected ? 'rgba(22,163,74,0.15)' : '#152a45',
               borderWidth: 1.5,
-              borderColor: selected ? '#16a34a' : '#334155',
+              borderColor: selected ? '#16a34a' : '#2d4a6e',
               borderRadius: 14,
               paddingTop: 10,
               paddingBottom: 8,
@@ -1267,9 +1267,9 @@ export default function BonusScreen() {
                     width: pillWidth,
                     height: 56,
                     borderRadius: 16,
-                    backgroundColor: '#1e293b',
+                    backgroundColor: '#152a45',
                     borderWidth: 1,
-                    borderColor: '#334155',
+                    borderColor: '#2d4a6e',
                     justifyContent: 'center',
                     alignItems: 'center',
                   },
@@ -1450,10 +1450,10 @@ export default function BonusScreen() {
 
   if (viewMode === 'wizard') {
     return (
-      <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
-        <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+      <View style={{ flex: 1, backgroundColor: '#1e293b' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
         <LinearGradient
-          colors={['#16a34a', '#15803d']}
+          colors={['#1e293b', '#152a45']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
@@ -1482,7 +1482,7 @@ export default function BonusScreen() {
           </View>
         </LinearGradient>
 
-        <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+        <View style={{ flex: 1, backgroundColor: '#1e293b' }}>
           <View style={styles.wizardDarkArea}>
             <View style={styles.progressBarContainer}>
               {ALL_FIELDS.map((_, i) => (
@@ -1688,7 +1688,7 @@ export default function BonusScreen() {
           const editable = isSectionEditable(field);
           const label = getAnswerLabel(field, val);
           const isLast = idx === fields.length - 1;
-          const rowBg = idx % 2 === 0 ? '#1e293b' : '#243044';
+          const rowBg = idx % 2 === 0 ? '#1e3a5f' : '#162c4a';
 
           return (
             <TouchableOpacity
@@ -1738,10 +1738,10 @@ export default function BonusScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+    <View style={{ flex: 1, backgroundColor: '#1e293b' }}>
+      <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
       <LinearGradient
-        colors={['#16a34a', '#15803d']}
+        colors={['#1e293b', '#152a45']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
@@ -1771,13 +1771,13 @@ export default function BonusScreen() {
 
           <View style={styles.waveSvgContainer}>
             <Svg height="28" width="100%" viewBox="0 0 390 28" preserveAspectRatio="none">
-              <Path d="M0,0 C97.5,28 292.5,28 390,0 L390,0 L0,0 Z" fill="#0f172a" />
+              <Path d="M0,0 C97.5,28 292.5,28 390,0 L390,0 L0,0 Z" fill="#1e293b" />
             </Svg>
           </View>
         </View>
       </LinearGradient>
 
-      <ScrollView style={{ flex: 1, backgroundColor: '#0f172a' }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flex: 1, backgroundColor: '#1e293b' }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       {finePerChangeVal > 0 && changedCount > 0 && (
         <View style={styles.changesChipsContainer}>
           <View style={styles.changesChip1}>
@@ -1922,7 +1922,7 @@ const styles = StyleSheet.create({
   headerBtn: { width: 60, alignItems: 'flex-end' },
   headerBtnLeft: { width: 60, alignItems: 'flex-start' },
 
-  wizardDarkArea: { flex: 1, backgroundColor: '#0f172a', paddingHorizontal: 20, paddingTop: 0 },
+  wizardDarkArea: { flex: 1, backgroundColor: '#1e293b', paddingHorizontal: 20, paddingTop: 0 },
   progressBarContainer: {
     flexDirection: 'row',
     gap: 4,
@@ -1932,7 +1932,7 @@ const styles = StyleSheet.create({
     width: (screenWidth - 40 - 36) / 10,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#334155',
+    backgroundColor: '#2d4a6e',
   },
   progressAnswered: { backgroundColor: '#16a34a' },
   progressCurrent: { backgroundColor: '#86efac' },
@@ -1970,9 +1970,9 @@ const styles = StyleSheet.create({
   wizardPill3col: {
     height: 56,
     borderRadius: 16,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#152a45',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2d4a6e',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1994,9 +1994,9 @@ const styles = StyleSheet.create({
     width: '48%',
     height: 56,
     borderRadius: 16,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#152a45',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2d4a6e',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2010,9 +2010,9 @@ const styles = StyleSheet.create({
     width: '31%',
     height: 56,
     borderRadius: 16,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#152a45',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2d4a6e',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2074,13 +2074,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 16,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#1e293b',
   },
   navCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#152a45',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2173,7 +2173,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#152a45',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -2211,7 +2211,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: '#f1f5f9' },
   scrollContent: { padding: 20, paddingBottom: 140 },
   sectionCardSummary: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#1e3a5f',
     borderRadius: 16,
     marginHorizontal: 16,
     marginBottom: 12,
@@ -2227,9 +2227,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: '#1a2332',
+    backgroundColor: '#152a45',
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: '#2d4a6e',
     gap: 10,
   },
   sectionScoreChip: {
@@ -2306,9 +2306,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     gap: 4,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#152a45',
     borderWidth: 1.5,
-    borderColor: '#334155',
+    borderColor: '#2d4a6e',
   },
   bonusNetScoreToggleActive: {
     backgroundColor: 'rgba(22,163,74,0.15)',
@@ -2354,7 +2354,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  summaryRowBorder: { borderBottomWidth: 1, borderBottomColor: '#334155' },
+  summaryRowBorder: { borderBottomWidth: 1, borderBottomColor: '#2d4a6e' },
   summaryRowLeft: { flex: 1, marginRight: 8 },
   summaryRowRight: { alignItems: 'flex-end', minWidth: 80 },
   summaryRowRightContent: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -2373,7 +2373,7 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 20,
     paddingBottom: 36,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#1e293b',
   },
   saveButton: {
     backgroundColor: '#16a34a',

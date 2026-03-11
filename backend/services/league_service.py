@@ -152,7 +152,7 @@ class LeagueService:
                 groups_points = scores.groups_score if scores else 0
                 third_place_points = scores.third_place_score if scores else 0
                 knockout_points = scores.knockout_score if scores else 0
-                bonus_points = getattr(scores, 'bonus_score', 0) if scores else 0
+                bonus_points = (scores.bonus_score or 0) if scores else 0
 
                 result.append({
                     "rank": rank,
@@ -200,7 +200,7 @@ class LeagueService:
                 groups_points = scores.groups_score if scores else 0
                 third_place_points = scores.third_place_score if scores else 0
                 knockout_points = scores.knockout_score if scores else 0
-                bonus_points = getattr(scores, 'bonus_score', 0) if scores else 0
+                bonus_points = (scores.bonus_score or 0) if scores else 0
 
                 result.append({
                     "rank": rank,
