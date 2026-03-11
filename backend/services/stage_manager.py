@@ -29,12 +29,12 @@ class Stage(Enum):
             Stage.GROUP_CYCLE_3: 3,
             Stage.PRE_ROUND32: 4,
             Stage.ROUND32: 5,
-            Stage.PRE_ROUND16: 6,
-            Stage.ROUND16: 7,
-            Stage.PRE_QUARTER: 8,
-            Stage.QUARTER: 9,
-            Stage.SEMI: 10,
-            Stage.FINAL: 11
+            Stage.PRE_ROUND16: 5,
+            Stage.ROUND16: 6,
+            Stage.PRE_QUARTER: 6,
+            Stage.QUARTER: 7,
+            Stage.SEMI: 18,
+            Stage.FINAL: 9
         }
         return penalty_map.get(self, 0)
 
