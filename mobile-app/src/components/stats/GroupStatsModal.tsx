@@ -9,6 +9,7 @@ import {
   Image,
   ScrollView,
 } from 'react-native';
+import Svg, { Circle, G, Text as SvgText } from 'react-native-svg';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService, Team } from '../../services/api';
 
@@ -32,6 +33,99 @@ interface Props {
   groupName: string;
   teams: Team[];
   onClose: () => void;
+}
+
+const DONUT_SEGMENTS = [
+  { key: '0', label: '0', color: '#ef4444' },
+  { key: '1', label: '1', color: '#f97316' },
+  { key: '2', label: '2', color: '#eab308' },
+  { key: '4', label: '4', color: '#16a34a' },
+];
+
+function DonutChart({ distribution }: { distribution: Record<string, number> }) {
+  const size = 160;
+  const strokeWidth = 28;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const cx = size / 2;
+  const cy = size / 2;
+
+  const total = DONUT_SEGMENTS.reduce((sum, s) => sum + (distribution[s.key] || 0), 0);
+
+  // Build segments with strokeDashoffset
+  let cumulativePct = 0;
+  const segments = DONUT_SEGMENTS.map((s) => {
+    const pct = total > 0 ? (distribution[s.key] || 0) / total : 0;
+    const dash = pct * circumference;
+    const gap = circumference - dash;
+    // Rotate so segment starts at cumulative position (-90deg = top)
+    const rotation = -90 + cumulativePct * 360;
+    cumulativePct += pct;
+    return { ...s, pct, dash, gap, rotation };
+  });
+
+  return (
+    <View style={styles.donutWrapper}>
+      {/* Donut SVG */}
+      <Svg width={size} height={size}>
+        {/* Background ring */}
+        <Circle
+          cx={cx} cy={cy} r={radius}
+          stroke="#1e3a5f"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        {/* Colored segments */}
+        {segments.map((seg) =>
+          seg.pct > 0 ? (
+            <G key={seg.key} transform={`rotate(${seg.rotation} ${cx} ${cy})`}>
+              <Circle
+                cx={cx} cy={cy} r={radius}
+                stroke={seg.color}
+                strokeWidth={strokeWidth}
+                fill="none"
+                strokeDasharray={`${seg.dash} ${seg.gap}`}
+                strokeLinecap="butt"
+              />
+            </G>
+          ) : null
+        )}
+        {/* Center label */}
+        <SvgText
+          x={cx} y={cy - 8}
+          textAnchor="middle"
+          fontSize="11"
+          fill="#94a3b8"
+          fontWeight="500"
+        >
+          correct
+        </SvgText>
+        <SvgText
+          x={cx} y={cy + 10}
+          textAnchor="middle"
+          fontSize="11"
+          fill="#94a3b8"
+          fontWeight="500"
+        >
+          positions
+        </SvgText>
+      </Svg>
+
+      {/* Legend */}
+      <View style={styles.donutLegend}>
+        {DONUT_SEGMENTS.map((s) => {
+          const pct = distribution[s.key] || 0;
+          return (
+            <View key={s.key} style={styles.donutLegendRow}>
+              <View style={[styles.donutLegendDot, { backgroundColor: s.color }]} />
+              <Text style={styles.donutLegendLabel}>{s.label}/4</Text>
+              <Text style={[styles.donutLegendPct, { color: s.color }]}>{pct}%</Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 export default function GroupStatsModal({ visible, groupId, groupName, teams, onClose }: Props) {
@@ -177,23 +271,8 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
           );
         })}
 
-        <Text style={[styles.sectionTitle, { marginTop: 16 }]}>How Many Positions Right?</Text>
-        <View style={styles.distContainer}>
-          {[
-            { n: 0, color: '#fee2e2', textColor: '#dc2626' },  // red - worst
-            { n: 1, color: '#ffedd5', textColor: '#ea580c' },  // orange
-            { n: 2, color: '#fef9c3', textColor: '#b45309' },   // yellow
-            { n: 4, color: '#dcfce7', textColor: '#16a34a' },   // green - best
-          ].map(({ n, color, textColor }) => {
-            const count = stats.accuracy_distribution![String(n)] || 0;
-            return (
-              <View key={n} style={[styles.distItem, { backgroundColor: color }]}>
-                <Text style={[styles.distCount, { color: textColor }]}>{count}%</Text>
-                <Text style={[styles.distLabel, { color: textColor }]}>{n}/4</Text>
-              </View>
-            );
-          })}
-        </View>
+        <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Correct Positions out of 4</Text>
+        <DonutChart distribution={stats.accuracy_distribution!} />
       </View>
     );
   };
@@ -370,32 +449,36 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 8,
   },
-  distContainer: {
+  donutWrapper: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0f172a',
+    borderRadius: 12,
+    padding: 16,
+    gap: 20,
+  },
+  donutLegend: {
+    gap: 10,
+  },
+  donutLegendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
-  distItem: {
-    flex: 1,
-    alignItems: 'center',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
-    minWidth: 0,
+  donutLegendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
-  distCount: {
+  donutLegendLabel: {
+    fontSize: 13,
+    color: '#94a3b8',
+    width: 28,
+  },
+  donutLegendPct: {
     fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    flexShrink: 1,
-  },
-  distLabel: {
-    fontSize: 11,
-    marginTop: 2,
-    textAlign: 'center',
-    flexShrink: 1,
+    fontWeight: '700',
   },
   errorText: {
     color: '#ef4444',
