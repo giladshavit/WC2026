@@ -41,16 +41,19 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
   const isInvalid = statusUpper === 'INVALID' && showStatusIndicator && !isLocked;
   const isUnreachable = statusUpper === 'UNREACHABLE' && showStatusIndicator && !isLocked;
 
-  const showScoreBadge = showStatusIndicator && (
+  const matchIsFinished = prediction.is_editable === false && (
     statusUpper === 'CORRECT_FULL' ||
     statusUpper === 'CORRECT_PARTIAL' ||
-    statusUpper === 'INCORRECT'
+    statusUpper === 'INCORRECT' ||
+    statusUpper === 'INVALID'
   );
+
+  const showScoreBadge = showStatusIndicator && matchIsFinished;
 
   const scoreBadgeColor =
     statusUpper === 'CORRECT_FULL' ? '#16a34a' :
     statusUpper === 'CORRECT_PARTIAL' ? '#f97316' :
-    '#ef4444';
+    '#ef4444'; // INCORRECT or INVALID after match = red
 
   const scoreBadgeValue = showNetScore && showScoreBadge
     ? (prediction.points ?? 0) - (prediction.penalty_points ?? 0)
