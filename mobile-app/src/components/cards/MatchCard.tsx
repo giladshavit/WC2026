@@ -579,7 +579,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
               onPress={() => setShowTemptationSuggestions(false)}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              <Ionicons name="close" size={22} color="#9ca3af" />
+              <Ionicons name="close" size={22} color="#a78bfa" />
             </TouchableOpacity>
             <Text style={styles.temptationModalTitle}>Temptation Offer</Text>
             <View style={styles.temptationModalSubtitleWrap}>
@@ -930,20 +930,22 @@ const styles = StyleSheet.create({
   },
   temptationOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(30, 0, 60, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   temptationModal: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1a0533',
     borderRadius: 20,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    borderWidth: 1.5,
+    borderColor: '#7c3aed',
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
     position: 'relative',
   },
   temptationModalClose: {
@@ -953,9 +955,9 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   temptationModalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#f3e8ff',
     marginBottom: 8,
     textAlign: 'center',
     paddingRight: 28,
@@ -966,7 +968,7 @@ const styles = StyleSheet.create({
   },
   temptationModalSubtitle: {
     fontSize: 13,
-    color: '#6b7280',
+    color: '#c4b5fd',
     textAlign: 'center',
     marginBottom: 6,
   },
@@ -975,25 +977,25 @@ const styles = StyleSheet.create({
   },
   temptationModalSubtitleGray: {
     fontSize: 13,
-    color: '#6b7280',
+    color: '#a78bfa',
   },
   temptationModalSubtitlePurple: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: '#7c3aed',
+    color: '#e879f9',
   },
   temptationModalDivider: {
     height: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#3b0764',
     marginBottom: 20,
   },
   temptationSuggestionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#faf5ff',
+    backgroundColor: '#2e1065',
     borderWidth: 1.5,
-    borderColor: '#e9d5ff',
+    borderColor: '#7c3aed',
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -1018,13 +1020,13 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   temptationRowScore: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
-    color: '#7c3aed',
+    color: '#e879f9',
   },
   temptationRowSeparator: {
     fontSize: 20,
-    color: '#9ca3af',
+    color: '#7c3aed',
     marginHorizontal: 8,
   },
   temptationCancelButton: {
@@ -1033,13 +1035,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 32,
     borderWidth: 1.5,
-    borderColor: '#d1d5db',
+    borderColor: '#4c1d95',
     borderRadius: 20,
   },
   temptationCancelText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6b7280',
+    color: '#a78bfa',
   },
   // Cursor styles
   cursorContainer: {
