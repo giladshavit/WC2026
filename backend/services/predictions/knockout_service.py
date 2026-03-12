@@ -80,6 +80,128 @@ class KnockoutService:
         }
 
     # ═══════════════════════════════════════════════════════
+    # BRACKET RESET
+    # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def preview_bracket_reset(db: Session, user_id: int) -> Dict[str, Any]:
+        """
+        Calculate the penalty cost for a bracket reset WITHOUT applying it.
+        Counts all user's knockout predictions (non-draft) and returns:
+        - invalid_count: predictions with status == 'invalid'
+        - unreachable_count: predictions with status == 'unreachable'
+        - penalty: invalid_count * 2 + unreachable_count * 1
+        - has_used_reset: user_scores.has_used_bracket_reset
+        """
+        predictions = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
+
+        invalid_count = sum(1 for p in predictions if p.status == KnockoutPredictionStatus.INVALID.value)
+        unreachable_count = sum(1 for p in predictions if p.status == KnockoutPredictionStatus.UNREACHABLE.value)
+        penalty = invalid_count * 2 + unreachable_count * 1
+
+        user_scores = DBReader.get_user_scores(db, user_id)
+        has_used_reset = user_scores.has_used_bracket_reset if user_scores else False
+
+        return {
+            "invalid_count": invalid_count,
+            "unreachable_count": unreachable_count,
+            "penalty": penalty,
+            "has_used_reset": has_used_reset,
+        }
+
+    @staticmethod
+    def apply_bracket_reset(db: Session, user_id: int) -> Dict[str, Any]:
+        """
+        Perform the bracket reset for user_id.
+
+        GUARD CHECKS (raise HTTPException if fails):
+        1. Stage must be PRE_ROUND32 exactly
+        2. user_scores.has_used_bracket_reset must be False
+
+        RESET LOGIC:
+        For every KnockoutStagePrediction (non-draft) of this user:
+          - If stage == 'round32': team1_id/team2_id from knockout result, winner=None, status='invalid', points=0, is_editable=True
+          - Other stages: team1_id=team2_id=winner=None, status='invalid', points=0, is_editable=True
+
+        Then apply penalty directly to UserScores (no ScoringService), set has_used_bracket_reset=True.
+        """
+        # GUARD: Stage must be PRE_ROUND32
+        current_stage = StageManager.get_current_stage(db)
+        if current_stage != Stage.PRE_ROUND32:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Bracket reset is only allowed during PRE_ROUND32. Current stage: {current_stage.name}"
+            )
+
+        # GUARD: has_used_bracket_reset must be False
+        user_scores = DBReader.get_user_scores(db, user_id)
+        if not user_scores:
+            user_scores = DBWriter.create_user_scores(db, user_id)
+        if user_scores.has_used_bracket_reset:
+            raise HTTPException(
+                status_code=400,
+                detail="Bracket reset has already been used"
+            )
+
+        # Count statuses BEFORE resetting predictions
+        predictions_before = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
+        invalid_count = sum(1 for p in predictions_before if p.status == KnockoutPredictionStatus.INVALID.value)
+        unreachable_count = sum(1 for p in predictions_before if p.status == KnockoutPredictionStatus.UNREACHABLE.value)
+        penalty = invalid_count * 2 + unreachable_count * 1
+
+        # Reset all predictions
+        predictions_to_reset = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
+        for prediction in predictions_to_reset:
+            if prediction.stage == 'round32':
+                knockout_result = DBReader.get_knockout_result_by_id(db, prediction.knockout_result_id) if prediction.knockout_result_id else None
+                team1 = knockout_result.team_1 if knockout_result else None
+                team2 = knockout_result.team_2 if knockout_result else None
+                DBWriter.update_knockout_prediction(
+                    db, prediction,
+                    team1_id=team1,
+                    team2_id=team2,
+                    winner_team_id=None,
+                    status=KnockoutPredictionStatus.INVALID.value,
+                    points=0,
+                    is_editable=True,
+                )
+            else:
+                DBWriter.update_knockout_prediction(
+                    db, prediction,
+                    team1_id=None,
+                    team2_id=None,
+                    winner_team_id=None,
+                    status=KnockoutPredictionStatus.INVALID.value,
+                    points=0,
+                    is_editable=True,
+                )
+
+        # Apply penalty DIRECTLY to UserScores — no helpers, no recalculation
+        if not user_scores:
+            user_scores = DBWriter.create_user_scores(db, user_id)
+        new_penalty = (user_scores.penalty or 0) + penalty
+        new_knockout_penalty = (user_scores.knockout_penalty or 0) + penalty
+        new_total_points = (user_scores.total_points or 0) - penalty
+
+        DBWriter.update_user_scores(
+            db,
+            user_scores,
+            penalty=new_penalty,
+            knockout_penalty=new_knockout_penalty,
+            total_points=new_total_points,
+            has_used_bracket_reset=True,
+        )
+
+        DBUtils.commit(db)
+
+        return {
+            "success": True,
+            "penalty_applied": penalty,
+            "invalid_count": invalid_count,
+            "unreachable_count": unreachable_count,
+        }
+
+    # ═══════════════════════════════════════════════════════
     # UPDATE Operations - Single Prediction
     # ═══════════════════════════════════════════════════════
 

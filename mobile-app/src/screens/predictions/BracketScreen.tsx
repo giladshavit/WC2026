@@ -16,7 +16,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Line } from 'react-native-svg';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { apiService, KnockoutPrediction } from '../../services/api';
+import { apiService, KnockoutPrediction, BracketResetPreview } from '../../services/api';
 import BracketMatchCard from '../../components/cards/BracketMatchCard';
 import MatchEditModal from '../../components/modals/MatchEditModal';
 import EnterEditModeModal from '../../components/modals/EnterEditModeModal';
@@ -62,7 +62,11 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [showExitModal, setShowExitModal] = useState(false);
   const [showNotEditableModal, setShowNotEditableModal] = useState(false);
   const [saveSuccessInfo, setSaveSuccessInfo] = useState<{ changes_count: number; penalty_applied: number } | null>(null);
-  
+  const [hasUsedBracketReset, setHasUsedBracketReset] = useState(false);
+  const [showBracketResetModal, setShowBracketResetModal] = useState(false);
+  const [bracketResetPreview, setBracketResetPreview] = useState<BracketResetPreview | null>(null);
+  const [isLoadingResetPreview, setIsLoadingResetPreview] = useState(false);
+
   const { showToast } = useToast();
   const [errorModal, setErrorModal] = useState<{
     title: string;
@@ -150,6 +154,13 @@ export default function BracketScreen({}: BracketScreenProps) {
       calculateCardCoordinates(spacing);
       
       setOrganizedBracket(organized);
+
+      try {
+        const preview = await apiService.getBracketResetPreview(userId);
+        setHasUsedBracketReset(preview.has_used_reset);
+      } catch (_) {
+        // Don't block the rest of the flow
+      }
       
     } catch (error) {
       console.error('Error fetching bracket predictions:', error);
@@ -441,6 +452,38 @@ export default function BracketScreen({}: BracketScreenProps) {
     }
   };
 
+  const handleBracketResetPress = async () => {
+    const userId = getCurrentUserId();
+    if (!userId) return;
+    try {
+      setIsLoadingResetPreview(true);
+      const preview = await apiService.getBracketResetPreview(userId);
+      setBracketResetPreview(preview);
+      setShowBracketResetModal(true);
+    } catch (e) {
+      setErrorModal({ title: 'Error', message: 'Could not load reset info. Please try again.' });
+    } finally {
+      setIsLoadingResetPreview(false);
+    }
+  };
+
+  const handleConfirmBracketReset = async () => {
+    const userId = getCurrentUserId();
+    if (!userId) return;
+    setShowBracketResetModal(false);
+    try {
+      setLoading(true);
+      const result = await apiService.applyBracketReset(userId);
+      setHasUsedBracketReset(true);
+      showToast(`Bracket reset! Fine: -${result.penalty_applied} pts`, 'success');
+      await fetchPredictions();
+    } catch (e) {
+      setErrorModal({ title: 'Error', message: 'Reset failed. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const executeReset = async () => {
     try {
       const userId = getCurrentUserId();
@@ -695,7 +738,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       {/* Buttons Container - chip left, buttons right */}
       <View style={styles.buttonsContainer}>
         {editMode ? (
-          <View style={styles.fineChip}>
+          <View style={[styles.fineChip, { maxWidth: 110 }]}>
             <View style={styles.fineStat}>
               <Text style={styles.fineStatLabel}>Changes</Text>
               <Text style={styles.fineStatValue}>{fineInfo?.changes_count ?? 0}</Text>
@@ -712,7 +755,7 @@ export default function BracketScreen({}: BracketScreenProps) {
             </View>
           </View>
         ) : knockoutScore !== null ? (
-          <View style={styles.knockoutScoreChip}>
+          <View style={[styles.knockoutScoreChip, { maxWidth: 110 }]}>
             <Text style={styles.knockoutScoreValue}>{knockoutScore}</Text>
             <Text style={styles.knockoutScoreLabel}>points</Text>
           </View>
@@ -731,8 +774,8 @@ export default function BracketScreen({}: BracketScreenProps) {
               onPress={handleEditModeToggle}
               disabled={loading || (!editMode && !canEditDrafts)}
             >
-              <Ionicons name={editMode ? 'log-out-outline' : 'create-outline'} size={16} color="#fff" style={{ marginRight: 5 }} />
-              <Text style={styles.editButtonText}>{editMode ? 'Exit' : 'Edit Mode'}</Text>
+              <Ionicons name={editMode ? 'log-out-outline' : 'create-outline'} size={16} color="#fff" style={{ marginRight: 4 }} />
+              <Text style={styles.editButtonText}>{editMode ? 'Exit' : 'Edit'}</Text>
             </TouchableOpacity>
           )}
 
@@ -750,10 +793,22 @@ export default function BracketScreen({}: BracketScreenProps) {
             </>
           )}
 
+          {currentStage === 'PRE_ROUND32' && !editMode && !hasUsedBracketReset && (
+            <TouchableOpacity
+              style={styles.bracketResetButton}
+              onPress={handleBracketResetPress}
+              disabled={isLoadingResetPreview}
+            >
+              <Ionicons name="refresh-circle-outline" size={16} color="#fff" style={{ marginRight: 4 }} />
+              <Text style={styles.bracketResetButtonText}>
+                {isLoadingResetPreview ? '...' : 'Reset'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {!editMode && (
             <TouchableOpacity style={styles.screenshotButton} onPress={captureBracket} disabled={isCapturing}>
-              <Ionicons name="camera-outline" size={16} color="#fff" style={{ marginRight: 5 }} />
-              <Text style={styles.screenshotButtonText}>{isCapturing ? '...' : 'Capture'}</Text>
+              <Ionicons name="camera-outline" size={18} color="#fff" />
             </TouchableOpacity>
           )}
         </View>
@@ -876,6 +931,81 @@ export default function BracketScreen({}: BracketScreenProps) {
               <Text style={styles.modalButtonText}>OK</Text>
             </TouchableOpacity>
           </View>
+        </Pressable>
+      </Modal>
+
+      {/* Bracket Reset Modal */}
+      <Modal visible={showBracketResetModal} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowBracketResetModal(false)}>
+          <Pressable style={styles.bracketResetModalCard} onPress={e => e.stopPropagation()}>
+
+            {/* Icon */}
+            <View style={styles.bracketResetIconCircle}>
+              <Ionicons name="refresh-circle" size={34} color="#7c3aed" />
+            </View>
+
+            {/* Title */}
+            <Text style={styles.bracketResetModalTitle}>Reset Bracket</Text>
+
+            {/* Description */}
+            <Text style={styles.bracketResetModalSubtitle}>
+              Resets ALL knockout predictions using the actual Round of 32 teams. Winners will be cleared so you can start fresh.{'\n'}
+              <Text style={{ color: '#dc2626', fontWeight: '700' }}>This can only be done once.</Text>
+            </Text>
+
+            <View style={styles.bracketResetDivider} />
+
+            {/* === PENALTY HERO === */}
+            <Text style={styles.bracketResetCostTitle}>RESET COST</Text>
+
+            <View style={styles.bracketResetPenaltyHero}>
+              <Text style={styles.bracketResetPenaltyNum}>
+                -{bracketResetPreview?.penalty ?? 0}
+              </Text>
+              <Text style={styles.bracketResetPenaltyLabel}>points deducted</Text>
+            </View>
+
+            {/* === BREAKDOWN ROW === */}
+            <View style={styles.bracketResetBreakdownRow}>
+              <View style={styles.bracketResetBreakdownBox}>
+                <Text style={styles.bracketResetBreakdownNum_red}>
+                  {bracketResetPreview?.invalid_count ?? 0}
+                </Text>
+                <Text style={styles.bracketResetBreakdownLabel}>Invalid</Text>
+                <Text style={styles.bracketResetBreakdownMult}>× 2 pts each</Text>
+              </View>
+
+              <View style={styles.bracketResetBreakdownDivider} />
+
+              <View style={styles.bracketResetBreakdownBox}>
+                <Text style={styles.bracketResetBreakdownNum_yellow}>
+                  {bracketResetPreview?.unreachable_count ?? 0}
+                </Text>
+                <Text style={styles.bracketResetBreakdownLabel}>Unreachable</Text>
+                <Text style={styles.bracketResetBreakdownMult}>× 1 pt each</Text>
+              </View>
+            </View>
+
+            <View style={styles.bracketResetDivider} />
+
+            {/* Buttons */}
+            <View style={styles.bracketResetButtonsRow}>
+              <TouchableOpacity
+                style={styles.bracketResetCancelBtn}
+                onPress={() => setShowBracketResetModal(false)}
+              >
+                <Text style={styles.bracketResetCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.bracketResetConfirmBtn}
+                onPress={handleConfirmBracketReset}
+              >
+                <Ionicons name="checkmark" size={16} color="#fff" style={{ marginRight: 6 }} />
+                <Text style={styles.bracketResetConfirmText}>Confirm Reset</Text>
+              </TouchableOpacity>
+            </View>
+
+          </Pressable>
         </Pressable>
       </Modal>
 
@@ -1117,18 +1247,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     zIndex: 1000,
-    paddingHorizontal: 12,
+    paddingLeft: 12,
+    paddingRight: 12,
+    gap: 8,
   },
   buttonsSpacer: {},
   buttonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 1,
+    flexWrap: 'nowrap',
   },
   editButton: {
     backgroundColor: '#0f766e',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
+    flexShrink: 1,
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1150,6 +1285,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#475569',
     paddingHorizontal: 10,
     paddingVertical: 8,
+    flexShrink: 1,
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1163,6 +1299,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#15803d',
     paddingHorizontal: 10,
     paddingVertical: 8,
+    flexShrink: 1,
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1179,8 +1316,9 @@ const styles = StyleSheet.create({
   },
   screenshotButton: {
     backgroundColor: '#1e3a8a',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
+    flexShrink: 1,
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1195,10 +1333,175 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  bracketResetButton: {
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexShrink: 1,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  bracketResetButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  bracketResetModalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  bracketResetIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#f3f0ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#ddd6fe',
+  },
+  bracketResetModalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1e293b',
+    marginBottom: 8,
+    letterSpacing: -0.3,
+  },
+  bracketResetModalSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 0,
+  },
+  bracketResetDivider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 16,
+  },
+  bracketResetCostTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94a3b8',
+    letterSpacing: 1.5,
+    marginBottom: 10,
+  },
+  bracketResetPenaltyHero: {
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: '#fca5a5',
+  },
+  bracketResetPenaltyNum: {
+    fontSize: 48,
+    fontWeight: '900',
+    color: '#dc2626',
+    letterSpacing: -1,
+    lineHeight: 54,
+  },
+  bracketResetPenaltyLabel: {
+    fontSize: 12,
+    color: '#ef4444',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  bracketResetBreakdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    gap: 0,
+  },
+  bracketResetBreakdownBox: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 3,
+  },
+  bracketResetBreakdownNum_red: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#dc2626',
+  },
+  bracketResetBreakdownNum_yellow: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#b45309',
+  },
+  bracketResetBreakdownLabel: {
+    fontSize: 11,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  bracketResetBreakdownMult: {
+    fontSize: 10,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
+  bracketResetBreakdownDivider: {
+    width: 1,
+    height: 44,
+    backgroundColor: '#e2e8f0',
+  },
+  bracketResetButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  bracketResetCancelBtn: {
+    flex: 1,
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  bracketResetCancelText: {
+    color: '#64748b',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  bracketResetConfirmBtn: {
+    flex: 2,
+    backgroundColor: '#7c3aed',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  bracketResetConfirmText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
   fineChip: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
+    flexShrink: 1,
     backgroundColor: 'rgba(30,30,30,0.55)',
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -1210,6 +1513,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
+    flexShrink: 1,
     backgroundColor: '#152a45',
     paddingHorizontal: 12,
     paddingVertical: 6,

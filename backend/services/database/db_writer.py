@@ -129,6 +129,7 @@ class DBWriter:
         scores.third_place_penalty = 0
         scores.knockout_penalty = 0
         scores.bonus_penalty = 0
+        scores.has_used_bracket_reset = False
         scores.total_points = 0
         db.flush()
         return scores
@@ -658,7 +659,7 @@ class DBWriter:
     @staticmethod
     def update_knockout_prediction(db: Session, prediction, **kwargs):
         for key, value in kwargs.items():
-            if hasattr(prediction, key) and value is not None:
+            if hasattr(prediction, key):
                 setattr(prediction, key, value)
         db.flush()
         return prediction

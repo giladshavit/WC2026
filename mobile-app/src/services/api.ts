@@ -194,6 +194,20 @@ export interface KnockoutPrediction {
   team2_is_eliminated?: boolean | null; // True if team2 has been eliminated
 }
 
+export interface BracketResetPreview {
+  invalid_count: number;
+  unreachable_count: number;
+  penalty: number;
+  has_used_reset: boolean;
+}
+
+export interface BracketResetResult {
+  success: boolean;
+  penalty_applied: number;
+  invalid_count: number;
+  unreachable_count: number;
+}
+
 // League interfaces
 export interface League {
   id: number;
@@ -795,6 +809,39 @@ export class ApiService {
       return await response.json();
     } catch (error) {
       console.error('Error committing drafts:', error);
+      throw error;
+    }
+  }
+
+  async getBracketResetPreview(userId: number): Promise<BracketResetPreview> {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(
+        `${this.baseUrl}/api/knockout/bracket-reset/preview?user_id=${userId}&_t=${timestamp}`,
+        { method: 'GET' }
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching bracket reset preview:', error);
+      throw error;
+    }
+  }
+
+  async applyBracketReset(userId: number): Promise<BracketResetResult> {
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/api/knockout/bracket-reset/apply?user_id=${userId}`,
+        { method: 'POST' }
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error applying bracket reset:', error);
       throw error;
     }
   }

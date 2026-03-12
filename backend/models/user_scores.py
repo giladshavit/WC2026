@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -29,6 +29,7 @@ class UserScores(Base):
     groups_penalty = Column(Integer, default=0, nullable=False)
     third_place_penalty = Column(Integer, default=0, nullable=False)
     knockout_penalty = Column(Integer, default=0, nullable=False)
+    has_used_bracket_reset = Column(Boolean, default=False, nullable=False)
     
     # Total points (sum of all scores above minus penalty)
     total_points = Column(Integer, default=0)

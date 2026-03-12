@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from dataclasses import dataclass
 
 from services.predictions import PredictionService
+from services.predictions.knockout_service import KnockoutService
 
 logger = logging.getLogger(__name__)
 from services.database import DBReader, DBUtils
@@ -469,5 +470,23 @@ def delete_all_drafts_for_user(
     except Exception as e:
         DBUtils.rollback(db)
         raise HTTPException(status_code=500, detail=f"Error deleting drafts: {str(e)}")
+
+
+@router.get("/knockout/bracket-reset/preview", response_model=Dict[str, Any])
+def preview_bracket_reset(user_id: int, db: Session = Depends(get_db)):
+    """Preview the penalty cost for a bracket reset without applying it."""
+    return KnockoutService.preview_bracket_reset(db, user_id)
+
+
+@router.post("/knockout/bracket-reset/apply", response_model=Dict[str, Any])
+def apply_bracket_reset(user_id: int, db: Session = Depends(get_db)):
+    """Apply bracket reset for the user (PRE_ROUND32 only, one-time)."""
+    try:
+        return KnockoutService.apply_bracket_reset(db, user_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        DBUtils.rollback(db)
+        raise HTTPException(status_code=500, detail=f"Error applying bracket reset: {str(e)}")
 
 
