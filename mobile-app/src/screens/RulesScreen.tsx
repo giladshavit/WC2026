@@ -242,7 +242,7 @@ const sections: Section[] = [
           { cells: ['Matchday 3', '−3 pts'] },
           { cells: ['Before Round of 32', '−4 pts'] },
           { cells: ['Before Round of 16', '−5 pts'] },
-          { cells: ['Before Quarter-Finals', '−6 pts'] },
+          { cells: ['Before Quarter-Final', '−6 pts'] },
         ],
       },
       {
@@ -257,6 +257,39 @@ const sections: Section[] = [
           {
             type: 'paragraph',
             text: 'Edit path predictions freely in Draft Mode and see how each change affects the full bracket — no fine is applied until you tap Save.',
+          },
+        ],
+      },
+      {
+        type: 'subsection',
+        title: '🔄 Bracket Reset (One-Time Option)',
+        blocks: [
+          {
+            type: 'paragraph',
+            text: 'Before the Round of 32 begins, you get one opportunity to fully reset your entire knockout bracket. All predictions are cleared so you can start fresh with the real teams.',
+          },
+          {
+            type: 'paragraph',
+            text: 'The reset cost is calculated from your current predictions:',
+          },
+          {
+            type: 'table',
+            headers: ['Prediction Status', 'Cost'],
+            compact: true,
+            rows: [
+              { cells: ['Invalid (🔴)', '−2 pts each'] },
+              { cells: ['Unreachable (🟠)', '−1 pt each'] },
+            ],
+          },
+          {
+            type: 'note',
+            color: 'green',
+            text: '💡 At this stage each manual bracket change costs 4 pts. If you have many invalid or unreachable predictions, a reset can be significantly cheaper than fixing them one by one.',
+          },
+          {
+            type: 'note',
+            color: 'red',
+            text: '⚠️ This option can only be used once and is only available before the Round of 32 kicks off.',
           },
         ],
       },
