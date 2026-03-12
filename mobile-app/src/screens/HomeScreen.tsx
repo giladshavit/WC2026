@@ -24,10 +24,10 @@ const buttonSize = (screenWidth - 24 * 2 - 16) / 2;
 
 function StatsBarChartIcon({ size = 36 }: { size?: number }) {
   const bars = [
-    { fill: '#f87171', h: 22 },  // red
-    { fill: '#60a5fa', h: 14 },  // blue
-    { fill: '#4ade80', h: 26 },  // green
-    { fill: '#facc15', h: 18 },  // yellow
+    { fill: '#f87171', h: 22 },
+    { fill: '#60a5fa', h: 14 },
+    { fill: '#4ade80', h: 26 },
+    { fill: '#facc15', h: 18 },
   ];
   const w = 5;
   const gap = 2;
@@ -131,48 +131,38 @@ export default function HomeScreen() {
             }
           : null;
     return (
-    <TouchableOpacity
-      key={action.title}
-      style={[
-        styles.circleButton,
-        { width: buttonSize, height: buttonSize, borderRadius: buttonSize / 2 },
-        glowStyle ?? styles.secondaryButton,
-        action.navigateTo === 'Statistics' && styles.statsButton,
-        action.navigateTo === 'Profile' && styles.profileButton,
-      ]}
-      onPress={() => navigation.navigate(action.navigateTo)}
-      activeOpacity={0.8}
-    >
-      {action.navigateTo === 'Statistics' ? (
-        <View style={styles.icon}>
-          <StatsBarChartIcon size={38} />
-        </View>
-      ) : (
-        <Ionicons
-          name={action.icon}
-          size={action.navigateTo === 'Leagues' ? 40 : 36}
-          color={action.iconColor ?? (action.accent ? '#ffffff' : '#94a3b8')}
-          style={styles.icon}
-        />
-      )}
-      <Text
+      <TouchableOpacity
+        key={action.title}
         style={[
-          styles.buttonTitle,
-          action.accent && styles.accentButtonTitle,
+          styles.circleButton,
+          { width: buttonSize, height: buttonSize, borderRadius: buttonSize / 2 },
+          glowStyle ?? styles.secondaryButton,
+          action.navigateTo === 'Statistics' && styles.statsButton,
+          action.navigateTo === 'Profile' && styles.profileButton,
         ]}
+        onPress={() => navigation.navigate(action.navigateTo)}
+        activeOpacity={0.8}
       >
-        {action.title}
-      </Text>
-      <Text
-        style={[
-          styles.buttonSubtitle,
-          action.accent && styles.accentButtonSubtitle,
-        ]}
-      >
-        {action.subtitle}
-      </Text>
-    </TouchableOpacity>
-  );
+        {action.navigateTo === 'Statistics' ? (
+          <View style={styles.icon}>
+            <StatsBarChartIcon size={38} />
+          </View>
+        ) : (
+          <Ionicons
+            name={action.icon}
+            size={action.navigateTo === 'Leagues' ? 40 : 36}
+            color={action.iconColor ?? (action.accent ? '#ffffff' : '#94a3b8')}
+            style={styles.icon}
+          />
+        )}
+        <Text style={[styles.buttonTitle, action.accent && styles.accentButtonTitle]}>
+          {action.title}
+        </Text>
+        <Text style={[styles.buttonSubtitle, action.accent && styles.accentButtonSubtitle]}>
+          {action.subtitle}
+        </Text>
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -189,16 +179,8 @@ export default function HomeScreen() {
         <Text style={styles.subtitle}>Where do you want to go?</Text>
 
         <View style={styles.waveSvgContainer}>
-          <Svg
-            height="32"
-            width="100%"
-            viewBox="0 0 390 32"
-            preserveAspectRatio="none"
-          >
-            <Path
-              d="M0,0 C97.5,32 292.5,32 390,0 L390,0 L0,0 Z"
-              fill="#0f172a"
-            />
+          <Svg height="32" width="100%" viewBox="0 0 390 32" preserveAspectRatio="none">
+            <Path d="M0,0 C97.5,32 292.5,32 390,0 L390,0 L0,0 Z" fill="#0f172a" />
           </Svg>
         </View>
       </View>
@@ -211,6 +193,23 @@ export default function HomeScreen() {
         <View style={styles.buttonsGrid}>
           {actions.map((action) => renderButton(action))}
         </View>
+
+        {/* How to Play — styled as a secondary action row, consistent with the dark card feel */}
+        <TouchableOpacity
+          style={styles.rulesRow}
+          onPress={() => navigation.navigate('Rules' as any)}
+          activeOpacity={0.75}
+        >
+          <View style={styles.rulesIconWrap}>
+            <Ionicons name="book-outline" size={20} color="#94a3b8" />
+          </View>
+          <View style={styles.rulesTextWrap}>
+            <Text style={styles.rulesTitle}>How to Play</Text>
+            <Text style={styles.rulesSubtitle}>Rules, scoring & penalties</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#475569" />
+        </TouchableOpacity>
+
         {isAdmin && (
           <TouchableOpacity
             style={styles.adminPill}
@@ -227,13 +226,8 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#1e293b',
-  },
-  scrollView: {
-    flex: 1,
-  },
+  safeArea: { flex: 1, backgroundColor: '#1e293b' },
+  scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 24,
@@ -246,26 +240,15 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     overflow: 'visible',
   },
-  logoContainer: {
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
+  logoContainer: { alignItems: 'flex-start', marginBottom: 8 },
   logoSeparator: {
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.2)',
     marginVertical: 10,
     width: '40%',
   },
-  greeting: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-  },
+  greeting: { fontSize: 28, fontWeight: '800', color: '#ffffff', marginBottom: 4 },
+  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.8)' },
   waveSvgContainer: {
     position: 'absolute',
     bottom: -31,
@@ -278,6 +261,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginTop: 32,
+    marginBottom: 8,
   },
   circleButton: {
     padding: 16,
@@ -312,6 +296,35 @@ const styles = StyleSheet.create({
     shadowColor: 'transparent',
     elevation: 0,
   },
+
+  // How to Play row
+  rulesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#1e293b',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginBottom: 12,
+  },
+  rulesIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#0f172a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  rulesTextWrap: { flex: 1 },
+  rulesTitle: { fontSize: 15, fontWeight: '700', color: '#e2e8f0' },
+  rulesSubtitle: { fontSize: 12, color: '#64748b', marginTop: 2 },
+
+  // Admin
   adminPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -323,31 +336,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e293b',
     borderWidth: 1,
     borderColor: '#334155',
-    marginTop: 8,
-  },
-  adminPillText: {
-    fontSize: 13,
-    color: '#64748b',
-    fontWeight: '500',
-  },
-  icon: {
-    marginBottom: 8,
-  },
-  buttonTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#f1f5f9',
-  },
-  accentButtonTitle: {
-    color: '#ffffff',
-  },
-  buttonSubtitle: {
-    fontSize: 11,
-    color: '#94a3b8',
-    textAlign: 'center',
     marginTop: 4,
   },
-  accentButtonSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
-  },
+  adminPillText: { fontSize: 13, color: '#64748b', fontWeight: '500' },
+
+  icon: { marginBottom: 8 },
+  buttonTitle: { fontSize: 15, fontWeight: '600', color: '#f1f5f9' },
+  accentButtonTitle: { color: '#ffffff' },
+  buttonSubtitle: { fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 4 },
+  accentButtonSubtitle: { color: 'rgba(255,255,255,0.8)' },
 });

@@ -11,6 +11,7 @@ import BracketScreen from '../screens/predictions/BracketScreen';
 import BonusScreen from '../screens/predictions/BonusScreen';
 import AdminNavigator from './AdminNavigator';
 import UserProfileScreen from '../screens/UserProfileScreen';
+import RulesScreen from '../screens/RulesScreen';
 
 export type MainStackParamList = {
   Home: undefined;
@@ -22,6 +23,7 @@ export type MainStackParamList = {
   BonusPredictions: undefined;
   Leagues: undefined;
   Statistics: undefined;
+  Rules: undefined;
   Admin: undefined;
   UserProfile: { userId: number; username: string };
 };
@@ -118,6 +120,11 @@ export default function MainNavigator() {
           title: 'Statistics',
           headerStyle: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0, borderBottomWidth: 0 },
         }}
+      />
+      <Stack.Screen
+        name="Rules"
+        component={RulesScreen}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="Admin"
