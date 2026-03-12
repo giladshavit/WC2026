@@ -54,7 +54,15 @@ class GroupStatisticsService:
 
     @staticmethod
     def _post_result_stats(group, predictions, teams: Dict[int, str], result) -> Dict[str, Any]:
-        total = len(predictions)
+        # Keep only predictions where at least one position was filled
+        answered = [
+            p for p in predictions
+            if any(getattr(p, pos, None) is not None for pos in GroupStatisticsService.POSITIONS)
+        ]
+        total = len(answered)
+
+        if total == 0:
+            return {"group_id": group.id, "group_name": group.name, "has_result": True, "total_predictions": 0}
 
         return {
             "group_id": group.id,
@@ -62,10 +70,10 @@ class GroupStatisticsService:
             "has_result": True,
             "total_predictions": total,
             "position_accuracy": GroupStatisticsService._calc_position_accuracy(
-                predictions, teams, result, total
+                answered, teams, result, total
             ),
             "accuracy_distribution": GroupStatisticsService._calc_accuracy_distribution(
-                predictions, result, total
+                answered, result, total
             ),
         }
 

@@ -46,7 +46,18 @@ class KnockoutStatisticsService:
 
     @staticmethod
     def _post_result_stats(db, template_match_id, predictions, result) -> Dict[str, Any]:
-        total = len(predictions)
+        # Filter to only predictions with at least one field filled
+        answered = [
+            p for p in predictions
+            if p.winner_team_id is not None
+            or p.team1_id is not None
+            or p.team2_id is not None
+        ]
+        total = len(answered)
+
+        if total == 0:
+            return {"template_match_id": template_match_id, "has_result": True, "total_predictions": 0}
+
         winner_id = result.winner_team_id
         stage = predictions[0].stage
 
@@ -54,7 +65,7 @@ class KnockoutStatisticsService:
         partial = DBReader.count_knockout_winner_in_stage_excluding_match(
             db, stage, winner_id, template_match_id
         )
-        matchup = KnockoutStatisticsService._count_correct_matchups(predictions, result)
+        matchup = KnockoutStatisticsService._count_correct_matchups(answered, result)
 
         team1 = DBReader.get_team(db, result.team_1) if result.team_1 else None
         team2 = DBReader.get_team(db, result.team_2) if result.team_2 else None

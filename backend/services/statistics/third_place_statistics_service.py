@@ -61,17 +61,26 @@ class ThirdPlaceStatisticsService:
     @staticmethod
     def _post_result_stats(predictions, result, team_group_cache: Dict[int, str]) -> Dict[str, Any]:
         """Accuracy per group + distribution (4-8) as percentages."""
-        total = len(predictions)
+        # Keep only predictions where at least one team was picked
+        answered = [
+            p for p in predictions
+            if any(getattr(p, field, None) is not None for field in ThirdPlaceStatisticsService.TEAM_FIELDS)
+        ]
+        total = len(answered)
+
+        if total == 0:
+            return {"has_result": True, "total_predictions": 0}
+
         actual_groups = ThirdPlaceStatisticsService._extract_groups(result, team_group_cache)
 
         return {
             "has_result": True,
             "total_predictions": total,
             "group_accuracy": ThirdPlaceStatisticsService._calc_group_accuracy(
-                predictions, actual_groups, team_group_cache, total
+                answered, actual_groups, team_group_cache, total
             ),
             "accuracy_distribution": ThirdPlaceStatisticsService._calc_accuracy_distribution(
-                predictions, actual_groups, team_group_cache, total
+                answered, actual_groups, team_group_cache, total
             ),
         }
 
