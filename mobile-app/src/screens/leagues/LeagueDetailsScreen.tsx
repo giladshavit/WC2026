@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -154,6 +156,7 @@ function PodiumSection({
 function AnimatedPlayerRow({
   item,
   index,
+  rank: rankProp,
   currentUserId,
   truncateName,
   liveMatchPredictionsList,
@@ -164,6 +167,7 @@ function AnimatedPlayerRow({
 }: {
   item: StandingWithFine;
   index: number;
+  rank?: number;
   currentUserId: number | null;
   truncateName: (name: string) => string;
   liveMatchPredictionsList: LeagueMatchPredictionsResponse[];
@@ -186,7 +190,7 @@ function AnimatedPlayerRow({
   const fineVal = item.penalty ?? 0; // API returns penalty
   const groupsPlusThird = (item.groups_points ?? 0) + (item.third_place_points ?? 0);
   const rowBg = index % 2 === 0 ? '#0f172a' : '#111827';
-  const rank = index + 1;
+  const rank = rankProp ?? index + 1;
 
   const renderRankIcon = () => {
     if (rank === 1) return <View style={styles.rankIconContainer}><Ionicons name="medal" size={14} color="#D4AF37" /></View>;
@@ -361,23 +365,37 @@ export default function LeagueDetailsScreen() {
   const { showToast } = useToast();
 
   const [standingsData, setStandingsData] = useState<LeagueStandingsResponse | null>(null);
+  const [sortBy, setSortBy] = useState<SortKey>('total');
+  const [page, setPage] = useState(1);
+  const [allStandings, setAllStandings] = useState<StandingWithFine[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentUserEntry, setCurrentUserEntry] = useState<StandingWithFine | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const PAGE_SIZE = 50;
   const [errorModal, setErrorModal] = useState<{
     title: string;
     message: string;
     goBack?: boolean;
   } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [sortBy, setSortBy] = useState<SortKey>('total');
   const [menuVisible, setMenuVisible] = useState(false);
   const [leaveModalVisible, setLeaveModalVisible] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [liveMatchPredictionsList, setLiveMatchPredictionsList] = useState<LeagueMatchPredictionsResponse[]>([]);
   const liveRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const liveMatchIdsRef = useRef<number[]>([]);
+  const flashListRef = useRef<any>(null);
   const [scoreMode, setScoreMode] = useState<'weighted' | 'matches'>('weighted');
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [userDismissedLive, setUserDismissedLive] = useState(false);
+
+  const handleSortByChange = (newSortBy: SortKey) => {
+    flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    setSortBy(newSortBy);
+    setPage(1);
+    setAllStandings([]);
+  };
 
   const isGlobalLeague = leagueId === 'global';
   const currentUserId = getCurrentUserId();
@@ -432,28 +450,34 @@ export default function LeagueDetailsScreen() {
     }
   };
 
-  const fetchStandings = async () => {
+  const fetchStandings = async (append: boolean) => {
+    if (append) {
+      setLoadingMore(true);
+    }
     try {
-      let data: LeagueStandingsResponse;
-
-      if (isGlobalLeague) {
-        data = await apiService.getGlobalStandings();
-      } else {
-        data = await apiService.getLeagueStandings(Number(leagueId));
-      }
+      const data = isGlobalLeague
+        ? await apiService.getGlobalStandings({ sort_by: sortBy, page, page_size: PAGE_SIZE })
+        : await apiService.getLeagueStandings(Number(leagueId), { sort_by: sortBy, page, page_size: PAGE_SIZE });
 
       setStandingsData(data);
+      setTotalCount(data.total_count);
+      setCurrentUserEntry((data.current_user_entry as StandingWithFine) ?? null);
+      if (append) {
+        setAllStandings((prev) => [...prev, ...(data.standings as StandingWithFine[])]);
+      } else {
+        setAllStandings(data.standings as StandingWithFine[]);
+      }
       await fetchAndSetupLiveMatches();
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching standings:', error);
-      setLoading(false);
       setErrorModal({
         title: 'Failed to Load',
         message: 'Could not load league standings. Please try again.',
         goBack: true,
       });
-      return;
+    } finally {
+      setInitialLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -470,13 +494,22 @@ export default function LeagueDetailsScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchStandings();
+    setPage(1);
+    setAllStandings([]);
+    await fetchStandings(false);
     setRefreshing(false);
   };
 
   useEffect(() => {
-    fetchStandings();
+    setPage(1);
+    setAllStandings([]);
+    setSortBy('total');
+    setStandingsData(null);
   }, [leagueId]);
+
+  useEffect(() => {
+    fetchStandings(page !== 1);
+  }, [leagueId, sortBy, page]);
 
   useEffect(() => {
     if (liveMatchPredictionsList.length > 0 && !userDismissedLive) {
@@ -523,53 +556,13 @@ export default function LeagueDetailsScreen() {
     }
   };
 
-  const sortedStandings = useMemo(() => {
-    if (!standingsData?.standings) return [];
-    const standings = [...standingsData.standings] as StandingWithFine[];
-    const fine = (s: StandingWithFine) => s.penalty ?? 0; // API returns penalty
-    const groupsPlusThird = (s: StandingWithFine) =>
-      (s.groups_points ?? 0) + (s.third_place_points ?? 0);
-
-    standings.sort((a, b) => {
-      switch (sortBy) {
-        case 'total':
-          return (b.total_points ?? 0) - (a.total_points ?? 0);
-        case 'matches':
-          return (b.matches_points ?? 0) - (a.matches_points ?? 0);
-        case 'groups':
-          return groupsPlusThird(b) - groupsPlusThird(a);
-        case 'knockout':
-          return (b.knockout_points ?? 0) - (a.knockout_points ?? 0);
-        case 'bonus':
-          return (b.bonus_points ?? 0) - (a.bonus_points ?? 0);
-        case 'fine':
-          return fine(b) - fine(a);
-        default:
-          return 0;
-      }
-    });
-    return standings;
-  }, [standingsData?.standings, sortBy]);
-
-  const currentUserRank = useMemo(() => {
-    if (!currentUserId) return null;
-    const idx = sortedStandings.findIndex((s) => s.user_id === currentUserId);
-    return idx >= 0 ? idx + 1 : null;
-  }, [sortedStandings, currentUserId]);
-
-  const currentUserStanding = useMemo(() => {
-    if (!currentUserId) return null;
-    return sortedStandings.find((s) => s.user_id === currentUserId) ?? null;
-  }, [sortedStandings, currentUserId]);
-
   const truncateName = (name: string, maxLen: number = 12) =>
     name.length > maxLen ? `${name.slice(0, maxLen - 1)}…` : name;
 
-  const topThree = sortedStandings.slice(0, 3);
-  const restStandings = sortedStandings;
+  const topThree = allStandings.slice(0, 3);
+  const restStandings = allStandings;
 
-
-  if (loading) {
+  if (initialLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -603,7 +596,7 @@ export default function LeagueDetailsScreen() {
     );
   }
 
-  const memberCount = standingsData.standings.length;
+  const memberCount = totalCount;
   const effectiveLiveList = isLiveMode ? liveMatchPredictionsList : [];
   const showOnlyTotalColumn = isLiveMode || scoreMode === 'matches';
 
@@ -684,7 +677,7 @@ export default function LeagueDetailsScreen() {
         <View style={styles.scoreModeToggle}>
           <TouchableOpacity
             style={[styles.scoreModeBtn, scoreMode === 'weighted' && styles.scoreModeBtnActive]}
-            onPress={() => { setSortBy('total'); setScoreMode('weighted'); }}
+            onPress={() => { handleSortByChange('total'); setScoreMode('weighted'); }}
           >
             <Text style={[styles.scoreModeBtnText, scoreMode === 'weighted' && styles.scoreModeBtnTextActive]}>
               All
@@ -692,7 +685,7 @@ export default function LeagueDetailsScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.scoreModeBtn, scoreMode === 'matches' && styles.scoreModeBtnActive]}
-            onPress={() => { setSortBy('matches'); setScoreMode('matches'); }}
+            onPress={() => { handleSortByChange('matches'); setScoreMode('matches'); }}
           >
             <Text style={[styles.scoreModeBtnText, scoreMode === 'matches' && styles.scoreModeBtnTextActive]}>
               Matches
@@ -738,10 +731,17 @@ export default function LeagueDetailsScreen() {
         )}
 
         <View style={styles.tableSection}>
-          <ScrollView
-            style={[styles.tableBody, { flex: 1 }]}
-            contentContainerStyle={styles.tableBodyContent}
-            showsVerticalScrollIndicator={true}
+          <FlashList
+            ref={flashListRef}
+            data={allStandings}
+            keyExtractor={(item) => String(item.user_id)}
+            onEndReached={() => {
+              if (!loadingMore && allStandings.length < totalCount) {
+                setPage((p) => p + 1);
+              }
+            }}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={loadingMore ? <ActivityIndicator color="#fff" style={{ padding: 12 }} /> : null}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -749,19 +749,90 @@ export default function LeagueDetailsScreen() {
                 tintColor="#ffffff"
               />
             }
-          >
-            <View style={styles.tableRowContainer}>
-              <View style={styles.tableFixedLeft}>
-                <View style={[styles.tableHeader, { height: 46, backgroundColor: '#334155' }]}>
-                  <View style={styles.colPlayer}>
-                    <Text style={[styles.headerCell, styles.cellLeft]}>Rank</Text>
+            ListHeaderComponent={
+              <View style={styles.tableRowContainer}>
+                <View style={styles.tableFixedLeft}>
+                  <View style={[styles.tableHeader, { height: 46, backgroundColor: '#334155' }]}>
+                    <View style={styles.colPlayer}>
+                      <Text style={[styles.headerCell, styles.cellLeft]}>Rank</Text>
+                    </View>
                   </View>
                 </View>
-                {restStandings.map((item, index) => (
+                {!isLiveMode && scoreMode === 'weighted' && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.tableScrollMiddle}
+                    contentContainerStyle={styles.tableScrollMiddleContent}
+                  >
+                    <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+                      <View style={[styles.tableHeader, styles.tableHeaderMiddle, { height: 46, backgroundColor: '#334155' }]}>
+                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('matches')} activeOpacity={0.7}>
+                          <View style={styles.headerIconWrapper}>
+                            <Ionicons name={sortBy === 'matches' ? 'football' : 'football-outline'} size={14} color={sortBy === 'matches' ? '#ffffff' : '#94a3b8'} />
+                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'matches' ? '#ffffff' : 'transparent' }]} />
+                          </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('groups')} activeOpacity={0.7}>
+                          <View style={styles.headerIconWrapper}>
+                            <Ionicons name={sortBy === 'groups' ? 'home' : 'home-outline'} size={14} color={sortBy === 'groups' ? '#ffffff' : '#94a3b8'} />
+                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'groups' ? '#ffffff' : 'transparent' }]} />
+                          </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('knockout')} activeOpacity={0.7}>
+                          <View style={styles.headerIconWrapper}>
+                            <Ionicons name={sortBy === 'knockout' ? 'trophy' : 'trophy-outline'} size={14} color={sortBy === 'knockout' ? '#ffffff' : '#94a3b8'} />
+                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'knockout' ? '#ffffff' : 'transparent' }]} />
+                          </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('bonus')} activeOpacity={0.7}>
+                          <View style={styles.headerIconWrapper}>
+                            <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? '#16a34a' : '#94a3b8'} />
+                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? '#16a34a' : 'transparent' }]} />
+                          </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.colFine, styles.headerIconCell]} onPress={() => handleSortByChange('fine')} activeOpacity={0.7}>
+                          <View style={styles.headerIconWrapper}>
+                            <Ionicons name={sortBy === 'fine' ? 'warning' : 'warning-outline'} size={14} color={sortBy === 'fine' ? '#ef4444' : 'rgba(239,68,68,0.4)'} />
+                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'fine' ? '#ef4444' : 'transparent' }]} />
+                          </View>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </ScrollView>
+                )}
+                <View style={[styles.tableFixedRight, showOnlyTotalColumn ? { flex: 1, backgroundColor: '#0f172a' } : { width: 54 + effectiveLiveList.length * 50, backgroundColor: '#0f172a', alignSelf: 'stretch' }]}>
+                  <View style={[styles.tableHeader, styles.tableHeaderRight, { height: 46, backgroundColor: '#334155' }, showOnlyTotalColumn && { justifyContent: 'flex-end' }]}>
+                    {effectiveLiveList.map((liveData) => (
+                      <View key={liveData.match_id} style={[styles.colLive, styles.headerIconCell]}>
+                        <LiveHeaderCell liveMatchPredictions={liveData} />
+                      </View>
+                    ))}
+                    {scoreMode === 'matches' ? (
+                      <View style={[styles.colTotal, styles.headerIconCell]}>
+                        <View style={styles.headerIconWrapper}>
+                          <Ionicons name="star" size={14} color="#fbbf24" />
+                        </View>
+                      </View>
+                    ) : (
+                      <TouchableOpacity style={[styles.colTotal, styles.headerIconCell]} onPress={() => handleSortByChange('total')} activeOpacity={0.7}>
+                        <View style={styles.headerIconWrapper}>
+                          <Ionicons name={sortBy === 'total' ? 'star' : 'star-outline'} size={14} color={sortBy === 'total' ? '#fbbf24' : 'rgba(251,191,36,0.4)'} />
+                          <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'total' ? '#fbbf24' : 'transparent' }]} />
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              </View>
+            }
+            renderItem={({ item, index }) => (
+              <View style={styles.tableRowContainer}>
+                <View style={styles.tableFixedLeft}>
                   <AnimatedPlayerRow
-                    key={item.user_id}
                     item={item}
                     index={index}
+                    rank={item.rank}
                     currentUserId={currentUserId}
                     truncateName={truncateName}
                     liveMatchPredictionsList={liveMatchPredictionsList}
@@ -769,73 +840,13 @@ export default function LeagueDetailsScreen() {
                     scoreMode={scoreMode}
                     onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('UserProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
                   />
-                ))}
-              </View>
-              {!isLiveMode && scoreMode === 'weighted' && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.tableScrollMiddle}
-                contentContainerStyle={styles.tableScrollMiddleContent}
-              >
-                <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
-                  <View style={[styles.tableHeader, styles.tableHeaderMiddle, { height: 46, backgroundColor: '#334155' }]}>
-                    <TouchableOpacity
-                      style={[styles.colNum, styles.headerIconCell]}
-                      onPress={() => setSortBy('matches')}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.headerIconWrapper}>
-                        <Ionicons name={sortBy === 'matches' ? 'football' : 'football-outline'} size={14} color={sortBy === 'matches' ? '#ffffff' : '#94a3b8'} />
-                        <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'matches' ? '#ffffff' : 'transparent' }]} />
-                      </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.colNum, styles.headerIconCell]}
-                      onPress={() => setSortBy('groups')}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.headerIconWrapper}>
-                        <Ionicons name={sortBy === 'groups' ? 'home' : 'home-outline'} size={14} color={sortBy === 'groups' ? '#ffffff' : '#94a3b8'} />
-                        <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'groups' ? '#ffffff' : 'transparent' }]} />
-                      </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.colNum, styles.headerIconCell]}
-                      onPress={() => setSortBy('knockout')}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.headerIconWrapper}>
-                        <Ionicons name={sortBy === 'knockout' ? 'trophy' : 'trophy-outline'} size={14} color={sortBy === 'knockout' ? '#ffffff' : '#94a3b8'} />
-                        <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'knockout' ? '#ffffff' : 'transparent' }]} />
-                      </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.colNum, styles.headerIconCell]}
-                      onPress={() => setSortBy('bonus')}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.headerIconWrapper}>
-                        <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? '#16a34a' : '#94a3b8'} />
-                        <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? '#16a34a' : 'transparent' }]} />
-                      </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.colFine, styles.headerIconCell]}
-                      onPress={() => setSortBy('fine')}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.headerIconWrapper}>
-                        <Ionicons name={sortBy === 'fine' ? 'warning' : 'warning-outline'} size={14} color={sortBy === 'fine' ? '#ef4444' : 'rgba(239,68,68,0.4)'} />
-                        <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'fine' ? '#ef4444' : 'transparent' }]} />
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                  {restStandings.map((item, index) => (
+                </View>
+                {!isLiveMode && scoreMode === 'weighted' && (
+                  <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
                     <AnimatedPlayerRow
-                      key={item.user_id}
                       item={item}
                       index={index}
+                      rank={item.rank}
                       currentUserId={currentUserId}
                       truncateName={truncateName}
                       liveMatchPredictionsList={liveMatchPredictionsList}
@@ -843,51 +854,13 @@ export default function LeagueDetailsScreen() {
                       scoreMode={scoreMode}
                       onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('UserProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
                     />
-                  ))}
-                </View>
-              </ScrollView>
-              )}
-              <View style={[
-                styles.tableFixedRight,
-                showOnlyTotalColumn
-                  ? { flex: 1, backgroundColor: '#0f172a' }
-                  : { width: 54 + effectiveLiveList.length * 50, backgroundColor: '#0f172a', alignSelf: 'stretch' }
-              ]}>
-                <View style={[
-                  styles.tableHeader,
-                  styles.tableHeaderRight,
-                  { height: 46, backgroundColor: '#334155' },
-                  showOnlyTotalColumn && { justifyContent: 'flex-end' },
-                ]}>
-                  {effectiveLiveList.map((liveData) => (
-                    <View key={liveData.match_id} style={[styles.colLive, styles.headerIconCell]}>
-                      <LiveHeaderCell liveMatchPredictions={liveData} />
-                    </View>
-                  ))}
-                  {scoreMode === 'matches' ? (
-                    <View style={[styles.colTotal, styles.headerIconCell]}>
-                      <View style={styles.headerIconWrapper}>
-                        <Ionicons name="star" size={14} color="#fbbf24" />
-                      </View>
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={[styles.colTotal, styles.headerIconCell]}
-                      onPress={() => setSortBy('total')}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.headerIconWrapper}>
-                        <Ionicons name={sortBy === 'total' ? 'star' : 'star-outline'} size={14} color={sortBy === 'total' ? '#fbbf24' : 'rgba(251,191,36,0.4)'} />
-                        <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'total' ? '#fbbf24' : 'transparent' }]} />
-                      </View>
-                    </TouchableOpacity>
-                  )}
-                </View>
-                {restStandings.map((item, index) => (
+                  </View>
+                )}
+                <View style={[styles.tableFixedRight, showOnlyTotalColumn ? { flex: 1, backgroundColor: '#0f172a' } : { width: 54 + effectiveLiveList.length * 50, backgroundColor: '#0f172a', alignSelf: 'stretch' }]}>
                   <AnimatedPlayerRow
-                    key={item.user_id}
                     item={item}
                     index={index}
+                    rank={item.rank}
                     currentUserId={currentUserId}
                     truncateName={truncateName}
                     liveMatchPredictionsList={effectiveLiveList}
@@ -896,12 +869,14 @@ export default function LeagueDetailsScreen() {
                     showOnlyTotalColumn={showOnlyTotalColumn}
                     onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('UserProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
                   />
-                ))}
+                </View>
               </View>
-            </View>
-          </ScrollView>
+            )}
+            style={StyleSheet.flatten([styles.tableBody, { flex: 1 }])}
+            contentContainerStyle={styles.tableBodyContent}
+          />
 
-          {currentUserStanding && currentUserRank && currentUserRank > 3 && (
+          {currentUserEntry && currentUserEntry.rank != null && currentUserEntry.rank > 3 && (
             <View style={styles.stickyUserRow}>
               <View style={[styles.tableFixedLeft, { backgroundColor: '#1a2744' }]}>
                 <View style={[styles.playerRow, styles.playerRowContent, { minHeight: 52, borderBottomWidth: 0 }]}>
@@ -914,11 +889,11 @@ export default function LeagueDetailsScreen() {
                           adjustsFontSizeToFit
                           minimumFontScale={0.7}
                         >
-                          {currentUserRank}
+                          {currentUserEntry.rank}
                         </Text>
                       </View>
                       <Text style={[styles.cellName, styles.cellLeft, styles.cellBold]} numberOfLines={1}>
-                        {truncateName(currentUserStanding.name ?? (currentUserStanding as any).username ?? 'You')}
+                        {truncateName(currentUserEntry.name ?? (currentUserEntry as any).username ?? 'You')}
                       </Text>
                     </View>
                   </View>
@@ -934,28 +909,28 @@ export default function LeagueDetailsScreen() {
                 <View style={[styles.playerRow, styles.playerRowContent, { minHeight: 52, borderBottomWidth: 0, paddingHorizontal: 14, backgroundColor: '#1a2744' }]}>
                   <View style={styles.colNum}>
                     <Text style={[styles.cellText, styles.cellCenter]}>
-                      {currentUserStanding.matches_points ?? 0}
+                      {currentUserEntry.matches_points ?? 0}
                     </Text>
                   </View>
                   <View style={styles.colNum}>
                     <Text style={[styles.cellText, styles.cellCenter]}>
-                      {(currentUserStanding.groups_points ?? 0) + (currentUserStanding.third_place_points ?? 0)}
+                      {(currentUserEntry.groups_points ?? 0) + (currentUserEntry.third_place_points ?? 0)}
                     </Text>
                   </View>
                   <View style={styles.colNum}>
                     <Text style={[styles.cellText, styles.cellCenter]}>
-                      {currentUserStanding.knockout_points ?? 0}
+                      {currentUserEntry.knockout_points ?? 0}
                     </Text>
                   </View>
                   <View style={styles.colNum}>
                     <Text style={[styles.cellText, styles.cellCenter]}>
-                      {currentUserStanding.bonus_points ?? 0}
+                      {currentUserEntry.bonus_points ?? 0}
                     </Text>
                   </View>
                   <View style={styles.colFine}>
-                    {(currentUserStanding.penalty ?? 0) > 0 ? (
+                    {(currentUserEntry.penalty ?? 0) > 0 ? (
                       <View style={styles.fineBadge}>
-                        <Text style={styles.fineBadgeText}>-{currentUserStanding.penalty}</Text>
+                        <Text style={styles.fineBadgeText}>-{currentUserEntry.penalty}</Text>
                       </View>
                     ) : (
                       <Text style={[styles.cellText, styles.cellCenter]}>0</Text>
@@ -983,7 +958,7 @@ export default function LeagueDetailsScreen() {
                     showOnlyTotalColumn && { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
                   ]}>
                     {effectiveLiveList.map((liveData) => {
-                      const memberPred = liveData.predictions.find((p) => p.user_id === currentUserStanding.user_id) ?? null;
+                      const memberPred = liveData.predictions.find((p) => p.user_id === currentUserEntry.user_id) ?? null;
                       const hasScore = memberPred && memberPred.home_score != null && memberPred.away_score != null;
                       const scoreDisplay = hasScore ? `${memberPred!.home_score}:${memberPred!.away_score}` : '—';
                       return (
@@ -1008,7 +983,7 @@ export default function LeagueDetailsScreen() {
                           adjustsFontSizeToFit={true}
                           minimumFontScale={0.5}
                         >
-                          {scoreMode === 'matches' ? (currentUserStanding.matches_points ?? 0) : (currentUserStanding.total_points ?? 0)}
+                          {scoreMode === 'matches' ? (currentUserEntry.matches_points ?? 0) : (currentUserEntry.total_points ?? 0)}
                         </Text>
                       </View>
                     </View>

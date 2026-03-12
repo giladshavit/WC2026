@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, validator
@@ -68,6 +68,10 @@ class LeagueStanding(BaseModel):
 class LeagueStandingsResponse(BaseModel):
     league_info: Optional[Dict[str, Any]] = None
     standings: List[LeagueStanding]
+    total_count: int
+    page: int
+    page_size: int
+    current_user_entry: Optional[LeagueStanding] = None
 
 
 class MemberMatchPrediction(BaseModel):
@@ -178,18 +182,32 @@ def join_league(
 
 @router.get("/leagues/global", response_model=LeagueStandingsResponse)
 def get_global_standings(
-    db: Session = Depends(get_db)
+    sort_by: str = Query("total", enum=["total", "matches", "groups", "knockout", "bonus", "fine"]),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=10, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Get global standings (all users).
     """
     try:
-        standings = LeagueService.get_global_standings(db=db)
-        standings_data = [LeagueStanding(**standing) for standing in standings]
-        
+        result = LeagueService.get_global_standings(
+            db=db,
+            current_user_id=current_user.id,
+            sort_by=sort_by,
+            page=page,
+            page_size=page_size,
+        )
+        standings_data = [LeagueStanding(**s) for s in result["standings"]]
+        current_entry = LeagueStanding(**result["current_user_entry"]) if result.get("current_user_entry") else None
         return LeagueStandingsResponse(
-            league_info=None,  # No league info for global standings
-            standings=standings_data
+            league_info=None,
+            standings=standings_data,
+            total_count=result["total_count"],
+            page=result["page"],
+            page_size=result["page_size"],
+            current_user_entry=current_entry,
         )
     except HTTPException:
         raise
@@ -202,25 +220,36 @@ def get_global_standings(
 @router.get("/leagues/{league_id}/standings", response_model=LeagueStandingsResponse)
 def get_league_standings(
     league_id: int,
+    sort_by: str = Query("total", enum=["total", "matches", "groups", "knockout", "bonus", "fine"]),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=10, le=100),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get standings for a specific league.
-    
+
     - **league_id**: League ID
     """
     try:
-        # Get league info
+        result = LeagueService.get_league_standings(
+            db=db,
+            league_id=league_id,
+            current_user_id=current_user.id,
+            sort_by=sort_by,
+            page=page,
+            page_size=page_size,
+        )
         league_info = LeagueService.get_league_info(db=db, league_id=league_id)
-        
-        # Get standings
-        standings = LeagueService.get_league_standings(db=db, league_id=league_id)
-        standings_data = [LeagueStanding(**standing) for standing in standings]
-        
+        standings_data = [LeagueStanding(**s) for s in result["standings"]]
+        current_entry = LeagueStanding(**result["current_user_entry"]) if result.get("current_user_entry") else None
         return LeagueStandingsResponse(
             league_info=league_info,
-            standings=standings_data
+            standings=standings_data,
+            total_count=result["total_count"],
+            page=result["page"],
+            page_size=result["page_size"],
+            current_user_entry=current_entry,
         )
     except HTTPException:
         raise

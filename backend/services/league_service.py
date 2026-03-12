@@ -138,94 +138,90 @@ class LeagueService:
             )
     
     @staticmethod
-    def get_global_standings(db: Session) -> List[Dict[str, Any]]:
-        """Get global standings (all users from user_scores)."""
-        try:
-            # Get all users with their scores using LEFT JOIN, ordered by total points descending
-            standings = DBReader.get_global_standings(db)
-            
-            result = []
-            for rank, (user, scores) in enumerate(standings, 1):
-                # Handle users without scores (scores will be None)
-                total_points = scores.total_points if scores else 0
-                matches_points = scores.matches_score if scores else 0
-                groups_points = scores.groups_score if scores else 0
-                third_place_points = scores.third_place_score if scores else 0
-                knockout_points = scores.knockout_score if scores else 0
-                bonus_points = (scores.bonus_score or 0) if scores else 0
+    def _format_standing_row(rank: int, user, scores, membership=None) -> Dict[str, Any]:
+        return {
+            "rank": rank,
+            "user_id": user.id,
+            "username": user.username,
+            "name": user.name,
+            "total_points": scores.total_points if scores else 0,
+            "matches_points": scores.matches_score if scores else 0,
+            "groups_points": scores.groups_score if scores else 0,
+            "third_place_points": scores.third_place_score if scores else 0,
+            "knockout_points": scores.knockout_score if scores else 0,
+            "bonus_points": (scores.bonus_score or 0) if scores else 0,
+            "penalty": scores.penalty if scores else 0,
+            "joined_at": membership.joined_at.isoformat() if membership else None,
+        }
 
-                result.append({
-                    "rank": rank,
-                    "user_id": user.id,
-                    "username": user.username,
-                    "name": user.name,
-                    "total_points": total_points,
-                    "matches_points": matches_points,
-                    "groups_points": groups_points,
-                    "third_place_points": third_place_points,
-                    "knockout_points": knockout_points,
-                    "bonus_points": bonus_points,
-                    "penalty": scores.penalty if scores else 0
-                })
-            
-            return result
-            
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to get global standings: {str(e)}"
-            )
-    
     @staticmethod
-    def get_league_standings(db: Session, league_id: int) -> List[Dict[str, Any]]:
-        """Get league standings (only league members with their scores)."""
-        try:
-            # Verify league exists
-            league = DBReader.get_active_league_by_id(db, league_id)
-            
-            if not league:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="League not found"
-                )
-            
-            # Get league members with their scores using LEFT JOIN
-            standings = DBReader.get_league_standings(db, league_id)
-            
-            result = []
-            for rank, (user, scores, membership) in enumerate(standings, 1):
-                # Handle users without scores (scores will be None)
-                total_points = scores.total_points if scores else 0
-                matches_points = scores.matches_score if scores else 0
-                groups_points = scores.groups_score if scores else 0
-                third_place_points = scores.third_place_score if scores else 0
-                knockout_points = scores.knockout_score if scores else 0
-                bonus_points = (scores.bonus_score or 0) if scores else 0
+    def get_global_standings(
+        db: Session,
+        current_user_id: int,
+        sort_by: str = "total",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Dict[str, Any]:
+        rows, total = DBReader.get_global_standings_paginated(db, sort_by, page, page_size)
+        offset = (page - 1) * page_size
+        standings = [
+            LeagueService._format_standing_row(offset + i + 1, user, scores)
+            for i, (user, scores) in enumerate(rows)
+        ]
+        user_rank = DBReader.get_user_global_rank(db, current_user_id, sort_by)
+        current_user_in_page = next((s for s in standings if s["user_id"] == current_user_id), None)
+        if current_user_in_page:
+            current_user_entry = current_user_in_page
+        else:
+            user_row = DBReader.get_user_global_standing_row(db, current_user_id)
+            current_user_entry = LeagueService._format_standing_row(
+                user_rank, user_row[0], user_row[1]
+            ) if user_row else None
 
-                result.append({
-                    "rank": rank,
-                    "user_id": user.id,
-                    "username": user.username,
-                    "name": user.name,
-                    "total_points": total_points,
-                    "matches_points": matches_points,
-                    "groups_points": groups_points,
-                    "third_place_points": third_place_points,
-                    "knockout_points": knockout_points,
-                    "bonus_points": bonus_points,
-                    "penalty": scores.penalty if scores else 0,
-                    "joined_at": membership.joined_at.isoformat()
-                })
-            
-            return result
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to get league standings: {str(e)}"
-            )
+        return {
+            "standings": standings,
+            "total_count": total,
+            "page": page,
+            "page_size": page_size,
+            "current_user_entry": current_user_entry,
+        }
+
+    @staticmethod
+    def get_league_standings(
+        db: Session,
+        league_id: int,
+        current_user_id: int,
+        sort_by: str = "total",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Dict[str, Any]:
+        league = DBReader.get_active_league_by_id(db, league_id)
+        if not league:
+            raise HTTPException(status_code=404, detail="League not found")
+
+        rows, total = DBReader.get_league_standings_paginated(db, league_id, sort_by, page, page_size)
+        offset = (page - 1) * page_size
+        standings = [
+            LeagueService._format_standing_row(offset + i + 1, user, scores, membership)
+            for i, (user, scores, membership) in enumerate(rows)
+        ]
+        user_rank = DBReader.get_user_league_rank(db, current_user_id, league_id, sort_by)
+        current_user_in_page = next((s for s in standings if s["user_id"] == current_user_id), None)
+        if current_user_in_page:
+            current_user_entry = current_user_in_page
+        else:
+            user_row = DBReader.get_user_league_standing_row(db, current_user_id, league_id)
+            current_user_entry = LeagueService._format_standing_row(
+                user_rank, user_row[0], user_row[1], user_row[2]
+            ) if user_row else None
+
+        return {
+            "standings": standings,
+            "total_count": total,
+            "page": page,
+            "page_size": page_size,
+            "current_user_entry": current_user_entry,
+        }
     
     @staticmethod
     def get_league_info(db: Session, league_id: int) -> Dict[str, Any]:

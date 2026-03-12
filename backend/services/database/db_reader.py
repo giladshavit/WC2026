@@ -591,7 +591,12 @@ class DBReader:
     def get_global_standings(db: Session):
         return db.query(User, UserScores).outerjoin(
             UserScores, User.id == UserScores.user_id
-        ).order_by(desc(UserScores.total_points)).all()
+        ).order_by(
+            desc(UserScores.total_points),
+            desc(UserScores.matches_score),  # tiebreaker 1
+            UserScores.penalty,              # tiebreaker 2: fewer = higher
+            User.created_at,                 # tiebreaker 3: earlier = higher
+        ).all()
 
     @staticmethod
     def get_league_standings(db: Session, league_id: int):
@@ -601,7 +606,124 @@ class DBReader:
             UserScores, User.id == UserScores.user_id
         ).filter(
             LeagueMembership.league_id == league_id
-        ).order_by(desc(UserScores.total_points)).all()
+        ).order_by(
+            desc(UserScores.total_points),
+            desc(UserScores.matches_score),   # tiebreaker 1
+            UserScores.penalty,               # tiebreaker 2: fewer = higher
+            LeagueMembership.joined_at,       # tiebreaker 3: earlier join = higher
+        ).all()
+
+    @staticmethod
+    def _standings_order(sort_by: str, is_league: bool = False):
+        """Return SQLAlchemy order_by clauses for given sort_by key."""
+        tiebreakers_global = [
+            desc(UserScores.matches_score),
+            UserScores.penalty,
+            User.created_at,
+        ]
+        tiebreakers_league = [
+            desc(UserScores.matches_score),
+            UserScores.penalty,
+            LeagueMembership.joined_at,
+        ]
+        tiebreakers = tiebreakers_league if is_league else tiebreakers_global
+
+        primary = {
+            "total": desc(UserScores.total_points),
+            "matches": desc(UserScores.matches_score),
+            "groups": desc(UserScores.groups_score),
+            "knockout": desc(UserScores.knockout_score),
+            "bonus": desc(UserScores.bonus_score),
+            "fine": UserScores.penalty,
+        }.get(sort_by, desc(UserScores.total_points))
+
+        return [primary, *tiebreakers]
+
+    @staticmethod
+    def get_global_standings_paginated(
+        db: Session,
+        sort_by: str = "total",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Tuple[List, int]:
+        """Returns (rows, total_count)."""
+        order = DBReader._standings_order(sort_by)
+        q = db.query(User, UserScores).outerjoin(UserScores, User.id == UserScores.user_id)
+        total = q.count()
+        rows = q.order_by(*order).offset((page - 1) * page_size).limit(page_size).all()
+        return rows, total
+
+    @staticmethod
+    def get_league_standings_paginated(
+        db: Session,
+        league_id: int,
+        sort_by: str = "total",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Tuple[List, int]:
+        """Returns (rows, total_count)."""
+        order = DBReader._standings_order(sort_by, is_league=True)
+        q = (
+            db.query(User, UserScores, LeagueMembership)
+            .join(LeagueMembership, User.id == LeagueMembership.user_id)
+            .outerjoin(UserScores, User.id == UserScores.user_id)
+            .filter(LeagueMembership.league_id == league_id)
+        )
+        total = q.count()
+        rows = q.order_by(*order).offset((page - 1) * page_size).limit(page_size).all()
+        return rows, total
+
+    @staticmethod
+    def get_user_global_rank(db: Session, user_id: int, sort_by: str = "total") -> int:
+        """Return 1-based rank of user in global standings for given sort."""
+        order = DBReader._standings_order(sort_by)
+        rows = (
+            db.query(User.id)
+            .outerjoin(UserScores, User.id == UserScores.user_id)
+            .order_by(*order)
+            .all()
+        )
+        ids = [r[0] for r in rows]
+        return ids.index(user_id) + 1 if user_id in ids else -1
+
+    @staticmethod
+    def get_user_league_rank(db: Session, user_id: int, league_id: int, sort_by: str = "total") -> int:
+        """Return 1-based rank of user in league standings for given sort."""
+        order = DBReader._standings_order(sort_by, is_league=True)
+        rows = (
+            db.query(User.id)
+            .join(LeagueMembership, User.id == LeagueMembership.user_id)
+            .outerjoin(UserScores, User.id == UserScores.user_id)
+            .filter(LeagueMembership.league_id == league_id)
+            .order_by(*order)
+            .all()
+        )
+        ids = [r[0] for r in rows]
+        return ids.index(user_id) + 1 if user_id in ids else -1
+
+    @staticmethod
+    def get_user_global_standing_row(db: Session, user_id: int):
+        """Fetch (User, UserScores) for a single user. Used when current user not on page."""
+        return (
+            db.query(User, UserScores)
+            .outerjoin(UserScores, User.id == UserScores.user_id)
+            .filter(User.id == user_id)
+            .first()
+        )
+
+    @staticmethod
+    def get_user_league_standing_row(db: Session, user_id: int, league_id: int):
+        """Fetch (User, UserScores, LeagueMembership) for a single user in a league."""
+        return (
+            db.query(User, UserScores, LeagueMembership)
+            .join(LeagueMembership, User.id == LeagueMembership.user_id)
+            .outerjoin(UserScores, User.id == UserScores.user_id)
+            .filter(
+                User.id == user_id,
+                LeagueMembership.league_id == league_id,
+            )
+            .first()
+        )
 
     # ═══════════════════════════════════════════════════════
     # TOURNAMENT CONFIG
