@@ -11,11 +11,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/toast/Toast';
 import { FineConfirmationModal, UnsavedChangesModal, MaximumReachedModal, ErrorModal, ValidationModal } from '../../components/modals/CustomModals';
 
-interface ThirdPlaceScreenProps {
-  onFirstTimeComplete?: () => void;
-}
+interface ThirdPlaceScreenProps {}
 
-export default function ThirdPlaceScreen({ onFirstTimeComplete }: ThirdPlaceScreenProps) {
+export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const [teams, setTeams] = useState<ThirdPlaceTeam[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -189,24 +187,7 @@ export default function ThirdPlaceScreen({ onFirstTimeComplete }: ThirdPlaceScre
         stage: 'third_place',
         timestamp: Date.now()
       }));
-      const { selectedCount } = await fetchData();
-      
-      if (onFirstTimeComplete && selectedCount >= 8) {
-        const userId = getCurrentUserId();
-        if (userId) {
-          const storageKey = `thirdplace_first_complete_${userId}`;
-          const alreadyDone = await AsyncStorage.getItem(storageKey);
-          if (!alreadyDone) {
-            await AsyncStorage.setItem(storageKey, 'true');
-            setTimeout(() => onFirstTimeComplete(), 400);
-            return;
-          }
-        }
-      }
-      
-      if (selectedCount >= 8) {
-        setShowCompletionModal(true);
-      }
+      await fetchData();
     } catch (error) {
       console.error('Error auto-saving third place:', error);
     }
@@ -284,10 +265,25 @@ export default function ThirdPlaceScreen({ onFirstTimeComplete }: ThirdPlaceScre
       return newSelected;
     });
 
-    // After state update, trigger auto-save if pre-tournament and 8 selected
-    setTimeout(() => {
-      if (isPreTournament && newSelectedSet && newSelectedSet.size === 8) {
-        autoSave(Array.from(newSelectedSet));
+    // After state update, trigger auto-save or completion modal
+    setTimeout(async () => {
+      if (!newSelectedSet) return;
+
+      if (newSelectedSet.size === 8) {
+        if (isPreTournament) {
+          autoSave(Array.from(newSelectedSet));
+        } else {
+          // Manual save flow: persist first-complete key if first time
+          const userId = getCurrentUserId();
+          if (userId) {
+            const storageKey = `thirdplace_first_complete_${userId}`;
+            const alreadyDone = await AsyncStorage.getItem(storageKey);
+            if (!alreadyDone) {
+              await AsyncStorage.setItem(storageKey, 'true');
+            }
+          }
+        }
+        setShowCompletionModal(true);
       }
     }, 0);
 
@@ -322,25 +318,7 @@ export default function ThirdPlaceScreen({ onFirstTimeComplete }: ThirdPlaceScre
       
       showToast('Prediction saved!', 'success');
       
-      const { selectedCount } = await fetchData();
-      
-      // Check first-time completion
-      if (onFirstTimeComplete && selectedCount >= 8) {
-        const userId = getCurrentUserId();
-        if (userId) {
-          const storageKey = `thirdplace_first_complete_${userId}`;
-          const alreadyDone = await AsyncStorage.getItem(storageKey);
-          if (!alreadyDone) {
-            await AsyncStorage.setItem(storageKey, 'true');
-            setTimeout(() => onFirstTimeComplete(), 400);
-            return; // skip the completionModal — navigation replaces it
-          }
-        }
-      }
-      
-      if (selectedCount >= 8) {
-        setShowCompletionModal(true);
-      }
+      await fetchData();
     } catch (error) {
       console.error('Error saving third place prediction:', error);
       setErrorModal({ title: 'Error', message: 'Could not save prediction. Please try again.' });
