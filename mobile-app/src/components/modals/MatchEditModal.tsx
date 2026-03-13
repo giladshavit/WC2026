@@ -16,7 +16,9 @@ interface MatchEditModalProps {
   visible: boolean;
   match: BracketMatch | null;
   onClose: () => void;
-  onSave: (matchId: number, winnerId: number) => void;
+  onSave: (matchId: number, winnerId: number) => Promise<void>;
+  errorMessage?: string | null;
+  onClearError?: () => void;
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -29,8 +31,9 @@ const STAGE_STYLES: Record<string, { bg: string; text: string }> = {
   final: { bg: '#fefce8', text: '#ca8a04' },
 };
 
-export default function MatchEditModal({ visible, match, onClose, onSave }: MatchEditModalProps) {
+export default function MatchEditModal({ visible, match, onClose, onSave, errorMessage, onClearError }: MatchEditModalProps) {
   const [selectedWinner, setSelectedWinner] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const getTeamNameDisplayProps = (teamName: string) => {
     const nameLength = teamName.length;
@@ -46,6 +49,7 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
   useEffect(() => {
     if (match) {
       setSelectedWinner(match.winner_team_id || null);
+      setIsSaving(false);
     }
   }, [match]);
 
@@ -54,10 +58,19 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
   const team1DisplayProps = getTeamNameDisplayProps(match.team1_name || 'TBD');
   const team2DisplayProps = getTeamNameDisplayProps(match.team2_name || 'TBD');
 
-  const handleTeamSelection = (teamId: number) => {
-    if (teamId === selectedWinner) return; // already selected, no-op
+  const handleTeamSelection = async (teamId: number) => {
+    if (teamId === selectedWinner || isSaving) return;
+    const previousWinner = selectedWinner;
+    setIsSaving(true);
     setSelectedWinner(teamId);
-    onSave(match.id, teamId);
+    try {
+      await onSave(match.id, teamId);
+    } catch {
+      // Revert to previous winner on failure
+      setSelectedWinner(previousWinner);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const isTeam1TBD = !match.team1_name || match.team1_name === 'TBD';
@@ -107,7 +120,7 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
                     !match.team1_id && styles.disabledCard
                   ]}
                   onPress={() => match.team1_id && handleTeamSelection(match.team1_id)}
-                  disabled={!match.team1_id}
+                  disabled={!match.team1_id || isSaving}
                 >
                   <View style={styles.teamContent}>
                     {match.team1_flag && (
@@ -151,7 +164,7 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
                     !match.team2_id && styles.disabledCard
                   ]}
                   onPress={() => match.team2_id && handleTeamSelection(match.team2_id)}
-                  disabled={!match.team2_id}
+                  disabled={!match.team2_id || isSaving}
                 >
                   <View style={styles.teamContent}>
                     {match.team2_flag && (
@@ -182,6 +195,19 @@ export default function MatchEditModal({ visible, match, onClose, onSave }: Matc
                   </View>
                 </TouchableOpacity>
               </View>
+
+              {/* Inline error banner */}
+              {!!errorMessage && (
+                <View style={styles.errorBanner}>
+                  <Ionicons name="alert-circle" size={18} color="#b45309" style={{ marginRight: 8, flexShrink: 0 }} />
+                  <Text style={styles.errorBannerText} numberOfLines={3}>{errorMessage}</Text>
+                  {onClearError && (
+                    <TouchableOpacity onPress={onClearError} style={{ marginLeft: 8, flexShrink: 0 }}>
+                      <Ionicons name="close-circle" size={18} color="#b45309" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
             </View>
           </View>
         </SafeAreaView>
@@ -329,5 +355,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: '#6b7280',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fffbeb',
+    borderWidth: 1.5,
+    borderColor: '#fbbf24',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#92400e',
+    fontWeight: '500',
+    lineHeight: 18,
   },
 });

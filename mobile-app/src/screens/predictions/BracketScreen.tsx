@@ -61,6 +61,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [showResetModal, setShowResetModal] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [showNotEditableModal, setShowNotEditableModal] = useState(false);
+  const [duplicateWinnerTeamName, setDuplicateWinnerTeamName] = useState<string | null>(null);
   const [saveSuccessInfo, setSaveSuccessInfo] = useState<{ changes_count: number; penalty_applied: number } | null>(null);
   const [hasUsedBracketReset, setHasUsedBracketReset] = useState(false);
   const [showBracketResetModal, setShowBracketResetModal] = useState(false);
@@ -1072,22 +1073,22 @@ export default function BracketScreen({}: BracketScreenProps) {
       <MatchEditModal
         visible={isModalVisible}
         match={selectedMatch}
-        onClose={() => setIsModalVisible(false)}
+        onClose={() => { setIsModalVisible(false); setDuplicateWinnerTeamName(null); }}
+        errorMessage={duplicateWinnerTeamName ? `${duplicateWinnerTeamName} is already the winner in another match at this stage. Remove them first.` : null}
+        onClearError={() => setDuplicateWinnerTeamName(null)}
         onSave={async (matchId, winnerId) => {
           console.log(`💾 Saving match ${matchId} with winner ${winnerId}`);
           try {
-            // Find the prediction for this match
             const prediction = predictions.find(p => p.template_match_id === matchId);
             if (!prediction) {
               console.error('Prediction not found for match', matchId);
+              setIsModalVisible(false);
               return;
             }
 
-            // Determine winner_team_number (1 or 2)
             const winnerTeamNumber = winnerId === prediction.team1_id ? 1 : 2;
             const winnerTeamName = winnerId === prediction.team1_id ? (prediction.team1_name || '') : (prediction.team2_name || '');
 
-            // Update the prediction using the single prediction API (use draft if in edit mode)
             await apiService.updateKnockoutPrediction(
               prediction.id,
               winnerTeamNumber,
@@ -1095,45 +1096,43 @@ export default function BracketScreen({}: BracketScreenProps) {
               editMode
             );
 
-            // Get fresh data from server to ensure all stages are updated correctly
-            // Wait a bit for server to process the update
+            // Success — close modal immediately
+            setIsModalVisible(false);
+
             setTimeout(async () => {
               try {
                 const userId = getCurrentUserId();
                 if (!userId) return;
-
                 const freshPredictions = await apiService.getKnockoutPredictions(userId, undefined, editMode);
                 setPredictions(freshPredictions.predictions);
-
-                // Organize into bracket structure with fresh data
                 const { organized, calculateCardCoordinates } = organizeBracketMatches(freshPredictions.predictions);
                 const spacing = (AVAILABLE_HEIGHT - 40) / 8;
                 calculateCardCoordinates(spacing);
                 setOrganizedBracket(organized);
-
                 await refreshFineCount();
-                console.log('✅ Updated bracket with fresh data from server');
               } catch (error) {
                 console.error('❌ Error updating bracket with fresh data:', error);
               }
-            }, 500); // Wait 500ms for server to process
+            }, 500);
 
-            // Store the updated match ID in AsyncStorage to signal knockout screen
             const updatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';
             const updatedMatches = JSON.parse(updatedMatchesStr);
-            updatedMatches.push({
-              matchId: matchId,
-              timestamp: Date.now()
-            });
+            updatedMatches.push({ matchId, timestamp: Date.now() });
             await AsyncStorage.setItem('bracketUpdatedMatches', JSON.stringify(updatedMatches));
 
             console.log('✅ Match updated successfully');
-          } catch (error) {
+
+          } catch (error: any) {
             console.error('❌ Error updating match:', error);
-            setErrorModal({ title: 'Error', message: 'Could not update match. Please try again.' });
-          } finally {
-            // Close the modal only after the save operation completes (success or error)
-            setIsModalVisible(false);
+            const detail = error?.detail || error?.message || '';
+            if (typeof detail === 'string' && detail.startsWith('DUPLICATE_WINNER:')) {
+              const teamName = detail.split(':')[1]?.trim() || 'This team';
+              setDuplicateWinnerTeamName(teamName);
+            } else {
+              setIsModalVisible(false);
+              setErrorModal({ title: 'Error', message: 'Could not update match. Please try again.' });
+            }
+            throw error; // re-throw so MatchEditModal can revert selectedWinner
           }
         }}
       />

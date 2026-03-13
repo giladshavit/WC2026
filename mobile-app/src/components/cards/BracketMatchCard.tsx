@@ -12,8 +12,9 @@ interface BracketMatchCardProps {
 
 export default function BracketMatchCard({ match, onPress, onLayout }: BracketMatchCardProps) {
   const isLocked = match.is_editable === false;
-  const isTeam1Winner = match.winner_team_id === match.team1_id;
-  const isTeam2Winner = match.winner_team_id === match.team2_id;
+  const hasWinner = !!match.winner_team_id && match.winner_team_id !== 0;
+  const isTeam1Winner = hasWinner && match.winner_team_id === match.team1_id;
+  const isTeam2Winner = hasWinner && match.winner_team_id === match.team2_id;
   const isFinal = match.stage === 'final';
 
   const matchHasResult = ['correct_full', 'correct_partial', 'incorrect'].includes(match.status || '');
@@ -55,9 +56,11 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
   const borderColor = getStatusColor(match.status);
 
   // Extract winner flag from team1/team2 based on winner_team_id when winner_team_flag is null
-  const resolvedWinnerFlag = match.winner_team_flag
-    || (match.winner_team_id === match.team1_id ? match.team1_flag : null)
-    || (match.winner_team_id === match.team2_id ? match.team2_flag : null);
+  const resolvedWinnerFlag = hasWinner
+    ? (match.winner_team_flag
+        || (match.winner_team_id === match.team1_id ? match.team1_flag : null)
+        || (match.winner_team_id === match.team2_id ? match.team2_flag : null))
+    : null;
 
   const getHalfBackground = (
     isWinner: boolean,
@@ -158,7 +161,7 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
 
   if (isFinal) {
     const isInvalid = match.status?.toLowerCase() === 'invalid';
-    const finalBorderColor = isInvalid ? '#ef4444' : '#f59e0b';
+    const finalBorderColor = isInvalid ? '#ef4444' : '#ffffff';
     const finalGlowColor = isInvalid ? '#ef4444' : '#f59e0b';
 
     return (
@@ -338,7 +341,10 @@ const styles = StyleSheet.create({
   },
   teamNameStrikethrough: {
     textDecorationLine: 'line-through',
-    textDecorationColor: '#000',
+    textDecorationColor: '#000000',
+    textDecorationStyle: 'double',
+    color: '#94a3b8',
+    opacity: 0.8,
   },
   halfDivider: {
     height: 1,
@@ -398,7 +404,10 @@ const styles = StyleSheet.create({
   },
   finalTeamNameStrikethrough: {
     textDecorationLine: 'line-through',
-    textDecorationColor: '#000',
+    textDecorationColor: '#000000',
+    textDecorationStyle: 'double',
+    color: '#94a3b8',
+    opacity: 0.8,
   },
   finalTbdPlaceholder: {
     width: 44,

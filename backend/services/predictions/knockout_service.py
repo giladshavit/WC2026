@@ -351,14 +351,18 @@ class KnockoutService:
         DBUtils.flush(db)
 
         if is_draft:
-            is_reachable = KnockoutService.can_winner_reach_match_via_correct_path(
-                db, prediction
-            )
-            if not is_reachable:
-                DBWriter.update_knockout_prediction(
-                    db, prediction, status=KnockoutPredictionStatus.UNREACHABLE.value
+            # Only check reachability if a real winner was actually set.
+            # If winner is empty (0/None), status is already INVALID — do not override.
+            winner_after_compute = KnockoutService._normalize_team_id(prediction.winner_team_id)
+            if winner_after_compute:
+                is_reachable = KnockoutService.can_winner_reach_match_via_correct_path(
+                    db, prediction
                 )
-                DBUtils.flush(db)
+                if not is_reachable:
+                    DBWriter.update_knockout_prediction(
+                        db, prediction, status=KnockoutPredictionStatus.UNREACHABLE.value
+                    )
+                    DBUtils.flush(db)
 
     @staticmethod
     def set_winner(
@@ -369,6 +373,25 @@ class KnockoutService:
         is_draft: bool = False,
     ) -> Dict[str, Any]:
         old_winner = prediction.winner_team_id
+
+        # Validate no duplicate winner in same stage (draft mode only)
+        if is_draft and winner_team_id and winner_team_id != 0:
+            normalized_winner = KnockoutService._normalize_team_id(winner_team_id)
+            if normalized_winner:
+                duplicate = DBReader.get_draft_prediction_with_winner_in_stage(
+                    db,
+                    user_id=prediction.user_id,
+                    stage=prediction.stage,
+                    winner_team_id=normalized_winner,
+                    exclude_prediction_id=prediction.id,
+                )
+                if duplicate:
+                    winner_team = DBReader.get_team(db, normalized_winner)
+                    team_name = winner_team.name if winner_team else str(normalized_winner)
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"DUPLICATE_WINNER:{team_name}"
+                    )
 
         stored_winner = KnockoutService._persist_winner(
             db, prediction, winner_team_id, is_draft

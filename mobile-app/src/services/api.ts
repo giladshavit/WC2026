@@ -866,7 +866,16 @@ export class ApiService {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let detail = `HTTP error! status: ${response.status}`;
+        try {
+          const errBody = await response.json();
+          if (errBody?.detail) {
+            detail = errBody.detail;
+          }
+        } catch (_) {}
+        const err: any = new Error(detail);
+        err.detail = detail;
+        throw err;
       }
 
       const data = await response.json();

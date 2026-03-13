@@ -437,6 +437,22 @@ class DBReader:
         ).all()
 
     @staticmethod
+    def get_draft_prediction_with_winner_in_stage(
+        db: Session,
+        user_id: int,
+        stage: str,
+        winner_team_id: int,
+        exclude_prediction_id: int,
+    ) -> Optional[KnockoutStagePredictionDraft]:
+        """Find draft prediction in same stage with same winner. Prevents 'Germany vs Germany' scenarios."""
+        return db.query(KnockoutStagePredictionDraft).filter(
+            KnockoutStagePredictionDraft.user_id == user_id,
+            KnockoutStagePredictionDraft.stage == stage,
+            KnockoutStagePredictionDraft.id != exclude_prediction_id,
+            KnockoutStagePredictionDraft.winner_team_id == winner_team_id,
+        ).first()
+
+    @staticmethod
     def get_draft_modified_flags(db: Session, draft) -> dict:
         """Returns which fields the user explicitly modified in this draft."""
         return {
