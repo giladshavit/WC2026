@@ -81,23 +81,26 @@ class MatchSyncService:
                 if home is None or away is None:
                     continue
 
-                if match.status in (MatchStatus.SCHEDULED.value, MatchStatus.LIVE.value):
-                    try:
-                        # is_final=False: update score only, keep status=live, keep prediction status=PENDING
-                        ResultsService.update_match_result(
-                            db=db,
-                            match_id=match.id,
-                            home_team_score=home,
-                            away_team_score=away,
-                            is_final=False,
-                        )
-                        # Set status to LIVE if it was SCHEDULED
-                        if match.status == MatchStatus.SCHEDULED.value:
-                            DBWriter.set_match_status(db, match, MatchStatus.LIVE.value)
-                            DBUtils.commit(db)
-                    except Exception as e:
-                        logger.error(f"[SYNC] Failed to update match {match.id}: {e}")
-                        DBUtils.rollback(db)
+                if match.status == MatchStatus.FINISHED.value:
+                    logger.debug(f"[SYNC] Match {match.id} already finished — skipping")
+                    continue
+
+                try:
+                    # is_final=False: update score only, keep status=live, keep prediction status=PENDING
+                    ResultsService.update_match_result(
+                        db=db,
+                        match_id=match.id,
+                        home_team_score=home,
+                        away_team_score=away,
+                        is_final=False,
+                    )
+                    # Set status to LIVE if it was SCHEDULED
+                    if match.status == MatchStatus.SCHEDULED.value:
+                        DBWriter.set_match_status(db, match, MatchStatus.LIVE.value)
+                    DBUtils.commit(db)
+                except Exception as e:
+                    logger.error(f"[SYNC] Failed to update match {match.id}: {e}")
+                    DBUtils.rollback(db)
 
         except Exception as e:
             logger.error(f"[SYNC] sync_live_matches error: {e}")

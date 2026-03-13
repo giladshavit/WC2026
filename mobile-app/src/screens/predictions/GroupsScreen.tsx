@@ -10,7 +10,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { FineConfirmationModal, UnsavedChangesModal, ErrorModal, ValidationModal } from '../../components/modals/CustomModals';
 import { useToast } from '../../components/toast/Toast';
 
-export default function GroupsScreen() {
+interface GroupsScreenProps {
+  onFirstTimeComplete?: () => void;
+}
+
+export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps) {
   const { showToast } = useToast();
   const [errorModal, setErrorModal] = useState<{
     title: string;
@@ -233,6 +237,28 @@ export default function GroupsScreen() {
         stage: 'groups',
         timestamp: Date.now()
       }));
+
+      // Check first-time completion after auto-save
+      if (onFirstTimeComplete) {
+        const userId = getCurrentUserId();
+        if (userId) {
+          const storageKey = `groups_first_complete_${userId}`;
+          const alreadyDone = await AsyncStorage.getItem(storageKey);
+          if (!alreadyDone) {
+            // Refetch groups state to check — auto-save already called setGroups
+            // Use pendingChanges + groups to approximate: count groups with first_place after merge
+            const updatedGroups = groups.map(g => {
+              if (g.group_id === groupId) return { ...g, ...positions };
+              return g;
+            });
+            const allComplete = updatedGroups.every(g => g.first_place !== null);
+            if (allComplete) {
+              await AsyncStorage.setItem(storageKey, 'true');
+              setTimeout(() => onFirstTimeComplete(), 400);
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('Error auto-saving group:', error);
       showToast('Could not save, please try again', 'error');
@@ -420,6 +446,28 @@ export default function GroupsScreen() {
         timestamp: Date.now()
       }));
       console.log('✅ Groups stage updated - marked for knockout refresh');
+      
+      // Check first-time completion
+      if (onFirstTimeComplete) {
+        const userId = getCurrentUserId();
+        if (userId) {
+          const storageKey = `groups_first_complete_${userId}`;
+          const alreadyDone = await AsyncStorage.getItem(storageKey);
+          if (!alreadyDone) {
+            // Check if ALL 12 groups now have a prediction (first_place is not null)
+            // Use the merged saved state: take current groups + override with completeGroups
+            const mergedGroups = groups.map(g => {
+              const saved = completeGroups.find(c => c.group_id === g.group_id);
+              return saved ? { ...g, first_place: saved.first_place } : g;
+            });
+            const allComplete = mergedGroups.every(g => g.first_place !== null);
+            if (allComplete) {
+              await AsyncStorage.setItem(storageKey, 'true');
+              setTimeout(() => onFirstTimeComplete(), 400); // small delay feels natural
+            }
+          }
+        }
+      }
       
       // No success alert - silent save
     } catch (error) {

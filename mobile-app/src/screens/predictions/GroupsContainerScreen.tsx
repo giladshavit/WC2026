@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import GroupsScreen from './GroupsScreen';
 import ThirdPlaceScreen from './ThirdPlaceScreen';
 
 type ActiveTab = 'groups' | 'thirdplace';
 
 export default function GroupsContainerScreen() {
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState<ActiveTab>('groups');
 
   return (
@@ -35,7 +37,11 @@ export default function GroupsContainerScreen() {
 
       {/* Content */}
       <View style={{ flex: 1 }}>
-        {activeTab === 'groups' ? <GroupsScreen /> : <ThirdPlaceScreen />}
+        {activeTab === 'groups' ? (
+          <GroupsScreen onFirstTimeComplete={() => setActiveTab('thirdplace')} />
+        ) : (
+          <ThirdPlaceScreen onFirstTimeComplete={() => navigation.navigate('Knockout' as never)} />
+        )}
       </View>
 
     </View>

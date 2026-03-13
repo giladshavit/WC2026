@@ -104,10 +104,20 @@ export default function BracketScreen({}: BracketScreenProps) {
       const checkChanges = async () => {
         const userId = getCurrentUserId();
         if (!userId) return;
-        const countResult = await apiService.getDraftChangesCount(userId);
-        setFineInfo(countResult);
-        setShowExitModal(true);
-        pendingNavActionRef.current = e.data.action;
+        try {
+          const countResult = await apiService.getDraftChangesCount(userId);
+          setFineInfo(countResult);
+          if (countResult.changes_count > 0) {
+            setShowExitModal(true);
+            pendingNavActionRef.current = e.data.action;
+          } else {
+            // No changes - exit directly without showing modal
+            await executeExit(e.data.action);
+          }
+        } catch (error) {
+          console.error('Error checking draft changes:', error);
+          setErrorModal({ title: 'Error', message: 'Could not exit edit mode. Please try again.' });
+        }
       };
       checkChanges();
     });
@@ -747,12 +757,18 @@ export default function BracketScreen({}: BracketScreenProps) {
             <View style={styles.fineDivider} />
             <View style={styles.fineStat}>
               <Text style={styles.fineStatLabel}>Fine</Text>
-              <Text style={[
-                styles.fineStatValue,
-                (fineInfo?.total_penalty ?? 0) > 0 && { color: '#f87171' },
-              ]}>
-                {fineInfo?.total_penalty ?? 0}
-              </Text>
+              {hasUsedBracketReset ? (
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#4ade80', letterSpacing: 0.5 }}>
+                  FREE
+                </Text>
+              ) : (
+                <Text style={[
+                  styles.fineStatValue,
+                  (fineInfo?.total_penalty ?? 0) > 0 && { color: '#f87171' },
+                ]}>
+                  {fineInfo?.total_penalty ?? 0}
+                </Text>
+              )}
             </View>
           </View>
         ) : knockoutScore !== null ? (

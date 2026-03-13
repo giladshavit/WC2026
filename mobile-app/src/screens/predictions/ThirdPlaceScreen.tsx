@@ -11,9 +11,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/toast/Toast';
 import { FineConfirmationModal, UnsavedChangesModal, MaximumReachedModal, ErrorModal, ValidationModal } from '../../components/modals/CustomModals';
 
-interface ThirdPlaceScreenProps {}
+interface ThirdPlaceScreenProps {
+  onFirstTimeComplete?: () => void;
+}
 
-export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
+export default function ThirdPlaceScreen({ onFirstTimeComplete }: ThirdPlaceScreenProps) {
   const [teams, setTeams] = useState<ThirdPlaceTeam[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -188,6 +190,20 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         timestamp: Date.now()
       }));
       const { selectedCount } = await fetchData();
+      
+      if (onFirstTimeComplete && selectedCount >= 8) {
+        const userId = getCurrentUserId();
+        if (userId) {
+          const storageKey = `thirdplace_first_complete_${userId}`;
+          const alreadyDone = await AsyncStorage.getItem(storageKey);
+          if (!alreadyDone) {
+            await AsyncStorage.setItem(storageKey, 'true');
+            setTimeout(() => onFirstTimeComplete(), 400);
+            return;
+          }
+        }
+      }
+      
       if (selectedCount >= 8) {
         setShowCompletionModal(true);
       }
@@ -307,6 +323,21 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       showToast('Prediction saved!', 'success');
       
       const { selectedCount } = await fetchData();
+      
+      // Check first-time completion
+      if (onFirstTimeComplete && selectedCount >= 8) {
+        const userId = getCurrentUserId();
+        if (userId) {
+          const storageKey = `thirdplace_first_complete_${userId}`;
+          const alreadyDone = await AsyncStorage.getItem(storageKey);
+          if (!alreadyDone) {
+            await AsyncStorage.setItem(storageKey, 'true');
+            setTimeout(() => onFirstTimeComplete(), 400);
+            return; // skip the completionModal — navigation replaces it
+          }
+        }
+      }
+      
       if (selectedCount >= 8) {
         setShowCompletionModal(true);
       }

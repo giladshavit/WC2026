@@ -46,16 +46,24 @@ class FootballDataClient:
         """Fetch all matches for today from the competition."""
         try:
             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            return self.get_matches_on_date(today, competition_code)
+        except Exception as e:
+            logger.error(f"Error fetching today's matches: {e}")
+            return []
+
+    def get_matches_on_date(self, date_str: str, competition_code: str = "WC") -> list[dict]:
+        """Fetch all matches for a specific date (YYYY-MM-DD) from the competition."""
+        try:
             response = httpx.get(
                 f"{BASE_URL}/competitions/{competition_code}/matches",
-                params={"dateFrom": today, "dateTo": today},
+                params={"dateFrom": date_str, "dateTo": date_str},
                 headers=self.headers,
                 timeout=10
             )
             response.raise_for_status()
             return response.json().get("matches", [])
         except Exception as e:
-            logger.error(f"Error fetching today's matches: {e}")
+            logger.error(f"Error fetching matches for {date_str}: {e}")
             return []
 
     @staticmethod

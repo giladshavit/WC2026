@@ -678,6 +678,12 @@ class KnockoutService:
         stage = StageManager.get_current_stage(db)
         penalty_per_change = stage.get_penalty_for()
 
+        # If the user has already used their one-time bracket reset,
+        # all changes in PRE_ROUND32 are free — they already paid upfront.
+        user_scores = DBReader.get_user_scores(db, user_id)
+        if user_scores and getattr(user_scores, 'has_used_bracket_reset', False):
+            penalty_per_change = 0
+
         return {
             "changes_count": changes_count,
             "penalty_per_change": penalty_per_change,
@@ -737,9 +743,12 @@ class KnockoutService:
 
             if DBReader.is_draft_winner_modified(db, draft):
                 changes_count += 1
-                penalty_points += ScoringService.record_prediction_penalty(
-                    db, user_id, original.id, PredictionType.KNOCKOUT, n_changes=1
-                )
+                user_scores = DBReader.get_user_scores(db, user_id)
+                has_used_reset = user_scores and getattr(user_scores, 'has_used_bracket_reset', False)
+                if not has_used_reset:
+                    penalty_points += ScoringService.record_prediction_penalty(
+                        db, user_id, original.id, PredictionType.KNOCKOUT, n_changes=1
+                    )
 
             KnockoutService._copy_draft_to_prediction(db, draft, original)
 
