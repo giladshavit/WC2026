@@ -33,7 +33,7 @@ class ScoringService:
         "round16":     {"exact": 7, "correct_winner": 3},
         "quarter":     {"exact": 9, "correct_winner": 4},
         "semi":        {"exact": 10, "correct_winner": 5},
-        "third_place": {"exact": 10, "correct_winner": 5},
+        "third_place": {"exact": 12, "correct_winner": 6},
         "final":       {"exact": 15, "correct_winner": 7},
     }
 

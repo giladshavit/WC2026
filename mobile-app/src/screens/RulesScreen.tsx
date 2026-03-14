@@ -135,6 +135,7 @@ const sections: Section[] = [
               { cells: ['Round of 16', '3', '7'] },
               { cells: ['Quarter-Final', '4', '9'] },
               { cells: ['Semi-Final', '5', '10'] },
+              { cells: ['3rd Place Match', '6', '12'] },
               { cells: ['Final', '7', '15'] },
             ],
           },
