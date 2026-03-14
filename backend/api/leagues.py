@@ -17,6 +17,13 @@ security = HTTPBearer()
 class CreateLeagueRequest(BaseModel):
     name: str
     description: Optional[str] = None
+    score_mode: Optional[str] = "all"
+
+    @validator('score_mode')
+    def validate_score_mode(cls, v):
+        if v is not None and v not in ("all", "matches"):
+            raise ValueError("score_mode must be 'all' or 'matches'")
+        return v or "all"
 
     @validator('name')
     def validate_name(cls, v):
@@ -50,6 +57,7 @@ class LeagueResponse(BaseModel):
     created_at: str
     member_count: int
     joined_at: Optional[str] = None
+    score_mode: Optional[str] = "all"
 
 class LeagueStanding(BaseModel):
     rank: int
@@ -124,7 +132,8 @@ def create_league(
             db=db,
             user_id=current_user.id,
             name=league_data.name,
-            description=league_data.description
+            description=league_data.description,
+            score_mode=league_data.score_mode or "all",
         )
         return LeagueResponse(**result)
     except HTTPException:

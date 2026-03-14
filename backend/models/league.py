@@ -1,7 +1,14 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, UniqueConstraint, Enum
 from sqlalchemy.orm import relationship
 from datetime import datetime
+import enum
 from .base import Base
+
+
+class LeagueScoreMode(str, enum.Enum):
+    ALL = "all"
+    MATCHES = "matches"
+
 
 class League(Base):
     __tablename__ = "leagues"
@@ -13,7 +20,8 @@ class League(Base):
     created_by = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
-    
+    score_mode = Column(Enum(LeagueScoreMode), nullable=False, default=LeagueScoreMode.ALL)
+
     creator = relationship("User", foreign_keys=[created_by])
     members = relationship("LeagueMembership", back_populates="league", cascade="all, delete-orphan")
 

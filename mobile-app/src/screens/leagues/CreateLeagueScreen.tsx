@@ -24,6 +24,7 @@ export default function CreateLeagueScreen() {
   const { showToast } = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [scoreMode, setScoreMode] = useState<'all' | 'matches'>('all');
   const [loading, setLoading] = useState(false);
   const [createdLeague, setCreatedLeague] = useState<any>(null);
   const [nameFocused, setNameFocused] = useState(false);
@@ -55,6 +56,7 @@ export default function CreateLeagueScreen() {
       const newLeague = await apiService.createLeague({
         name: name.trim(),
         description: description.trim() || undefined,
+        score_mode: scoreMode,
       });
       setCreatedLeague(newLeague);
     } catch (error: any) {
@@ -133,7 +135,10 @@ export default function CreateLeagueScreen() {
           <View style={styles.successButtons}>
             <TouchableOpacity
               style={styles.doneButton}
-              onPress={() => (navigation as any).navigate('LeaguesMain', { showToast: 'League created successfully!' })}
+              onPress={() => {
+                showToast('League created successfully!', 'success');
+                navigation.goBack();
+              }}
               activeOpacity={0.8}
             >
               <Text style={styles.doneButtonText}>Done</Text>
@@ -204,6 +209,28 @@ export default function CreateLeagueScreen() {
                 onBlur={() => setDescFocused(false)}
               />
               <Text style={styles.characterCount}>{description.length}/500</Text>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Default View Mode</Text>
+              <View style={styles.modeToggleRow}>
+                <TouchableOpacity
+                  style={[styles.modeBtn, scoreMode === 'all' && styles.modeBtnActive]}
+                  onPress={() => setScoreMode('all')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="trophy-outline" size={14} color={scoreMode === 'all' ? '#ffffff' : '#64748b'} />
+                  <Text style={[styles.modeBtnText, scoreMode === 'all' && styles.modeBtnTextActive]}>All Scores</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modeBtn, scoreMode === 'matches' && styles.modeBtnActive]}
+                  onPress={() => setScoreMode('matches')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="football-outline" size={14} color={scoreMode === 'matches' ? '#ffffff' : '#64748b'} />
+                  <Text style={[styles.modeBtnText, scoreMode === 'matches' && styles.modeBtnTextActive]}>Matches Only</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
@@ -447,5 +474,33 @@ const styles = StyleSheet.create({
   },
   fieldErrorHidden: {
     color: 'transparent',
+  },
+  modeToggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#2d4a6e',
+    backgroundColor: '#0f2744',
+  },
+  modeBtnActive: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
+  },
+  modeBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  modeBtnTextActive: {
+    color: '#ffffff',
   },
 });

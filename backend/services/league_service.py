@@ -21,7 +21,7 @@ class LeagueService:
             return code
     
     @staticmethod
-    def create_league(db: Session, user_id: int, name: str, description: Optional[str] = None) -> Dict[str, Any]:
+    def create_league(db: Session, user_id: int, name: str, description: Optional[str] = None, score_mode: str = "all") -> Dict[str, Any]:
         """Create a new league and automatically join the creator."""
         try:
             # Generate unique invite code
@@ -37,7 +37,8 @@ class LeagueService:
                 name=name,
                 created_by=user_id,
                 invite_code=invite_code,
-                description=description
+                description=description,
+                score_mode=score_mode,
             )
             
             DBUtils.commit(db)
@@ -54,7 +55,8 @@ class LeagueService:
                 "invite_code": new_league.invite_code,
                 "created_by": new_league.created_by,
                 "created_at": new_league.created_at.isoformat(),
-                "member_count": 1
+                "member_count": 1,
+                "score_mode": new_league.score_mode.value if hasattr(new_league.score_mode, 'value') else new_league.score_mode,
             }
             
         except Exception as e:
@@ -245,7 +247,8 @@ class LeagueService:
                 "invite_code": league.invite_code,
                 "created_by": league.created_by,
                 "created_at": league.created_at.isoformat(),
-                "member_count": member_count
+                "member_count": member_count,
+                "score_mode": league.score_mode.value if hasattr(league.score_mode, 'value') else league.score_mode,
             }
             
         except HTTPException:

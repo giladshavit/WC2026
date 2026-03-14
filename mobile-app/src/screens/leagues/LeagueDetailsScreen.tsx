@@ -386,6 +386,7 @@ export default function LeagueDetailsScreen() {
   const liveRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const liveMatchIdsRef = useRef<number[]>([]);
   const flashListRef = useRef<any>(null);
+  const scoreModeInitializedRef = useRef(false);
   const [scoreMode, setScoreMode] = useState<'weighted' | 'matches'>('weighted');
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [userDismissedLive, setUserDismissedLive] = useState(false);
@@ -462,6 +463,16 @@ export default function LeagueDetailsScreen() {
       setStandingsData(data);
       setTotalCount(data.total_count);
       setCurrentUserEntry((data.current_user_entry as StandingWithFine) ?? null);
+      if (!scoreModeInitializedRef.current) {
+        const leagueMode = data.league_info?.score_mode;
+        if (leagueMode === 'matches') {
+          setScoreMode('matches');
+          setSortBy('matches');
+        } else {
+          setScoreMode('weighted');
+        }
+        scoreModeInitializedRef.current = true;
+      }
       if (append) {
         setAllStandings((prev) => [...prev, ...(data.standings as StandingWithFine[])]);
       } else {
@@ -505,6 +516,7 @@ export default function LeagueDetailsScreen() {
     setAllStandings([]);
     setSortBy('total');
     setStandingsData(null);
+    scoreModeInitializedRef.current = false;
   }, [leagueId]);
 
   useEffect(() => {

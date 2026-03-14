@@ -902,8 +902,10 @@ class DBWriter:
     # ═══════════════════════════════════════════════════════
     @staticmethod
     def create_league(db: Session, name: str, created_by: int,
-                      invite_code: str, **kwargs) -> League:
-        league = League(name=name, created_by=created_by, invite_code=invite_code, **kwargs)
+                      invite_code: str, score_mode: str = "all", **kwargs) -> League:
+        from models.league import LeagueScoreMode
+        score_mode_enum = LeagueScoreMode(score_mode) if isinstance(score_mode, str) else score_mode
+        league = League(name=name, created_by=created_by, invite_code=invite_code, score_mode=score_mode_enum, **kwargs)
         db.add(league)
         db.flush()
         db.refresh(league)
