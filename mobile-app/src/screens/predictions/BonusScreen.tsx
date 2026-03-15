@@ -423,7 +423,17 @@ function BonusStatsModal({
     if (settledStatus === null || !data) return null;
     const userAnswerKey = String(localAnswers[fieldKey] ?? '');
     const userAnswerPct = pctMap[userAnswerKey] ?? 0;
-    const correctPct = settledStatus === 'correct' ? userAnswerPct : 100 - userAnswerPct;
+
+    // Parse correct answer IDs from prediction.correct_values (comma-separated)
+    const correctValRaw = (prediction as { correct_values?: Record<string, string | null> })?.correct_values?.[fieldKey] ?? null;
+    const correctIds: string[] = correctValRaw
+      ? correctValRaw.split(',').map((s: string) => s.trim())
+      : [];
+
+    // Sum pcts for ALL correct values (g2/g3 multi-answer support)
+    const correctPct = correctIds.length > 0
+      ? Math.min(100, correctIds.reduce((sum, id) => sum + (pctMap[id] ?? 0), 0))
+      : (settledStatus === 'correct' ? userAnswerPct : 0);
     const incorrectPct = 100 - correctPct;
     const totalAnswered = data.total_answered;
     const isUserCorrect = settledStatus === 'correct';

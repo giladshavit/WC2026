@@ -103,9 +103,11 @@ const SECTION_COLORS: Record<string, string> = {
   'Tournament': '#7c3aed',
 };
 
+const MULTI_SELECT_FIELDS = ['g2', 'g3'];
+
 export default function AdminBonusScreen() {
-  const [selected, setSelected] = useState<Record<QuestionId, string>>({
-    g1: '', g2: '', g3: '', g4: '', g5: '',
+  const [selected, setSelected] = useState<Record<QuestionId, string | string[]>>({
+    g1: '', g2: [], g3: [], g4: '', g5: '',
     k1: '', k2: '', k3: '', t1: '', t2: '',
   });
   const [selectedInterim, setSelectedInterim] = useState<Record<QuestionId, string>>({
@@ -138,11 +140,12 @@ export default function AdminBonusScreen() {
       try {
         const existing = await apiService.getAdminBonusResults();
         const toVal = (v: string | null | undefined) => (v ?? '').split(',')[0]?.trim() ?? '';
+        const toMultiVal = (v: string | null | undefined) => (v ?? '').split(',').map((s) => s.trim()).filter(Boolean);
         setSelected((prev) => ({
           ...prev,
           g1: toVal(existing.g1_correct),
-          g2: toVal(existing.g2_correct),
-          g3: toVal(existing.g3_correct),
+          g2: toMultiVal(existing.g2_correct),
+          g3: toMultiVal(existing.g3_correct),
           g4: toVal(existing.g4_correct),
           g5: toVal(existing.g5_correct),
           k1: toVal(existing.k1_correct),
@@ -194,20 +197,25 @@ export default function AdminBonusScreen() {
     }
   };
 
+  const toPayloadVal = (v: string | string[]): string | null => {
+    if (Array.isArray(v)) return v.length > 0 ? v.join(',') : null;
+    return v || null;
+  };
+
   const handleSaveAll = async () => {
     setSavingAll(true);
     try {
       const payload = {
-        g1_correct: selected.g1 || null,
-        g2_correct: selected.g2 || null,
-        g3_correct: selected.g3 || null,
-        g4_correct: selected.g4 || null,
-        g5_correct: selected.g5 || null,
-        k1_correct: selected.k1 || null,
-        k2_correct: selected.k2 || null,
-        k3_correct: selected.k3 || null,
-        t1_correct: selected.t1 || null,
-        t2_correct: selected.t2 || null,
+        g1_correct: toPayloadVal(selected.g1),
+        g2_correct: toPayloadVal(selected.g2),
+        g3_correct: toPayloadVal(selected.g3),
+        g4_correct: toPayloadVal(selected.g4),
+        g5_correct: toPayloadVal(selected.g5),
+        k1_correct: toPayloadVal(selected.k1),
+        k2_correct: toPayloadVal(selected.k2),
+        k3_correct: toPayloadVal(selected.k3),
+        t1_correct: toPayloadVal(selected.t1),
+        t2_correct: toPayloadVal(selected.t2),
       };
       await apiService.updateBonusResults(payload);
       Alert.alert('Success', 'Bonus results updated and all predictions re-settled.');
@@ -219,22 +227,44 @@ export default function AdminBonusScreen() {
     }
   };
 
+  const handleMultiToggle = (fieldId: QuestionId, value: string) => {
+    setSelected((prev) => {
+      const current = prev[fieldId];
+      const arr: string[] = Array.isArray(current) ? current : current ? [current] : [];
+      const exists = arr.includes(value);
+      const next = exists ? arr.filter((v) => v !== value) : [...arr, value];
+      return { ...prev, [fieldId]: next };
+    });
+  };
+
   const handleSettle = async (q: Question) => {
-    const value = selected[q.id];
-    if (!value) {
+    const rawSelected = selected[q.id];
+    const isMulti = MULTI_SELECT_FIELDS.includes(q.id);
+
+    const hasSelection = isMulti
+      ? Array.isArray(rawSelected) && (rawSelected as string[]).length > 0
+      : !!rawSelected;
+
+    if (!hasSelection) {
       Alert.alert('Select an answer', `Please select the correct answer for: ${q.label}`);
       return;
     }
 
-    const label = q.id === 'g2'
-      ? groups.find((g) => String(g.group_id) === value)?.group_name ?? value
-      : q.id === 'g3'
-        ? allTeams.find((t) => String(t.id) === value)?.name ?? value
-        : q.options.find((o) => o.value === value)?.label ?? value;
+    const values: string[] = isMulti
+      ? (rawSelected as string[])
+      : [rawSelected as string];
+
+    const label = values
+      .map((v) => {
+        if (q.id === 'g2') return groups.find((g) => String(g.group_id) === v)?.group_name ?? v;
+        if (q.id === 'g3') return allTeams.find((t) => String(t.id) === v)?.name ?? v;
+        return q.options.find((o) => o.value === v)?.label ?? v;
+      })
+      .join(', ');
 
     Alert.alert(
       `Settle "${q.label}"?`,
-      `Correct answer: ${label}\n\nThis will grade all users for this question. Each correct prediction earns 8 pts.\n\nThis action is permanent for already-settled questions.`,
+      `Correct answer(s): ${label}\n\nThis will grade all users. Each correct prediction earns 8 pts.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -244,7 +274,7 @@ export default function AdminBonusScreen() {
             setLoading((prev) => ({ ...prev, [q.id]: true }));
             setResults((prev) => ({ ...prev, [q.id]: null }));
             try {
-              const res = await apiService.settleBonusQuestion(q.id, value);
+              const res = await apiService.settleBonusQuestion(q.id, values);
               setResults((prev) => ({
                 ...prev,
                 [q.id]: `✅ Correct: ${res.correct} | Incorrect: ${res.incorrect} | Already settled: ${res.skipped_already_settled}`,
@@ -274,10 +304,18 @@ export default function AdminBonusScreen() {
       const CARD_W = Math.floor((screenWidth - 40 - 24) / 3);
       const FLAG_W = Math.floor((CARD_W - 20) / 2);
       const FLAG_H = Math.floor(FLAG_W * 0.65);
+      const useMulti = !isInterim && MULTI_SELECT_FIELDS.includes(q.id);
       return (
         <View style={styles.flagGrid}>
+          {useMulti && Array.isArray(sel[q.id]) && (sel[q.id] as string[]).length > 1 && (
+            <Text style={{ color: '#f59e0b', fontSize: 13, fontWeight: '600', marginBottom: 8, width: '100%' }}>
+              {(sel[q.id] as string[]).length} selected
+            </Text>
+          )}
           {groups.map((g) => {
-            const isSelected = sel[q.id] === String(g.group_id);
+            const isSelected = useMulti
+              ? (sel[q.id] as string[])?.includes(String(g.group_id))
+              : sel[q.id] === String(g.group_id);
             const teams = (g.teams || []).slice(0, 4);
             return (
               <TouchableOpacity
@@ -286,7 +324,7 @@ export default function AdminBonusScreen() {
                   styles.groupCard,
                   isSelected && (isInterim ? { backgroundColor: accentBg, borderColor: accentColor } : styles.groupCardSelected),
                 ]}
-                onPress={() => setSel((prev) => ({ ...prev, [q.id]: String(g.group_id) }))}
+                onPress={() => (useMulti ? handleMultiToggle(q.id, String(g.group_id)) : setSel((prev) => ({ ...prev, [q.id]: String(g.group_id) })))}
               >
                 <Text style={[styles.groupName, isSelected && { color: accentColor }]}>{g.group_name}</Text>
                 <View style={styles.flagRow}>
@@ -312,11 +350,19 @@ export default function AdminBonusScreen() {
       const CELL_W = Math.floor((screenWidth - 40 - (COLS - 1) * GAP) / COLS);
       const FLAG_W = Math.floor(CELL_W * 0.85);
       const FLAG_H = Math.floor(FLAG_W / 1.5);
+      const useMulti = !isInterim && MULTI_SELECT_FIELDS.includes(q.id);
       return (
         <ScrollView horizontal={false} showsVerticalScrollIndicator style={{ maxHeight: 220 }}>
           <View style={[styles.flagGrid, { gap: GAP }]}>
+            {useMulti && Array.isArray(sel[q.id]) && (sel[q.id] as string[]).length > 1 && (
+              <Text style={{ color: '#f59e0b', fontSize: 13, fontWeight: '600', marginBottom: 8, width: '100%' }}>
+                {(sel[q.id] as string[]).length} selected
+              </Text>
+            )}
             {allTeams.map((t) => {
-              const isSelected = sel[q.id] === String(t.id);
+              const isSelected = useMulti
+                ? (sel[q.id] as string[])?.includes(String(t.id))
+                : sel[q.id] === String(t.id);
               return (
                 <TouchableOpacity
                   key={t.id}
@@ -325,7 +371,7 @@ export default function AdminBonusScreen() {
                     isSelected && (isInterim ? { backgroundColor: accentBg, borderColor: accentColor } : styles.teamCellSelected),
                     { width: CELL_W },
                   ]}
-                  onPress={() => setSel((prev) => ({ ...prev, [q.id]: String(t.id) }))}
+                  onPress={() => (useMulti ? handleMultiToggle(q.id, String(t.id)) : setSel((prev) => ({ ...prev, [q.id]: String(t.id) })))}
                 >
                   {t.flag_url ? (
                     <Image source={{ uri: t.flag_url }} style={{ width: FLAG_W, height: FLAG_H, borderRadius: 4 }} resizeMode="contain" />
@@ -427,12 +473,16 @@ export default function AdminBonusScreen() {
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
                     <Text style={styles.settleBtnText}>
-                      {selected[q.id]
-                        ? `Settle: ${q.id === 'g2'
-                          ? groups.find((g) => String(g.group_id) === selected[q.id])?.group_name ?? selected[q.id]
-                          : q.id === 'g3'
-                            ? allTeams.find((t) => String(t.id) === selected[q.id])?.name ?? selected[q.id]
-                            : q.options.find((o) => o.value === selected[q.id])?.label ?? selected[q.id]}`
+                      {(Array.isArray(selected[q.id]) ? (selected[q.id] as string[]).length > 0 : !!selected[q.id])
+                        ? `Settle: ${(Array.isArray(selected[q.id]) ? (selected[q.id] as string[]) : [selected[q.id] as string])
+                            .map((v) =>
+                              q.id === 'g2'
+                                ? groups.find((g) => String(g.group_id) === v)?.group_name ?? v
+                                : q.id === 'g3'
+                                  ? allTeams.find((t) => String(t.id) === v)?.name ?? v
+                                  : q.options.find((o) => o.value === v)?.label ?? v
+                            )
+                            .join(', ')}`
                         : 'Select an answer first'}
                     </Text>
                   )}

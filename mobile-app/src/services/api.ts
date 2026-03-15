@@ -1235,12 +1235,13 @@ export class ApiService {
 
   async settleBonusQuestion(
     fieldKey: string,
-    correctValue: string,
+    correctValues: string | string[],
   ): Promise<{ correct: number; incorrect: number; skipped_already_settled: number }> {
+    const values = Array.isArray(correctValues) ? correctValues : [correctValues];
     const response = await fetch(`${this.baseUrl}/api/admin/bonus/settle-question`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ field_key: fieldKey, correct_value: correctValue }),
+      body: JSON.stringify({ field_key: fieldKey, correct_values: values }),
     });
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
