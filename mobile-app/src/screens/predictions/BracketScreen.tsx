@@ -989,7 +989,7 @@ export default function BracketScreen({}: BracketScreenProps) {
                   {bracketResetPreview?.invalid_count ?? 0}
                 </Text>
                 <Text style={styles.bracketResetBreakdownLabel}>Invalid</Text>
-                <Text style={styles.bracketResetBreakdownMult}>× 2 pts each</Text>
+                <Text style={styles.bracketResetBreakdownMult}>× 1 pt each</Text>
               </View>
 
               <View style={styles.bracketResetBreakdownDivider} />
@@ -999,7 +999,7 @@ export default function BracketScreen({}: BracketScreenProps) {
                   {bracketResetPreview?.unreachable_count ?? 0}
                 </Text>
                 <Text style={styles.bracketResetBreakdownLabel}>Unreachable</Text>
-                <Text style={styles.bracketResetBreakdownMult}>× 1 pt each</Text>
+                <Text style={styles.bracketResetBreakdownMult}>× 0.5 pt each</Text>
               </View>
             </View>
 

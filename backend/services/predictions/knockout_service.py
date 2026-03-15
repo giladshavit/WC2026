@@ -90,14 +90,14 @@ class KnockoutService:
         Counts all user's knockout predictions (non-draft) and returns:
         - invalid_count: predictions with status == 'invalid'
         - unreachable_count: predictions with status == 'unreachable'
-        - penalty: invalid_count * 2 + unreachable_count * 1
+        - penalty: invalid_count + (unreachable_count // 2)
         - has_used_reset: user_scores.has_used_bracket_reset
         """
         predictions = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
 
         invalid_count = sum(1 for p in predictions if p.status == KnockoutPredictionStatus.INVALID.value)
         unreachable_count = sum(1 for p in predictions if p.status == KnockoutPredictionStatus.UNREACHABLE.value)
-        penalty = invalid_count * 2 + unreachable_count * 1
+        penalty = invalid_count + (unreachable_count // 2)
 
         user_scores = DBReader.get_user_scores(db, user_id)
         has_used_reset = user_scores.has_used_bracket_reset if user_scores else False
@@ -147,7 +147,7 @@ class KnockoutService:
         predictions_before = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
         invalid_count = sum(1 for p in predictions_before if p.status == KnockoutPredictionStatus.INVALID.value)
         unreachable_count = sum(1 for p in predictions_before if p.status == KnockoutPredictionStatus.UNREACHABLE.value)
-        penalty = invalid_count * 2 + unreachable_count * 1
+        penalty = invalid_count + (unreachable_count // 2)
 
         # Reset all predictions
         predictions_to_reset = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)

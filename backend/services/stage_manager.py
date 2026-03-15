@@ -25,16 +25,16 @@ class Stage(Enum):
         penalty_map = {
             Stage.PRE_GROUP_STAGE: 0,
             Stage.GROUP_CYCLE_1: 1,
-            Stage.GROUP_CYCLE_2: 2,
-            Stage.GROUP_CYCLE_3: 3,
-            Stage.PRE_ROUND32: 4,
-            Stage.ROUND32: 5,
-            Stage.PRE_ROUND16: 5,
-            Stage.ROUND16: 6,
-            Stage.PRE_QUARTER: 6,
-            Stage.QUARTER: 7,
-            Stage.SEMI: 18,
-            Stage.FINAL: 9
+            Stage.GROUP_CYCLE_2: 1,
+            Stage.GROUP_CYCLE_3: 2,
+            Stage.PRE_ROUND32: 2,
+            Stage.ROUND32: 2,
+            Stage.PRE_ROUND16: 3,
+            Stage.ROUND16: 3,
+            Stage.PRE_QUARTER: 3,
+            Stage.QUARTER: 3,
+            Stage.SEMI: 3,
+            Stage.FINAL: 3,
         }
         return penalty_map.get(self, 0)
 
