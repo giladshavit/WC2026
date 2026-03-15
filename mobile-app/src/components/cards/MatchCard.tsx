@@ -73,23 +73,10 @@ const PointsDisplay = ({ userPrediction, actualResult, matchStatus }: {
   if (!actualResult || matchStatus !== 'finished') return null;
 
   const points = userPrediction?.points ?? 0;
-  const status = userPrediction?.status;
-
-  const getBackgroundColor = () => {
-    switch (status) {
-      case 'exact':
-        return '#16a34a'; // green
-      case 'correct_outcome':
-        return '#f97316'; // orange
-      case 'wrong':
-        return '#ef4444'; // red
-      default:
-        return '#94a3b8'; // gray fallback
-    }
-  };
+  const pointsColor = points > 0 ? '#16a34a' : '#ef4444';
 
   return (
-    <View style={[styles.pointsContainer, { backgroundColor: getBackgroundColor() }]}>
+    <View style={[styles.pointsContainer, { backgroundColor: pointsColor }]}>
       <Text style={styles.pointsText}>{points} pts</Text>
     </View>
   );
