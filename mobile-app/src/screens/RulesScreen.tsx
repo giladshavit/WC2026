@@ -22,6 +22,14 @@ interface TableRow {
   highlight?: boolean;
 }
 
+interface ModeCardData {
+  mode: string;
+  emoji: string;
+  color: string;
+  description: string;
+  includes: string[];
+}
+
 interface Section {
   id: string;
   title: string;
@@ -33,10 +41,11 @@ type ContentBlock =
   | { type: 'paragraph'; text: string }
   | { type: 'bullet'; items: string[] }
   | { type: 'note'; text: string; color?: 'green' | 'yellow' | 'red' }
-  | { type: 'table'; headers: string[]; rows: TableRow[]; compact?: boolean }
-  | { type: 'subsection'; title: string; blocks: ContentBlock[] }
-  | { type: 'league-sort-card'; items: string[] }
-  | { type: 'tiebreaker'; items: string[] };
+  | { type: 'table'; headers: string[]; rows: TableRow[]; compact?: boolean; isWide?: boolean }
+  | { type: 'subsection'; title: string; blocks: ContentBlock[]; variant?: 'prediction' }
+  | { type: 'tiebreaker'; items: string[] }
+  | { type: 'temptation-card' }
+  | { type: 'mode-cards'; cards: ModeCardData[] };
 
 // ─── Content ─────────────────────────────────────────────────────────────────
 
@@ -48,132 +57,108 @@ const sections: Section[] = [
     content: [
       {
         type: 'paragraph',
-        text: 'Predicto is a prediction app for the 2026 FIFA World Cup. Your goal is to correctly predict as many outcomes as possible — match results, group standings, the knockout bracket, and bonus questions — and outscore your friends.',
+        text: 'Predicto is a prediction game for the 2026 FIFA World Cup. Predict match scores and bonus questions — or go all in with group standings, the full knockout bracket, and more. Then outscore your friends.',
+      },
+      {
+        type: 'paragraph',
+        text: 'Two league modes: Classic Mode (matches + bonus) and Multi Mode (everything).',
       },
     ],
   },
   {
-    id: 'types',
-    title: 'Prediction Types',
-    emoji: '🗂️',
-    content: [
-      {
-        type: 'subsection',
-        title: '1. Match Predictions 🥅',
-        blocks: [
-          {
-            type: 'paragraph',
-            text: 'Predict the exact scoreline of each match. Only the result after 90 minutes (plus stoppage time) counts — extra time and penalty shootouts are excluded.',
-          },
-          {
-            type: 'paragraph',
-            text: 'Predictions lock automatically at kick-off and cannot be changed after the whistle.',
-          },
-          {
-            type: 'note',
-            color: 'yellow',
-            text: "🎰 Temptation — High Risk / High Reward: Tap the Temptation button to receive 3 rare scoreline options that very few players have predicted. Guess correctly and your points are doubled. Offers change in real time based on other players' picks.",
-          },
-        ],
-      },
-      {
-        type: 'subsection',
-        title: '2. Path Predictions (Bracket) 🏆',
-        blocks: [
-          {
-            type: 'paragraph',
-            text: 'Predict the full tournament path, split into three sub-types:',
-          },
-          {
-            type: 'bullet',
-            items: [
-              'Groups — Predict the exact finishing order (1st–4th) for all 4 teams in each of the 12 groups. Editable until the end of Matchday 2.',
-              '3rd Place — Choose 8 of the 12 groups whose 3rd-place team will advance to the Round of 32. Editable until the end of Matchday 2.',
-              'Knockout — Predict the winner of every match from the Round of 32 through the Final. Each round is editable until it begins, but no later than the start of the Quarter-Finals.',
-            ],
-          },
-        ],
-      },
-      {
-        type: 'subsection',
-        title: '3. Bonus Predictions 🎰',
-        blocks: [
-          {
-            type: 'paragraph',
-            text: '10 questions covering the group stage, knockout stage, and the tournament overall. Pick one answer per question.',
-          },
-          {
-            type: 'bullet',
-            items: [
-              'Group-stage bonus questions: editable until end of Matchday 2.',
-              'Knockout & tournament bonus questions: editable until the Round of 16 begins.',
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'scoring',
-    title: 'Scoring',
-    emoji: '🧮',
+    id: 'classic',
+    title: 'Classic Mode',
+    emoji: '⚽',
     content: [
       {
         type: 'subsection',
         title: 'Match Predictions',
+        variant: 'prediction',
         blocks: [
           {
             type: 'paragraph',
-            text: 'Two scoring tiers — Correct Direction (right winner or draw, wrong scoreline) and Exact Score (perfect scoreline):',
+            text: 'Predict the exact scoreline for every match. Only the result after 90 minutes counts — no extra time or penalties. Predictions lock at kick-off.',
           },
           {
             type: 'table',
-            headers: ['Stage', 'Correct Direction', 'Exact Score'],
+            headers: ['Stage', 'Direction', 'Exact Score'],
             rows: [
-              { cells: ['Group Stage', '2', '5'] },
-              { cells: ['Round of 32', '2', '5'] },
+              { cells: ['Group / R32', '2', '5'] },
               { cells: ['Round of 16', '3', '7'] },
               { cells: ['Quarter-Final', '4', '9'] },
               { cells: ['Semi-Final', '5', '10'] },
-              { cells: ['3rd Place Match', '6', '12'] },
+              { cells: ['3rd Place', '6', '12'] },
               { cells: ['Final', '7', '15'] },
             ],
           },
-          {
-            type: 'note',
-            color: 'yellow',
-            text: '💡 Temptation picks earn double points in both tiers.',
-          },
+          { type: 'temptation-card' },
         ],
       },
       {
         type: 'subsection',
-        title: 'Group Stage Predictions',
+        title: 'Bonus Predictions',
+        variant: 'prediction',
         blocks: [
           {
             type: 'paragraph',
-            text: 'Points per team placed in the correct position:',
+            text: '10 questions covering the group stage, knockout stage, and the full tournament. One answer per question.',
+          },
+          {
+            type: 'bullet',
+            items: [
+              'Group-stage questions: editable until end of Matchday 2.',
+              'Knockout & tournament questions: editable until Round of 16 begins.',
+            ],
+          },
+          {
+            type: 'table',
+            headers: ['Result', 'Points'],
+            compact: true,
+            rows: [{ cells: ['Correct answer', '8'] }],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'multi',
+    title: 'Multi Mode',
+    emoji: '🏆',
+    content: [
+      {
+        type: 'paragraph',
+        text: 'Multi Mode builds on Classic Mode with full route predictions — who advances from every group all the way to the Final. Three additional prediction types:',
+      },
+      {
+        type: 'subsection',
+        title: 'Group Stage',
+        variant: 'prediction',
+        blocks: [
+          {
+            type: 'paragraph',
+            text: 'Predict the exact finishing order (1st–4th) for all 4 teams in each of the 12 groups. Editable until end of Matchday 2.',
           },
           {
             type: 'table',
             headers: ['Position', 'Points'],
             compact: true,
             rows: [
-              { cells: ['1st Place', '6'] },
-              { cells: ['2nd Place', '5'] },
-              { cells: ['3rd Place', '4'] },
-              { cells: ['4th Place', '2'] },
+              { cells: ['1st', '6'] },
+              { cells: ['2nd', '5'] },
+              { cells: ['3rd', '4'] },
+              { cells: ['4th', '2'] },
             ],
           },
         ],
       },
       {
         type: 'subsection',
-        title: '3rd Place Predictions',
+        title: '3rd Place',
+        variant: 'prediction',
         blocks: [
           {
             type: 'paragraph',
-            text: 'Points based on how many groups you correctly identified. Since you pick 8 of 12, at least 4 are always correct — scoring starts from 5:',
+            text: 'Choose 8 of the 12 groups whose 3rd-place team advances. Editable until end of Matchday 2.',
           },
           {
             type: 'table',
@@ -187,15 +172,21 @@ const sections: Section[] = [
               { cells: ['8', '24'] },
             ],
           },
+          {
+            type: 'note',
+            color: 'yellow',
+            text: 'You pick 8 of 12 — at least 4 are always correct. Points kick in from 5 correct.',
+          },
         ],
       },
       {
         type: 'subsection',
-        title: 'Knockout Predictions',
+        title: 'Knockout',
+        variant: 'prediction',
         blocks: [
           {
             type: 'paragraph',
-            text: 'Full Points if you predicted the exact match winner. Partial Points if your pick advanced through a different match in the same round:',
+            text: 'Predict the winner of every match from R32 to the Final. Editable round by round, no later than Quarter-Finals start.',
           },
           {
             type: 'table',
@@ -208,17 +199,15 @@ const sections: Section[] = [
               { cells: ['Final', '15', '—'] },
             ],
           },
-        ],
-      },
-      {
-        type: 'subsection',
-        title: 'Bonus Predictions',
-        blocks: [
           {
-            type: 'table',
-            headers: ['Result', 'Points'],
-            compact: true,
-            rows: [{ cells: ['Correct answer', '8'] }],
+            type: 'note',
+            color: 'green',
+            text: 'Full = correct winner via the exact path. Partial = your pick advanced through a different match in the same round.',
+          },
+          {
+            type: 'note',
+            color: 'yellow',
+            text: 'The Bracket screen shows the full tournament picture. Use Edit Mode to freely explore changes before saving.',
           },
         ],
       },
@@ -231,66 +220,68 @@ const sections: Section[] = [
     content: [
       {
         type: 'paragraph',
-        text: 'A fixed fine is deducted per change at the moment you tap Save, based on the current tournament stage:',
-      },
-      {
-        type: 'table',
-        headers: ['Tournament Stage', 'Fine / Change'],
-        rows: [
-          { cells: ['Before the tournament', '0 (free)'], highlight: true },
-          { cells: ['Matchday 1', '−1 pt'] },
-          { cells: ['Matchday 2', '−2 pts'] },
-          { cells: ['Matchday 3', '−3 pts'] },
-          { cells: ['Before Round of 32', '−4 pts'] },
-          { cells: ['Before Round of 16', '−5 pts'] },
-          { cells: ['Before Quarter-Final', '−6 pts'] },
-        ],
-      },
-      {
-        type: 'note',
-        color: 'red',
-        text: '⚠️ Every bracket change (groups, 3rd place, knockout) cascades to later stages — you may need to update additional picks as a result.',
+        text: 'A fine is deducted each time you save a change. Cost depends on the current tournament stage.',
       },
       {
         type: 'subsection',
-        title: 'Draft Mode',
+        title: 'What counts as a change?',
         blocks: [
           {
-            type: 'paragraph',
-            text: 'Edit path predictions freely in Draft Mode and see how each change affects the full bracket — no fine is applied until you tap Save.',
-          },
-        ],
-      },
-      {
-        type: 'subsection',
-        title: '🔄 Bracket Reset (One-Time Option)',
-        blocks: [
-          {
-            type: 'paragraph',
-            text: 'Before the Round of 32 begins, you get one opportunity to fully reset your entire knockout bracket. All predictions are cleared so you can start fresh with the real teams.',
-          },
-          {
-            type: 'paragraph',
-            text: 'The reset cost is calculated from your current predictions:',
+            type: 'bullet',
+            items: [
+              "Group Stage — each team moved in a group's finishing order: 1 change.",
+              '3rd Place — each group toggled: 1 change.',
+              'Knockout — changing a predicted winner in any round: 1 change (may cascade to later rounds).',
+              'Bonus — changing a question answer: 1 change.',
+            ],
           },
           {
             type: 'table',
-            headers: ['Prediction Status', 'Cost'],
+            headers: ['Tournament Stage', 'Fine / Change'],
+            rows: [
+              { cells: ['Before tournament', '0 (free)'], highlight: true },
+              { cells: ['Matchday 1', '−1 pt'] },
+              { cells: ['Matchday 2', '−2 pts'] },
+              { cells: ['Matchday 3', '−3 pts'] },
+              { cells: ['Before Round of 32', '−4 pts'] },
+              { cells: ['Before Round of 16', '−5 pts'] },
+              { cells: ['Before Quarter-Final', '−6 pts'] },
+            ],
+          },
+        ],
+      },
+      {
+        type: 'subsection',
+        title: '🔄 Bracket Reset (One-Time)',
+        blocks: [
+          {
+            type: 'paragraph',
+            text: 'Before the Round of 32, you can fully reset your knockout bracket once — clearing all predictions to start fresh with the real teams.',
+          },
+          {
+            type: 'paragraph',
+            text: 'Two prediction statuses matter for the reset cost:',
+          },
+          {
+            type: 'bullet',
+            items: [
+              '🔴 Invalid — no winner selected, or the selected team has already been eliminated. No points are possible from this slot.',
+              '🟠 Unreachable — your selected winner cannot reach this match. At best, only Partial points are possible.',
+            ],
+          },
+          {
+            type: 'table',
+            headers: ['Status', 'Reset Cost'],
             compact: true,
             rows: [
-              { cells: ['Invalid (🔴)', '−2 pts each'] },
-              { cells: ['Unreachable (🟠)', '−1 pt each'] },
+              { cells: ['Invalid 🔴', '−2 pts each'] },
+              { cells: ['Unreachable 🟠', '−1 pt each'] },
             ],
           },
           {
             type: 'note',
-            color: 'green',
-            text: '💡 At this stage each manual bracket change costs 4 pts. If you have many invalid or unreachable predictions, a reset can be significantly cheaper than fixing them one by one.',
-          },
-          {
-            type: 'note',
             color: 'red',
-            text: '⚠️ This option can only be used once and is only available before the Round of 32 kicks off.',
+            text: 'One-time only. Not available after Round of 32 kicks off.',
           },
         ],
       },
@@ -298,21 +289,21 @@ const sections: Section[] = [
   },
   {
     id: 'availability',
-    title: 'Prediction Availability',
+    title: 'Prediction Windows',
     emoji: '📅',
     content: [
       {
         type: 'paragraph',
-        text: 'Each prediction type has a window during which it can be edited. Once a stage begins or the deadline passes, it locks:',
+        text: 'Each prediction type has an editing window. Once a stage begins or the deadline passes, it locks.',
       },
       {
         type: 'table',
         headers: ['Stage', 'Groups', '3rd', 'R32', 'R16', 'QF', 'SF', 'Final'],
+        isWide: true,
         rows: [
-          { cells: ['Pre', '✅', '✅', '✅', '✅', '✅', '✅', '✅'] },
-          { cells: ['MD1', '✅', '✅', '✅', '✅', '✅', '✅', '✅'] },
-          { cells: ['MD2', '✅', '✅', '✅', '✅', '✅', '✅', '✅'] },
-          { cells: ['MD3', '❌', '❌', '✅', '✅', '✅', '✅', '✅'] },
+          { cells: ['Pre-tournament', '✅', '✅', '✅', '✅', '✅', '✅', '✅'] },
+          { cells: ['Matchday 1–2', '✅', '✅', '✅', '✅', '✅', '✅', '✅'] },
+          { cells: ['Matchday 3', '❌', '❌', '✅', '✅', '✅', '✅', '✅'] },
           { cells: ['Pre R32', '❌', '❌', '✅', '✅', '✅', '✅', '✅'] },
           { cells: ['Pre R16', '❌', '❌', '❌', '✅', '✅', '✅', '✅'] },
           { cells: ['Pre QF', '❌', '❌', '❌', '❌', '✅', '✅', '✅'] },
@@ -322,34 +313,7 @@ const sections: Section[] = [
       {
         type: 'note',
         color: 'red',
-        text: '* Groups and 3rd Place lock after Matchday 2. From the Quarter-Finals onward, no predictions can be edited.',
-      },
-      {
-        type: 'note',
-        color: 'red',
-        text: '⚽ While any knockout round is live, ALL predictions are locked — including rounds not yet started.',
-      },
-    ],
-  },
-  {
-    id: 'bracket',
-    title: 'The Bracket',
-    emoji: '🗂️',
-    content: [
-      {
-        type: 'paragraph',
-        text: 'The Bracket screen shows the full tournament picture. Edit predictions directly from here before saving — every early-stage change propagates automatically to later rounds.',
-      },
-      {
-        type: 'paragraph',
-        text: 'Each match slot is colour-coded to help you spot issues:',
-      },
-      {
-        type: 'bullet',
-        items: [
-          '🔴 Red — no winner selected, or your selected winner has been eliminated. No points possible.',
-          '🟠 Orange — your selected winner is playing in a different match in the same round. Partial points only.',
-        ],
+        text: 'While any knockout round is live, ALL bracket predictions are locked — including rounds not yet started.',
       },
     ],
   },
@@ -360,31 +324,32 @@ const sections: Section[] = [
     content: [
       {
         type: 'paragraph',
-        text: 'Two league modes are available:',
+        text: 'Compete in leagues with friends. Two league types available:',
       },
       {
-        type: 'bullet',
-        items: [
-          'Matches Only League — ranks players on match predictions exclusively.',
-          'Full League — ranks players across all prediction types.',
-        ],
-      },
-      {
-        type: 'league-sort-card',
-        items: [
-          '🏆 Total points',
-          '🥅 Match predictions',
-          '🗂️ Groups + 3rd place',
-          '💥 Knockout',
-          '🎰 Bonus',
-          '⚠️ Fines',
+        type: 'mode-cards',
+        cards: [
+          {
+            mode: 'Classic Mode',
+            emoji: '⚽',
+            color: '#38bdf8',
+            description: 'Match predictions + Bonus questions',
+            includes: ['Matches', 'Bonus'],
+          },
+          {
+            mode: 'Multi Mode',
+            emoji: '🏆',
+            color: '#f59e0b',
+            description: 'The full prediction experience',
+            includes: ['Matches', 'Bonus', 'Groups', '3rd Place', 'Knockout', 'Fines'],
+          },
         ],
       },
       {
         type: 'tiebreaker',
         items: [
           'More points from match predictions',
-          'Fewer fines',
+          'Fewer fines (if relevant)',
           'Earlier registration date',
         ],
       },
@@ -392,18 +357,39 @@ const sections: Section[] = [
   },
 ];
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function renderParagraphWithBold(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return (
+    <Text style={styles.paragraph}>
+      {parts.map((part, i) =>
+        part.startsWith('**') && part.endsWith('**') ? (
+          <Text key={i} style={[styles.paragraph, styles.paragraphBold]}>
+            {part.slice(2, -2)}
+          </Text>
+        ) : (
+          <Text key={i}>{part}</Text>
+        )
+      )}
+    </Text>
+  );
+}
+
 // ─── Table Component ──────────────────────────────────────────────────────────
 
 function RulesTable({
   headers,
   rows,
   compact,
+  isWide: isWideProp,
 }: {
   headers: string[];
   rows: TableRow[];
   compact?: boolean;
+  isWide?: boolean;
 }) {
-  const isWide = headers.length > 3;
+  const isWide = isWideProp ?? headers.length > 3;
 
   const tableContent = (
     <View style={[styles.table, isWide && { minWidth: screenWidth * 1.3 }]}>
@@ -479,11 +465,7 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
       {blocks.map((block, i) => {
         switch (block.type) {
           case 'paragraph':
-            return (
-              <Text key={i} style={styles.paragraph}>
-                {block.text}
-              </Text>
-            );
+            return <View key={i}>{renderParagraphWithBold(block.text)}</View>;
 
           case 'note': {
             const borderColor =
@@ -518,28 +500,19 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
                 headers={block.headers}
                 rows={block.rows}
                 compact={block.compact}
+                isWide={block.isWide}
               />
             );
 
           case 'subsection':
             return (
-              <View key={i} style={styles.subsection}>
-                <Text style={styles.subsectionTitle}>{block.title}</Text>
+              <View key={i} style={[styles.subsection, block.variant === 'prediction' && styles.subsectionPredictionSpacing]}>
+                {block.variant === 'prediction' ? (
+                  <Text style={styles.subsectionLabelA}>{block.title}</Text>
+                ) : (
+                  <Text style={styles.subsectionTitle}>{block.title}</Text>
+                )}
                 <RenderBlocks blocks={block.blocks} />
-              </View>
-            );
-
-          case 'league-sort-card':
-            return (
-              <View key={i} style={styles.sortCard}>
-                <Text style={styles.sortCardTitle}>Sort leaderboard by:</Text>
-                <View style={styles.sortGrid}>
-                  {block.items.map((item, j) => (
-                    <View key={j} style={styles.sortBadge}>
-                      <Text style={styles.sortBadgeText}>{item}</Text>
-                    </View>
-                  ))}
-                </View>
               </View>
             );
 
@@ -554,6 +527,48 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
                       <Text style={styles.tiebreakerBadgeText}>{j + 1}</Text>
                     </View>
                     <Text style={styles.tiebreakerText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
+            );
+
+          case 'temptation-card':
+            return (
+              <View key={i} style={styles.temptationCard}>
+                <Text style={styles.temptationTitle}>🎰 Temptation — High Risk / High Reward</Text>
+                <View style={styles.temptationDivider} />
+                <Text style={styles.temptationBody}>
+                  Tap Temptation on any match to unlock 3 rare scoreline options almost nobody else
+                  has predicted. Guess correctly and your points are doubled. Options update live
+                  based on all players' picks.
+                </Text>
+              </View>
+            );
+
+          case 'mode-cards':
+            return (
+              <View key={i} style={styles.modeCardsRow}>
+                {block.cards.map((card, j) => (
+                  <View
+                    key={j}
+                    style={[
+                      styles.modeCard,
+                      { borderColor: card.color + '55' },
+                    ]}
+                  >
+                    <View style={styles.modeCardHeader}>
+                      <Text style={styles.modeCardEmoji}>{card.emoji}</Text>
+                      <Text style={[styles.modeCardName, { color: card.color }]}>{card.mode}</Text>
+                    </View>
+                    <Text style={styles.modeCardDesc}>{card.description}</Text>
+                    <View style={styles.modeCardDivider} />
+                    <View style={styles.modeCardPills}>
+                      {card.includes.map((item, k) => (
+                        <View key={k} style={styles.modeCardPill}>
+                          <Text style={styles.modeCardPillText}>{item}</Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
                 ))}
               </View>
@@ -864,10 +879,44 @@ const styles = StyleSheet.create({
 
   // Subsection
   subsection: { gap: 8, marginTop: 4 },
+  subsectionPredictionSpacing: { marginTop: 30 },
   subsectionTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: '#e2e8f0',
+  },
+  subsectionLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#111e35',
+    borderWidth: 1,
+    borderColor: '#1a2a45',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingLeft: 10,
+    gap: 10,
+    marginBottom: 2,
+  },
+  subsectionLabelAccent: {
+    width: 3,
+    height: 18,
+    backgroundColor: '#16a34a',
+    borderRadius: 2,
+  },
+  subsectionLabelTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#e2e8f0',
+    letterSpacing: 0.3,
+  },
+  subsectionLabelA: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#e2e8f0',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 
   // Paragraph
@@ -876,6 +925,7 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     lineHeight: 22,
   },
+  paragraphBold: { fontWeight: '700', color: '#e2e8f0' },
 
   // Note
   noteBox: {
@@ -953,33 +1003,6 @@ const styles = StyleSheet.create({
   tableCellTextFirst: { color: '#e2e8f0', fontWeight: '600', textAlign: 'left' },
   tableCellTextHighlight: { color: '#86efac', fontWeight: '700' },
 
-  // League sort card
-  sortCard: {
-    backgroundColor: '#111e35',
-    borderRadius: 14,
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: '#1a2a45',
-  },
-  sortCardTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
-  },
-  sortGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  sortBadge: {
-    backgroundColor: '#0a1628',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: '#1e3050',
-  },
-  sortBadgeText: { fontSize: 13, color: '#e2e8f0', fontWeight: '500' },
-
   // Tiebreaker card
   tiebreakerCard: {
     backgroundColor: '#0f1e38',
@@ -990,7 +1013,7 @@ const styles = StyleSheet.create({
     borderColor: '#1a3060',
   },
   tiebreakerTitle: { fontSize: 15, fontWeight: '700', color: '#e2e8f0' },
-  tiebreakerSub: { fontSize: 13, color: '#475569', marginBottom: 4 },
+  tiebreakerSub: { fontSize: 13, color: '#94a3b8', marginBottom: 4 },
   tiebreakerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   tiebreakerBadge: {
     width: 26,
@@ -1002,4 +1025,78 @@ const styles = StyleSheet.create({
   },
   tiebreakerBadgeText: { fontSize: 12, fontWeight: '800', color: '#fff' },
   tiebreakerText: { fontSize: 14, color: '#cbd5e1', fontWeight: '500', flex: 1 },
+
+  // Temptation card
+  temptationCard: {
+    backgroundColor: '#1c1200',
+    borderWidth: 2,
+    borderColor: '#f59e0b',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 4,
+    gap: 0,
+  },
+  temptationTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#f59e0b',
+  },
+  temptationDivider: {
+    height: 1,
+    backgroundColor: 'rgba(245, 158, 11, 0.25)',
+    marginVertical: 10,
+  },
+  temptationBody: {
+    fontSize: 13,
+    color: '#cbd5e1',
+    lineHeight: 20,
+  },
+
+  // Mode cards
+  modeCardsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modeCard: {
+    flex: 1,
+    backgroundColor: '#111e35',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 14,
+    gap: 8,
+  },
+  modeCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modeCardEmoji: { fontSize: 18 },
+  modeCardName: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  modeCardDesc: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  modeCardDivider: {
+    height: 1,
+    backgroundColor: '#1a2a45',
+    marginVertical: 2,
+  },
+  modeCardPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  modeCardPill: {
+    backgroundColor: '#0a1628',
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  modeCardPillText: {
+    fontSize: 11,
+    color: '#94a3b8',
+  },
 });
