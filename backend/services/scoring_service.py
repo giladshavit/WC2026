@@ -90,6 +90,7 @@ class ScoringService:
         """
         Apply a points delta to a specific score field and total_points on UserScores.
         Handles get-or-create of UserScores. Skips if delta is 0.
+        When matches_score or bonus_score changes, also updates classic_total_score.
         """
         if delta == 0:
             return
@@ -98,10 +99,11 @@ class ScoringService:
             user_scores = DBWriter.create_user_scores(db, user_id)
         new_field_value = (getattr(user_scores, score_field) or 0) + delta
         new_total = (user_scores.total_points or 0) + delta
-        DBWriter.update_user_scores(
-            db, user_scores,
-            **{score_field: new_field_value, 'total_points': new_total}
-        )
+        update_kwargs = {score_field: new_field_value, 'total_points': new_total}
+        if score_field in ("matches_score", "bonus_score"):
+            new_classic = (user_scores.matches_score or 0) + (user_scores.bonus_score or 0) + delta
+            update_kwargs["classic_total_score"] = new_classic
+        DBWriter.update_user_scores(db, user_scores, **update_kwargs)
 
     @staticmethod
     def _determine_match_status(prediction: MatchPrediction, result: MatchResult) -> MatchPredictionStatus:

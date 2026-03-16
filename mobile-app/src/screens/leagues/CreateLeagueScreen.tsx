@@ -24,7 +24,7 @@ export default function CreateLeagueScreen() {
   const { showToast } = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [scoreMode, setScoreMode] = useState<'all' | 'matches'>('all');
+  const [scoreMode, setScoreMode] = useState<'multi' | 'classic'>('multi');
   const [loading, setLoading] = useState(false);
   const [createdLeague, setCreatedLeague] = useState<any>(null);
   const [nameFocused, setNameFocused] = useState(false);
@@ -213,22 +213,25 @@ export default function CreateLeagueScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Default View Mode</Text>
+              <Text style={{ fontSize: 11, color: '#475569', marginBottom: 8, marginLeft: 4 }}>
+                Classic = Matches + Bonus · Multi = Full prediction suite
+              </Text>
               <View style={styles.modeToggleRow}>
                 <TouchableOpacity
-                  style={[styles.modeBtn, scoreMode === 'all' && styles.modeBtnActive]}
-                  onPress={() => setScoreMode('all')}
+                  style={[styles.modeBtn, scoreMode === 'multi' && styles.modeBtnActive]}
+                  onPress={() => setScoreMode('multi')}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="trophy-outline" size={14} color={scoreMode === 'all' ? '#ffffff' : '#64748b'} />
-                  <Text style={[styles.modeBtnText, scoreMode === 'all' && styles.modeBtnTextActive]}>All Scores</Text>
+                  <Ionicons name="trophy-outline" size={14} color={scoreMode === 'multi' ? '#ffffff' : '#64748b'} />
+                  <Text style={[styles.modeBtnText, scoreMode === 'multi' && styles.modeBtnTextActive]}>Multi Mode</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.modeBtn, scoreMode === 'matches' && styles.modeBtnActive]}
-                  onPress={() => setScoreMode('matches')}
+                  style={[styles.modeBtn, scoreMode === 'classic' && styles.modeBtnActive]}
+                  onPress={() => setScoreMode('classic')}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="football-outline" size={14} color={scoreMode === 'matches' ? '#ffffff' : '#64748b'} />
-                  <Text style={[styles.modeBtnText, scoreMode === 'matches' && styles.modeBtnTextActive]}>Matches Only</Text>
+                  <Ionicons name="football-outline" size={14} color={scoreMode === 'classic' ? '#ffffff' : '#64748b'} />
+                  <Text style={[styles.modeBtnText, scoreMode === 'classic' && styles.modeBtnTextActive]}>Classic Mode</Text>
                 </TouchableOpacity>
               </View>
             </View>

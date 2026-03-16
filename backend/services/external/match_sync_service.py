@@ -4,6 +4,7 @@ Polls football-data.org only during active match windows.
 """
 
 import logging
+import os
 from datetime import datetime, timezone, timedelta
 
 from database import SessionLocal
@@ -58,7 +59,10 @@ class MatchSyncService:
             return
 
         client = FootballDataClient()
-        external_matches = client.get_live_matches()
+        competition_codes = os.getenv("SYNC_COMPETITION_CODE", "WC").split(",")
+        external_matches = []
+        for code in competition_codes:
+            external_matches.extend(client.get_live_matches(competition_code=code.strip()))
         if not external_matches:
             logger.info("No live matches from API")
             return
@@ -97,6 +101,8 @@ class MatchSyncService:
                     # Set status to LIVE if it was SCHEDULED
                     if match.status == MatchStatus.SCHEDULED.value:
                         DBWriter.set_match_status(db, match, MatchStatus.LIVE.value)
+                        # Ensure match_result row exists with at least 0-0
+                        DBWriter.ensure_match_result_exists(db, match.id)
                     DBUtils.commit(db)
                 except Exception as e:
                     logger.error(f"[SYNC] Failed to update match {match.id}: {e}")

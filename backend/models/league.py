@@ -6,8 +6,8 @@ from .base import Base
 
 
 class LeagueScoreMode(str, enum.Enum):
-    ALL = "all"
-    MATCHES = "matches"
+    MULTI = "multi"
+    CLASSIC = "classic"
 
 
 class League(Base):
@@ -20,7 +20,7 @@ class League(Base):
     created_by = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
-    score_mode = Column(Enum(LeagueScoreMode), nullable=False, default=LeagueScoreMode.ALL)
+    score_mode = Column(Enum(LeagueScoreMode, values_callable=lambda x: [e.value for e in x]), nullable=False, default=LeagueScoreMode.MULTI)
 
     creator = relationship("User", foreign_keys=[created_by])
     members = relationship("LeagueMembership", back_populates="league", cascade="all, delete-orphan")

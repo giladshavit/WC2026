@@ -218,7 +218,7 @@ export interface League {
   created_at: string;
   member_count: number;
   joined_at?: string;
-  score_mode?: 'all' | 'matches';
+  score_mode?: 'multi' | 'classic';
 }
 
 export interface BonusOptions {
@@ -293,7 +293,7 @@ export interface LeagueStandingsResponse {
     created_by: number;
     created_at: string;
     member_count: number;
-    score_mode?: 'all' | 'matches';
+    score_mode?: 'multi' | 'classic';
   } | null;
   standings: LeagueStanding[];
   total_count: number;
@@ -305,7 +305,7 @@ export interface LeagueStandingsResponse {
 export interface CreateLeagueRequest {
   name: string;
   description?: string;
-  score_mode?: 'all' | 'matches';
+  score_mode?: 'multi' | 'classic';
 }
 
 export interface JoinLeagueRequest {

@@ -6,6 +6,8 @@ Commit responsibility belongs to the service layer via DBUtils.commit().
 """
 import logging
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 from typing import Optional, List, Dict, Any, Sequence, Union
 from datetime import datetime
 
@@ -101,6 +103,7 @@ class DBWriter:
             knockout_score=0,
             bonus_score=0,
             bonus_penalty=0,
+            classic_total_score=0,
             penalty=0,
             total_points=0
         )
@@ -124,6 +127,7 @@ class DBWriter:
         scores.third_place_score = 0
         scores.knockout_score = 0
         scores.bonus_score = 0
+        scores.classic_total_score = 0
         scores.penalty = 0
         scores.groups_penalty = 0
         scores.third_place_penalty = 0
@@ -374,13 +378,14 @@ class DBWriter:
             deltas = list(user_deltas.values())
             db.execute(text("""
                 INSERT INTO user_scores
-                    (user_id, matches_score, total_points,
+                    (user_id, matches_score, total_points, classic_total_score,
                      groups_score, third_place_score, knockout_score, penalty)
-                SELECT u, d, d, 0, 0, 0, 0
+                SELECT u, d, d, d, 0, 0, 0, 0
                 FROM unnest(:user_ids::int[], :deltas::int[]) AS t(u, d)
                 ON CONFLICT (user_id) DO UPDATE
                     SET matches_score = user_scores.matches_score + EXCLUDED.matches_score,
-                        total_points  = user_scores.total_points  + EXCLUDED.total_points
+                        total_points  = user_scores.total_points  + EXCLUDED.total_points,
+                        classic_total_score = user_scores.classic_total_score + EXCLUDED.matches_score
             """), {"user_ids": user_ids, "deltas": deltas})
 
         db.flush()
@@ -499,10 +504,12 @@ class DBWriter:
             if score_row:
                 new_bonus = (score_row.bonus_score or 0) + score_delta
                 new_total = (score_row.total_points or 0) + score_delta
+                new_classic = (score_row.matches_score or 0) + new_bonus
                 DBWriter.update_user_scores(
                     db, score_row,
                     bonus_score=new_bonus,
                     total_points=new_total,
+                    classic_total_score=new_classic,
                 )
 
     @staticmethod
@@ -830,6 +837,14 @@ class DBWriter:
         return result
 
     @staticmethod
+    def ensure_match_result_exists(db: Session, match_id: int) -> None:
+        """Ensure a match_result row exists for this match. If not, insert 0-0."""
+        existing = db.query(MatchResult).filter(MatchResult.match_id == match_id).first()
+        if not existing:
+            db.add(MatchResult(match_id=match_id, home_team_score=0, away_team_score=0))
+            logger.info(f"[SYNC] Created 0-0 result row for match {match_id}")
+
+    @staticmethod
     def mark_match_result_finalized(db: Session, match: Match) -> None:
         """Mark that the match result has been finalized from external sync."""
         match.status = "finished"
@@ -902,7 +917,7 @@ class DBWriter:
     # ═══════════════════════════════════════════════════════
     @staticmethod
     def create_league(db: Session, name: str, created_by: int,
-                      invite_code: str, score_mode: str = "all", **kwargs) -> League:
+                      invite_code: str, score_mode: str = "multi", **kwargs) -> League:
         from models.league import LeagueScoreMode
         score_mode_enum = LeagueScoreMode(score_mode) if isinstance(score_mode, str) else score_mode
         league = League(name=name, created_by=created_by, invite_code=invite_code, score_mode=score_mode_enum, **kwargs)

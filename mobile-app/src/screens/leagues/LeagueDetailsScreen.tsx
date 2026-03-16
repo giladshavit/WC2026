@@ -172,7 +172,7 @@ function AnimatedPlayerRow({
   truncateName: (name: string) => string;
   liveMatchPredictionsList: LeagueMatchPredictionsResponse[];
   side: 'left' | 'middle' | 'right';
-  scoreMode?: 'weighted' | 'matches';
+  scoreMode?: 'multi' | 'classic';
   showOnlyTotalColumn?: boolean;
   onRowPress?: () => void;
 }) {
@@ -257,25 +257,38 @@ function AnimatedPlayerRow({
         ]}
       >
         <View style={styles.playerRowContent}>
-          <View style={styles.colNum}>
-            <Text style={[styles.cellText, styles.cellCenter]}>{item.matches_points ?? 0}</Text>
-          </View>
-          <View style={styles.colNum}>
-            <Text style={[styles.cellText, styles.cellCenter]}>{groupsPlusThird}</Text>
-          </View>
-          <View style={styles.colNum}>
-            <Text style={[styles.cellText, styles.cellCenter]}>{item.knockout_points ?? 0}</Text>
-          </View>
-          <View style={styles.colNum}>
-            <Text style={[styles.cellText, styles.cellCenter]}>{item.bonus_points ?? 0}</Text>
-          </View>
-          <View style={styles.colFine}>
-            {fineVal > 0 ? (
-              <View style={styles.fineBadge}>
-                <Text style={styles.fineBadgeText}>{fineVal}</Text>
+          {scoreMode === 'classic' ? (
+            <>
+              <View style={styles.colNum}>
+                <Text style={[styles.cellText, styles.cellCenter]}>{item.matches_points ?? 0}</Text>
               </View>
-            ) : null}
-          </View>
+              <View style={styles.colNum}>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#86efac' }]}>{item.bonus_points ?? 0}</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.colNum}>
+                <Text style={[styles.cellText, styles.cellCenter]}>{item.matches_points ?? 0}</Text>
+              </View>
+              <View style={styles.colNum}>
+                <Text style={[styles.cellText, styles.cellCenter]}>{groupsPlusThird}</Text>
+              </View>
+              <View style={styles.colNum}>
+                <Text style={[styles.cellText, styles.cellCenter]}>{item.knockout_points ?? 0}</Text>
+              </View>
+              <View style={styles.colNum}>
+                <Text style={[styles.cellText, styles.cellCenter]}>{item.bonus_points ?? 0}</Text>
+              </View>
+              <View style={styles.colFine}>
+                {fineVal > 0 ? (
+                  <View style={styles.fineBadge}>
+                    <Text style={styles.fineBadgeText}>{fineVal}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </>
+          )}
         </View>
       </Animated.View>
     );
@@ -332,15 +345,23 @@ function AnimatedPlayerRow({
                 styles.cellTotal,
                 styles.cellCenter,
                 isCurrentUser && styles.cellBold,
-                ((scoreMode === 'matches' ? item.matches_points : item.total_points) ?? 0) >= 100 && styles.cellTotalLarge,
-                ((scoreMode === 'matches' ? item.matches_points : item.total_points) ?? 0) >= 1000 && styles.cellTotalXLarge,
-                ((scoreMode === 'matches' ? item.matches_points : item.total_points) ?? 0) < 0 && styles.cellTotalNegative,
+                (scoreMode === 'classic'
+                  ? (item.matches_points ?? 0) + (item.bonus_points ?? 0)
+                  : (item.total_points ?? 0)) >= 100 && styles.cellTotalLarge,
+                (scoreMode === 'classic'
+                  ? (item.matches_points ?? 0) + (item.bonus_points ?? 0)
+                  : (item.total_points ?? 0)) >= 1000 && styles.cellTotalXLarge,
+                (scoreMode === 'classic'
+                  ? (item.matches_points ?? 0) + (item.bonus_points ?? 0)
+                  : (item.total_points ?? 0)) < 0 && styles.cellTotalNegative,
               ]}
               numberOfLines={1}
               adjustsFontSizeToFit={true}
               minimumFontScale={0.5}
             >
-              {scoreMode === 'matches' ? (item.matches_points ?? 0) : (item.total_points ?? 0)}
+              {scoreMode === 'classic'
+                ? (item.matches_points ?? 0) + (item.bonus_points ?? 0)
+                : (item.total_points ?? 0)}
             </Text>
           </View>
         </View>
@@ -387,7 +408,7 @@ export default function LeagueDetailsScreen() {
   const liveMatchIdsRef = useRef<number[]>([]);
   const flashListRef = useRef<any>(null);
   const scoreModeInitializedRef = useRef(false);
-  const [scoreMode, setScoreMode] = useState<'weighted' | 'matches'>('weighted');
+  const [scoreMode, setScoreMode] = useState<'multi' | 'classic'>('classic');
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [userDismissedLive, setUserDismissedLive] = useState(false);
 
@@ -465,11 +486,11 @@ export default function LeagueDetailsScreen() {
       setCurrentUserEntry((data.current_user_entry as StandingWithFine) ?? null);
       if (!scoreModeInitializedRef.current) {
         const leagueMode = data.league_info?.score_mode;
-        if (leagueMode === 'matches') {
-          setScoreMode('matches');
+        if (leagueMode === 'classic') {
+          setScoreMode('classic');
           setSortBy('matches');
         } else {
-          setScoreMode('weighted');
+          setScoreMode('multi');
         }
         scoreModeInitializedRef.current = true;
       }
@@ -610,7 +631,7 @@ export default function LeagueDetailsScreen() {
 
   const memberCount = totalCount;
   const effectiveLiveList = isLiveMode ? liveMatchPredictionsList : [];
-  const showOnlyTotalColumn = isLiveMode || scoreMode === 'matches';
+  const showOnlyTotalColumn = isLiveMode;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -688,19 +709,19 @@ export default function LeagueDetailsScreen() {
         {liveMatchPredictionsList.length === 0 && <View />}
         <View style={styles.scoreModeToggle}>
           <TouchableOpacity
-            style={[styles.scoreModeBtn, scoreMode === 'weighted' && styles.scoreModeBtnActive]}
-            onPress={() => { handleSortByChange('total'); setScoreMode('weighted'); }}
+            style={[styles.scoreModeBtn, scoreMode === 'multi' && styles.scoreModeBtnActive]}
+            onPress={() => { handleSortByChange('total'); setScoreMode('multi'); }}
           >
-            <Text style={[styles.scoreModeBtnText, scoreMode === 'weighted' && styles.scoreModeBtnTextActive]}>
-              All
+            <Text style={[styles.scoreModeBtnText, scoreMode === 'multi' && styles.scoreModeBtnTextActive]}>
+              Multi
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.scoreModeBtn, scoreMode === 'matches' && styles.scoreModeBtnActive]}
-            onPress={() => { handleSortByChange('matches'); setScoreMode('matches'); }}
+            style={[styles.scoreModeBtn, scoreMode === 'classic' && styles.scoreModeBtnActive]}
+            onPress={() => { handleSortByChange('matches'); setScoreMode('classic'); }}
           >
-            <Text style={[styles.scoreModeBtnText, scoreMode === 'matches' && styles.scoreModeBtnTextActive]}>
-              Matches
+            <Text style={[styles.scoreModeBtnText, scoreMode === 'classic' && styles.scoreModeBtnTextActive]}>
+              Classic
             </Text>
           </TouchableOpacity>
         </View>
@@ -770,7 +791,7 @@ export default function LeagueDetailsScreen() {
                     </View>
                   </View>
                 </View>
-                {!isLiveMode && scoreMode === 'weighted' && (
+                {!isLiveMode && (
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -779,61 +800,82 @@ export default function LeagueDetailsScreen() {
                   >
                     <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
                       <View style={[styles.tableHeader, styles.tableHeaderMiddle, { height: 46, backgroundColor: '#334155' }]}>
-                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('matches')} activeOpacity={0.7}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'matches' ? 'football' : 'football-outline'} size={14} color={sortBy === 'matches' ? '#ffffff' : '#94a3b8'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'matches' ? '#ffffff' : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('groups')} activeOpacity={0.7}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'groups' ? 'home' : 'home-outline'} size={14} color={sortBy === 'groups' ? '#ffffff' : '#94a3b8'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'groups' ? '#ffffff' : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('knockout')} activeOpacity={0.7}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'knockout' ? 'trophy' : 'trophy-outline'} size={14} color={sortBy === 'knockout' ? '#ffffff' : '#94a3b8'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'knockout' ? '#ffffff' : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('bonus')} activeOpacity={0.7}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? '#16a34a' : '#94a3b8'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? '#16a34a' : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.colFine, styles.headerIconCell]} onPress={() => handleSortByChange('fine')} activeOpacity={0.7}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'fine' ? 'warning' : 'warning-outline'} size={14} color={sortBy === 'fine' ? '#ef4444' : 'rgba(239,68,68,0.4)'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'fine' ? '#ef4444' : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
+                        {scoreMode === 'classic' ? (
+                          <>
+                            <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('matches')} activeOpacity={0.7}>
+                              <View style={styles.headerIconWrapper}>
+                                <Ionicons name={sortBy === 'matches' ? 'football' : 'football-outline'} size={14} color={sortBy === 'matches' ? '#ffffff' : '#94a3b8'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'matches' ? '#ffffff' : 'transparent' }]} />
+                              </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('bonus')} activeOpacity={0.7}>
+                              <View style={styles.headerIconWrapper}>
+                                <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? '#86efac' : '#94a3b8'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? '#86efac' : 'transparent' }]} />
+                              </View>
+                            </TouchableOpacity>
+                          </>
+                        ) : (
+                          <>
+                            <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('matches')} activeOpacity={0.7}>
+                              <View style={styles.headerIconWrapper}>
+                                <Ionicons name={sortBy === 'matches' ? 'football' : 'football-outline'} size={14} color={sortBy === 'matches' ? '#ffffff' : '#94a3b8'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'matches' ? '#ffffff' : 'transparent' }]} />
+                              </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('groups')} activeOpacity={0.7}>
+                              <View style={styles.headerIconWrapper}>
+                                <Ionicons name={sortBy === 'groups' ? 'home' : 'home-outline'} size={14} color={sortBy === 'groups' ? '#ffffff' : '#94a3b8'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'groups' ? '#ffffff' : 'transparent' }]} />
+                              </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('knockout')} activeOpacity={0.7}>
+                              <View style={styles.headerIconWrapper}>
+                                <Ionicons name={sortBy === 'knockout' ? 'trophy' : 'trophy-outline'} size={14} color={sortBy === 'knockout' ? '#ffffff' : '#94a3b8'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'knockout' ? '#ffffff' : 'transparent' }]} />
+                              </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('bonus')} activeOpacity={0.7}>
+                              <View style={styles.headerIconWrapper}>
+                                <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? '#16a34a' : '#94a3b8'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? '#16a34a' : 'transparent' }]} />
+                              </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.colFine, styles.headerIconCell]} onPress={() => handleSortByChange('fine')} activeOpacity={0.7}>
+                              <View style={styles.headerIconWrapper}>
+                                <Ionicons name={sortBy === 'fine' ? 'warning' : 'warning-outline'} size={14} color={sortBy === 'fine' ? '#ef4444' : 'rgba(239,68,68,0.4)'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'fine' ? '#ef4444' : 'transparent' }]} />
+                              </View>
+                            </TouchableOpacity>
+                          </>
+                        )}
                       </View>
                     </View>
                   </ScrollView>
                 )}
-                <View style={[styles.tableFixedRight, showOnlyTotalColumn ? { flex: 1, backgroundColor: '#0f172a' } : { width: 54 + effectiveLiveList.length * 50, backgroundColor: '#0f172a', alignSelf: 'stretch' }]}>
+                <View style={[styles.tableFixedRight, { width: isLiveMode ? undefined : 54, flex: isLiveMode ? 1 : undefined, backgroundColor: '#0f172a' }]}>
                   <View style={[styles.tableHeader, styles.tableHeaderRight, { height: 46, backgroundColor: '#334155' }, showOnlyTotalColumn && { justifyContent: 'flex-end' }]}>
                     {effectiveLiveList.map((liveData) => (
                       <View key={liveData.match_id} style={[styles.colLive, styles.headerIconCell]}>
                         <LiveHeaderCell liveMatchPredictions={liveData} />
                       </View>
                     ))}
-                    {scoreMode === 'matches' ? (
-                      <View style={[styles.colTotal, styles.headerIconCell]}>
-                        <View style={styles.headerIconWrapper}>
-                          <Ionicons name="star" size={14} color="#fbbf24" />
-                        </View>
-                      </View>
-                    ) : (
-                      <TouchableOpacity style={[styles.colTotal, styles.headerIconCell]} onPress={() => handleSortByChange('total')} activeOpacity={0.7}>
-                        <View style={styles.headerIconWrapper}>
-                          <Ionicons name={sortBy === 'total' ? 'star' : 'star-outline'} size={14} color={sortBy === 'total' ? '#fbbf24' : 'rgba(251,191,36,0.4)'} />
+                    <TouchableOpacity
+                      style={[styles.colTotal, styles.headerIconCell]}
+                      onPress={() => scoreMode === 'multi' ? handleSortByChange('total') : undefined}
+                      activeOpacity={scoreMode === 'multi' ? 0.7 : 1}
+                    >
+                      <View style={styles.headerIconWrapper}>
+                        <Ionicons
+                          name={scoreMode === 'multi' && sortBy === 'total' ? 'star' : 'star-outline'}
+                          size={14}
+                          color={scoreMode === 'multi' && sortBy === 'total' ? '#fbbf24' : 'rgba(251,191,36,0.4)'}
+                        />
+                        {scoreMode === 'multi' && (
                           <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'total' ? '#fbbf24' : 'transparent' }]} />
-                        </View>
-                      </TouchableOpacity>
-                    )}
+                        )}
+                      </View>
+                    </TouchableOpacity>
                   </View>
                 </View>
               </View>
@@ -853,7 +895,7 @@ export default function LeagueDetailsScreen() {
                     onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('UserProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
                   />
                 </View>
-                {!isLiveMode && scoreMode === 'weighted' && (
+                {!isLiveMode && (
                   <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
                     <AnimatedPlayerRow
                       item={item}
@@ -868,7 +910,7 @@ export default function LeagueDetailsScreen() {
                     />
                   </View>
                 )}
-                <View style={[styles.tableFixedRight, showOnlyTotalColumn ? { flex: 1, backgroundColor: '#0f172a' } : { width: 54 + effectiveLiveList.length * 50, backgroundColor: '#0f172a', alignSelf: 'stretch' }]}>
+                <View style={[styles.tableFixedRight, { width: isLiveMode ? undefined : 54, flex: isLiveMode ? 1 : undefined, backgroundColor: '#0f172a' }]}>
                   <AnimatedPlayerRow
                     item={item}
                     index={index}
@@ -911,7 +953,7 @@ export default function LeagueDetailsScreen() {
                   </View>
                 </View>
               </View>
-              {!isLiveMode && scoreMode === 'weighted' && (
+              {!isLiveMode && (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -919,44 +961,59 @@ export default function LeagueDetailsScreen() {
                 contentContainerStyle={styles.tableScrollMiddleContent}
               >
                 <View style={[styles.playerRow, styles.playerRowContent, { minHeight: 52, borderBottomWidth: 0, paddingHorizontal: 14, backgroundColor: '#1a2744' }]}>
-                  <View style={styles.colNum}>
-                    <Text style={[styles.cellText, styles.cellCenter]}>
-                      {currentUserEntry.matches_points ?? 0}
-                    </Text>
-                  </View>
-                  <View style={styles.colNum}>
-                    <Text style={[styles.cellText, styles.cellCenter]}>
-                      {(currentUserEntry.groups_points ?? 0) + (currentUserEntry.third_place_points ?? 0)}
-                    </Text>
-                  </View>
-                  <View style={styles.colNum}>
-                    <Text style={[styles.cellText, styles.cellCenter]}>
-                      {currentUserEntry.knockout_points ?? 0}
-                    </Text>
-                  </View>
-                  <View style={styles.colNum}>
-                    <Text style={[styles.cellText, styles.cellCenter]}>
-                      {currentUserEntry.bonus_points ?? 0}
-                    </Text>
-                  </View>
-                  <View style={styles.colFine}>
-                    {(currentUserEntry.penalty ?? 0) > 0 ? (
-                      <View style={styles.fineBadge}>
-                        <Text style={styles.fineBadgeText}>-{currentUserEntry.penalty}</Text>
+                  {scoreMode === 'classic' ? (
+                    <>
+                      <View style={styles.colNum}>
+                        <Text style={[styles.cellText, styles.cellCenter]}>
+                          {currentUserEntry.matches_points ?? 0}
+                        </Text>
                       </View>
-                    ) : (
-                      <Text style={[styles.cellText, styles.cellCenter]}>0</Text>
-                    )}
-                  </View>
+                      <View style={styles.colNum}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#86efac' }]}>
+                          {currentUserEntry.bonus_points ?? 0}
+                        </Text>
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <View style={styles.colNum}>
+                        <Text style={[styles.cellText, styles.cellCenter]}>
+                          {currentUserEntry.matches_points ?? 0}
+                        </Text>
+                      </View>
+                      <View style={styles.colNum}>
+                        <Text style={[styles.cellText, styles.cellCenter]}>
+                          {(currentUserEntry.groups_points ?? 0) + (currentUserEntry.third_place_points ?? 0)}
+                        </Text>
+                      </View>
+                      <View style={styles.colNum}>
+                        <Text style={[styles.cellText, styles.cellCenter]}>
+                          {currentUserEntry.knockout_points ?? 0}
+                        </Text>
+                      </View>
+                      <View style={styles.colNum}>
+                        <Text style={[styles.cellText, styles.cellCenter]}>
+                          {currentUserEntry.bonus_points ?? 0}
+                        </Text>
+                      </View>
+                      <View style={styles.colFine}>
+                        {(currentUserEntry.penalty ?? 0) > 0 ? (
+                          <View style={styles.fineBadge}>
+                            <Text style={styles.fineBadgeText}>-{currentUserEntry.penalty}</Text>
+                          </View>
+                        ) : (
+                          <Text style={[styles.cellText, styles.cellCenter]}>0</Text>
+                        )}
+                      </View>
+                    </>
+                  )}
                 </View>
               </ScrollView>
               )}
               <View style={[
                 styles.tableFixedRight,
                 styles.stickyUserRowRight,
-                showOnlyTotalColumn
-                  ? { flex: 1, backgroundColor: '#1a2744' }
-                  : { width: 54 + effectiveLiveList.length * 50, backgroundColor: '#1a2744' }
+                { width: isLiveMode ? undefined : 54, flex: isLiveMode ? 1 : undefined, backgroundColor: '#1a2744' }
               ]}>
                 <View style={[
                   styles.playerRow,
@@ -995,7 +1052,9 @@ export default function LeagueDetailsScreen() {
                           adjustsFontSizeToFit={true}
                           minimumFontScale={0.5}
                         >
-                          {scoreMode === 'matches' ? (currentUserEntry.matches_points ?? 0) : (currentUserEntry.total_points ?? 0)}
+                          {scoreMode === 'classic'
+                            ? (currentUserEntry.matches_points ?? 0) + (currentUserEntry.bonus_points ?? 0)
+                            : (currentUserEntry.total_points ?? 0)}
                         </Text>
                       </View>
                     </View>
@@ -1375,6 +1434,11 @@ const styles = StyleSheet.create({
   },
   colLive: {
     width: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colClassicNum: {
+    width: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },

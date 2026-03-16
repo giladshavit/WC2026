@@ -21,7 +21,7 @@ class LeagueService:
             return code
     
     @staticmethod
-    def create_league(db: Session, user_id: int, name: str, description: Optional[str] = None, score_mode: str = "all") -> Dict[str, Any]:
+    def create_league(db: Session, user_id: int, name: str, description: Optional[str] = None, score_mode: str = "multi") -> Dict[str, Any]:
         """Create a new league and automatically join the creator."""
         try:
             # Generate unique invite code
@@ -152,6 +152,7 @@ class LeagueService:
             "third_place_points": scores.third_place_score if scores else 0,
             "knockout_points": scores.knockout_score if scores else 0,
             "bonus_points": (scores.bonus_score or 0) if scores else 0,
+            "classic_total_points": scores.classic_total_score if scores else 0,
             "penalty": scores.penalty if scores else 0,
             "joined_at": membership.joined_at.isoformat() if membership else None,
         }

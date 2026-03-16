@@ -16,6 +16,7 @@ class UserScores(Base):
     knockout_score = Column(Integer, default=0)
     bonus_score = Column(Integer, default=0, nullable=False)
     bonus_penalty = Column(Integer, default=0, nullable=False)
+    classic_total_score = Column(Integer, default=0, nullable=False)
     
     # Match prediction accuracy counters
     # DEPRECATED - replaced by GROUP BY on MatchPrediction.status (Prompt 13)
