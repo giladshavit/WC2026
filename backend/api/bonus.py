@@ -93,7 +93,7 @@ def get_bonus_options(
 def get_bonus_result_statistics(field_key: str, db: Session = Depends(get_db)):
     """
     Returns correct/incorrect/pending counts for a settled bonus question.
-    field_key: g1, g2, g3, g4, g5, k1, k2, k3, t1, t2
+    field_key: g1–g6, k1–k3, t1–t3
     No auth required — statistics are public.
     """
     if field_key not in BONUS_FIELD_MAP:
@@ -130,7 +130,7 @@ def get_bonus_question_outcomes(field_key: str, db: Session = Depends(get_db)):
     Returns correct/incorrect outcome stats for users who answered this question.
     Excludes users who left it blank. Only meaningful after the question is settled.
     """
-    if field_key not in ["g1", "g2", "g3", "g4", "g5", "k1", "k2", "k3", "t1", "t2"]:
+    if field_key not in ["g1", "g2", "g3", "g4", "g5", "g6", "k1", "k2", "k3", "t1", "t2", "t3"]:
         raise HTTPException(status_code=404, detail="Unknown field_key")
     return BonusStatisticsService.get_question_outcome_stats(db, field_key)
 
@@ -140,7 +140,7 @@ def get_bonus_question_outcomes(field_key: str, db: Session = Depends(get_db)):
 def get_bonus_statistics(field_key: str, db: Session = Depends(get_db)):
     """
     Returns answer distribution (%) for a single bonus question.
-    field_key: g1, g2, g3, g4, g5, k1, k2, k3, t1, t2
+    field_key: g1–g6, k1–k3, t1–t3
     No auth required — statistics are public.
     """
     return BonusStatisticsService.get_question_statistics(db, field_key)

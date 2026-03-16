@@ -541,11 +541,13 @@ class BonusResultsRequest(BaseModel):
     g3_correct: Optional[str] = None
     g4_correct: Optional[str] = None
     g5_correct: Optional[str] = None
+    g6_correct: Optional[str] = None
     k1_correct: Optional[str] = None
     k2_correct: Optional[str] = None
     k3_correct: Optional[str] = None
     t1_correct: Optional[str] = None
     t2_correct: Optional[str] = None
+    t3_correct: Optional[str] = None
 
 
 class BonusInterimRequest(BaseModel):
@@ -646,7 +648,7 @@ def get_bonus_results(db: Session = Depends(get_db)):
     """Get currently stored correct answers and interim values for all bonus questions (admin only)."""
     from models.results import BonusResults
     row = db.query(BonusResults).filter_by(id=1).first()
-    fields = ["g1", "g2", "g3", "g4", "g5", "k1", "k2", "k3", "t1", "t2"]
+    fields = ["g1", "g2", "g3", "g4", "g5", "g6", "k1", "k2", "k3", "t1", "t2", "t3"]
     result = {}
     if not row:
         for f in fields:
@@ -671,8 +673,8 @@ def update_bonus_results(
     """
     from models.results import BonusResults
     from services.predictions import BonusService
-
-    fields = ["g1", "g2", "g3", "g4", "g5", "k1", "k2", "k3", "t1", "t2"]
+    
+    fields = ["g1", "g2", "g3", "g4", "g5", "g6", "k1", "k2", "k3", "t1", "t2", "t3"]
 
     row = db.query(BonusResults).filter_by(id=1).first()
     if not row:

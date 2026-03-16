@@ -94,11 +94,13 @@ class BonusResults(Base):
     g3_correct = Column(String, nullable=True)   # e.g. "15" (team_id)
     g4_correct = Column(String, nullable=True)   # e.g. "2"
     g5_correct = Column(String, nullable=True)   # e.g. "4_5"
+    g6_correct = Column(String, nullable=True)
     k1_correct = Column(String, nullable=True)
     k2_correct = Column(String, nullable=True)
     k3_correct = Column(String, nullable=True)
     t1_correct = Column(String, nullable=True)
     t2_correct = Column(String, nullable=True)
+    t3_correct = Column(String, nullable=True)
     # Interim (live/current) values — display-only, no scoring
     g1_interim = Column(String, nullable=True)
     g2_interim = Column(String, nullable=True)

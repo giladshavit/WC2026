@@ -33,18 +33,20 @@ const QUESTION_LABELS: Record<string, string> = {
   g3: 'Top scoring team in Group Stage',
   g4: 'Teams finishing with 9/9 points',
   g5: 'Teams with clean sheets in group stage',
+  g6: 'Scoreless draws (0:0) in the Group Stage',
   k1: 'Total goals scored in Knockout Stage',
   k2: 'Matches decided by penalty shootout',
   k3: '3rd-place teams reaching Quarter Finals',
   t1: 'Total goals in the tournament',
-  t2: 'Scoreless draws (0:0) in the tournament',
+  t2: 'Who will win the World Cup?',
+  t3: 'Who will be the top scorer?',
 };
 
-const SECTION_GROUP_FIELDS = ['g1', 'g2', 'g3', 'g4', 'g5'];
+const SECTION_GROUP_FIELDS = ['g1', 'g2', 'g3', 'g4', 'g5', 'g6'];
 const SECTION_KNOCKOUT_FIELDS = ['k1', 'k2', 'k3'];
-const SECTION_TOURNAMENT_FIELDS = ['t1', 't2'];
+const SECTION_TOURNAMENT_FIELDS = ['t1', 't2', 't3'];
 
-const ALL_FIELDS = ['g1', 'g2', 'g3', 'g4', 'g5', 'k1', 'k2', 'k3', 't1', 't2'] as const;
+const ALL_FIELDS = ['g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'k1', 'k2', 'k3', 't1', 't2', 't3'] as const;
 
 const FIELD_TO_API: Record<string, keyof BonusPrediction> = {
   g1: 'g1_total_goals_group',
@@ -52,11 +54,13 @@ const FIELD_TO_API: Record<string, keyof BonusPrediction> = {
   g3: 'g3_top_team_id',
   g4: 'g4_perfect_teams',
   g5: 'g5_clean_sheet_teams',
+  g6: 'g6_scoreless_draws_group',
   k1: 'k1_total_goals_knockout',
   k2: 'k2_penalty_shootouts',
   k3: 'k3_third_place_quarters',
   t1: 't1_total_goals_tournament',
-  t2: 't2_scoreless_draws',
+  t2: 't2_champion_team_id',
+  t3: 't3_top_scorer',
 };
 
 const SECTION_NAMES: Record<string, string> = {
@@ -65,17 +69,19 @@ const SECTION_NAMES: Record<string, string> = {
   g3: 'Group Stage',
   g4: 'Group Stage',
   g5: 'Group Stage',
+  g6: 'Group Stage',
   k1: 'Knockout',
   k2: 'Knockout',
   k3: 'Knockout',
   t1: 'Tournament',
   t2: 'Tournament',
+  t3: 'Tournament',
 };
 
 type FieldKey = (typeof ALL_FIELDS)[number];
 
-const PILL_FIELDS = ['g1', 'g4', 'g5', 'k1', 'k2', 'k3', 't1', 't2'];
-const PICKER_FIELDS = ['g2', 'g3'];
+const PILL_FIELDS = ['g1', 'g4', 'g5', 'g6', 'k1', 'k2', 'k3', 't1', 't3'];
+const PICKER_FIELDS = ['g2', 'g3', 't2'];
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -86,9 +92,9 @@ const SECTION_ICONS: Record<string, string> = {
 };
 
 const SECTION_SCORE_FIELDS: Record<string, string[]> = {
-  'Group Stage': ['q_g1_status', 'q_g2_status', 'q_g3_status', 'q_g4_status', 'q_g5_status'],
+  'Group Stage': ['q_g1_status', 'q_g2_status', 'q_g3_status', 'q_g4_status', 'q_g5_status', 'q_g6_status'],
   'Knockout': ['q_k1_status', 'q_k2_status', 'q_k3_status'],
-  'Tournament': ['q_t1_status', 'q_t2_status'],
+  'Tournament': ['q_t1_status', 'q_t2_status', 'q_t3_status'],
 };
 
 const POINTS_PER_QUESTION = 8;
@@ -109,6 +115,15 @@ const G5_OPTIONS = [
   { value: '3', label: '3' },
   { value: '4', label: '4' },
   { value: '5_plus', label: '5+' },
+];
+
+const G6_OPTIONS = [
+  { value: '0_2', label: '0–2' },
+  { value: '3_4', label: '3–4' },
+  { value: '5_6', label: '5–6' },
+  { value: '7_8', label: '7–8' },
+  { value: '9_10', label: '9–10' },
+  { value: '11_plus', label: '11+' },
 ];
 
 const K1_OPTIONS = [
@@ -138,14 +153,18 @@ const T1_OPTIONS = [
   { value: '250_280', label: '250–280' },
   { value: '280_plus', label: '280+' },
 ];
-
-const T2_OPTIONS = [
-  { value: '0_3', label: '0–3' },
-  { value: '4_5', label: '4–5' },
-  { value: '6_7', label: '6–7' },
-  { value: '8_9', label: '8–9' },
-  { value: '10_11', label: '10–11' },
-  { value: '12_plus', label: '12+' },
+const T3_OPTIONS = [
+  { value: 'messi', label: 'Lionel Messi', flag: '🇦🇷' },
+  { value: 'ronaldo', label: 'Cristiano Ronaldo', flag: '🇵🇹' },
+  { value: 'mbappe', label: 'Kylian Mbappé', flag: '🇫🇷' },
+  { value: 'haaland', label: 'Erling Haaland', flag: '🇳🇴' },
+  { value: 'neymar', label: 'Neymar Jr.', flag: '🇧🇷' },
+  { value: 'kane', label: 'Harry Kane', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+  { value: 'vinicius', label: 'Vinícius Jr.', flag: '🇧🇷' },
+  { value: 'salah', label: 'Mohamed Salah', flag: '🇪🇬' },
+  { value: 'bellingham', label: 'Jude Bellingham', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+  { value: 'pedri', label: 'Pedri', flag: '🇪🇸' },
+  { value: 'other', label: 'Other', flag: undefined as any },
 ];
 
 const K3_OPTIONS = [
@@ -756,7 +775,7 @@ export default function BonusScreen() {
       const saved = savedAnswers[f];
       if (String(local ?? '') !== String(saved ?? '')) {
         const modelKey = FIELD_TO_API[f];
-        if (f === 'g2' || f === 'g3') {
+        if (f === 'g2' || f === 'g3' || f === 't2') {
           const num = typeof local === 'number' ? local : parseInt(String(local ?? ''), 10);
           (updates as any)[modelKey] = isNaN(num) ? null : num;
         } else {
@@ -800,7 +819,7 @@ export default function BonusScreen() {
 
     setTimeout(() => {
       // Last question — go straight to summary, no animation
-      if (idx >= 9) {
+      if (idx === ALL_FIELDS.length - 1) {
         setViewMode('summary');
         return;
       }
@@ -827,7 +846,7 @@ export default function BonusScreen() {
   const handleSkip = () => {
     const field = ALL_FIELDS[currentStep];
     setLocalAnswers((prev) => ({ ...prev, [field]: null }));
-    if (currentStep < 9) {
+    if (currentStep < ALL_FIELDS.length - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
       setViewMode('summary');
@@ -904,11 +923,12 @@ export default function BonusScreen() {
     const hardcodedMap: Record<string, Array<{ value: string; label: string }>> = {
       g4: G4_OPTIONS,
       g5: G5_OPTIONS,
+      g6: G6_OPTIONS,
       k1: K1_OPTIONS,
       k2: K2_OPTIONS,
       k3: K3_OPTIONS,
       t1: T1_OPTIONS,
-      t2: T2_OPTIONS,
+      t3: T3_OPTIONS,
     };
     const apiOpts = options?.[field as keyof BonusOptions];
     if (apiOpts && apiOpts.length > 0) return apiOpts;
@@ -921,20 +941,23 @@ export default function BonusScreen() {
       const g = groups.find((gr) => gr.group_id === Number(value));
       return g ? `Group ${g.group_name}` : String(value);
     }
-    if (field === 'g3') {
+    if (field === 'g3' || field === 't2') {
       const allTeams = groups.flatMap((g) => g.teams || []);
       const t = allTeams.find((t) => t.id === Number(value));
       return t?.name ?? String(value);
+    }
+    if (field === 't3') {
+      return T3_OPTIONS.find((o) => o.value === String(value))?.label ?? String(value);
     }
     const optMap: Record<string, Array<{ value: string; label: string }>> = {
       g1: options?.g1 ?? [],
       g4: G4_OPTIONS,
       g5: G5_OPTIONS,
+      g6: G6_OPTIONS,
       k1: K1_OPTIONS,
       k2: K2_OPTIONS,
       k3: K3_OPTIONS,
       t1: T1_OPTIONS,
-      t2: T2_OPTIONS,
     };
     const opt = (optMap[field] ?? []).find((o) => o.value === String(value));
     return opt?.label ?? String(value);
@@ -990,18 +1013,18 @@ export default function BonusScreen() {
 
   const FIELD_TO_EDITABLE: Record<string, string> = {
     g1: 'groups_is_editable', g2: 'groups_is_editable', g3: 'groups_is_editable',
-    g4: 'groups_is_editable', g5: 'groups_is_editable',
+    g4: 'groups_is_editable', g5: 'groups_is_editable', g6: 'groups_is_editable',
     k1: 'knockout_is_editable', k2: 'knockout_is_editable', k3: 'knockout_is_editable',
-    t1: 'tournament_is_editable', t2: 'tournament_is_editable',
+    t1: 'tournament_is_editable', t2: 'tournament_is_editable', t3: 'tournament_is_editable',
   };
 
   const getQuestionStatusForField = (field: string): 'correct' | 'incorrect' | 'pending' => {
     if (!prediction) return 'pending';
     const STATUS_FIELD: Record<string, string> = {
       g1: 'q_g1_status', g2: 'q_g2_status', g3: 'q_g3_status',
-      g4: 'q_g4_status', g5: 'q_g5_status',
+      g4: 'q_g4_status', g5: 'q_g5_status', g6: 'q_g6_status',
       k1: 'q_k1_status', k2: 'q_k2_status', k3: 'q_k3_status',
-      t1: 'q_t1_status', t2: 'q_t2_status',
+      t1: 'q_t1_status', t2: 'q_t2_status', t3: 'q_t3_status',
     };
     const key = STATUS_FIELD[field];
     if (!key) return 'pending';
@@ -1237,6 +1260,105 @@ export default function BonusScreen() {
         </ScrollView>
       );
     }
+    if (field === 't2') {
+      const PARENT_PADDING = 40;
+      const G3_COL_GAP = 4;
+      const availableWidth = screenWidth - PARENT_PADDING * 2 - G3_COL_GAP * 5;
+      const teamCellWidth = Math.floor(availableWidth / 6);
+      const flagW = teamCellWidth - 6;
+      const flagH = flagW * 0.67;
+      const qStatus = !isEditable ? getQuestionStatusForField(field) : 'pending';
+      const correctValRaw = !isEditable ? getCorrectAnswerForField(field) : null;
+      const correctIds = correctValRaw ? correctValRaw.split(',').map((s) => s.trim()) : [];
+      const userAnswerId = String(localAnswers[field] ?? '');
+
+      return (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            paddingHorizontal: 0,
+            columnGap: G3_COL_GAP,
+            rowGap: 6,
+            paddingBottom: 16,
+            justifyContent: 'center',
+          }}
+        >
+          {allTeams.map((t) => {
+            const selected = Number(localAnswers[field]) === t.id;
+            const isUserAnswer = String(t.id) === userAnswerId;
+            const isCorrectAnswer = correctIds.includes(String(t.id));
+            let cellOpacity = 1;
+            let flagWrapperStyle: object | undefined;
+            let showCheckmark = false;
+            if (!isEditable) {
+              if (isUserAnswer) {
+                if (qStatus === 'correct') {
+                  flagWrapperStyle = { borderColor: '#16a34a', borderWidth: 2, borderRadius: 5, padding: 1 };
+                } else if (qStatus === 'incorrect') {
+                  flagWrapperStyle = { borderColor: '#ef4444', borderWidth: 2, borderRadius: 5, padding: 1 };
+                }
+              } else if (isCorrectAnswer && qStatus === 'incorrect') {
+                flagWrapperStyle = { borderColor: '#16a34a', borderWidth: 2.5, borderRadius: 5, padding: 1 };
+                showCheckmark = true;
+              } else {
+                cellOpacity = 0.35;
+              }
+            } else if (selected) {
+              flagWrapperStyle = { borderWidth: 2, borderColor: '#16a34a', borderRadius: 4, padding: 1 };
+            }
+            return (
+              <TouchableOpacity
+                key={t.id}
+                style={[
+                  { width: teamCellWidth, paddingVertical: 4, alignItems: 'center' },
+                  { opacity: cellOpacity },
+                ]}
+                onPress={isEditable ? () => handleSelect(field, t.id) : undefined}
+                activeOpacity={isEditable ? 0.7 : 1}
+              >
+                <View style={{ position: 'relative' }}>
+                  <View style={flagWrapperStyle}>
+                    {t.flag_url ? (
+                      <Image
+                        source={{ uri: t.flag_url }}
+                        style={{ width: flagW, height: flagH, borderRadius: 3 }}
+                      />
+                    ) : (
+                      <View style={[styles.flagPlaceholder, { width: flagW, height: flagH, borderRadius: 3 }]} />
+                    )}
+                  </View>
+                  {showCheckmark && (
+                    <View style={{ position: 'absolute', bottom: -2, right: -2 }}>
+                      <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                    </View>
+                  )}
+                </View>
+                <Text
+                  style={[
+                    {
+                      fontSize: 7,
+                      marginTop: 2,
+                      color: selected ? '#ffffff' : '#64748b',
+                      width: teamCellWidth - 2,
+                      textAlign: 'center',
+                    },
+                    !isEditable && styles.optionTextLocked,
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                >
+                  {t.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      );
+    }
     if (field === 'k3') {
       const PARENT_PADDING = 40;
       const COL_GAP = 10;
@@ -1306,6 +1428,89 @@ export default function BonusScreen() {
             );
           })}
         </View>
+      );
+    }
+    if (field === 't3') {
+      const correctValRaw = getCorrectAnswerForField(field);
+      const correctIds = correctValRaw ? correctValRaw.split(',').map((s) => s.trim()) : [];
+      const GAP = 10;
+      const pillW = (screenWidth - 80 - GAP) / 2;
+
+      const getLockedPillStyle = (optValue: string) => {
+        const userVal = String(localAnswers[field] ?? '');
+        const qStatus = getQuestionStatusForField(field);
+        const isUserAnswer = optValue === userVal;
+        const isCorrectAnswer = correctIds.includes(optValue);
+        if (isUserAnswer) {
+          if (qStatus === 'correct') return { style: styles.pillCorrect, textColor: '#fff' as const };
+          if (qStatus === 'incorrect') return { style: styles.pillIncorrect, textColor: '#ef4444' as const };
+        }
+        if (isCorrectAnswer && qStatus === 'incorrect') return { style: styles.pillCorrectAnswer, textColor: undefined };
+        return { style: styles.pillDimmed, textColor: undefined };
+      };
+
+      return (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: GAP,
+            paddingBottom: 16,
+            paddingHorizontal: 0,
+            justifyContent: 'center',
+          }}
+        >
+          {T3_OPTIONS.map((opt) => {
+            const selected = String(localAnswers[field] ?? '') === opt.value;
+            const lockedStyle = !isEditable ? getLockedPillStyle(opt.value) : null;
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  {
+                    width: pillW,
+                    height: 52,
+                    borderRadius: 14,
+                    backgroundColor: '#152a45',
+                    borderWidth: 1,
+                    borderColor: '#2d4a6e',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 10,
+                    gap: 8,
+                  },
+                  isEditable && selected && styles.wizardPillSelected,
+                  !isEditable && lockedStyle?.style,
+                ]}
+                onPress={isEditable ? () => handleSelect(field, opt.value) : undefined}
+                activeOpacity={isEditable ? 0.7 : 1}
+              >
+                {opt.flag ? (
+                  <Text style={{ fontSize: 18, lineHeight: 22 }}>{opt.flag}</Text>
+                ) : (
+                  <View style={{ width: 22, height: 16, borderRadius: 2, backgroundColor: '#334155' }} />
+                )}
+                <Text
+                  style={[
+                    { fontSize: 12, fontWeight: '600', color: '#94a3b8', flex: 1 },
+                    isEditable && selected && { color: '#fff', fontWeight: '700' },
+                    !isEditable &&
+                      (lockedStyle?.textColor
+                        ? { color: lockedStyle.textColor }
+                        : styles.optionTextLocked),
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       );
     }
     if (field === 'g4' || field === 'g5') {
@@ -1585,7 +1790,7 @@ export default function BonusScreen() {
             <TouchableOpacity
               style={styles.navCircle}
               onPress={() => {
-                if (currentStep < 9) setCurrentStep((p) => p + 1);
+                if (currentStep < ALL_FIELDS.length - 1) setCurrentStep((p) => p + 1);
                 else setViewMode('summary');
               }}
             >
@@ -1640,9 +1845,9 @@ export default function BonusScreen() {
     if (!prediction) return 'pending';
     const STATUS_FIELD: Record<string, string> = {
       g1: 'q_g1_status', g2: 'q_g2_status', g3: 'q_g3_status',
-      g4: 'q_g4_status', g5: 'q_g5_status',
+      g4: 'q_g4_status', g5: 'q_g5_status', g6: 'q_g6_status',
       k1: 'q_k1_status', k2: 'q_k2_status', k3: 'q_k3_status',
-      t1: 'q_t1_status', t2: 'q_t2_status',
+      t1: 'q_t1_status', t2: 'q_t2_status', t3: 'q_t3_status',
     };
     const statusKey = STATUS_FIELD[field];
     if (!statusKey) return 'pending';
@@ -1766,17 +1971,13 @@ export default function BonusScreen() {
               <Text style={styles.headerTitle}>Bonus Predictions</Text>
             </View>
 
-            {!allAnswered ? (
-              <TouchableOpacity
-                onPress={() => setViewMode('wizard')}
-                style={[styles.editPillBtn, { zIndex: 1 }]}
-                hitSlop={8}
-              >
-                <Text style={styles.editPillText}>Edit</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.headerSpacer} />
-            )}
+            <TouchableOpacity
+              onPress={() => setViewMode('wizard')}
+              style={[styles.editPillBtn, { position: 'absolute', right: 16, zIndex: 1 }]}
+              hitSlop={8}
+            >
+              <Text style={styles.editPillText}>Edit</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.waveSvgContainer}>
@@ -1935,11 +2136,12 @@ const styles = StyleSheet.create({
   wizardDarkArea: { flex: 1, backgroundColor: '#1e293b', paddingHorizontal: 20, paddingTop: 0 },
   progressBarContainer: {
     flexDirection: 'row',
-    gap: 4,
+    gap: 3,
     marginTop: 16,
+    paddingHorizontal: 4,
   },
   progressSegment: {
-    width: (screenWidth - 40 - 36) / 10,
+    width: (screenWidth - 40 - 8 - 33) / 12,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#2d4a6e',

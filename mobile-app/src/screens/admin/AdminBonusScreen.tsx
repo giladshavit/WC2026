@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiService } from '../../services/api';
 import { GroupPrediction } from '../../services/api';
 
-type QuestionId = 'g1' | 'g2' | 'g3' | 'g4' | 'g5' | 'k1' | 'k2' | 'k3' | 't1' | 't2';
+type QuestionId = 'g1' | 'g2' | 'g3' | 'g4' | 'g5' | 'g6' | 'k1' | 'k2' | 'k3' | 't1' | 't2' | 't3';
 
 interface Option {
   value: string;
@@ -48,6 +48,14 @@ const STATIC_OPTIONS: Record<string, Option[]> = {
     { value: '4', label: '4' },
     { value: '5_plus', label: '5+' },
   ],
+  g6: [
+    { value: '0_2', label: '0–2' },
+    { value: '3_4', label: '3–4' },
+    { value: '5_6', label: '5–6' },
+    { value: '7_8', label: '7–8' },
+    { value: '9_10', label: '9–10' },
+    { value: '11_plus', label: '11+' },
+  ],
   k1: [
     { value: 'under_30', label: '0–29' },
     { value: '30_39', label: '30–39' },
@@ -74,13 +82,18 @@ const STATIC_OPTIONS: Record<string, Option[]> = {
     { value: '250_280', label: '250–280' },
     { value: '280_plus', label: '280+' },
   ],
-  t2: [
-    { value: '0_3', label: '0–3' },
-    { value: '4_5', label: '4–5' },
-    { value: '6_7', label: '6–7' },
-    { value: '8_9', label: '8–9' },
-    { value: '10_11', label: '10–11' },
-    { value: '12_plus', label: '12+' },
+  t3: [
+    { value: 'messi', label: 'Lionel Messi 🇦🇷' },
+    { value: 'ronaldo', label: 'Cristiano Ronaldo 🇵🇹' },
+    { value: 'mbappe', label: 'Kylian Mbappé 🇫🇷' },
+    { value: 'haaland', label: 'Erling Haaland 🇳🇴' },
+    { value: 'neymar', label: 'Neymar Jr. 🇧🇷' },
+    { value: 'kane', label: 'Harry Kane 🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+    { value: 'vinicius', label: 'Vinícius Jr. 🇧🇷' },
+    { value: 'salah', label: 'Mohamed Salah 🇪🇬' },
+    { value: 'bellingham', label: 'Jude Bellingham 🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+    { value: 'pedri', label: 'Pedri 🇪🇸' },
+    { value: 'other', label: 'Other' },
   ],
 };
 
@@ -90,11 +103,13 @@ const QUESTIONS: Question[] = [
   { id: 'g3', section: 'Group Stage', label: 'Top scoring team in Group Stage', options: [] },
   { id: 'g4', section: 'Group Stage', label: 'Teams finishing with 9/9 points', options: STATIC_OPTIONS.g4 },
   { id: 'g5', section: 'Group Stage', label: 'Teams with clean sheets in group stage', options: STATIC_OPTIONS.g5 },
+  { id: 'g6', section: 'Group Stage', label: 'Scoreless draws (0:0) in Group Stage', options: STATIC_OPTIONS.g6 },
   { id: 'k1', section: 'Knockout', label: 'Total goals in Knockout Stage', options: STATIC_OPTIONS.k1 },
   { id: 'k2', section: 'Knockout', label: 'Matches decided by penalty shootout', options: STATIC_OPTIONS.k2 },
   { id: 'k3', section: 'Knockout', label: '3rd-place teams reaching Quarter Finals', options: STATIC_OPTIONS.k3 },
   { id: 't1', section: 'Tournament', label: 'Total goals in the tournament', options: STATIC_OPTIONS.t1 },
-  { id: 't2', section: 'Tournament', label: 'Scoreless draws (0:0) in the tournament', options: STATIC_OPTIONS.t2 },
+  { id: 't2', section: 'Tournament', label: 'Who will win the World Cup?', options: [] },
+  { id: 't3', section: 'Tournament', label: 'Who will be the top scorer?', options: STATIC_OPTIONS.t3 },
 ];
 
 const SECTION_COLORS: Record<string, string> = {
@@ -103,24 +118,24 @@ const SECTION_COLORS: Record<string, string> = {
   'Tournament': '#7c3aed',
 };
 
-const MULTI_SELECT_FIELDS = ['g2', 'g3'];
+const MULTI_SELECT_FIELDS: QuestionId[] = ['g2', 'g3', 't3'];
 
 export default function AdminBonusScreen() {
   const [selected, setSelected] = useState<Record<QuestionId, string | string[]>>({
-    g1: '', g2: [], g3: [], g4: '', g5: '',
-    k1: '', k2: '', k3: '', t1: '', t2: '',
+    g1: '', g2: [], g3: [], g4: '', g5: '', g6: '',
+    k1: '', k2: '', k3: '', t1: '', t2: '', t3: [],
   });
   const [selectedInterim, setSelectedInterim] = useState<Record<QuestionId, string>>({
-    g1: '', g2: '', g3: '', g4: '', g5: '',
-    k1: '', k2: '', k3: '', t1: '', t2: '',
+    g1: '', g2: '', g3: '', g4: '', g5: '', g6: '',
+    k1: '', k2: '', k3: '', t1: '', t2: '', t3: '',
   });
   const [loading, setLoading] = useState<Record<QuestionId, boolean>>({
-    g1: false, g2: false, g3: false, g4: false, g5: false,
-    k1: false, k2: false, k3: false, t1: false, t2: false,
+    g1: false, g2: false, g3: false, g4: false, g5: false, g6: false,
+    k1: false, k2: false, k3: false, t1: false, t2: false, t3: false,
   });
   const [results, setResults] = useState<Record<QuestionId, string | null>>({
-    g1: null, g2: null, g3: null, g4: null, g5: null,
-    k1: null, k2: null, k3: null, t1: null, t2: null,
+    g1: null, g2: null, g3: null, g4: null, g5: null, g6: null,
+    k1: null, k2: null, k3: null, t1: null, t2: null, t3: null,
   });
   const [groups, setGroups] = useState<GroupPrediction[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
@@ -148,11 +163,13 @@ export default function AdminBonusScreen() {
           g3: toMultiVal(existing.g3_correct),
           g4: toVal(existing.g4_correct),
           g5: toVal(existing.g5_correct),
+          g6: toVal(existing.g6_correct),
           k1: toVal(existing.k1_correct),
           k2: toVal(existing.k2_correct),
           k3: toVal(existing.k3_correct),
           t1: toVal(existing.t1_correct),
           t2: toVal(existing.t2_correct),
+          t3: toMultiVal(existing.t3_correct),
         }));
         setSelectedInterim((prev) => ({
           ...prev,
@@ -161,11 +178,13 @@ export default function AdminBonusScreen() {
           g3: toVal(existing.g3_interim),
           g4: toVal(existing.g4_interim),
           g5: toVal(existing.g5_interim),
+          g6: toVal(existing.g6_interim),
           k1: toVal(existing.k1_interim),
           k2: toVal(existing.k2_interim),
           k3: toVal(existing.k3_interim),
           t1: toVal(existing.t1_interim),
           t2: toVal(existing.t2_interim),
+          t3: toVal(existing.t3_interim),
         }));
       } catch (e) {
         console.error('Failed to load bonus results:', e);
@@ -211,11 +230,13 @@ export default function AdminBonusScreen() {
         g3_correct: toPayloadVal(selected.g3),
         g4_correct: toPayloadVal(selected.g4),
         g5_correct: toPayloadVal(selected.g5),
+        g6_correct: toPayloadVal(selected.g6),
         k1_correct: toPayloadVal(selected.k1),
         k2_correct: toPayloadVal(selected.k2),
         k3_correct: toPayloadVal(selected.k3),
         t1_correct: toPayloadVal(selected.t1),
         t2_correct: toPayloadVal(selected.t2),
+        t3_correct: toPayloadVal(selected.t3),
       };
       await apiService.updateBonusResults(payload);
       Alert.alert('Success', 'Bonus results updated and all predictions re-settled.');
@@ -258,6 +279,7 @@ export default function AdminBonusScreen() {
       .map((v) => {
         if (q.id === 'g2') return groups.find((g) => String(g.group_id) === v)?.group_name ?? v;
         if (q.id === 'g3') return allTeams.find((t) => String(t.id) === v)?.name ?? v;
+        if (q.id === 't3') return STATIC_OPTIONS.t3?.find((o) => o.value === v)?.label ?? v;
         return q.options.find((o) => o.value === v)?.label ?? v;
       })
       .join(', ');
@@ -295,7 +317,8 @@ export default function AdminBonusScreen() {
 
   const renderPicker = (q: Question, isInterim = false) => {
     const sel = isInterim ? selectedInterim : selected;
-    const setSel = isInterim ? setSelectedInterim : setSelected;
+    const setSelString = setSelectedInterim;
+    const setSelValue = setSelected;
     const accentColor = isInterim ? '#f59e0b' : '#16a34a';
     const accentBg = isInterim ? 'rgba(245,158,11,0.15)' : 'rgba(22,163,74,0.15)';
 
@@ -312,10 +335,8 @@ export default function AdminBonusScreen() {
               {(sel[q.id] as string[]).length} selected
             </Text>
           )}
-          {groups.map((g) => {
-            const isSelected = useMulti
-              ? (sel[q.id] as string[])?.includes(String(g.group_id))
-              : sel[q.id] === String(g.group_id);
+      {groups.map((g) => {
+            const isSelected = sel[q.id] === String(g.group_id);
             const teams = (g.teams || []).slice(0, 4);
             return (
               <TouchableOpacity
@@ -324,7 +345,11 @@ export default function AdminBonusScreen() {
                   styles.groupCard,
                   isSelected && (isInterim ? { backgroundColor: accentBg, borderColor: accentColor } : styles.groupCardSelected),
                 ]}
-                onPress={() => (useMulti ? handleMultiToggle(q.id, String(g.group_id)) : setSel((prev) => ({ ...prev, [q.id]: String(g.group_id) })))}
+                onPress={() =>
+                  (isInterim
+                    ? setSelString((prev) => ({ ...prev, [q.id]: String(g.group_id) }))
+                    : setSelValue((prev) => ({ ...prev, [q.id]: String(g.group_id) })))
+                }
               >
                 <Text style={[styles.groupName, isSelected && { color: accentColor }]}>{g.group_name}</Text>
                 <View style={styles.flagRow}>
@@ -343,26 +368,18 @@ export default function AdminBonusScreen() {
       );
     }
 
-    if (q.id === 'g3') {
+    if (q.id === 'g3' || q.id === 't2') {
       if (loadingGroups) return <ActivityIndicator color={accentColor} style={{ marginVertical: 12 }} />;
       const GAP = 6;
       const COLS = 6;
       const CELL_W = Math.floor((screenWidth - 40 - (COLS - 1) * GAP) / COLS);
       const FLAG_W = Math.floor(CELL_W * 0.85);
       const FLAG_H = Math.floor(FLAG_W / 1.5);
-      const useMulti = !isInterim && MULTI_SELECT_FIELDS.includes(q.id);
       return (
         <ScrollView horizontal={false} showsVerticalScrollIndicator style={{ maxHeight: 220 }}>
           <View style={[styles.flagGrid, { gap: GAP }]}>
-            {useMulti && Array.isArray(sel[q.id]) && (sel[q.id] as string[]).length > 1 && (
-              <Text style={{ color: '#f59e0b', fontSize: 13, fontWeight: '600', marginBottom: 8, width: '100%' }}>
-                {(sel[q.id] as string[]).length} selected
-              </Text>
-            )}
             {allTeams.map((t) => {
-              const isSelected = useMulti
-                ? (sel[q.id] as string[])?.includes(String(t.id))
-                : sel[q.id] === String(t.id);
+              const isSelected = sel[q.id] === String(t.id);
               return (
                 <TouchableOpacity
                   key={t.id}
@@ -371,7 +388,11 @@ export default function AdminBonusScreen() {
                     isSelected && (isInterim ? { backgroundColor: accentBg, borderColor: accentColor } : styles.teamCellSelected),
                     { width: CELL_W },
                   ]}
-                  onPress={() => (useMulti ? handleMultiToggle(q.id, String(t.id)) : setSel((prev) => ({ ...prev, [q.id]: String(t.id) })))}
+                  onPress={() =>
+                    (isInterim
+                      ? setSelString((prev) => ({ ...prev, [q.id]: String(t.id) }))
+                      : setSelValue((prev) => ({ ...prev, [q.id]: String(t.id) })))
+                  }
                 >
                   {t.flag_url ? (
                     <Image source={{ uri: t.flag_url }} style={{ width: FLAG_W, height: FLAG_H, borderRadius: 4 }} resizeMode="contain" />
@@ -386,6 +407,47 @@ export default function AdminBonusScreen() {
       );
     }
 
+    if (q.id === 't3') {
+      const useMulti = !isInterim;
+      const GAP = 8;
+      const pillW = Math.floor((screenWidth - 40 - GAP) / 2);
+      return (
+        <View style={[styles.pillRow, { justifyContent: 'center' }]}>
+          {useMulti && Array.isArray(sel[q.id]) && (sel[q.id] as string[]).length > 1 && (
+            <Text style={{ color: '#f59e0b', fontSize: 13, fontWeight: '600', marginBottom: 8, width: '100%' }}>
+              {(sel[q.id] as string[]).length} selected
+            </Text>
+          )}
+          {STATIC_OPTIONS.t3.map((opt) => {
+            const isSelected = useMulti
+              ? (sel[q.id] as string[])?.includes(opt.value)
+              : sel[q.id] === opt.value;
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.pill,
+                  { width: pillW, paddingVertical: 10 },
+                  isSelected && (isInterim
+                    ? { backgroundColor: 'rgba(245,158,11,0.15)', borderColor: '#f59e0b' }
+                    : styles.pillSelected),
+                ]}
+                onPress={() =>
+                  useMulti
+                    ? handleMultiToggle(q.id, opt.value)
+                    : setSelectedInterim((prev) => ({ ...prev, [q.id]: opt.value }))
+                }
+              >
+                <Text style={[styles.pillText, isSelected && { color: isInterim ? '#f59e0b' : '#16a34a' }]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      );
+    }
+
     return (
       <View style={styles.pillRow}>
         {q.options.map((opt) => {
@@ -397,7 +459,11 @@ export default function AdminBonusScreen() {
                 styles.pill,
                 isSelected && (isInterim ? { backgroundColor: accentBg, borderColor: accentColor } : styles.pillSelected),
               ]}
-              onPress={() => setSel((prev) => ({ ...prev, [q.id]: opt.value }))}
+              onPress={() =>
+                (isInterim
+                  ? setSelString((prev) => ({ ...prev, [q.id]: opt.value }))
+                  : setSelValue((prev) => ({ ...prev, [q.id]: opt.value })))
+              }
             >
               <Text style={[styles.pillText, isSelected && { color: accentColor }]}>{opt.label}</Text>
             </TouchableOpacity>
@@ -478,9 +544,11 @@ export default function AdminBonusScreen() {
                             .map((v) =>
                               q.id === 'g2'
                                 ? groups.find((g) => String(g.group_id) === v)?.group_name ?? v
-                                : q.id === 'g3'
+                                : q.id === 'g3' || q.id === 't2'
                                   ? allTeams.find((t) => String(t.id) === v)?.name ?? v
-                                  : q.options.find((o) => o.value === v)?.label ?? v
+                                  : q.id === 't3'
+                                    ? STATIC_OPTIONS.t3.find((o) => o.value === v)?.label ?? v
+                                    : q.options.find((o) => o.value === v)?.label ?? v
                             )
                             .join(', ')}`
                         : 'Select an answer first'}

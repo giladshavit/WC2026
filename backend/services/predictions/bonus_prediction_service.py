@@ -29,6 +29,7 @@ class BonusGroupActual:
     top_team_id: int
     perfect_teams_count: int
     clean_sheet_teams_count: int
+    scoreless_draws_group: int | None = None
 
 
 @dataclass
@@ -86,11 +87,13 @@ class BonusPredictionService:
         "g3": ("g3_top_team_id", "q_g3_status", True),
         "g4": ("g4_perfect_teams", "q_g4_status", False),
         "g5": ("g5_clean_sheet_teams", "q_g5_status", False),
+        "g6": ("g6_scoreless_draws_group", "q_g6_status", False),
         "k1": ("k1_total_goals_knockout", "q_k1_status", False),
         "k2": ("k2_penalty_shootouts", "q_k2_status", False),
         "k3": ("k3_third_place_quarters", "q_k3_status", False),
         "t1": ("t1_total_goals_tournament", "q_t1_status", False),
-        "t2": ("t2_scoreless_draws", "q_t2_status", False),
+        "t2": ("t2_champion_team_id", "q_t2_status", True),
+        "t3": ("t3_top_scorer", "q_t3_status", False),
     }
 
     # field_key → (prediction_field, status_field) for api/bonus.py
@@ -142,7 +145,7 @@ class BonusPredictionService:
     def get_correct_values_dict(db: Session) -> dict[str, str | None]:
         """Read all correct answers from bonus_results table."""
         from models.results import BonusResults
-        fields = ["g1", "g2", "g3", "g4", "g5", "k1", "k2", "k3", "t1", "t2"]
+        fields = ["g1", "g2", "g3", "g4", "g5", "g6", "k1", "k2", "k3", "t1", "t2", "t3"]
         row = db.query(BonusResults).filter_by(id=1).first()
         if not row:
             return {f: None for f in fields}
@@ -202,7 +205,7 @@ class BonusPredictionService:
             )
 
         # Coerce types for FK fields (client may send strings from dropdowns)
-        int_fields = {"g2_top_group_id", "g3_top_team_id"}
+        int_fields = {"g2_top_group_id", "g3_top_team_id", "t2_champion_team_id"}
         update_kwargs = {}
         for k, v in updates.items():
             if not hasattr(pred, k):
@@ -223,7 +226,7 @@ class BonusPredictionService:
         result["penalty_applied"] = penalty
         return result
 
-    BONUS_FIELD_KEYS = ["g1", "g2", "g3", "g4", "g5", "k1", "k2", "k3", "t1", "t2"]
+    BONUS_FIELD_KEYS = ["g1", "g2", "g3", "g4", "g5", "g6", "k1", "k2", "k3", "t1", "t2", "t3"]
 
     @staticmethod
     def _to_response(pred: BonusPrediction, db: Session) -> Dict[str, Any]:
@@ -237,11 +240,15 @@ class BonusPredictionService:
             "g3_top_team_id": pred.g3_top_team_id,
             "g4_perfect_teams": pred.g4_perfect_teams,
             "g5_clean_sheet_teams": pred.g5_clean_sheet_teams,
+            "g6_scoreless_draws_group": pred.g6_scoreless_draws_group,
             "k1_total_goals_knockout": pred.k1_total_goals_knockout,
             "k2_penalty_shootouts": pred.k2_penalty_shootouts,
             "k3_third_place_quarters": pred.k3_third_place_quarters,
             "t1_total_goals_tournament": pred.t1_total_goals_tournament,
+            # Deprecated legacy field kept for backward compatibility
             "t2_scoreless_draws": pred.t2_scoreless_draws,
+            "t2_champion_team_id": pred.t2_champion_team_id,
+            "t3_top_scorer": pred.t3_top_scorer,
             "penalty_points": pred.penalty_points or 0,
             "changes_count": pred.changes_count or 0,
             "groups_is_editable": pred.groups_is_editable,
@@ -256,11 +263,13 @@ class BonusPredictionService:
             "q_g3_status": getattr(pred, "q_g3_status", "pending") or "pending",
             "q_g4_status": getattr(pred, "q_g4_status", "pending") or "pending",
             "q_g5_status": getattr(pred, "q_g5_status", "pending") or "pending",
+            "q_g6_status": getattr(pred, "q_g6_status", "pending") or "pending",
             "q_k1_status": getattr(pred, "q_k1_status", "pending") or "pending",
             "q_k2_status": getattr(pred, "q_k2_status", "pending") or "pending",
             "q_k3_status": getattr(pred, "q_k3_status", "pending") or "pending",
             "q_t1_status": getattr(pred, "q_t1_status", "pending") or "pending",
             "q_t2_status": getattr(pred, "q_t2_status", "pending") or "pending",
+            "q_t3_status": getattr(pred, "q_t3_status", "pending") or "pending",
             "correct_values": correct_values,
             "interim_values": interim_values,
         }
@@ -283,8 +292,9 @@ class BonusPredictionService:
         PENDING = "pending"
 
         ALL_STATUS_FIELDS = [
-            "q_g1_status", "q_g2_status", "q_g3_status", "q_g4_status", "q_g5_status",
-            "q_k1_status", "q_k2_status", "q_k3_status", "q_t1_status", "q_t2_status",
+            "q_g1_status", "q_g2_status", "q_g3_status", "q_g4_status", "q_g5_status", "q_g6_status",
+            "q_k1_status", "q_k2_status", "q_k3_status",
+            "q_t1_status", "q_t2_status", "q_t3_status",
         ]
 
         entry = BonusPredictionService.QUESTION_FIELD_MAP.get(field_key)
@@ -378,6 +388,10 @@ class BonusPredictionService:
                 correct += 1
             if BonusPredictionService._check_range_answer(
                 pred.g5_clean_sheet_teams, actual.clean_sheet_teams_count
+            ):
+                correct += 1
+            if actual.scoreless_draws_group is not None and BonusPredictionService._check_range_answer(
+                pred.g6_scoreless_draws_group, actual.scoreless_draws_group
             ):
                 correct += 1
             if correct > 0:
@@ -493,6 +507,14 @@ class BonusPredictionService:
                 {"value": "4", "label": "4"},
                 {"value": "5_plus", "label": "5+"},
             ],
+            "g6": [
+                {"value": "0_2", "label": "0–2"},
+                {"value": "3_4", "label": "3–4"},
+                {"value": "5_6", "label": "5–6"},
+                {"value": "7_8", "label": "7–8"},
+                {"value": "9_10", "label": "9–10"},
+                {"value": "11_plus", "label": "11+"},
+            ],
             "k1": [
                 {"value": "under_30", "label": "0-29"},
                 {"value": "30_39", "label": "30–39"},
@@ -519,12 +541,19 @@ class BonusPredictionService:
                 {"value": "250_280", "label": "250–280"},
                 {"value": "280_plus", "label": "280+"},
             ],
-            "t2": [
-                {"value": "0_3", "label": "0–3"},
-                {"value": "4_5", "label": "4–5"},
-                {"value": "6_7", "label": "6–7"},
-                {"value": "8_9", "label": "8–9"},
-                {"value": "10_11", "label": "10–11"},
-                {"value": "12_plus", "label": "12+"},
+            # t2 (champion) options are dynamic team list, similar to g3
+            "t2": [{"value": str(t.id), "label": t.name} for t in teams],
+            "t3": [
+                {"value": "messi", "label": "Lionel Messi", "flag": "ar"},
+                {"value": "ronaldo", "label": "Cristiano Ronaldo", "flag": "pt"},
+                {"value": "mbappe", "label": "Kylian Mbappé", "flag": "fr"},
+                {"value": "haaland", "label": "Erling Haaland", "flag": "no"},
+                {"value": "neymar", "label": "Neymar Jr.", "flag": "br"},
+                {"value": "kane", "label": "Harry Kane", "flag": "gb-eng"},
+                {"value": "vinicius", "label": "Vinícius Jr.", "flag": "br"},
+                {"value": "salah", "label": "Mohamed Salah", "flag": "eg"},
+                {"value": "bellingham", "label": "Jude Bellingham", "flag": "gb-eng"},
+                {"value": "pedri", "label": "Pedri", "flag": "es"},
+                {"value": "other", "label": "Other", "flag": None},
             ],
         }

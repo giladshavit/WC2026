@@ -227,11 +227,13 @@ export interface BonusOptions {
   g3: Array<{ value: string; label: string }>;
   g4: Array<{ value: string; label: string }>;
   g5: Array<{ value: string; label: string }>;
+  g6: Array<{ value: string; label: string }>;
   k1: Array<{ value: string; label: string }>;
   k2: Array<{ value: string; label: string }>;
   k3: Array<{ value: string; label: string }>;
   t1: Array<{ value: string; label: string }>;
   t2: Array<{ value: string; label: string }>;
+  t3: Array<{ value: string; label: string }>;
 }
 
 export interface BonusOutcomeStatsResponse {
@@ -252,11 +254,13 @@ export interface BonusPrediction {
   g3_top_team_id: number | null;
   g4_perfect_teams: string | null;
   g5_clean_sheet_teams: string | null;
+  g6_scoreless_draws_group: string | null;
   k1_total_goals_knockout: string | null;
   k2_penalty_shootouts: string | null;
   k3_third_place_quarters: string | null;
   t1_total_goals_tournament: string | null;
-  t2_scoreless_draws: string | null;
+  t2_champion_team_id: number | null;
+  t3_top_scorer: string | null;
   bonus_score: number;
   penalty_points: number;
   changes_count: number;
@@ -266,6 +270,18 @@ export interface BonusPrediction {
   groups_status: string;
   knockout_status: string;
   tournament_status: string;
+  q_g1_status?: string;
+  q_g2_status?: string;
+  q_g3_status?: string;
+  q_g4_status?: string;
+  q_g5_status?: string;
+  q_g6_status?: string;
+  q_k1_status?: string;
+  q_k2_status?: string;
+  q_k3_status?: string;
+  q_t1_status?: string;
+  q_t2_status?: string;
+  q_t3_status?: string;
   correct_values?: Record<string, string | null>;
   interim_values?: Record<string, string | null>;
 }
@@ -1206,7 +1222,8 @@ export class ApiService {
 
   async updateBonusResults(
     results: Partial<Record<'g1_correct' | 'g2_correct' | 'g3_correct' | 'g4_correct' |
-      'g5_correct' | 'k1_correct' | 'k2_correct' | 'k3_correct' | 't1_correct' | 't2_correct',
+      'g5_correct' | 'g6_correct' | 'k1_correct' | 'k2_correct' | 'k3_correct' |
+      't1_correct' | 't2_correct' | 't3_correct',
       string | null>>
   ): Promise<any> {
     const response = await fetch(`${this.baseUrl}/api/admin/bonus/results`, {

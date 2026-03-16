@@ -178,6 +178,7 @@ class BonusPrediction(Base):
     g3_top_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     g4_perfect_teams = Column(String, nullable=True)  # G4PerfectTeams value
     g5_clean_sheet_teams = Column(String, nullable=True)  # G5CleanSheetTeams value
+    g6_scoreless_draws_group = Column(String, nullable=True)  # G6ScorelessRange value (moved from t2)
 
     # Knockout answers
     k1_total_goals_knockout = Column(String, nullable=True)  # K1GoalsRange value
@@ -186,7 +187,9 @@ class BonusPrediction(Base):
 
     # Tournament answers
     t1_total_goals_tournament = Column(String, nullable=True)  # T1GoalsRange value
-    t2_scoreless_draws = Column(String, nullable=True)  # T2ScorelessRange value
+    t2_scoreless_draws = Column(String, nullable=True)  # DEPRECATED: legacy T2ScorelessRange value
+    t2_champion_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # Who wins WC
+    t3_top_scorer = Column(String, nullable=True)  # Top scorer string value (e.g. "messi", "other")
 
     # Scoring & Meta
     points = Column(Integer, default=0, nullable=False)
@@ -209,11 +212,13 @@ class BonusPrediction(Base):
     q_g3_status = Column(String, default="pending", nullable=False)
     q_g4_status = Column(String, default="pending", nullable=False)
     q_g5_status = Column(String, default="pending", nullable=False)
+    q_g6_status = Column(String, default="pending", nullable=False)
     q_k1_status = Column(String, default="pending", nullable=False)
     q_k2_status = Column(String, default="pending", nullable=False)
     q_k3_status = Column(String, default="pending", nullable=False)
     q_t1_status = Column(String, default="pending", nullable=False)
     q_t2_status = Column(String, default="pending", nullable=False)
+    q_t3_status = Column(String, default="pending", nullable=False)
 
     # Per-prediction total score tracking
     bonus_score = Column(Integer, default=0, nullable=False)
@@ -225,3 +230,4 @@ class BonusPrediction(Base):
     user = relationship("User")
     top_group = relationship("Group", foreign_keys=[g2_top_group_id])
     top_team = relationship("Team", foreign_keys=[g3_top_team_id])
+    champion_team = relationship("Team", foreign_keys=[t2_champion_team_id])
