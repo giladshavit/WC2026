@@ -677,7 +677,6 @@ export default function BonusScreen() {
     incorrect_pct: number;
   } | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
-  const [showNetScore, setShowNetScore] = useState(false);
 
   const isDirty = Object.keys(localAnswers).some(
     (k) => String(localAnswers[k] ?? '') !== String(savedAnswers[k] ?? '')
@@ -1859,15 +1858,6 @@ export default function BonusScreen() {
 
   const hasAnySettledQuestion = ALL_FIELDS.some((f) => getQuestionStatus(f) !== 'pending');
   const bonusScore = prediction?.bonus_score ?? 0;
-  const bonusPenalty = prediction?.penalty_points ?? 0;
-  const bonusNetTotal = showNetScore ? bonusScore - bonusPenalty : null;
-  const getBonusPointsPillStyle = () => {
-    if (!showNetScore || bonusNetTotal === null) return styles.bonusPointsContainer;
-    if (bonusNetTotal > 0) return styles.bonusPointsContainer;
-    if (bonusNetTotal === 0) return styles.bonusPointsContainerZero;
-    return styles.bonusPointsContainerNegative;
-  };
-  const displayBonusPoints = showNetScore && bonusNetTotal !== null ? bonusNetTotal : bonusScore;
 
   const renderSummarySection = (
     title: string,
@@ -2021,23 +2011,9 @@ export default function BonusScreen() {
       )}
 
       {hasAnySettledQuestion && (
-        <View style={styles.bonusScoreRow}>
-          <TouchableOpacity
-            style={[styles.bonusNetScoreToggle, showNetScore && styles.bonusNetScoreToggleActive]}
-            onPress={() => setShowNetScore((prev) => !prev)}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="swap-horizontal-outline"
-              size={14}
-              color={showNetScore ? '#16a34a' : '#94a3b8'}
-            />
-            <Text style={[styles.bonusNetScoreToggleText, showNetScore && styles.bonusNetScoreToggleTextActive]}>
-              Net Score
-            </Text>
-          </TouchableOpacity>
-          <View style={[styles.bonusPointsContainer, getBonusPointsPillStyle()]}>
-            <Text style={styles.bonusTotalPoints}>{displayBonusPoints} pts</Text>
+        <View style={[styles.bonusScoreRow, { justifyContent: 'flex-end' }]}>
+          <View style={styles.bonusPointsContainer}>
+            <Text style={styles.bonusTotalPoints}>{bonusScore} pts</Text>
           </View>
         </View>
       )}
@@ -2069,7 +2045,7 @@ export default function BonusScreen() {
             onPress={() => (isDirty ? setShowSaveModal(true) : null)}
             disabled={!isDirty || saving}
           >
-            {saving ? (
+          {saving ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : isDirty ? (
               <Text style={styles.saveButtonText}>Save</Text>

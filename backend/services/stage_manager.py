@@ -94,7 +94,6 @@ class StageManager:
     @staticmethod
     def set_current_stage(stage: Stage, db: Session) -> None:
         """Update current tournament stage and update prediction editability"""
-        print(f"[DEBUG] set_current_stage CALLED with stage={stage.name}", flush=True)
         # Save to database
         TournamentConfig.set_config(db, 'current_stage', stage.name)
         
@@ -136,10 +135,7 @@ class StageManager:
         Update is_editable for all predictions based on current stage.
         Called automatically by set_current_stage.
         """
-        print(f"[DEBUG] _update_prediction_editability ENTERED with stage={current_stage.name}", flush=True)
-
         if current_stage == Stage.PRE_GROUP_STAGE:
-            print(f"[DEBUG] _update_prediction_editability: PRE_GROUP_STAGE - everything open")
             # Everything open
             DBWriter.set_group_predictions_editable(db, True)
             DBWriter.set_third_place_predictions_editable(db, True)
@@ -148,24 +144,25 @@ class StageManager:
             DBWriter.set_bonus_knockout_editable(db, True)
             DBWriter.set_bonus_tournament_editable(db, True)
 
-        elif current_stage in (Stage.GROUP_CYCLE_1, Stage.GROUP_CYCLE_2):
-            print(f"[DEBUG] _update_prediction_editability: {current_stage.name} - no changes")
-            # Nothing changes
+        elif current_stage == Stage.GROUP_CYCLE_1:
+            # Tournament starts: close all bonus sections
+            DBWriter.set_bonus_groups_editable(db, False)
+            DBWriter.set_bonus_knockout_editable(db, False)
+            DBWriter.set_bonus_tournament_editable(db, False)
+
+        elif current_stage == Stage.GROUP_CYCLE_2:
+            # No changes
             pass
 
         elif current_stage == Stage.GROUP_CYCLE_3:
-            print(f"[DEBUG] _update_prediction_editability: GROUP_CYCLE_3 - close groups + third place")
             # Close groups and third place only
             DBWriter.set_group_predictions_editable(db, False)
             DBWriter.set_third_place_predictions_editable(db, False)
-            DBWriter.set_bonus_groups_editable(db, False)
 
         elif current_stage == Stage.PRE_ROUND32:
-            print(f"[DEBUG] _update_prediction_editability: PRE_ROUND32 - no changes")
             pass
 
         elif current_stage.is_knockout_active():
-            print(f"[DEBUG] _update_prediction_editability: {current_stage.name} (knockout active) - close everything")
             # Active knockout stage: close everything
             DBWriter.set_group_predictions_editable(db, False)
             DBWriter.set_third_place_predictions_editable(db, False)
@@ -175,27 +172,20 @@ class StageManager:
             DBWriter.set_bonus_tournament_editable(db, False)
 
         elif current_stage == Stage.PRE_ROUND16:
-            print(f"[DEBUG] _update_prediction_editability: PRE_ROUND16 - close round32, open rest")
             # Close round32, open round16 through final
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'round32', False)
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'round16', True)
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'quarter', True)
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'semi', True)
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'final', True)
-            DBWriter.set_bonus_knockout_editable(db, True)
-            DBWriter.set_bonus_tournament_editable(db, True)
 
         elif current_stage == Stage.PRE_QUARTER:
-            print(f"[DEBUG] _update_prediction_editability: PRE_QUARTER - close round32+round16, open rest")
             # Close round32 + round16, open quarter through final
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'round32', False)
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'round16', False)
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'quarter', True)
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'semi', True)
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'final', True)
-            DBWriter.set_bonus_groups_editable(db, False)
-            DBWriter.set_bonus_knockout_editable(db, False)
-            DBWriter.set_bonus_tournament_editable(db, False)
 
         DBUtils.commit(db)
     

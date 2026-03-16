@@ -209,9 +209,9 @@ export default function StatisticsScreen() {
   const bonusScore = profile.bonus?.score ?? 0;
   const judgedKnockout = knockout.correct_full + knockout.correct_partial + knockout.incorrect;
 
-  // Total penalty = sum of all breakdown items (groups + third_place + knockout + bonus)
+  // Total penalty = sum of all breakdown items (groups + third_place + knockout)
   const breakdown = profile.penalty_breakdown;
-  const totalPenalty = (breakdown?.groups ?? 0) + (breakdown?.third_place ?? 0) + (breakdown?.knockout ?? 0) + (breakdown?.bonus ?? 0);
+  const totalPenalty = (breakdown?.groups ?? 0) + (breakdown?.third_place ?? 0) + (breakdown?.knockout ?? 0);
 
   const perGroupMap = new Map<string, { correct_positions_count: number | null; points: number }>();
   groups.per_group.forEach((g: ProfilePerGroup) => {
@@ -545,7 +545,6 @@ export default function StatisticsScreen() {
               { value: groups,   color: '#f59e0b', label: 'Groups' },
               { value: thirdPl,  color: '#f97316', label: 'Third Place' },
               { value: knockout, color: '#92400e', label: 'Knockout' },
-              { value: bonus,    color: '#2563eb', label: 'Bonus' },
             ];
 
             const size = 160;
