@@ -106,9 +106,9 @@ const sections: Section[] = [
           {
             type: 'bullet',
             items: [
-              '6 group-stage questions (Q1–Q6): editable until end of Matchday 2.',
-              '3 knockout questions (Q7–Q9): editable until Round of 16 begins.',
-              '3 tournament questions (Q10–Q12): editable until Round of 16 begins.',
+              '6 group-stage questions (Q1–Q6)',
+              '3 knockout questions (Q7–Q9)',
+              '3 tournament questions (Q10–Q12)',
             ],
           },
           {
@@ -116,6 +116,11 @@ const sections: Section[] = [
             headers: ['Result', 'Points'],
             compact: true,
             rows: [{ cells: ['Correct answer', '8'] }],
+          },
+          {
+            type: 'note',
+            color: 'red',
+            text: 'All 12 bonus questions lock when the tournament begins. Make sure all your answers are in before kick-off.',
           },
         ],
       },
