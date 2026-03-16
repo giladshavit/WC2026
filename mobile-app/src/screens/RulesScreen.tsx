@@ -101,13 +101,14 @@ const sections: Section[] = [
         blocks: [
           {
             type: 'paragraph',
-            text: '10 questions covering the group stage, knockout stage, and the full tournament. One answer per question.',
+            text: '12 questions covering the group stage, knockout stage, and the full tournament. One answer per question.',
           },
           {
             type: 'bullet',
             items: [
-              'Group-stage questions: editable until end of Matchday 2.',
-              'Knockout & tournament questions: editable until Round of 16 begins.',
+              '6 group-stage questions (Q1–Q6): editable until end of Matchday 2.',
+              '3 knockout questions (Q7–Q9): editable until Round of 16 begins.',
+              '3 tournament questions (Q10–Q12): editable until Round of 16 begins.',
             ],
           },
           {
