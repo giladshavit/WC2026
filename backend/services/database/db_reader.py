@@ -4,7 +4,7 @@ This is the ONLY place where db.query() should appear for reads.
 No service should call db.query() directly — always go through DBReader.
 """
 from typing import List, Optional, Sequence, Dict, Tuple
-from sqlalchemy import and_, desc, func, text
+from sqlalchemy import and_, case, desc, func, text
 from sqlalchemy.orm import Session
 
 from models.team import Team
@@ -17,6 +17,9 @@ from models.matches_template import MatchTemplate
 from models.predictions import (
     MatchPrediction,
     GroupStagePrediction,
+)
+from services.predictions.enums import MatchPredictionStatus
+from models.predictions import (
     ThirdPlacePrediction,
     KnockoutStagePrediction,
     KnockoutStagePredictionDraft,
@@ -630,30 +633,79 @@ class DBReader:
         ).all()
 
     @staticmethod
-    def _standings_order(sort_by: str, is_league: bool = False):
-        """Return SQLAlchemy order_by clauses for given sort_by key."""
+    def _standings_order(sort_by: str, is_league: bool = False, score_mode: str = "multi", match_counts=None):
+        mc = match_counts
+
         tiebreakers_global = [
-            desc(UserScores.matches_score),
             UserScores.penalty,
+            desc(UserScores.matches_score),
             User.created_at,
         ]
         tiebreakers_league = [
-            desc(UserScores.matches_score),
             UserScores.penalty,
+            desc(UserScores.matches_score),
             LeagueMembership.joined_at,
         ]
         tiebreakers = tiebreakers_league if is_league else tiebreakers_global
 
-        primary = {
-            "total": desc(UserScores.total_points),
-            "matches": desc(UserScores.matches_score),
-            "groups": desc(UserScores.groups_score),
+        # Classic mode: sort_by determines primary, then classic tiebreakers
+        if score_mode == "classic":
+            classic_tiebreakers_global = [
+                desc(func.coalesce(UserScores.classic_total_score, 0)),
+                desc(func.coalesce(UserScores.matches_score, 0)),
+                desc(func.coalesce(mc.c.exact_count, 0)) if mc is not None else desc(UserScores.matches_score),
+                desc(func.coalesce(mc.c.correct_count, 0)) if mc is not None else User.created_at,
+                User.created_at,
+            ]
+            classic_tiebreakers_league = [
+                desc(func.coalesce(UserScores.classic_total_score, 0)),
+                desc(func.coalesce(UserScores.matches_score, 0)),
+                desc(func.coalesce(mc.c.exact_count, 0)) if mc is not None else desc(UserScores.matches_score),
+                desc(func.coalesce(mc.c.correct_count, 0)) if mc is not None else LeagueMembership.joined_at,
+                LeagueMembership.joined_at if is_league else User.created_at,
+            ]
+            classic_tiebreakers = classic_tiebreakers_league if is_league else classic_tiebreakers_global
+
+            classic_primary = {
+                "total":   desc(func.coalesce(UserScores.classic_total_score, 0)),
+                "matches": desc(func.coalesce(UserScores.matches_score, 0)),
+                "bonus":   desc(func.coalesce(UserScores.bonus_score, 0)),
+                "exact":   desc(func.coalesce(mc.c.exact_count, 0)) if mc is not None else desc(UserScores.matches_score),
+                "correct": desc(func.coalesce(mc.c.correct_count, 0)) if mc is not None else desc(UserScores.matches_score),
+                "wrong":   desc(func.coalesce(mc.c.wrong_count, 0)) if mc is not None else desc(UserScores.matches_score),
+            }.get(sort_by, desc(func.coalesce(UserScores.classic_total_score, 0)))
+
+            return [classic_primary, *classic_tiebreakers]
+
+        # Multi mode
+        multi_primary = {
+            "total":    desc(UserScores.total_points),
+            "matches":  desc(UserScores.matches_score),
+            "groups":   desc(UserScores.groups_score),
             "knockout": desc(UserScores.knockout_score),
-            "bonus": desc(UserScores.bonus_score),
-            "fine": UserScores.penalty,
+            "bonus":    desc(UserScores.bonus_score),
+            "fine":     UserScores.penalty,
+            "exact":    desc(func.coalesce(mc.c.exact_count, 0)) if mc is not None else desc(UserScores.matches_score),
+            "correct":  desc(func.coalesce(mc.c.correct_count, 0)) if mc is not None else desc(UserScores.matches_score),
+            "wrong":    desc(func.coalesce(mc.c.wrong_count, 0)) if mc is not None else desc(UserScores.matches_score),
         }.get(sort_by, desc(UserScores.total_points))
 
-        return [primary, *tiebreakers]
+        return [multi_primary, *tiebreakers]
+
+    @staticmethod
+    def _match_prediction_counts_subquery(db: Session):
+        """Subquery: user_id, exact_count, correct_count, wrong_count per user."""
+        match_counts = (
+            db.query(
+                MatchPrediction.user_id,
+                func.count(case((MatchPrediction.status == MatchPredictionStatus.EXACT, 1))).label('exact_count'),
+                func.count(case((MatchPrediction.status == MatchPredictionStatus.CORRECT_OUTCOME, 1))).label('correct_count'),
+                func.count(case((MatchPrediction.status == MatchPredictionStatus.WRONG, 1))).label('wrong_count'),
+            )
+            .group_by(MatchPrediction.user_id)
+            .subquery()
+        )
+        return match_counts
 
     @staticmethod
     def get_global_standings_paginated(
@@ -661,10 +713,21 @@ class DBReader:
         sort_by: str = "total",
         page: int = 1,
         page_size: int = 50,
+        score_mode: str = "multi",
     ) -> Tuple[List, int]:
-        """Returns (rows, total_count)."""
-        order = DBReader._standings_order(sort_by)
-        q = db.query(User, UserScores).outerjoin(UserScores, User.id == UserScores.user_id)
+        """Returns (rows, total_count). Each row: (User, UserScores, exact_count, correct_count, wrong_count)."""
+        match_counts = DBReader._match_prediction_counts_subquery(db)
+        order = DBReader._standings_order(sort_by, is_league=False, score_mode=score_mode, match_counts=match_counts)
+        q = (
+            db.query(User, UserScores)
+            .outerjoin(UserScores, User.id == UserScores.user_id)
+            .outerjoin(match_counts, User.id == match_counts.c.user_id)
+            .add_columns(
+                func.coalesce(match_counts.c.exact_count, 0).label('exact_count'),
+                func.coalesce(match_counts.c.correct_count, 0).label('correct_count'),
+                func.coalesce(match_counts.c.wrong_count, 0).label('wrong_count'),
+            )
+        )
         total = q.count()
         rows = q.order_by(*order).offset((page - 1) * page_size).limit(page_size).all()
         return rows, total
@@ -676,70 +739,95 @@ class DBReader:
         sort_by: str = "total",
         page: int = 1,
         page_size: int = 50,
+        score_mode: str = "multi",
     ) -> Tuple[List, int]:
-        """Returns (rows, total_count)."""
-        order = DBReader._standings_order(sort_by, is_league=True)
+        """Returns (rows, total_count). Each row: (User, UserScores, LeagueMembership, exact_count, correct_count, wrong_count)."""
+        match_counts = DBReader._match_prediction_counts_subquery(db)
+        order = DBReader._standings_order(sort_by, is_league=True, score_mode=score_mode, match_counts=match_counts)
         q = (
             db.query(User, UserScores, LeagueMembership)
             .join(LeagueMembership, User.id == LeagueMembership.user_id)
             .outerjoin(UserScores, User.id == UserScores.user_id)
+            .outerjoin(match_counts, User.id == match_counts.c.user_id)
             .filter(LeagueMembership.league_id == league_id)
+            .add_columns(
+                func.coalesce(match_counts.c.exact_count, 0).label('exact_count'),
+                func.coalesce(match_counts.c.correct_count, 0).label('correct_count'),
+                func.coalesce(match_counts.c.wrong_count, 0).label('wrong_count'),
+            )
         )
         total = q.count()
         rows = q.order_by(*order).offset((page - 1) * page_size).limit(page_size).all()
         return rows, total
 
     @staticmethod
-    def get_user_global_rank(db: Session, user_id: int, sort_by: str = "total") -> int:
+    def get_user_global_rank(db: Session, user_id: int, sort_by: str = "total", score_mode: str = "multi") -> int:
         """Return 1-based rank of user in global standings for given sort."""
-        order = DBReader._standings_order(sort_by)
-        rows = (
-            db.query(User.id)
-            .outerjoin(UserScores, User.id == UserScores.user_id)
-            .order_by(*order)
-            .all()
-        )
+        match_counts = DBReader._match_prediction_counts_subquery(db) if score_mode == "classic" else None
+        order = DBReader._standings_order(sort_by, is_league=False, score_mode=score_mode, match_counts=match_counts)
+        q = db.query(User.id).outerjoin(UserScores, User.id == UserScores.user_id)
+        if score_mode == "classic":
+            q = q.outerjoin(match_counts, User.id == match_counts.c.user_id)
+        rows = q.order_by(*order).all()
         ids = [r[0] for r in rows]
         return ids.index(user_id) + 1 if user_id in ids else -1
 
     @staticmethod
-    def get_user_league_rank(db: Session, user_id: int, league_id: int, sort_by: str = "total") -> int:
+    def get_user_league_rank(db: Session, user_id: int, league_id: int, sort_by: str = "total", score_mode: str = "multi") -> int:
         """Return 1-based rank of user in league standings for given sort."""
-        order = DBReader._standings_order(sort_by, is_league=True)
-        rows = (
+        match_counts = DBReader._match_prediction_counts_subquery(db) if score_mode == "classic" else None
+        order = DBReader._standings_order(sort_by, is_league=True, score_mode=score_mode, match_counts=match_counts)
+        q = (
             db.query(User.id)
             .join(LeagueMembership, User.id == LeagueMembership.user_id)
             .outerjoin(UserScores, User.id == UserScores.user_id)
             .filter(LeagueMembership.league_id == league_id)
-            .order_by(*order)
-            .all()
         )
+        if score_mode == "classic":
+            q = q.outerjoin(match_counts, User.id == match_counts.c.user_id)
+        rows = q.order_by(*order).all()
         ids = [r[0] for r in rows]
         return ids.index(user_id) + 1 if user_id in ids else -1
 
     @staticmethod
     def get_user_global_standing_row(db: Session, user_id: int):
-        """Fetch (User, UserScores) for a single user. Used when current user not on page."""
-        return (
+        """Fetch (User, UserScores, exact_count, correct_count, wrong_count) for a single user. Used when current user not on page."""
+        match_counts = DBReader._match_prediction_counts_subquery(db)
+        row = (
             db.query(User, UserScores)
             .outerjoin(UserScores, User.id == UserScores.user_id)
+            .outerjoin(match_counts, User.id == match_counts.c.user_id)
             .filter(User.id == user_id)
+            .add_columns(
+                func.coalesce(match_counts.c.exact_count, 0).label('exact_count'),
+                func.coalesce(match_counts.c.correct_count, 0).label('correct_count'),
+                func.coalesce(match_counts.c.wrong_count, 0).label('wrong_count'),
+            )
             .first()
         )
+        return row
 
     @staticmethod
     def get_user_league_standing_row(db: Session, user_id: int, league_id: int):
-        """Fetch (User, UserScores, LeagueMembership) for a single user in a league."""
-        return (
+        """Fetch (User, UserScores, LeagueMembership, exact_count, correct_count, wrong_count) for a single user in a league."""
+        match_counts = DBReader._match_prediction_counts_subquery(db)
+        row = (
             db.query(User, UserScores, LeagueMembership)
             .join(LeagueMembership, User.id == LeagueMembership.user_id)
             .outerjoin(UserScores, User.id == UserScores.user_id)
+            .outerjoin(match_counts, User.id == match_counts.c.user_id)
             .filter(
                 User.id == user_id,
                 LeagueMembership.league_id == league_id,
             )
+            .add_columns(
+                func.coalesce(match_counts.c.exact_count, 0).label('exact_count'),
+                func.coalesce(match_counts.c.correct_count, 0).label('correct_count'),
+                func.coalesce(match_counts.c.wrong_count, 0).label('wrong_count'),
+            )
             .first()
         )
+        return row
 
     # ═══════════════════════════════════════════════════════
     # TOURNAMENT CONFIG

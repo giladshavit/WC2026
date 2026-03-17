@@ -140,7 +140,15 @@ class LeagueService:
             )
     
     @staticmethod
-    def _format_standing_row(rank: int, user, scores, membership=None) -> Dict[str, Any]:
+    def _format_standing_row(
+        rank: int,
+        user,
+        scores,
+        membership=None,
+        exact_count: int = 0,
+        correct_count: int = 0,
+        wrong_count: int = 0,
+    ) -> Dict[str, Any]:
         return {
             "rank": rank,
             "user_id": user.id,
@@ -155,6 +163,9 @@ class LeagueService:
             "classic_total_points": scores.classic_total_score if scores else 0,
             "penalty": scores.penalty if scores else 0,
             "joined_at": membership.joined_at.isoformat() if membership else None,
+            "matches_exact_count": exact_count,
+            "matches_correct_count": correct_count,
+            "matches_wrong_count": wrong_count,
         }
 
     @staticmethod
@@ -165,20 +176,29 @@ class LeagueService:
         page: int = 1,
         page_size: int = 50,
     ) -> Dict[str, Any]:
-        rows, total = DBReader.get_global_standings_paginated(db, sort_by, page, page_size)
+        score_mode = "multi"  # Global has no league; default to multi
+        rows, total = DBReader.get_global_standings_paginated(db, sort_by, page, page_size, score_mode=score_mode)
         offset = (page - 1) * page_size
         standings = [
-            LeagueService._format_standing_row(offset + i + 1, user, scores)
-            for i, (user, scores) in enumerate(rows)
+            LeagueService._format_standing_row(
+                offset + i + 1, row[0], row[1],
+                exact_count=row[2] if len(row) > 2 else 0,
+                correct_count=row[3] if len(row) > 3 else 0,
+                wrong_count=row[4] if len(row) > 4 else 0,
+            )
+            for i, row in enumerate(rows)
         ]
-        user_rank = DBReader.get_user_global_rank(db, current_user_id, sort_by)
+        user_rank = DBReader.get_user_global_rank(db, current_user_id, sort_by, score_mode=score_mode)
         current_user_in_page = next((s for s in standings if s["user_id"] == current_user_id), None)
         if current_user_in_page:
             current_user_entry = current_user_in_page
         else:
             user_row = DBReader.get_user_global_standing_row(db, current_user_id)
             current_user_entry = LeagueService._format_standing_row(
-                user_rank, user_row[0], user_row[1]
+                user_rank, user_row[0], user_row[1],
+                exact_count=user_row[2] if user_row and len(user_row) > 2 else 0,
+                correct_count=user_row[3] if user_row and len(user_row) > 3 else 0,
+                wrong_count=user_row[4] if user_row and len(user_row) > 4 else 0,
             ) if user_row else None
 
         return {
@@ -202,20 +222,29 @@ class LeagueService:
         if not league:
             raise HTTPException(status_code=404, detail="League not found")
 
-        rows, total = DBReader.get_league_standings_paginated(db, league_id, sort_by, page, page_size)
+        score_mode = league.score_mode.value if hasattr(league.score_mode, 'value') else league.score_mode
+        rows, total = DBReader.get_league_standings_paginated(db, league_id, sort_by, page, page_size, score_mode=score_mode)
         offset = (page - 1) * page_size
         standings = [
-            LeagueService._format_standing_row(offset + i + 1, user, scores, membership)
-            for i, (user, scores, membership) in enumerate(rows)
+            LeagueService._format_standing_row(
+                offset + i + 1, row[0], row[1], row[2],
+                exact_count=row[3] if len(row) > 3 else 0,
+                correct_count=row[4] if len(row) > 4 else 0,
+                wrong_count=row[5] if len(row) > 5 else 0,
+            )
+            for i, row in enumerate(rows)
         ]
-        user_rank = DBReader.get_user_league_rank(db, current_user_id, league_id, sort_by)
+        user_rank = DBReader.get_user_league_rank(db, current_user_id, league_id, sort_by, score_mode=score_mode)
         current_user_in_page = next((s for s in standings if s["user_id"] == current_user_id), None)
         if current_user_in_page:
             current_user_entry = current_user_in_page
         else:
             user_row = DBReader.get_user_league_standing_row(db, current_user_id, league_id)
             current_user_entry = LeagueService._format_standing_row(
-                user_rank, user_row[0], user_row[1], user_row[2]
+                user_rank, user_row[0], user_row[1], user_row[2],
+                exact_count=user_row[3] if user_row and len(user_row) > 3 else 0,
+                correct_count=user_row[4] if user_row and len(user_row) > 4 else 0,
+                wrong_count=user_row[5] if user_row and len(user_row) > 5 else 0,
             ) if user_row else None
 
         return {

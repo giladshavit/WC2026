@@ -298,6 +298,9 @@ export interface LeagueStanding {
   knockout_points: number;
   bonus_points?: number;
   joined_at?: string;
+  matches_exact_count?: number;
+  matches_correct_count?: number;
+  matches_wrong_count?: number;
 }
 
 export interface LeagueStandingsResponse {

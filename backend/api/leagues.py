@@ -73,6 +73,9 @@ class LeagueStanding(BaseModel):
     classic_total_points: int = 0
     penalty: int = 0
     joined_at: Optional[str] = None
+    matches_exact_count: int = 0
+    matches_correct_count: int = 0
+    matches_wrong_count: int = 0
 
 class LeagueStandingsResponse(BaseModel):
     league_info: Optional[Dict[str, Any]] = None
@@ -192,7 +195,7 @@ def join_league(
 
 @router.get("/leagues/global", response_model=LeagueStandingsResponse)
 def get_global_standings(
-    sort_by: str = Query("total", enum=["total", "matches", "groups", "knockout", "bonus", "fine"]),
+    sort_by: str = Query("total", enum=["total", "matches", "groups", "knockout", "bonus", "fine", "exact", "correct", "wrong"]),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=10, le=100),
     current_user: User = Depends(get_current_user),
@@ -230,7 +233,7 @@ def get_global_standings(
 @router.get("/leagues/{league_id}/standings", response_model=LeagueStandingsResponse)
 def get_league_standings(
     league_id: int,
-    sort_by: str = Query("total", enum=["total", "matches", "groups", "knockout", "bonus", "fine"]),
+    sort_by: str = Query("total", enum=["total", "matches", "groups", "knockout", "bonus", "fine", "exact", "correct", "wrong"]),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=10, le=100),
     current_user: User = Depends(get_current_user),
