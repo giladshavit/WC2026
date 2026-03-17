@@ -91,6 +91,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   } | null>(null);
   const [hasEverPredictedFinal, setHasEverPredictedFinal] = useState(false);
   const [showBracketCompleteModal, setShowBracketCompleteModal] = useState(false);
+  const [showBracketModal, setShowBracketModal] = useState(false);
 
   const [predictionsByStage, setPredictionsByStage] = useState<Record<string, KnockoutPrediction[]>>({
     round32: [],
@@ -275,10 +276,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     teamId: number
   ) => {
     if (!prediction.is_editable) {
-      setErrorModal({
-        title: 'Edit via Bracket',
-        message: 'To edit knockout predictions, use the Bracket screen to manage the full tournament path.',
-      });
+      setShowBracketModal(true);
       return;
     }
 
@@ -310,10 +308,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         });
       }
     } else {
-      setErrorModal({
-        title: 'Edit via Bracket',
-        message: 'To edit knockout predictions, use the Bracket screen to manage the full tournament path.',
-      });
+      setShowBracketModal(true);
     }
   };
 
@@ -494,6 +489,42 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
           goBackLabel: 'Go Back',
         })}
       />
+
+      <Modal
+        visible={showBracketModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBracketModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowBracketModal(false)}
+        >
+          <TouchableOpacity style={styles.modalCard} activeOpacity={1} onPress={() => {}}>
+            <BracketIcon size={44} color="#0284c7" />
+            <Text style={styles.modalTitle}>Edit via Bracket</Text>
+            <Text style={styles.modalSubtitle}>
+              Changes to your bracket during this stage require using the Bracket screen.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setShowBracketModal(false);
+                navigation.navigate('Bracket' as never);
+              }}
+            >
+              <Text style={styles.modalButtonText}>Go to Bracket</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalButtonSecondary}
+              onPress={() => setShowBracketModal(false)}
+            >
+              <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal
         visible={showBracketCompleteModal}

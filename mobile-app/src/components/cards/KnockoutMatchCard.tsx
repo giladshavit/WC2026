@@ -66,10 +66,10 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
 
   const cardBackground = '#1e3a5f';
 
-  const team1Bg = isTeam1Winner ? 'rgba(22,163,74,0.12)' : '#1e3a5f';
-  const team2Bg = isTeam2Winner ? 'rgba(22,163,74,0.12)' : '#1e3a5f';
-  const team1TextColor = isTeam1Winner ? '#16a34a' : '#e2e8f0';
-  const team2TextColor = isTeam2Winner ? '#16a34a' : '#e2e8f0';
+  const team1Bg = isTeam1Winner ? 'rgba(22,163,74,0.18)' : '#1e3a5f';
+  const team2Bg = isTeam2Winner ? 'rgba(22,163,74,0.18)' : '#1e3a5f';
+  const team1TextColor = isTeam1Winner ? '#4ade80' : '#e2e8f0';
+  const team2TextColor = isTeam2Winner ? '#4ade80' : '#e2e8f0';
 
   const renderTeamHalf = (
     teamId: number,
