@@ -42,7 +42,7 @@ type ContentBlock =
   | { type: 'bullet'; items: string[] }
   | { type: 'note'; text: string; color?: 'green' | 'yellow' | 'red' }
   | { type: 'table'; headers: string[]; rows: TableRow[]; compact?: boolean; isWide?: boolean }
-  | { type: 'subsection'; title: string; blocks: ContentBlock[]; variant?: 'prediction' }
+  | { type: 'subsection'; title: string; blocks: ContentBlock[]; variant?: 'prediction' | 'section' | 'spaced' }
   | { type: 'tiebreaker'; items: string[] }
   | { type: 'dual-tiebreaker' }
   | { type: 'temptation-card' }
@@ -218,81 +218,117 @@ const sections: Section[] = [
           },
         ],
       },
-    ],
-  },
-  {
-    id: 'fines',
-    title: 'Fines',
-    emoji: '⚠️',
-    content: [
       {
-        type: 'paragraph',
-        text: 'A fine is deducted each time you save a change. Cost depends on the current tournament stage.',
+        type: 'note',
+        color: 'yellow',
+        text: 'The following applies to Multi Mode only — fines and free changes do not exist in Classic Mode.',
       },
       {
         type: 'subsection',
-        title: 'What counts as a change?',
-        blocks: [
-          {
-            type: 'bullet',
-            items: [
-              "Group Stage — each team moved in a group's finishing order: 1 change.",
-              '3rd Place — each group toggled: 1 change.',
-              'Knockout — changing a predicted winner in any round: 1 change (may cascade to later rounds).',
-              'Bonus — changing a question answer: 1 change.',
-            ],
-          },
-          {
-            type: 'table',
-            headers: ['Tournament Stage', 'Fine / Change'],
-            rows: [
-              { cells: ['Before tournament', '0 (free)'], highlight: true },
-              { cells: ['Matchday 1', '−1 pt'] },
-              { cells: ['Matchday 2', '−1 pt'] },
-              { cells: ['Matchday 3', '−2 pts'] },
-              { cells: ['Before Round of 32', '−2 pts'] },
-              { cells: ['Before Round of 16', '−3 pts'] },
-              { cells: ['Before Quarter-Final', '−3 pts'] },
-            ],
-          },
-        ],
-      },
-      {
-        type: 'subsection',
-        title: '🔄 Bracket Reset (One-Time)',
+        title: '⚠️ Changes & Fines',
+        variant: 'section',
         blocks: [
           {
             type: 'paragraph',
-            text: 'Before the Round of 32, you can fully reset your knockout bracket once — clearing all predictions to start fresh with the real teams.',
+            text: 'A fine is deducted each time you save a change to any Multi Mode prediction type — groups, 3rd place, or knockout. Cost depends on the current tournament stage.',
           },
           {
-            type: 'paragraph',
-            text: 'Two prediction statuses matter for the reset cost:',
-          },
-          {
-            type: 'bullet',
-            items: [
-              '🔴 Invalid — no winner selected, or the selected team has already been eliminated. No points are possible from this slot.',
-              '🟠 Unreachable — your selected winner cannot reach this match. At best, only Partial points are possible.',
+            type: 'subsection',
+            title: 'What counts as a change?',
+            blocks: [
+              {
+                type: 'paragraph',
+                text: 'Each of the following counts as one change:',
+              },
+              {
+                type: 'bullet',
+                items: [
+                  'Group Stage — each team moved in positions 1st–3rd within a group.',
+                  '3rd Place — each group toggled in or out of your selection.',
+                  'Knockout — changing a predicted winner in any round.',
+                ],
+              },
+              {
+                type: 'table',
+                headers: ['Tournament Stage', 'Fine per Change'],
+                rows: [
+                  { cells: ['Before tournament', '0 (free)'], highlight: true },
+                  { cells: ['Matchday 1', '−1 pt'] },
+                  { cells: ['Matchday 2', '−1 pt'] },
+                  { cells: ['Matchday 3', '−2 pts'] },
+                  { cells: ['Before Round of 32', '−2 pts'] },
+                  { cells: ['Before Round of 16', '−3 pts'] },
+                  { cells: ['Before Quarter-Final', '−3 pts'] },
+                ],
+              },
             ],
           },
           {
-            type: 'table',
-            headers: ['Status', 'Reset Cost'],
-            compact: true,
-            rows: [
-              { cells: ['Invalid 🔴', '−1 pt each'] },
-              { cells: ['Unreachable 🟠', '−0.5 pt each'] },
+            type: 'subsection',
+            title: 'Free Changes',
+            variant: 'spaced',
+            blocks: [
+              {
+                type: 'paragraph',
+                text: 'At key stages of the tournament, you receive free changes — edits that cost no fine points. These accumulate across stages, so unused changes carry forward.',
+              },
+              {
+                type: 'note',
+                color: 'yellow',
+                text: 'Use them wisely. Free changes are shared across all Multi Mode prediction types — groups, 3rd place, and knockout.',
+              },
+              {
+                type: 'table',
+                headers: ['Stage', 'Free Changes'],
+                compact: true,
+                rows: [
+                  { cells: ['Matchday 1 starts', '+12'] },
+                  { cells: ['Before Round of 32', '+8'] },
+                  { cells: ['Before Round of 16', '+4'] },
+                  { cells: ['Before Quarter-Final', '+2'] },
+                ],
+              },
             ],
           },
           {
-            type: 'note',
-            color: 'red',
-            text: 'One-time only. Not available after Round of 32 kicks off.',
-          },
-          {
-            type: 'note',
-            text: 'If the total penalty is not a whole number, it is rounded down.',
+            type: 'subsection',
+            title: '🔄 Bracket Reset (One-Time)',
+            variant: 'spaced',
+            blocks: [
+              {
+                type: 'paragraph',
+                text: 'Before the Round of 32, you can fully reset your knockout bracket once — clearing all predictions to start fresh with the real teams.',
+              },
+              {
+                type: 'paragraph',
+                text: 'Two prediction statuses matter for the reset cost:',
+              },
+              {
+                type: 'bullet',
+                items: [
+                  '🔴 Invalid — no winner selected, or the selected team has already been eliminated. No points are possible from this slot.',
+                  '🟠 Unreachable — your selected winner cannot reach this match. At best, only Partial points are possible.',
+                ],
+              },
+              {
+                type: 'table',
+                headers: ['Status', 'Reset Cost'],
+                compact: true,
+                rows: [
+                  { cells: ['Invalid 🔴', '−1 pt each'] },
+                  { cells: ['Unreachable 🟠', '−0.5 pt each'] },
+                ],
+              },
+              {
+                type: 'note',
+                color: 'red',
+                text: 'One-time only. Not available after Round of 32 kicks off.',
+              },
+              {
+                type: 'note',
+                text: 'If the total penalty is not a whole number, it is rounded down.',
+              },
+            ],
           },
         ],
       },
@@ -648,9 +684,15 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
 
           case 'subsection':
             return (
-              <View key={i} style={[styles.subsection, block.variant === 'prediction' && styles.subsectionPredictionSpacing]}>
+              <View key={i} style={[
+                styles.subsection,
+                block.variant === 'prediction' && styles.subsectionPredictionSpacing,
+                block.variant === 'spaced' && styles.subsectionSpaced,
+              ]}>
                 {block.variant === 'prediction' ? (
                   <Text style={styles.subsectionLabelA}>{block.title}</Text>
+                ) : block.variant === 'section' ? (
+                  <Text style={styles.subsectionTitleSection}>{block.title}</Text>
                 ) : (
                   <Text style={styles.subsectionTitle}>{block.title}</Text>
                 )}
@@ -1025,8 +1067,14 @@ const styles = StyleSheet.create({
   // Subsection
   subsection: { gap: 8, marginTop: 4 },
   subsectionPredictionSpacing: { marginTop: 30 },
+  subsectionSpaced: { marginTop: 24 },
   subsectionTitle: {
     fontSize: 14,
+    fontWeight: '700',
+    color: '#e2e8f0',
+  },
+  subsectionTitleSection: {
+    fontSize: 17,
     fontWeight: '700',
     color: '#e2e8f0',
   },
