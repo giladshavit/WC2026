@@ -100,8 +100,11 @@ class ScoringService:
         new_field_value = (getattr(user_scores, score_field) or 0) + delta
         new_total = (user_scores.total_points or 0) + delta
         update_kwargs = {score_field: new_field_value, 'total_points': new_total}
-        if score_field in ("matches_score", "bonus_score"):
-            new_classic = (user_scores.matches_score or 0) + (user_scores.bonus_score or 0) + delta
+        if score_field == "matches_score":
+            new_classic = new_field_value + (user_scores.bonus_score or 0)
+            update_kwargs["classic_total_score"] = new_classic
+        elif score_field == "bonus_score":
+            new_classic = (user_scores.matches_score or 0) + new_field_value
             update_kwargs["classic_total_score"] = new_classic
         DBWriter.update_user_scores(db, user_scores, **update_kwargs)
 
