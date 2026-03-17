@@ -26,7 +26,7 @@ import * as Clipboard from 'expo-clipboard';
 import { LeaveLeagueModal, ErrorModal } from '../../components/modals/CustomModals';
 import { useToast } from '../../components/toast/Toast';
 
-type SortKey = 'total' | 'matches' | 'groups' | 'knockout' | 'bonus' | 'fine';
+type SortKey = 'total' | 'matches' | 'groups' | 'knockout' | 'bonus' | 'fine' | 'exact' | 'correct' | 'wrong';
 
 interface RouteParams {
   leagueId: string | number;
@@ -260,25 +260,40 @@ function AnimatedPlayerRow({
           {scoreMode === 'classic' ? (
             <>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter]}>{item.matches_points ?? 0}</Text>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#22c55e' }]}>
+                  {item.matches_exact_count ?? 0}
+                </Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#86efac' }]}>{item.bonus_points ?? 0}</Text>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#f59e0b' }]}>
+                  {item.matches_correct_count ?? 0}
+                </Text>
+              </View>
+              <View style={styles.colNum}>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}>
+                  {item.matches_wrong_count ?? 0}
+                </Text>
+              </View>
+              <View style={styles.colNum}>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#60a5fa' }]}>{item.matches_points ?? 0}</Text>
+              </View>
+              <View style={styles.colNum}>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#4ade80' }]}>{item.bonus_points ?? 0}</Text>
               </View>
             </>
           ) : (
             <>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter]}>{item.matches_points ?? 0}</Text>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#60a5fa' }]}>{item.matches_points ?? 0}</Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter]}>{groupsPlusThird}</Text>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#c084fc' }]}>{groupsPlusThird}</Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter]}>{item.knockout_points ?? 0}</Text>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#fbbf24' }]}>{item.knockout_points ?? 0}</Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter]}>{item.bonus_points ?? 0}</Text>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#4ade80' }]}>{item.bonus_points ?? 0}</Text>
               </View>
               <View style={styles.colFine}>
                 {fineVal > 0 ? (
@@ -408,15 +423,32 @@ export default function LeagueDetailsScreen() {
   const liveMatchIdsRef = useRef<number[]>([]);
   const flashListRef = useRef<any>(null);
   const scoreModeInitializedRef = useRef(false);
+  const skipNextFetchRef = useRef(false);
   const [scoreMode, setScoreMode] = useState<'multi' | 'classic'>('classic');
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [userDismissedLive, setUserDismissedLive] = useState(false);
 
+  const SORT_COLORS: Record<string, string> = {
+    exact: '#22c55e',
+    correct: '#f59e0b',
+    wrong: '#ef4444',
+    matches: '#60a5fa',
+    groups: '#c084fc',
+    knockout: '#fbbf24',
+    bonus: '#4ade80',
+    fine: '#ef4444',
+    total: '#fbbf24',
+  };
+
   const handleSortByChange = (newSortBy: SortKey) => {
-    flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
-    setSortBy(newSortBy);
+    if (newSortBy === sortBy) return; // already active
+    skipNextFetchRef.current = true;
     setPage(1);
     setAllStandings([]);
+    setSortBy(newSortBy);
+    setTimeout(() => {
+      fetchStandings(false, 1, newSortBy);
+    }, 0);
   };
 
   const isGlobalLeague = leagueId === 'global';
@@ -472,14 +504,16 @@ export default function LeagueDetailsScreen() {
     }
   };
 
-  const fetchStandings = async (append: boolean) => {
+  const fetchStandings = async (append: boolean, pageOverride?: number, sortByOverride?: SortKey) => {
     if (append) {
       setLoadingMore(true);
     }
+    const currentPage = pageOverride ?? page;
+    const currentSortBy = sortByOverride ?? sortBy;
     try {
       const data = isGlobalLeague
-        ? await apiService.getGlobalStandings({ sort_by: sortBy, page, page_size: PAGE_SIZE })
-        : await apiService.getLeagueStandings(Number(leagueId), { sort_by: sortBy, page, page_size: PAGE_SIZE });
+        ? await apiService.getGlobalStandings({ sort_by: currentSortBy, page: currentPage, page_size: PAGE_SIZE })
+        : await apiService.getLeagueStandings(Number(leagueId), { sort_by: currentSortBy, page: currentPage, page_size: PAGE_SIZE });
 
       setStandingsData(data);
       setTotalCount(data.total_count);
@@ -488,7 +522,7 @@ export default function LeagueDetailsScreen() {
         const leagueMode = data.league_info?.score_mode;
         if (leagueMode === 'classic') {
           setScoreMode('classic');
-          setSortBy('matches');
+          setSortBy('total');
         } else {
           setScoreMode('multi');
         }
@@ -528,7 +562,7 @@ export default function LeagueDetailsScreen() {
     setRefreshing(true);
     setPage(1);
     setAllStandings([]);
-    await fetchStandings(false);
+    await fetchStandings(false, 1);
     setRefreshing(false);
   };
 
@@ -541,7 +575,11 @@ export default function LeagueDetailsScreen() {
   }, [leagueId]);
 
   useEffect(() => {
-    fetchStandings(page !== 1);
+    if (skipNextFetchRef.current) {
+      skipNextFetchRef.current = false;
+      return;
+    }
+    fetchStandings(page !== 1, page);
   }, [leagueId, sortBy, page]);
 
   useEffect(() => {
@@ -710,7 +748,16 @@ export default function LeagueDetailsScreen() {
         <View style={styles.scoreModeToggle}>
           <TouchableOpacity
             style={[styles.scoreModeBtn, scoreMode === 'multi' && styles.scoreModeBtnActive]}
-            onPress={() => { handleSortByChange('total'); setScoreMode('multi'); }}
+            onPress={() => {
+              if (scoreMode === 'multi') return; // already active
+              skipNextFetchRef.current = true;
+              setPage(1);
+              setAllStandings([]);
+              setSortBy('total');
+              setScoreMode('multi');
+              // fetch manually with clean state
+              setTimeout(() => fetchStandings(false, 1, 'total'), 0);
+            }}
           >
             <Text style={[styles.scoreModeBtnText, scoreMode === 'multi' && styles.scoreModeBtnTextActive]}>
               Multi
@@ -718,7 +765,16 @@ export default function LeagueDetailsScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.scoreModeBtn, scoreMode === 'classic' && styles.scoreModeBtnActive]}
-            onPress={() => { handleSortByChange('matches'); setScoreMode('classic'); }}
+            onPress={() => {
+              if (scoreMode === 'classic') return; // already active
+              skipNextFetchRef.current = true;
+              setPage(1);
+              setAllStandings([]);
+              setSortBy('total');
+              setScoreMode('classic');
+              // fetch manually with clean state
+              setTimeout(() => fetchStandings(false, 1, 'total'), 0);
+            }}
           >
             <Text style={[styles.scoreModeBtnText, scoreMode === 'classic' && styles.scoreModeBtnTextActive]}>
               Classic
@@ -765,8 +821,10 @@ export default function LeagueDetailsScreen() {
 
         <View style={styles.tableSection}>
           <FlashList
+            key={sortBy + '-' + scoreMode}
             ref={flashListRef}
             data={allStandings}
+            extraData={sortBy + scoreMode + String(page)}
             keyExtractor={(item) => String(item.user_id)}
             onEndReached={() => {
               if (!loadingMore && allStandings.length < totalCount) {
@@ -802,16 +860,34 @@ export default function LeagueDetailsScreen() {
                       <View style={[styles.tableHeader, styles.tableHeaderMiddle, { height: 46, backgroundColor: '#334155' }]}>
                         {scoreMode === 'classic' ? (
                           <>
+                            <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} activeOpacity={0.7} onPress={() => handleSortByChange('exact')}>
+                              <View style={styles.headerIconWrapper}>
+                                <Ionicons name={sortBy === 'exact' ? 'checkmark-circle' : 'checkmark-circle-outline'} size={14} color={sortBy === 'exact' ? SORT_COLORS.exact : SORT_COLORS.exact + '55'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'exact' ? SORT_COLORS.exact : 'transparent' }]} />
+                              </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} activeOpacity={0.7} onPress={() => handleSortByChange('correct')}>
+                              <View style={styles.headerIconWrapper}>
+                                <Ionicons name={sortBy === 'correct' ? 'remove-circle' : 'remove-circle-outline'} size={14} color={sortBy === 'correct' ? SORT_COLORS.correct : SORT_COLORS.correct + '55'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'correct' ? SORT_COLORS.correct : 'transparent' }]} />
+                              </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} activeOpacity={0.7} onPress={() => handleSortByChange('wrong')}>
+                              <View style={styles.headerIconWrapper}>
+                                <Ionicons name={sortBy === 'wrong' ? 'close-circle' : 'close-circle-outline'} size={14} color={sortBy === 'wrong' ? SORT_COLORS.wrong : SORT_COLORS.wrong + '55'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'wrong' ? SORT_COLORS.wrong : 'transparent' }]} />
+                              </View>
+                            </TouchableOpacity>
                             <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('matches')} activeOpacity={0.7}>
                               <View style={styles.headerIconWrapper}>
-                                <Ionicons name={sortBy === 'matches' ? 'football' : 'football-outline'} size={14} color={sortBy === 'matches' ? '#ffffff' : '#94a3b8'} />
-                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'matches' ? '#ffffff' : 'transparent' }]} />
+                                <Ionicons name={sortBy === 'matches' ? 'football' : 'football-outline'} size={14} color={sortBy === 'matches' ? SORT_COLORS.matches : SORT_COLORS.matches + '55'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'matches' ? SORT_COLORS.matches : 'transparent' }]} />
                               </View>
                             </TouchableOpacity>
                             <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('bonus')} activeOpacity={0.7}>
                               <View style={styles.headerIconWrapper}>
-                                <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? '#86efac' : '#94a3b8'} />
-                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? '#86efac' : 'transparent' }]} />
+                                <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? SORT_COLORS.bonus : SORT_COLORS.bonus + '55'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? SORT_COLORS.bonus : 'transparent' }]} />
                               </View>
                             </TouchableOpacity>
                           </>
@@ -819,32 +895,32 @@ export default function LeagueDetailsScreen() {
                           <>
                             <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('matches')} activeOpacity={0.7}>
                               <View style={styles.headerIconWrapper}>
-                                <Ionicons name={sortBy === 'matches' ? 'football' : 'football-outline'} size={14} color={sortBy === 'matches' ? '#ffffff' : '#94a3b8'} />
-                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'matches' ? '#ffffff' : 'transparent' }]} />
+                                <Ionicons name={sortBy === 'matches' ? 'football' : 'football-outline'} size={14} color={sortBy === 'matches' ? SORT_COLORS.matches : SORT_COLORS.matches + '55'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'matches' ? SORT_COLORS.matches : 'transparent' }]} />
                               </View>
                             </TouchableOpacity>
                             <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('groups')} activeOpacity={0.7}>
                               <View style={styles.headerIconWrapper}>
-                                <Ionicons name={sortBy === 'groups' ? 'home' : 'home-outline'} size={14} color={sortBy === 'groups' ? '#ffffff' : '#94a3b8'} />
-                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'groups' ? '#ffffff' : 'transparent' }]} />
+                                <Ionicons name={sortBy === 'groups' ? 'home' : 'home-outline'} size={14} color={sortBy === 'groups' ? SORT_COLORS.groups : SORT_COLORS.groups + '55'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'groups' ? SORT_COLORS.groups : 'transparent' }]} />
                               </View>
                             </TouchableOpacity>
                             <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('knockout')} activeOpacity={0.7}>
                               <View style={styles.headerIconWrapper}>
-                                <Ionicons name={sortBy === 'knockout' ? 'trophy' : 'trophy-outline'} size={14} color={sortBy === 'knockout' ? '#ffffff' : '#94a3b8'} />
-                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'knockout' ? '#ffffff' : 'transparent' }]} />
+                                <Ionicons name={sortBy === 'knockout' ? 'trophy' : 'trophy-outline'} size={14} color={sortBy === 'knockout' ? SORT_COLORS.knockout : SORT_COLORS.knockout + '55'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'knockout' ? SORT_COLORS.knockout : 'transparent' }]} />
                               </View>
                             </TouchableOpacity>
                             <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('bonus')} activeOpacity={0.7}>
                               <View style={styles.headerIconWrapper}>
-                                <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? '#16a34a' : '#94a3b8'} />
-                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? '#16a34a' : 'transparent' }]} />
+                                <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? SORT_COLORS.bonus : SORT_COLORS.bonus + '55'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? SORT_COLORS.bonus : 'transparent' }]} />
                               </View>
                             </TouchableOpacity>
                             <TouchableOpacity style={[styles.colFine, styles.headerIconCell]} onPress={() => handleSortByChange('fine')} activeOpacity={0.7}>
                               <View style={styles.headerIconWrapper}>
-                                <Ionicons name={sortBy === 'fine' ? 'warning' : 'warning-outline'} size={14} color={sortBy === 'fine' ? '#ef4444' : 'rgba(239,68,68,0.4)'} />
-                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'fine' ? '#ef4444' : 'transparent' }]} />
+                                <Ionicons name={sortBy === 'fine' ? 'warning' : 'warning-outline'} size={14} color={sortBy === 'fine' ? SORT_COLORS.fine : SORT_COLORS.fine + '55'} />
+                                <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'fine' ? SORT_COLORS.fine : 'transparent' }]} />
                               </View>
                             </TouchableOpacity>
                           </>
@@ -862,18 +938,16 @@ export default function LeagueDetailsScreen() {
                     ))}
                     <TouchableOpacity
                       style={[styles.colTotal, styles.headerIconCell]}
-                      onPress={() => scoreMode === 'multi' ? handleSortByChange('total') : undefined}
-                      activeOpacity={scoreMode === 'multi' ? 0.7 : 1}
+                      onPress={() => handleSortByChange('total')}
+                      activeOpacity={0.7}
                     >
                       <View style={styles.headerIconWrapper}>
                         <Ionicons
-                          name={scoreMode === 'multi' && sortBy === 'total' ? 'star' : 'star-outline'}
+                          name={sortBy === 'total' ? 'star' : 'star-outline'}
                           size={14}
-                          color={scoreMode === 'multi' && sortBy === 'total' ? '#fbbf24' : 'rgba(251,191,36,0.4)'}
+                          color={sortBy === 'total' ? SORT_COLORS.total : SORT_COLORS.total + '55'}
                         />
-                        {scoreMode === 'multi' && (
-                          <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'total' ? '#fbbf24' : 'transparent' }]} />
-                        )}
+                        <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'total' ? SORT_COLORS.total : 'transparent' }]} />
                       </View>
                     </TouchableOpacity>
                   </View>
@@ -964,12 +1038,27 @@ export default function LeagueDetailsScreen() {
                   {scoreMode === 'classic' ? (
                     <>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter]}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#22c55e' }]}>
+                          {currentUserEntry.matches_exact_count ?? 0}
+                        </Text>
+                      </View>
+                      <View style={styles.colNum}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#f59e0b' }]}>
+                          {currentUserEntry.matches_correct_count ?? 0}
+                        </Text>
+                      </View>
+                      <View style={styles.colNum}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}>
+                          {currentUserEntry.matches_wrong_count ?? 0}
+                        </Text>
+                      </View>
+                      <View style={styles.colNum}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#60a5fa' }]}>
                           {currentUserEntry.matches_points ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#86efac' }]}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#4ade80' }]}>
                           {currentUserEntry.bonus_points ?? 0}
                         </Text>
                       </View>
@@ -977,22 +1066,22 @@ export default function LeagueDetailsScreen() {
                   ) : (
                     <>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter]}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#60a5fa' }]}>
                           {currentUserEntry.matches_points ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter]}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#c084fc' }]}>
                           {(currentUserEntry.groups_points ?? 0) + (currentUserEntry.third_place_points ?? 0)}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter]}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#fbbf24' }]}>
                           {currentUserEntry.knockout_points ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter]}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#4ade80' }]}>
                           {currentUserEntry.bonus_points ?? 0}
                         </Text>
                       </View>
