@@ -146,30 +146,33 @@ class ResultsService:
         DBUtils.commit(db)
         DBUtils.refresh(db, result)
 
-        # Only set match status to finished when is_final=True
-        if is_final:
-            DBWriter.set_match_status(db, match, "finished")
-            DBUtils.commit(db)
+        is_live = match.status == 'live'
 
-        # Check if this is a knockout match
-        is_knockout = match.stage in ['round32', 'round16', 'quarter', 'semi', 'final']
-
-        if is_knockout:
+        if is_live:
+            # Live match: save score for display, but do NOT change match status or settle predictions
+            ScoringService.update_match_scoring_for_all_users(db, result, update_status=False)
+        else:
+            # Not live: set status to finished when is_final, settle predictions
             if is_final:
-                ResultsService.update_knockout_result(
-                    db, match_id, match.home_team_id, match.away_team_id, winner_team_id
-                )
-            # Score MatchPredictions (exact score / correct winner) for this match
-            ScoringService.update_match_scoring_for_all_users(db, result, update_status=is_final)
-            return {
-                "match_id": match_id,
-                "home_team_score": home_team_score,
-                "away_team_score": away_team_score,
-                "winner_team_id": winner_team_id,
-                "message": "Match result updated successfully"
-            }
+                DBWriter.set_match_status(db, match, "finished")
+                DBUtils.commit(db)
 
-        ScoringService.update_match_scoring_for_all_users(db, result, update_status=is_final)
+            is_knockout = match.stage in ['round32', 'round16', 'quarter', 'semi', 'final']
+            if is_knockout:
+                if is_final:
+                    ResultsService.update_knockout_result(
+                        db, match_id, match.home_team_id, match.away_team_id, winner_team_id
+                    )
+                ScoringService.update_match_scoring_for_all_users(db, result, update_status=is_final)
+                return {
+                    "match_id": match_id,
+                    "home_team_score": home_team_score,
+                    "away_team_score": away_team_score,
+                    "winner_team_id": winner_team_id,
+                    "message": "Match result updated successfully"
+                }
+
+            ScoringService.update_match_scoring_for_all_users(db, result, update_status=is_final)
 
         return {
             "match_id": match_id,
