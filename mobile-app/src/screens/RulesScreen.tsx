@@ -441,9 +441,17 @@ function RulesTable({
               styles.tableCell,
               j === 0 && (compact ? styles.tableCellCompact : styles.tableCellWide),
               isWide && j !== 0 && styles.tableCellNarrow,
+              isWide && { flex: j === 0 ? 1.8 : 1, paddingHorizontal: 2 },
             ]}
           >
-            <Text style={styles.tableHeaderText}>{h}</Text>
+            <Text
+              style={styles.tableHeaderText}
+              numberOfLines={isWide ? 1 : undefined}
+              adjustsFontSizeToFit={isWide}
+              minimumFontScale={isWide ? 0.6 : undefined}
+            >
+              {h}
+            </Text>
           </View>
         ))}
       </View>
@@ -464,6 +472,7 @@ function RulesTable({
                 styles.tableCell,
                 k === 0 && (compact ? styles.tableCellCompact : styles.tableCellWide),
                 isWide && k !== 0 && styles.tableCellNarrow,
+                isWide && { flex: k === 0 ? 1.8 : 1 },
               ]}
             >
               <Text
