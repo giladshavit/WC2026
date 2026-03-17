@@ -1,6 +1,7 @@
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
 
 from utils.datetime_utils import datetime_to_utc_iso as _to_utc_iso
 from models.matches import Match, MatchStatus
@@ -174,20 +175,37 @@ class MatchPredictionService:
     def update_match_status(db: Session, match_id: int, status: str) -> Dict[str, Any]:
         """
         Update match status (admin only).
+        When status == "finished": requires MatchResult to exist, runs scoring, then sets status.
         """
         try:
             match = DBReader.get_match(db, match_id)
             if not match:
                 return {"error": "Match not found"}
 
-            DBWriter.set_match_status(db, match, status)
-            DBUtils.commit(db)
+            if status == "finished":
+                match_result = DBReader.get_match_result(db, match_id)
+                if not match_result:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Cannot mark match as finished: no result has been entered yet.",
+                    )
+                DBWriter.set_match_status(db, match, "finished")
+                ScoringService.update_match_scoring_for_all_users(
+                    db=db,
+                    result=match_result,
+                    update_status=True,
+                )
+            else:
+                DBWriter.set_match_status(db, match, status)
+                DBUtils.commit(db)
 
             return {
                 "id": match.id,
                 "status": match.status,
                 "updated": True,
             }
+        except HTTPException:
+            raise
         except Exception as exc:
             DBUtils.rollback(db)
             return {"error": f"Failed to update match status: {str(exc)}"}
