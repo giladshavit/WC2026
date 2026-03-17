@@ -16,6 +16,15 @@ interface ConfirmSaveModalProps {
   finePerChange: number;
   onClose: () => void;
   onConfirm: () => void;
+  /** Knockout-specific: free changes info */
+  freeChangesInfo?: {
+    changesCount: number;
+    freeAvailable: number;
+    freeRemaining: number;
+    paidChanges: number;
+    freeUsed: number;
+    actualPenalty: number;
+  };
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -27,7 +36,138 @@ export default function ConfirmSaveModal({
   finePerChange,
   onClose,
   onConfirm,
+  freeChangesInfo,
 }: ConfirmSaveModalProps) {
+  if (freeChangesInfo) {
+    const { changesCount, freeRemaining, paidChanges, actualPenalty, freeAvailable, freeUsed } = freeChangesInfo;
+
+    // Case 4: No changes — keep existing behavior
+    if (changesCount === 0) {
+      const messageLines: string[] = ['Changes: 0'];
+      if (freeAvailable > 0) messageLines.push(`Free: ${freeRemaining}`);
+      messageLines.push('Free!');
+      return (
+        <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
+          <Pressable style={styles.overlay} onPress={onClose}>
+            <Pressable style={styles.content} onPress={() => {}}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="save-outline" size={32} color="#15803d" />
+              </View>
+              <Text style={styles.title}>Save Changes</Text>
+              {messageLines.map((line, i) => (
+                <Text key={i} style={[styles.subtitle, i === messageLines.length - 1 && { color: '#16a34a', fontWeight: '700' }]}>
+                  {line}
+                </Text>
+              ))}
+              <Pressable style={[styles.primaryButton, { backgroundColor: '#15803d' }]} onPress={onConfirm}>
+                <Ionicons name="save-outline" size={20} color="#ffffff" />
+                <Text style={styles.primaryButtonText}>Save (Free)</Text>
+              </Pressable>
+              <Pressable style={styles.secondaryButton} onPress={onClose}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      );
+    }
+
+    // Case 3: All free (freeUsed > 0, actualPenalty === 0)
+    if (actualPenalty === 0 && freeUsed > 0) {
+      return (
+        <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
+          <Pressable style={styles.overlay} onPress={onClose}>
+            <Pressable style={styles.content} onPress={() => {}}>
+              <View style={[styles.iconContainer, { backgroundColor: '#dcfce7' }]}>
+                <Ionicons name="gift-outline" size={32} color="#4ade80" />
+              </View>
+              <Text style={styles.title}>Confirm Save</Text>
+              <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginBottom: 20 }}>
+                <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 12, paddingVertical: 12, borderWidth: 1.5, borderColor: '#fca5a5' }}>
+                  <Text style={{ fontSize: 22, fontWeight: '700', color: '#dc2626' }}>{freeUsed}</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>changes made</Text>
+                </View>
+                <View style={{ flex: 1, alignItems: 'center', backgroundColor: 'rgba(74,222,128,0.12)', borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: '#4ade80' }}>
+                  <Text style={{ fontSize: 22, fontWeight: '700', color: '#16a34a' }}>{freeRemaining}</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>free remaining</Text>
+                </View>
+              </View>
+              <Pressable style={[styles.primaryButton, { backgroundColor: '#15803d' }]} onPress={onConfirm}>
+                <Text style={styles.primaryButtonText}>Save for Free</Text>
+              </Pressable>
+              <Pressable style={styles.secondaryButton} onPress={onClose}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      );
+    }
+
+    // Case 2: Mixed (freeUsed > 0, paidChanges > 0)
+    if (actualPenalty > 0 && freeUsed > 0) {
+      return (
+        <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
+          <Pressable style={styles.overlay} onPress={onClose}>
+            <Pressable style={styles.content} onPress={() => {}}>
+              <Text style={styles.title}>Confirm Save</Text>
+              <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginBottom: 16 }}>
+                <View style={{ flex: 1, alignItems: 'center', backgroundColor: 'rgba(74,222,128,0.12)', borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: '#4ade80' }}>
+                  <Text style={{ fontSize: 22, fontWeight: '700', color: '#16a34a' }}>{freeUsed}</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>free used</Text>
+                </View>
+                <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 12, paddingVertical: 12, borderWidth: 1.5, borderColor: '#fca5a5' }}>
+                  <Text style={{ fontSize: 28, fontWeight: '900', color: '#dc2626' }}>{paidChanges}</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>paid changes</Text>
+                </View>
+              </View>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>FINE</Text>
+              <View style={{ width: '85%', alignSelf: 'center', alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 16, paddingVertical: 14, marginBottom: 20, borderWidth: 1.5, borderColor: '#fca5a5' }}>
+                <Text style={{ fontSize: 36, fontWeight: '900', color: '#dc2626', letterSpacing: -1 }}>
+                  -{actualPenalty} pts
+                </Text>
+              </View>
+              <Pressable style={[styles.primaryButton, { backgroundColor: '#dc2626' }]} onPress={onConfirm}>
+                <Text style={styles.primaryButtonText}>Save (-{actualPenalty} pts)</Text>
+              </Pressable>
+              <Pressable style={styles.secondaryButton} onPress={onClose}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      );
+    }
+
+    // Case 1: No free changes (freeUsed === 0, actualPenalty > 0)
+    return (
+      <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
+        <Pressable style={styles.overlay} onPress={onClose}>
+          <Pressable style={styles.content} onPress={() => {}}>
+            <Text style={styles.title}>Confirm Save</Text>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>
+              FINE
+            </Text>
+            <View style={{ width: '85%', alignSelf: 'center', alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 16, paddingVertical: 14, marginBottom: 8, borderWidth: 1.5, borderColor: '#fca5a5' }}>
+              <Text style={{ fontSize: 36, fontWeight: '900', color: '#dc2626', letterSpacing: -1 }}>
+                -{actualPenalty} pts
+              </Text>
+            </View>
+            <Text style={{ fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 20 }}>
+              {changesCount} changes will cost {actualPenalty} pts
+            </Text>
+            <Pressable style={[styles.primaryButton, { backgroundColor: '#dc2626' }]} onPress={onConfirm}>
+              <Text style={styles.primaryButtonText}>Save (-{actualPenalty} pts)</Text>
+            </Pressable>
+            <Pressable style={styles.secondaryButton} onPress={onClose}>
+              <Text style={styles.secondaryButtonText}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       visible={visible}
@@ -214,5 +354,31 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 16,
     fontWeight: '600',
+  },
+  statBoxesRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+    width: '100%',
+  },
+  statBox: {
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  statBoxNumber: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1e293b',
+  },
+  statBoxLabel: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '500',
+    marginTop: 2,
   },
 });

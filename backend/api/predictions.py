@@ -208,60 +208,6 @@ def create_or_update_third_place_prediction(
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     
-    # Run script to build the bracket automatically
-    try:
-        import subprocess
-        import os
-        
-        # Execute the bracket build script
-        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "build_round32_by_prediction.py")
-        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
-        user_id_arg = str(third_place_prediction.user_id)
-        
-        print(f"🔧 Running bracket build script...")
-        print(f"Script path: {script_path}")
-        print(f"Python path: {python_path}")
-        print(f"User ID: {user_id_arg}")
-        
-        process_result = subprocess.run(
-            [python_path, script_path, user_id_arg],
-            capture_output=True,
-            text=True,
-            cwd=os.path.dirname(os.path.dirname(__file__))
-        )
-        
-        print(f"Script return code: {process_result.returncode}")
-        if process_result.stdout:
-            print(f"Script stdout: {process_result.stdout}")
-        if process_result.stderr:
-            print(f"Script stderr: {process_result.stderr}")
-        
-        if process_result.returncode == 0:
-            result["bracket_rebuilt"] = True
-            result["message"] = result.get("message", "") + " Bracket rebuilt automatically."
-            
-            # Update prediction statuses for subsequent knockout stages
-            # (if there are already predictions for those stages)
-            try:
-                from services.results_service import ResultsService
-                ResultsService.update_knockout_statuses_after_round32(db)
-                result["statuses_updated"] = True
-                print("✅ Updated knockout prediction statuses for subsequent stages")
-            except Exception as status_error:
-                # Don't fail if status update errors - just log it
-                result["statuses_updated"] = False
-                result["status_update_error"] = str(status_error)
-                print(f"⚠️ Warning: Failed to update statuses: {status_error}")
-        else:
-            result["bracket_rebuilt"] = False
-            result["bracket_error"] = f"Script failed with return code {process_result.returncode}: {process_result.stderr}"
-        
-    except Exception as e:
-        # Do not fail if the script errors - just add a note
-        result["bracket_rebuilt"] = False
-        result["bracket_error"] = str(e)
-        print(f"❌ Exception running bracket script: {e}")
-    
     # Create empty knockout predictions for later stages if they don't exist
     # This ensures the bracket displays correctly even without predictions for later stages
     try:

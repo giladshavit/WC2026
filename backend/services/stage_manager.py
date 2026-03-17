@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
 from models.tournament_config import TournamentConfig
-from services.database import DBWriter, DBUtils
+from services.database import DBReader, DBWriter, DBUtils
 
 class Stage(Enum):
     """Tournament stages"""
@@ -37,6 +37,19 @@ class Stage(Enum):
             Stage.FINAL: 3,
         }
         return penalty_map.get(self, 0)
+
+    def free_changes_grant(self) -> int:
+        """
+        Returns how many free changes to GRANT when entering this stage.
+        Only specific stages grant free changes. All others return 0.
+        """
+        grant_map = {
+            Stage.GROUP_CYCLE_1: 12,
+            Stage.PRE_ROUND32: 8,
+            Stage.PRE_ROUND16: 4,
+            Stage.PRE_QUARTER: 2,
+        }
+        return grant_map.get(self, 0)
 
     def is_knockout_active(self) -> bool:
         """Returns True for stages where knockout matches are actively being played."""
@@ -96,7 +109,15 @@ class StageManager:
         """Update current tournament stage and update prediction editability"""
         # Save to database
         TournamentConfig.set_config(db, 'current_stage', stage.name)
-        
+
+        # Grant free changes when entering stages that provide them
+        grant = stage.free_changes_grant()
+        if grant > 0:
+            all_scores = DBReader.get_all_user_scores(db)
+            for user_scores in all_scores:
+                new_free = (user_scores.free_changes or 0) + grant
+                DBWriter.update_user_scores(db, user_scores, free_changes=new_free)
+
         # Update prediction editability based on new stage
         StageManager._update_prediction_editability(stage, db)
     

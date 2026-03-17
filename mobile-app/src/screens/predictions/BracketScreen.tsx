@@ -55,6 +55,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [canEditDrafts, setCanEditDrafts] = useState<boolean>(true);
   const [fineInfo, setFineInfo] = useState<{changes_count: number, penalty_per_change: number, total_penalty: number} | null>(null);
   const [knockoutScore, setKnockoutScore] = useState<number | null>(null);
+  const [freeChanges, setFreeChanges] = useState<number>(0);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isEnterEditModeModalVisible, setIsEnterEditModeModalVisible] = useState(false);
   const [isConfirmSaveModalVisible, setIsConfirmSaveModalVisible] = useState(false);
@@ -107,6 +108,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         try {
           const countResult = await apiService.getDraftChangesCount(userId);
           setFineInfo(countResult);
+          if (countResult.free_changes !== undefined) setFreeChanges(countResult.free_changes ?? 0);
           if (countResult.changes_count > 0) {
             setShowExitModal(true);
             pendingNavActionRef.current = e.data.action;
@@ -131,6 +133,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       if (!userId || !editMode) return;
       const result = await apiService.getDraftChangesCount(userId);
       setFineInfo(result);
+      if (result.free_changes !== undefined) setFreeChanges(result.free_changes ?? 0);
     } catch (error) {
       console.error('Error refreshing fine count:', error);
     }
@@ -156,6 +159,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       setPredictions(allPredictions.predictions);
       setCanEditDrafts(allPredictions.can_edit_drafts ?? true);
       setKnockoutScore(allPredictions.knockout_score ?? null);
+      setFreeChanges(allPredictions.free_changes ?? 0);
       
       // Organize into bracket structure
       const { organized, calculateCardCoordinates } = organizeBracketMatches(allPredictions.predictions);
@@ -384,6 +388,7 @@ export default function BracketScreen({}: BracketScreenProps) {
       if (!userId) return;
       try {
         const countResult = await apiService.getDraftChangesCount(userId);
+        if (countResult.free_changes !== undefined) setFreeChanges(countResult.free_changes ?? 0);
         if (countResult.changes_count === 0) {
           try {
             setLoading(true);
@@ -451,6 +456,7 @@ export default function BracketScreen({}: BracketScreenProps) {
     if (!userId) return;
     try {
       const countResult = await apiService.getDraftChangesCount(userId);
+      if (countResult.free_changes !== undefined) setFreeChanges(countResult.free_changes ?? 0);
       if (countResult.changes_count === 0) {
         showToast('No changes to reset', 'info');
         return;
@@ -522,6 +528,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         changes_count: result.changes_count,
         penalty_applied: result.penalty_applied,
       });
+      await fetchPredictions();
     } catch (error) {
       console.error('Error committing drafts:', error);
       setErrorModal({ title: 'Error', message: 'Save failed. Please try again.' });
@@ -536,13 +543,14 @@ export default function BracketScreen({}: BracketScreenProps) {
       if (!userId) return;
 
       const countResult = await apiService.getDraftChangesCount(userId);
+      if (countResult.free_changes !== undefined) setFreeChanges(countResult.free_changes ?? 0);
 
       if (countResult.changes_count === 0) {
         showToast('No changes to save', 'info');
         return;
       }
 
-        setFineInfo(countResult);
+      setFineInfo(countResult);
       setIsConfirmSaveModalVisible(true);
     } catch (error) {
       console.error('Error in save press:', error);
@@ -653,6 +661,7 @@ export default function BracketScreen({}: BracketScreenProps) {
               <BracketMatchCard
                 match={match}
                 onPress={handleMatchPress}
+                isModified={editMode && match.is_winner_modified === true}
               />
             </View>
             );
@@ -748,30 +757,46 @@ export default function BracketScreen({}: BracketScreenProps) {
       </View>
       {/* Buttons Container - chip left, buttons right */}
       <View style={styles.buttonsContainer}>
-        {editMode ? (
-          <View style={[styles.fineChip, { maxWidth: 110 }]}>
-            <View style={styles.fineStat}>
-              <Text style={styles.fineStatLabel}>Changes</Text>
-              <Text style={styles.fineStatValue}>{fineInfo?.changes_count ?? 0}</Text>
-            </View>
-            <View style={styles.fineDivider} />
-            <View style={styles.fineStat}>
-              <Text style={styles.fineStatLabel}>Fine</Text>
-              {hasUsedBracketReset ? (
-                <Text style={{ fontSize: 11, fontWeight: '800', color: '#4ade80', letterSpacing: 0.5 }}>
-                  FREE
-                </Text>
-              ) : (
-                <Text style={[
-                  styles.fineStatValue,
-                  (fineInfo?.total_penalty ?? 0) > 0 && { color: '#f87171' },
-                ]}>
-                  {fineInfo?.total_penalty ?? 0}
-                </Text>
+        {editMode ? (() => {
+          const changesCount = fineInfo?.changes_count ?? 0;
+          const penaltyPer = fineInfo?.penalty_per_change ?? 0;
+          const freeAvailable = freeChanges;
+          const freeRemaining = Math.max(0, freeAvailable - changesCount);
+          const paidChanges = Math.max(0, changesCount - freeAvailable);
+          const actualPenalty = paidChanges * penaltyPer;
+          return (
+            <View style={[styles.fineChip, { maxWidth: 160 }]}>
+              <View style={styles.fineStat}>
+                <Text style={styles.fineStatLabel}>Changes</Text>
+                <Text style={styles.fineStatValue}>{changesCount}</Text>
+              </View>
+              {freeAvailable > 0 && !isPreTournament && (
+                <>
+                  <View style={styles.fineDivider} />
+                  <View style={styles.fineStat}>
+                    <Text style={styles.fineStatLabel}>Free</Text>
+                    <Text style={[styles.fineStatValue, { color: '#4ade80' }]}>{freeRemaining}</Text>
+                  </View>
+                </>
               )}
+              <View style={styles.fineDivider} />
+              <View style={styles.fineStat}>
+                <Text style={styles.fineStatLabel}>Fine</Text>
+                {hasUsedBracketReset ? (
+                  <Text style={styles.fineStatFree}>FREE</Text>
+                ) : isPreTournament && actualPenalty === 0 ? (
+                  <Text style={styles.fineStatFree}>Free!</Text>
+                ) : actualPenalty === 0 ? (
+                  <Text style={styles.fineStatValue}>0</Text>
+                ) : (
+                  <Text style={[styles.fineStatValue, { color: '#f87171' }]}>
+                    -{actualPenalty}
+                  </Text>
+                )}
+              </View>
             </View>
-          </View>
-        ) : knockoutScore !== null ? (
+          );
+        })() : knockoutScore !== null ? (
           <View style={[styles.knockoutScoreChip, { maxWidth: 110 }]}>
             <Text style={styles.knockoutScoreValue}>{knockoutScore}</Text>
             <Text style={styles.knockoutScoreLabel}>points</Text>
@@ -900,10 +925,27 @@ export default function BracketScreen({}: BracketScreenProps) {
       <ConfirmSaveModal
         visible={isConfirmSaveModalVisible}
         changesCount={fineInfo?.changes_count ?? 0}
-        finePoints={fineInfo?.total_penalty ?? 0}
+        finePoints={0}
         finePerChange={fineInfo?.penalty_per_change ?? 0}
         onClose={() => setIsConfirmSaveModalVisible(false)}
         onConfirm={handleConfirmSave}
+        freeChangesInfo={(() => {
+          const cc = fineInfo?.changes_count ?? 0;
+          const penaltyPer = fineInfo?.penalty_per_change ?? 0;
+          const freeAvailable = freeChanges;
+          const freeRemaining = Math.max(0, freeAvailable - cc);
+          const paidChanges = Math.max(0, cc - freeAvailable);
+          const actualPenalty = paidChanges * penaltyPer;
+          const freeUsed = Math.min(cc, freeAvailable);
+          return {
+            changesCount: cc,
+            freeAvailable,
+            freeRemaining,
+            paidChanges,
+            freeUsed,
+            actualPenalty,
+          };
+        })()}
       />
 
       {/* Confirm Reset Modal */}
@@ -1265,13 +1307,14 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     paddingRight: 12,
     gap: 8,
+    minWidth: 0,
   },
   buttonsSpacer: {},
   buttonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flexShrink: 1,
+    flexShrink: 0,
     flexWrap: 'nowrap',
   },
   editButton: {
@@ -1517,11 +1560,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     flexShrink: 1,
+    minWidth: 0,
     backgroundColor: 'rgba(30,30,30,0.55)',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 8,
-    gap: 8,
+    gap: 6,
     marginLeft: 4,
   },
   knockoutScoreChip: {
@@ -1552,16 +1596,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fineStatLabel: {
-    fontSize: 9,
+    fontSize: 8,
     color: 'rgba(255,255,255,0.6)',
     fontWeight: '500',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
   fineStatValue: {
-    fontSize: 13,
+    fontSize: 11,
     color: '#ffffff',
     fontWeight: '700',
+  },
+  fineStatFree: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#4ade80',
   },
   fineDivider: {
     width: 1,

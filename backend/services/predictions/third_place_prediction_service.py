@@ -1,3 +1,4 @@
+import time
 from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
 from services.database import DBReader, DBWriter, DBUtils
@@ -44,24 +45,57 @@ class ThirdPlacePredictionService:
     def _update_existing_third_place_prediction(db: Session, user_id: int, existing_prediction,
                                                advancing_team_ids: List[int]) -> Dict[str, Any]:
         """Update an existing third place prediction"""
+        t0 = time.time()
+
         changes = ThirdPlacePredictionService._calculate_third_place_changes(
             existing_prediction, advancing_team_ids, db
         )
+        print(f"[DEBUG] changes={changes}")
+        print(f"[PERF] _calculate_third_place_changes: {time.time()-t0:.3f}s")
+        t1 = time.time()
 
         old_teams = ThirdPlacePredictionService._extract_advancing_team_ids(existing_prediction)
         old_groups = ThirdPlacePredictionService._get_team_groups(old_teams, db)
         new_groups = ThirdPlacePredictionService._get_team_groups(advancing_team_ids, db)
         ThirdPlacePredictionService._update_group_counts_on_prediction_change(db, old_groups, new_groups)
+        print(f"[PERF] group_counts update: {time.time()-t1:.3f}s")
+        t2 = time.time()
 
         DBWriter.update_third_place_prediction(db, existing_prediction, advancing_team_ids)
         DBWriter.update_third_place_prediction_changed_groups(db, existing_prediction, None)
         DBUtils.commit(db)
-        
+        print(f"[PERF] DB write + commit: {time.time()-t2:.3f}s")
+        t3 = time.time()
+
         ThirdPlacePredictionService._update_knockout_predictions_for_third_place(db, user_id, advancing_team_ids)
-        
-        penalty_points = ScoringService.record_prediction_penalty(
-            db, user_id, existing_prediction.id, PredictionType.THIRD_PLACE, changes
-        ) if changes > 0 else 0
+        print(f"[PERF] _update_knockout_predictions_for_third_place: {time.time()-t3:.3f}s")
+        t4 = time.time()
+
+        # Check free_changes BEFORE consume
+        user_scores_before = DBReader.get_user_scores(db, user_id)
+        print(f"[DEBUG] free_changes BEFORE consume: {getattr(user_scores_before, 'free_changes', None) if user_scores_before else 'None'}")
+
+        penalty_points = 0
+        if changes > 0:
+            paid_changes = ScoringService.consume_free_changes(db, user_id, changes)
+            print(f"[DEBUG] paid_changes after consume: {paid_changes}")
+
+            # Check free_changes AFTER consume (before commit)
+            user_scores_after = DBReader.get_user_scores(db, user_id)
+            print(f"[DEBUG] free_changes AFTER consume (pre-commit): {getattr(user_scores_after, 'free_changes', None) if user_scores_after else 'None'}")
+
+            if paid_changes > 0:
+                penalty_points = ScoringService.record_prediction_penalty(
+                    db, user_id, existing_prediction.id, PredictionType.THIRD_PLACE, paid_changes
+                )
+
+            # CRITICAL: commit the free_changes update
+            DBUtils.commit(db)
+            print(f"[DEBUG] committed")
+
+        print(f"[DEBUG] penalty_points={penalty_points}")
+        print(f"[PERF] penalty calculation: {time.time()-t4:.3f}s")
+        print(f"[PERF] TOTAL _update_existing: {time.time()-t0:.3f}s")
 
         return {
             "id": existing_prediction.id,
@@ -392,6 +426,7 @@ class ThirdPlacePredictionService:
             "prediction": prediction_info,
             "third_place_score": user_scores.third_place_score if user_scores else None,
             "third_place_penalty": user_scores.third_place_penalty if user_scores else 0,
+            "free_changes": getattr(user_scores, 'free_changes', 0) if user_scores else 0,
             "result": result_data
         }
     

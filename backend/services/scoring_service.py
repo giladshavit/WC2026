@@ -512,6 +512,43 @@ class ScoringService:
         return changes * penalty_per_change
     
     @staticmethod
+    def consume_free_changes(db: Session, user_id: int, n_changes: int) -> int:
+        """
+        Deduct free changes from user's pool before applying penalty.
+
+        Logic:
+        - free_used = min(n_changes, available_free)
+        - paid = n_changes - free_used
+        - Update free_changes: max(0, free - free_used)
+        - Update free_changes_used: += free_used
+        - Returns paid (the number of changes that require penalty)
+
+        Guarantees:
+        - free_changes never goes below 0
+        - Returns 0 if all changes are covered by free pool
+        - Does NOT commit — caller is responsible
+        """
+        user_scores = DBReader.get_user_scores(db, user_id)
+        if not user_scores:
+            user_scores = DBWriter.create_user_scores(db, user_id)
+
+        free = user_scores.free_changes or 0
+        free_used = min(n_changes, free)
+        paid = n_changes - free_used
+
+        print(f"[DEBUG consume] user_id={user_id}, n_changes={n_changes}, free_available={free}")
+        print(f"[DEBUG consume] free_used={free_used}, paid={paid}")
+        print(f"[DEBUG consume] updating free_changes to {max(0, free - free_used)}")
+
+        DBWriter.update_user_scores(
+            db,
+            user_scores,
+            free_changes=max(0, free - free_used),
+            free_changes_used=(user_scores.free_changes_used or 0) + free_used,
+        )
+        return paid
+
+    @staticmethod
     def apply_penalty_to_user(db: Session, user_id: int, penalty_points: int) -> Dict[str, Any]:
         """Apply penalty points to user's score in user_scores table."""
         # Get or create user_scores record

@@ -8,9 +8,10 @@ interface BracketMatchCardProps {
   match: BracketMatch;
   onPress?: (match: BracketMatch) => void;
   onLayout?: (matchId: number, layout: { x: number; y: number; width: number; height: number }) => void;
+  isModified?: boolean;
 }
 
-export default function BracketMatchCard({ match, onPress, onLayout }: BracketMatchCardProps) {
+export default function BracketMatchCard({ match, onPress, onLayout, isModified }: BracketMatchCardProps) {
   const isLocked = match.is_editable === false;
   const hasWinner = !!match.winner_team_id && match.winner_team_id !== 0;
   const isTeam1Winner = hasWinner && match.winner_team_id === match.team1_id;
@@ -245,6 +246,18 @@ export default function BracketMatchCard({ match, onPress, onLayout }: BracketMa
           }}
           activeOpacity={isLocked ? 1 : 0.7}
         >
+          {isModified && (
+            <View style={{
+              position: 'absolute',
+              top: 6,
+              right: 6,
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: '#f59e0b',
+              zIndex: 10,
+            }} />
+          )}
           <View style={styles.matchContainer}>
           {renderTeamHalf(
             match.team1_name,

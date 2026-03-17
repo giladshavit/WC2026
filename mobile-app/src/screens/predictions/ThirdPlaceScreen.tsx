@@ -23,6 +23,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const [thirdPlaceResult, setThirdPlaceResult] = useState<any>(null);
   const [thirdPlaceScore, setThirdPlaceScore] = useState<number | null>(null);
   const [thirdPlacePenalty, setThirdPlacePenalty] = useState<number>(0);
+  const [freeChanges, setFreeChanges] = useState<number>(0);
   const [showNetScore, setShowNetScore] = useState(false);
   const [isEditable, setIsEditable] = useState(true);
   const [headerHeight, setHeaderHeight] = useState(0);
@@ -76,6 +77,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     return Math.max(added.length, removed.length);
   }, [selectedTeams, teams]);
 
+  const freeRemaining = Math.max(0, freeChanges - calculateThirdPlaceChanges);
   const originallySelectedCount = teams.filter(t => t.is_selected).length;
   const hasChanges =
     selectedTeams.size === 8 &&
@@ -155,9 +157,10 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       // Store is_editable status
       setIsEditable(data.prediction?.is_editable ?? true);
       
-      // Store third place score and penalty
+      // Store third place score, penalty, and free changes
       setThirdPlaceScore(data.third_place_score);
       setThirdPlacePenalty(data.third_place_penalty ?? 0);
+      setFreeChanges(data.free_changes ?? 0);
     } catch (error) {
       console.error('Error fetching third place data:', error);
       setLoadError(true);
@@ -272,6 +275,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       if (newSelectedSet.size === 8) {
         if (isPreTournament) {
           autoSave(Array.from(newSelectedSet));
+          setShowCompletionModal(true);
         } else {
           // Manual save flow: persist first-complete key if first time
           const userId = getCurrentUserId();
@@ -283,7 +287,6 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
             }
           }
         }
-        setShowCompletionModal(true);
       }
     }, 0);
 
@@ -317,7 +320,9 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       console.log('✅ Third place stage updated - marked for knockout refresh');
       
       showToast('Prediction saved!', 'success');
-      
+
+      // TODO: Consider returning updated free_changes from the save response
+      // instead of full refetch to improve speed
       await fetchData();
     } catch (error) {
       console.error('Error saving third place prediction:', error);
@@ -519,8 +524,14 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
             </View>
           </View>
 
-          {/* RIGHT: Net Score toggle + Points pill, or Save button, or empty */}
+          {/* RIGHT: Free pill (when applicable) + Net Score toggle + Points pill, or Save button, or empty */}
           <View style={styles.headerRight}>
+            {showSaveButton && freeChanges > 0 && (
+              <View style={styles.freePill}>
+                <Ionicons name="gift-outline" size={12} color="#4ade80" />
+                <Text style={styles.freePillText}>{freeRemaining} free</Text>
+              </View>
+            )}
             {showPoints ? (
               <>
                 <TouchableOpacity
@@ -578,12 +589,30 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       {/* Fine Confirmation Modal */}
       <FineConfirmationModal
         visible={fineModalVisible}
-        finePoints={calculateThirdPlaceChanges * (finePerChange ?? 0)}
+        finePoints={0}
         onConfirm={() => {
           setFineModalVisible(false);
+          setSaving(true);
           performSave();
         }}
         onCancel={() => setFineModalVisible(false)}
+        freeChangesInfo={(() => {
+          const totalChanges = calculateThirdPlaceChanges;
+          const penaltyPer = finePerChange ?? 0;
+          const freeAvailable = freeChanges;
+          const paidChanges = Math.max(0, totalChanges - freeAvailable);
+          const freeUsed = Math.min(totalChanges, freeAvailable);
+          const penalty = paidChanges * penaltyPer;
+          const freeRemaining = Math.max(0, freeAvailable - freeUsed);
+          return {
+            totalChanges,
+            freeAvailable,
+            paidChanges,
+            freeUsed,
+            penalty,
+            freeRemaining,
+          };
+        })()}
       />
 
       {/* Unsaved Changes Exit Modal */}
@@ -657,6 +686,13 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {saving && (
+        <View style={styles.savingOverlay}>
+          <ActivityIndicator size="large" color="#48bb78" />
+          <Text style={styles.savingText}>Saving...</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -665,6 +701,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1e293b',
+  },
+  savingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  savingText: {
+    color: '#e2e8f0',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 12,
   },
   header: {
     paddingHorizontal: 16,
@@ -691,12 +744,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  freePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(74,222,128,0.15)',
+    borderColor: '#4ade80',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  freePillText: {
+    fontSize: 12,
+    color: '#4ade80',
+    fontWeight: '600',
   },
   counterBadge: {
     backgroundColor: '#152a45',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    flexShrink: 1,
+    minWidth: 0,
   },
   counterBadgeText: {
     fontSize: 14,
@@ -719,6 +794,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    flexShrink: 1,
   },
   pointsContainerZero: {
     backgroundColor: '#f59e0b',
@@ -735,6 +811,7 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: '#152a45',
     borderWidth: 1.5,
+    flexShrink: 1,
     borderColor: '#2d4a6e',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -768,6 +845,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 10,
     elevation: 10,
+    flexShrink: 1,
   },
   saveButtonDisabled: {
     backgroundColor: '#a0aec0',

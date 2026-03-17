@@ -368,7 +368,9 @@ class GroupPredictionService:
         return {
             "groups": result,
             "groups_score": user_scores.groups_score if user_scores else None,
-            "groups_penalty": user_scores.groups_penalty if user_scores else 0
+            "groups_penalty": user_scores.groups_penalty if user_scores else 0,
+            "free_changes": getattr(user_scores, 'free_changes', 0) if user_scores else 0,
+            "free_changes_used": getattr(user_scores, 'free_changes_used', 0) if user_scores else 0,
         }
     
     @staticmethod
@@ -414,12 +416,11 @@ class GroupPredictionService:
         Create or update multiple group predictions
         """
         from services.scoring_service import ScoringService
-        from .enums import PredictionType
+        from services.stage_manager import StageManager
 
         try:
             saved_predictions = []
             errors = []
-            total_changes = 0
             penalty_points = 0
 
             for prediction_data in predictions_data:
@@ -437,17 +438,30 @@ class GroupPredictionService:
                 else:
                     result = save_result["result"]
                     saved_predictions.append(result)
-                    changes = result.get("changes", 0)
-                    total_changes += changes
-                    if changes > 0:
-                        penalty_points += ScoringService.record_prediction_penalty(
-                            db, user_id, result["id"], PredictionType.GROUPS, changes
-                        )
-            
+
+            # Calculate total changes across all groups and apply penalty (with free changes)
+            total_changes = sum(r.get("changes", 0) for r in saved_predictions)
+            user_scores_before = DBReader.get_user_scores(db, user_id)
+            print(f"[DEBUG] total_changes={total_changes}, free_changes in DB before consume: {getattr(user_scores_before, 'free_changes', None) if user_scores_before else 'None'}")
+
+            if total_changes > 0:
+                paid_changes = ScoringService.consume_free_changes(db, user_id, total_changes)
+                if paid_changes > 0:
+                    current_stage = StageManager.get_current_stage(db)
+                    penalty_per = current_stage.get_penalty_for()
+                    total_penalty = paid_changes * penalty_per
+                    ScoringService.apply_penalty_to_user(db, user_id, total_penalty)
+                    penalty_points = total_penalty
+                # consume_free_changes does NOT commit; commit here so free_changes update persists
+                DBUtils.commit(db)
+
             # If all predictions failed, return error
             if len(errors) > 0 and len(saved_predictions) == 0:
                 return {"error": f"All predictions failed. Errors: {'; '.join(errors)}"}
-            
+
+            user_scores_after = DBReader.get_user_scores(db, user_id)
+            free_changes_remaining = getattr(user_scores_after, 'free_changes', 0) if user_scores_after else 0
+
             return {
                 "saved_predictions": saved_predictions,
                 "errors": errors,
@@ -455,6 +469,7 @@ class GroupPredictionService:
                 "total_errors": len(errors),
                 "total_changes": total_changes,
                 "penalty_points": penalty_points,
+                "free_changes_remaining": free_changes_remaining,
                 "success": len(errors) == 0
             }
             

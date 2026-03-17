@@ -1,3 +1,4 @@
+import time
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, List, Set, Tuple
 from sqlalchemy.orm import Session
@@ -66,16 +67,20 @@ class KnockoutService:
 
         knockout_score = None
         knockout_penalty = 0
-        if not is_draft:
-            user_scores = DBReader.get_user_scores(db, user_id)
-            knockout_score = user_scores.knockout_score if user_scores else None
-            knockout_penalty = user_scores.knockout_penalty if user_scores else 0
+        free_changes = 0
+        user_scores = DBReader.get_user_scores(db, user_id)
+        if user_scores:
+            if not is_draft:
+                knockout_score = user_scores.knockout_score
+                knockout_penalty = user_scores.knockout_penalty or 0
+            free_changes = getattr(user_scores, 'free_changes', 0) or 0
 
         stage = StageManager.get_current_stage(db)
         return {
             "predictions": result,
             "knockout_score": knockout_score,
             "knockout_penalty": knockout_penalty,
+            "free_changes": free_changes,
             "can_edit_drafts": stage.can_create_knockout_drafts(),
         }
 
@@ -326,10 +331,27 @@ class KnockoutService:
             both_teams_qualified = (
                 knockout_result and knockout_result.team_1 and knockout_result.team_2
             )
+
+            # Check if draft winner matches the ORIGINAL prediction winner
+            # If user reverted to original, mark as NOT modified
+            original_pred = None
+            if hasattr(prediction, 'knockout_pred_id') and prediction.knockout_pred_id:
+                original_pred = DBReader.get_knockout_prediction_by_id(
+                    db, prediction.knockout_pred_id, is_draft=False
+                )
+
+            original_winner = KnockoutService._normalize_team_id(
+                original_pred.winner_team_id if original_pred else None
+            )
+            draft_winner = KnockoutService._normalize_team_id(stored_winner)
+
+            # Modified only if draft winner differs from original winner
+            is_actually_modified = (draft_winner != original_winner)
+
             DBWriter.set_draft_modified_flags(
                 db,
                 prediction,
-                is_winner_modified=True,
+                is_winner_modified=is_actually_modified,
                 is_team1_modified=True if both_teams_qualified else None,
                 is_team2_modified=True if both_teams_qualified else None,
             )
@@ -666,21 +688,29 @@ class KnockoutService:
         """
         drafts = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=True)
 
+        user_scores = DBReader.get_user_scores(db, user_id)
         if not drafts:
-            return {"changes_count": 0, "penalty_per_change": 0, "total_penalty": 0}
+            return {
+                "changes_count": 0,
+                "penalty_per_change": 0,
+                "total_penalty": 0,
+                "free_changes": getattr(user_scores, 'free_changes', 0) if user_scores else 0,
+            }
 
         changes_count = 0
 
         for draft in drafts:
             if getattr(draft, "is_winner_modified", False):
-                changes_count += 1
+                # Only count as change if the draft currently HAS a winner selected
+                current_winner = KnockoutService._normalize_team_id(draft.winner_team_id)
+                if current_winner:  # None/0 means user cleared/never set → not a change
+                    changes_count += 1
 
         stage = StageManager.get_current_stage(db)
         penalty_per_change = stage.get_penalty_for()
 
         # If the user has already used their one-time bracket reset,
         # all changes in PRE_ROUND32 are free — they already paid upfront.
-        user_scores = DBReader.get_user_scores(db, user_id)
         if user_scores and getattr(user_scores, 'has_used_bracket_reset', False):
             penalty_per_change = 0
 
@@ -688,6 +718,7 @@ class KnockoutService:
             "changes_count": changes_count,
             "penalty_per_change": penalty_per_change,
             "total_penalty": changes_count * penalty_per_change,
+            "free_changes": getattr(user_scores, 'free_changes', 0) if user_scores else 0,
         }
 
     @staticmethod
@@ -742,15 +773,22 @@ class KnockoutService:
                 continue
 
             if DBReader.is_draft_winner_modified(db, draft):
-                changes_count += 1
-                user_scores = DBReader.get_user_scores(db, user_id)
-                has_used_reset = user_scores and getattr(user_scores, 'has_used_bracket_reset', False)
-                if not has_used_reset:
-                    penalty_points += ScoringService.record_prediction_penalty(
-                        db, user_id, original.id, PredictionType.KNOCKOUT, n_changes=1
-                    )
+                current_winner = KnockoutService._normalize_team_id(draft.winner_team_id)
+                if current_winner:  # null winner = not a real change, no penalty
+                    changes_count += 1
 
             KnockoutService._copy_draft_to_prediction(db, draft, original)
+
+        # Apply penalty after loop (with free changes consumption)
+        if changes_count > 0:
+            user_scores = DBReader.get_user_scores(db, user_id)
+            has_used_reset = user_scores and getattr(user_scores, 'has_used_bracket_reset', False)
+            if not has_used_reset:
+                paid_changes = ScoringService.consume_free_changes(db, user_id, changes_count)
+                if paid_changes > 0:
+                    penalty_points = ScoringService.record_prediction_penalty(
+                        db, user_id, 0, PredictionType.KNOCKOUT, n_changes=paid_changes
+                    )
 
         DBUtils.flush(db)
 
@@ -1109,21 +1147,34 @@ class KnockoutService:
         Update knockout predictions when third place teams change.
         This updates Round of 32 predictions where team2 comes from third-place teams.
         """
+        t0 = time.time()
+
         hash_key = KnockoutService._create_new_hash_key(db, advancing_team_ids)
-        
+        print(f"[PERF] _create_new_hash_key: {time.time()-t0:.3f}s")
+        t1 = time.time()
+
         combination = DBReader.get_third_place_combination_by_hash(db, hash_key)
+        print(f"[PERF] get_third_place_combination_by_hash: {time.time()-t1:.3f}s")
+        t2 = time.time()
+
         if not combination:
+            print(f"[PERF] No combination found — returning early")
             return
-        
+
         templates = KnockoutService._get_third_place_relevant_templates(db)
+        print(f"[PERF] _get_third_place_relevant_templates ({len(templates)} templates): {time.time()-t2:.3f}s")
+        t3 = time.time()
 
         for template in templates:
             KnockoutService._update_single_third_place_prediction(
                 db, user_id, template, combination
             )
-        
-        # Commit all changes at the end
+        print(f"[PERF] update loop ({len(templates)} iterations): {time.time()-t3:.3f}s")
+        t4 = time.time()
+
         DBUtils.commit(db)
+        print(f"[PERF] final commit: {time.time()-t4:.3f}s")
+        print(f"[PERF] TOTAL update_knockout_predictions: {time.time()-t0:.3f}s")
 
     # ═══════════════════════════════════════════════════════
     # PRIVATE - Serialization
@@ -1255,6 +1306,7 @@ class KnockoutService:
             item["updated_at"] = prediction.updated_at
         else:
             item["knockout_pred_id"] = prediction.knockout_pred_id
+            item["is_winner_modified"] = getattr(prediction, "is_winner_modified", False)
 
     # ═══════════════════════════════════════════════════════
     # PRIVATE - Draft Helpers
@@ -1648,12 +1700,13 @@ class KnockoutService:
     @staticmethod
     def _create_new_hash_key(db: Session, advancing_team_ids: List[int]) -> str:
         """Create hash key from advancing team IDs"""
+        t0 = time.time()
         letters = []
         for team_id in advancing_team_ids:
             team = DBReader.get_team(db, team_id)
             if team and team.group_letter:
                 letters.append(team.group_letter)
-        
+        print(f"[PERF] _create_new_hash_key {len(advancing_team_ids)} teams: {time.time()-t0:.3f}s")
         hash_key = ''.join(sorted(letters))
         return hash_key
 

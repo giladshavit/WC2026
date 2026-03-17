@@ -40,12 +40,15 @@ export interface GroupsResponse {
   groups: GroupPrediction[];
   groups_score: number | null;
   groups_penalty?: number;
+  free_changes?: number;
+  free_changes_used?: number;
 }
 
 export interface KnockoutResponse {
   predictions: KnockoutPrediction[];
   knockout_score: number | null;
   knockout_penalty?: number;
+  free_changes?: number;
   can_edit_drafts?: boolean;
 }
 
@@ -148,6 +151,7 @@ export interface ThirdPlacePredictionData {
   };
   third_place_score: number | null;
   third_place_penalty?: number;
+  free_changes?: number;
   result?: {
     first_team_qualifying: number;
     second_team_qualifying: number;
@@ -192,6 +196,7 @@ export interface KnockoutPrediction {
   team2_is_valid?: boolean | null; // True if team2 can reach this match (match not finished)
   team1_is_eliminated?: boolean | null; // True if team1 has been eliminated
   team2_is_eliminated?: boolean | null; // True if team2 has been eliminated
+  is_winner_modified?: boolean; // True if user changed the winner in this draft
 }
 
 export interface BracketResetPreview {

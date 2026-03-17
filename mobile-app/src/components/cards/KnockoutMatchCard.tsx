@@ -55,9 +55,7 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
     statusUpper === 'CORRECT_PARTIAL' ? '#f97316' :
     '#ef4444'; // INCORRECT or INVALID after match = red
 
-  const scoreBadgeValue = showNetScore && showScoreBadge
-    ? (prediction.points ?? 0) - (prediction.penalty_points ?? 0)
-    : (prediction.points !== undefined ? prediction.points : '?');
+  const scoreBadgeValue = prediction.points !== undefined ? prediction.points : '?';
 
   const hasResult = showScoreBadge;
   const team1Invalid = hasResult ? false : (prediction.team1_is_valid === false);

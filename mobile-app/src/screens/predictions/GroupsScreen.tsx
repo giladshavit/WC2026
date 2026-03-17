@@ -33,6 +33,7 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
   const [incompleteGroups, setIncompleteGroups] = useState<number[]>([]);
   const [groupsScore, setGroupsScore] = useState<number | null>(null);
   const [groupsPenalty, setGroupsPenalty] = useState<number>(0);
+  const [freeChanges, setFreeChanges] = useState<number>(0);
   const [showNetScore, setShowNetScore] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Map<number, {
     first_place: number | null;
@@ -157,6 +158,7 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
       setGroups(sortedGroups);
       setGroupsScore(data.groups_score);
       setGroupsPenalty(data.groups_penalty ?? 0);
+      setFreeChanges(data.free_changes ?? 0);
     } catch (error) {
       console.error('Error fetching groups:', error);
       setErrorModal({ title: 'Error', message: 'Could not load groups. Please check your connection.', goBack: true });
@@ -382,7 +384,10 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
       
       const result = await apiService.updateBatchGroupPredictions(userId, completeGroups);
       console.log('Save result:', result);
-      
+
+      // Refetch groups to get updated free_changes and scores
+      await fetchGroups();
+
       // Clear pending changes ONLY for saved groups (not incomplete ones!)
       setPendingChanges(prevChanges => {
         const newChanges = new Map(prevChanges);
@@ -615,6 +620,7 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
   }
 
   const numberOfChanges = calculateGroupChanges();
+  const freeRemaining = Math.max(0, freeChanges - numberOfChanges);
   const hasChanges = numberOfChanges > 0;
   const showSaveButton = isActiveGroupCycle;
   const hasAnyGroupResult = groups.some(
@@ -643,26 +649,32 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
       {(showSaveButton || showPoints) && (
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            {showSaveButton && (
-              <TouchableOpacity
-                style={[styles.saveButton, (!hasChanges || saving || autoSaving) && styles.saveButtonDisabled]}
-                onPress={handleSave}
-                disabled={!hasChanges || saving || autoSaving}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.saveButtonText}>
-                  {(saving || autoSaving) ? 'Saving...' : 'Save'}
-                </Text>
-              </TouchableOpacity>
+            {numberOfChanges > 0 && (
+              <View style={styles.changesCounter}>
+                <Ionicons name="create-outline" size={13} color="#f97316" />
+                <Text style={styles.changesCounterText}>{numberOfChanges} total changes</Text>
+              </View>
             )}
           </View>
           <View style={styles.headerRight}>
             <View style={styles.headerRightRow}>
-              {numberOfChanges > 0 && (
-                <View style={styles.changesCounter}>
-                  <Ionicons name="create-outline" size={13} color="#f97316" />
-                  <Text style={styles.changesCounterText}>{numberOfChanges} total changes</Text>
+              {showSaveButton && freeChanges > 0 && (
+                <View style={styles.freePill}>
+                  <Ionicons name="gift-outline" size={12} color="#4ade80" />
+                  <Text style={styles.freePillText}>{freeRemaining} free</Text>
                 </View>
+              )}
+              {showSaveButton && (
+                <TouchableOpacity
+                  style={[styles.saveButton, (!hasChanges || saving || autoSaving) && styles.saveButtonDisabled]}
+                  onPress={handleSave}
+                  disabled={!hasChanges || saving || autoSaving}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.saveButtonText}>
+                    {(saving || autoSaving) ? 'Saving...' : 'Save'}
+                  </Text>
+                </TouchableOpacity>
               )}
               {showNetScoreToggle && (
                 <TouchableOpacity
@@ -723,12 +735,27 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
 
       <FineConfirmationModal
         visible={fineModalVisible}
-        finePoints={calculateGroupChanges() * (finePerChange ?? 0)}
+        finePoints={0}
         onConfirm={() => {
           setFineModalVisible(false);
           performSave();
         }}
         onCancel={() => setFineModalVisible(false)}
+        freeChangesInfo={(() => {
+          const totalChanges = calculateGroupChanges();
+          const penaltyPer = finePerChange ?? 0;
+          const freeAvailable = freeChanges;
+          const paidChanges = Math.max(0, totalChanges - freeAvailable);
+          const penalty = paidChanges * penaltyPer;
+          const freeUsed = Math.min(totalChanges, freeAvailable);
+          return {
+            totalChanges,
+            freeAvailable,
+            paidChanges,
+            freeUsed,
+            penalty,
+          };
+        })()}
       />
 
       <UnsavedChangesModal
@@ -788,6 +815,40 @@ const styles = StyleSheet.create({
   headerLeft: {
     flex: 1,
     alignItems: 'flex-start',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  headerCenter: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  freePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(74,222,128,0.15)',
+    borderColor: '#4ade80',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  freePillText: {
+    fontSize: 12,
+    color: '#4ade80',
+    fontWeight: '600',
   },
   changesCounter: {
     flexDirection: 'row',
@@ -799,7 +860,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     gap: 4,
-    marginBottom: 6,
+    flexShrink: 1,
+    minWidth: 0,
   },
   changesCounterText: {
     fontSize: 12,
@@ -809,11 +871,13 @@ const styles = StyleSheet.create({
   headerRight: {
     flex: 1,
     alignItems: 'flex-end',
+    flexShrink: 0,
   },
   headerRightRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 0,
   },
   netScoreToggle: {
     flexDirection: 'row',
@@ -823,6 +887,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 4,
     backgroundColor: '#152a45',
+    flexShrink: 1,
     borderWidth: 1.5,
     borderColor: '#2d4a6e',
     shadowColor: '#000',
@@ -849,6 +914,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     marginRight: 4,
+    flexShrink: 1,
   },
   pointsContainerZero: {
     backgroundColor: '#f59e0b',
@@ -868,6 +934,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minWidth: 90,
     alignItems: 'center',
+    flexShrink: 0,
   },
   saveButtonDisabled: {
     backgroundColor: '#a0aec0',

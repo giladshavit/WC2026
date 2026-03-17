@@ -31,6 +31,8 @@ class UserScores(Base):
     third_place_penalty = Column(Integer, default=0, nullable=False)
     knockout_penalty = Column(Integer, default=0, nullable=False)
     has_used_bracket_reset = Column(Boolean, default=False, nullable=False)
+    free_changes = Column(Integer, default=0, nullable=False)
+    free_changes_used = Column(Integer, default=0, nullable=False)
     
     # Total points (sum of all scores above minus penalty)
     total_points = Column(Integer, default=0)

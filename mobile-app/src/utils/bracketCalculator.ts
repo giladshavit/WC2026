@@ -64,6 +64,7 @@ export interface BracketMatch {
   team1_is_eliminated?: boolean; // True if team1 has been eliminated
   team2_is_eliminated?: boolean; // True if team2 has been eliminated
   is_editable?: boolean;
+  is_winner_modified?: boolean; // True if user changed the winner in this draft
 }
 
 export interface OrganizedBracket {
@@ -178,6 +179,7 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       team1_is_eliminated: prediction.team1_is_eliminated,
       team2_is_eliminated: prediction.team2_is_eliminated,
       is_editable: prediction.is_editable,
+      is_winner_modified: prediction.is_winner_modified,
     };
 
     // Organize by stage and side
