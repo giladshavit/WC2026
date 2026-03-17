@@ -27,12 +27,7 @@ export default function PredictionsMenuScreen() {
     onPress: () => void,
     iconBg: string,
   ) => (
-    <TouchableOpacity
-      key={key}
-      style={styles.row}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
+    <TouchableOpacity key={key} style={styles.row} onPress={onPress} activeOpacity={0.7}>
       <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
         {icon}
       </View>
@@ -53,51 +48,56 @@ export default function PredictionsMenuScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.groupCard}>
+          <View style={styles.card}>
+            {/* Classic rows — no header, they're universal */}
             {renderRow(
               'match-predictions',
               'Match Predictions',
               'Predict scores for every match',
-              <Ionicons name="football-outline" size={28} color="#16a34a" />,
+              <Ionicons name="football-outline" size={26} color="#38bdf8" />,
               () => navigation.navigate('MatchPredictions'),
-              'rgba(22,163,74,0.12)',
+              'rgba(56,189,248,0.12)',
             )}
             <View style={styles.divider} />
             {renderRow(
               'bonus-predictions',
               'Bonus Predictions',
               'Special tournament questions',
-              <Ionicons name="gift-outline" size={28} color="#16a34a" />,
+              <Ionicons name="gift-outline" size={26} color="#38bdf8" />,
               () => navigation.navigate('BonusPredictions'),
-              'rgba(22,163,74,0.12)',
+              'rgba(56,189,248,0.12)',
             )}
 
+            {/* Multi-only separator — subtle, inline, not a hard break */}
             <View style={styles.multiSeparator}>
-              <View style={styles.multiSeparatorLine} />
-              <View style={styles.multiSeparatorBadge}>
-                <View style={[styles.multiSeparatorAccent, { backgroundColor: '#f59e0b' }]} />
-                <Text style={styles.multiSeparatorText}>Multi mode only</Text>
+              <View style={styles.separatorLine} />
+              <View style={styles.separatorBadge}>
+                <Ionicons name="trophy-outline" size={11} color="#f59e0b" />
+                <Text style={styles.separatorText}>Multi Mode only</Text>
               </View>
-              <View style={styles.multiSeparatorLine} />
+              <View style={styles.separatorLine} />
             </View>
 
-            {renderRow(
-              'route-predictions',
-              'Route Predictions',
-              'Groups, 3rd place & knockout bracket',
-              <Ionicons name="git-branch-outline" size={28} color="#f59e0b" />,
-              () => navigation.navigate('RoutePredictions'),
-              'rgba(245,158,11,0.12)',
-            )}
-            <View style={styles.divider} />
-            {renderRow(
-              'full-bracket',
-              'Full Bracket',
-              'View your complete tournament bracket',
-              <BracketIcon size={24} color="#f59e0b" />,
-              () => navigation.navigate('Bracket'),
-              'rgba(245,158,11,0.12)',
-            )}
+            {/* Multi-only rows — same card, slightly tinted background */}
+            <View style={styles.multiBlock}>
+              {renderRow(
+                'route-predictions',
+                'Route Predictions',
+                'Groups, 3rd place & knockout bracket',
+                <Ionicons name="git-branch-outline" size={26} color="#f59e0b" />,
+                () => navigation.navigate('RoutePredictions'),
+                'rgba(245,158,11,0.12)',
+              )}
+              <View style={styles.divider} />
+              {renderRow(
+                'full-bracket',
+                'Full Bracket',
+                'View your complete tournament bracket',
+                <BracketIcon size={22} color="#f59e0b" />,
+                () => navigation.navigate('Bracket'),
+                'rgba(245,158,11,0.12)',
+              )}
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingTop: 24 },
 
-  groupCard: {
+  card: {
     backgroundColor: '#1e3a5f',
     borderRadius: 16,
     borderWidth: 1,
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 15,
     gap: 14,
   },
 
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
 
   rowText: { flex: 1 },
   rowTitle: { fontSize: 15, fontWeight: '600', color: '#f1f5f9' },
-  rowSubtitle: { fontSize: 12, color: '#64748b', marginTop: 2 },
+  rowSubtitle: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
 
   divider: {
     height: 1,
@@ -145,33 +145,40 @@ const styles = StyleSheet.create({
     marginLeft: 74,
   },
 
+  // Subtle separator between classic and multi rows
   multiSeparator: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 10,
+    paddingVertical: 8,
+    gap: 8,
   },
-  multiSeparatorLine: {
+  separatorLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#2d4a6e',
+    backgroundColor: 'rgba(245,158,11,0.25)',
   },
-  multiSeparatorBadge: {
+  separatorBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    backgroundColor: 'rgba(245,158,11,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.2)',
   },
-  multiSeparatorAccent: {
-    width: 3,
-    height: 12,
-    borderRadius: 2,
-  },
-  multiSeparatorText: {
+  separatorText: {
     fontSize: 10,
     fontWeight: '700',
     color: '#f59e0b',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
+  },
+
+  // Slight amber tint behind multi-only rows to hint they're different
+  multiBlock: {
+    backgroundColor: 'rgba(245,158,11,0.04)',
   },
 });
