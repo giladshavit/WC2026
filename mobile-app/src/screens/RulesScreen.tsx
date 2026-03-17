@@ -44,6 +44,7 @@ type ContentBlock =
   | { type: 'table'; headers: string[]; rows: TableRow[]; compact?: boolean; isWide?: boolean }
   | { type: 'subsection'; title: string; blocks: ContentBlock[]; variant?: 'prediction' }
   | { type: 'tiebreaker'; items: string[] }
+  | { type: 'dual-tiebreaker' }
   | { type: 'temptation-card' }
   | { type: 'mode-cards'; cards: ModeCardData[] };
 
@@ -351,18 +352,11 @@ const sections: Section[] = [
             emoji: '🏆',
             color: '#f59e0b',
             description: 'The full prediction experience',
-            includes: ['Matches', 'Bonus', 'Groups', '3rd Place', 'Knockout', 'Fines'],
+            includes: ['Matches', 'Bonus', 'Groups + 3rd Places', 'Knockout', 'Fines'],
           },
         ],
       },
-      {
-        type: 'tiebreaker',
-        items: [
-          'More points from match predictions',
-          'Fewer fines (if relevant)',
-          'Earlier registration date',
-        ],
-      },
+      { type: 'dual-tiebreaker' },
     ],
   },
 ];
@@ -467,6 +461,144 @@ function RulesTable({
   return <View style={styles.tableWrap}>{tableContent}</View>;
 }
 
+// ─── Dual Tiebreaker Card ──────────────────────────────────────────────────────
+
+function DualTiebreakerCard() {
+  const classicItems = [
+    'Total points',
+    'Match points',
+    'Exact scores',
+    'Direction',
+    'Registration',
+  ];
+  const multiItems = [
+    'Total points',
+    'Fewer fines',
+    'Match points',
+    'Registration',
+  ];
+
+  return (
+    <View style={tbStyles.container}>
+      <Text style={tbStyles.mainTitle}>🤝 Tiebreaker</Text>
+      <Text style={tbStyles.subtitle}>Equal total points? Rank is decided by:</Text>
+      <View style={tbStyles.row}>
+        {/* Classic */}
+        <View style={[tbStyles.card, { borderColor: '#38bdf855' }]}>
+          <View style={tbStyles.cardHeader}>
+            <Text style={tbStyles.cardEmoji}>⚽</Text>
+            <Text style={[tbStyles.cardTitle, { color: '#38bdf8' }]}>Classic Mode</Text>
+          </View>
+          <View style={[tbStyles.cardDivider, { backgroundColor: '#38bdf833' }]} />
+          {classicItems.map((item, i) => (
+            <View key={i} style={tbStyles.itemRow}>
+              <View style={tbStyles.badge}>
+                <Text style={tbStyles.badgeText}>{i + 1}</Text>
+              </View>
+              <Text style={tbStyles.itemText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                {item}
+              </Text>
+            </View>
+          ))}
+        </View>
+        {/* Multi */}
+        <View style={[tbStyles.card, { borderColor: '#f59e0b55' }]}>
+          <View style={tbStyles.cardHeader}>
+            <Text style={tbStyles.cardEmoji}>🏆</Text>
+            <Text style={[tbStyles.cardTitle, { color: '#f59e0b' }]}>Multi Mode</Text>
+          </View>
+          <View style={[tbStyles.cardDivider, { backgroundColor: '#f59e0b33' }]} />
+          {multiItems.map((item, i) => (
+            <View key={i} style={tbStyles.itemRow}>
+              <View style={tbStyles.badge}>
+                <Text style={tbStyles.badgeText}>{i + 1}</Text>
+              </View>
+              <Text style={tbStyles.itemText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                {item}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const tbStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#0f1e38',
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#1a3060',
+  },
+  mainTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#e2e8f0',
+  },
+  subtitle: {
+    fontSize: 13,
+    color: '#94a3b8',
+    marginBottom: 2,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  card: {
+    flex: 1,
+    backgroundColor: '#111e35',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    padding: 10,
+    gap: 6,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  cardDivider: {
+    height: 1,
+    marginVertical: 4,
+    borderRadius: 1,
+  },
+  cardEmoji: {
+    fontSize: 14,
+  },
+  cardTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  badge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#16a34a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  itemText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#cbd5e1',
+    fontWeight: '500',
+  },
+});
+
 // ─── Block Renderer ───────────────────────────────────────────────────────────
 
 function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
@@ -525,6 +657,9 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
                 <RenderBlocks blocks={block.blocks} />
               </View>
             );
+
+          case 'dual-tiebreaker':
+            return <DualTiebreakerCard key={i} />;
 
           case 'tiebreaker':
             return (
