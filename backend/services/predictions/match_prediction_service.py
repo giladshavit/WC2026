@@ -11,6 +11,7 @@ from models.user_scores import UserScores
 from models.results import MatchResult
 from services.database import DBReader, DBWriter, DBUtils
 from services.scoring_service import ScoringService
+from services.stage_manager import StageManager
 from services.temptation_service import apply_temptation_flag
 
 
@@ -195,9 +196,11 @@ class MatchPredictionService:
                     result=match_result,
                     update_status=True,
                 )
+                StageManager.maybe_advance_stage_for_match(db, match_id, "finished")
             else:
                 DBWriter.set_match_status(db, match, status)
                 DBUtils.commit(db)
+                StageManager.maybe_advance_stage_for_match(db, match_id, status)
 
             return {
                 "id": match.id,

@@ -11,6 +11,7 @@ from database import SessionLocal
 from models.matches import Match, MatchStatus
 from services.database import DBReader, DBWriter, DBUtils
 from services.results_service import ResultsService
+from services.stage_manager import StageManager
 from services.external.football_data_client import FootballDataClient
 
 logger = logging.getLogger(__name__)
@@ -103,6 +104,7 @@ class MatchSyncService:
                         DBWriter.set_match_status(db, match, MatchStatus.LIVE.value)
                         # Ensure match_result row exists with at least 0-0
                         DBWriter.ensure_match_result_exists(db, match.id)
+                        StageManager.maybe_advance_stage_for_match(db, match.id, "live")
                     DBUtils.commit(db)
                 except Exception as e:
                     logger.error(f"[SYNC] Failed to update match {match.id}: {e}")
@@ -148,6 +150,7 @@ class MatchSyncService:
                             is_final=True,
                         )
                         DBWriter.mark_match_result_finalized(db, match)
+                        StageManager.maybe_advance_stage_for_match(db, match.id, "finished")
                         DBUtils.commit(db)
                         logger.info(f"[SYNC] Match {match.id} finalized: {home}-{away}")
                     except Exception as e:
