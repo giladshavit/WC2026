@@ -1,9 +1,13 @@
+import logging
 from enum import Enum
 from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
 from models.tournament_config import TournamentConfig
 from services.database import DBReader, DBWriter, DBUtils
+
+logger = logging.getLogger(__name__)
+
 
 class Stage(Enum):
     """Tournament stages"""
@@ -17,8 +21,9 @@ class Stage(Enum):
     ROUND16 = 7
     PRE_QUARTER = 8
     QUARTER = 9
-    SEMI = 10
-    FINAL = 11
+    PRE_SEMI = 10
+    SEMI = 11
+    FINAL = 12
     
     def get_penalty_for(self) -> int:
         """Get penalty points for editing at this stage"""
@@ -33,8 +38,9 @@ class Stage(Enum):
             Stage.ROUND16: 3,
             Stage.PRE_QUARTER: 3,
             Stage.QUARTER: 3,
-            Stage.SEMI: 3,
-            Stage.FINAL: 3,
+            Stage.PRE_SEMI: 4,
+            Stage.SEMI: 4,
+            Stage.FINAL: 4,
         }
         return penalty_map.get(self, 0)
 
@@ -48,6 +54,7 @@ class Stage(Enum):
             Stage.PRE_ROUND32: 8,
             Stage.PRE_ROUND16: 4,
             Stage.PRE_QUARTER: 2,
+            Stage.PRE_SEMI: 1,
         }
         return grant_map.get(self, 0)
 
@@ -90,7 +97,48 @@ class Stage(Enum):
 
 class StageManager:
     """Tournament stage management and penalty system"""
-    
+
+    # Match ID → (trigger_on_status, new_stage)
+    STAGE_TRANSITION_MAP: dict[int, tuple[str, Stage]] = {
+        1: ("live", Stage.GROUP_CYCLE_1),
+        25: ("live", Stage.GROUP_CYCLE_2),
+        49: ("live", Stage.GROUP_CYCLE_3),
+        72: ("finished", Stage.PRE_ROUND32),
+        73: ("live", Stage.ROUND32),
+        88: ("finished", Stage.PRE_ROUND16),
+        89: ("live", Stage.ROUND16),
+        96: ("finished", Stage.PRE_QUARTER),
+        97: ("live", Stage.QUARTER),
+        100: ("finished", Stage.PRE_SEMI),
+        101: ("live", Stage.SEMI),
+        104: ("live", Stage.FINAL),
+    }
+
+    @staticmethod
+    def maybe_advance_stage_for_match(db: Session, match_id: int, new_status: str) -> bool:
+        """
+        Check if a match status change should trigger a stage transition.
+        Only transitions FORWARD (never downgrade the stage).
+        Returns True if a stage transition occurred.
+        """
+        transition = StageManager.STAGE_TRANSITION_MAP.get(match_id)
+        if not transition:
+            return False
+
+        trigger_status, target_stage = transition
+        if new_status != trigger_status:
+            return False
+
+        current_stage = StageManager.get_current_stage(db)
+
+        # Only advance forward — never downgrade
+        if target_stage.value <= current_stage.value:
+            return False
+
+        StageManager.set_current_stage(target_stage, db)
+        logger.info(f"[StageAutoTransition] Match {match_id} → {new_status} → Stage: {target_stage.name}")
+        return True
+
     @staticmethod
     def get_current_stage(db: Session = None) -> Stage:
         """Get current tournament stage"""
@@ -208,8 +256,73 @@ class StageManager:
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'semi', True)
             DBWriter.set_knockout_predictions_editable_by_stage(db, 'final', True)
 
+        elif current_stage == Stage.PRE_SEMI:
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'round32', False)
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'round16', False)
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'quarter', False)
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'semi', True)
+            DBWriter.set_knockout_predictions_editable_by_stage(db, 'final', True)
+
         DBUtils.commit(db)
     
+    @staticmethod
+    def get_stage_timeline(db: Session) -> list[dict]:
+        """
+        Returns list of dicts with stage window info.
+        All datetimes are UTC ISO strings.
+        Returns empty list if matches not yet loaded.
+        """
+        from datetime import timedelta
+
+        def get_date(match_id: int):
+            m = DBReader.get_match(db, match_id)
+            return m.date if m else None
+
+        def iso(dt):
+            if dt is None:
+                return None
+            from datetime import timezone
+            # Normalize to UTC and always use Z suffix
+            if dt.tzinfo is not None:
+                dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+            s = dt.isoformat()
+            return s + 'Z'
+
+        m1 = get_date(1)
+        m25 = get_date(25)
+        m49 = get_date(49)
+        m72 = get_date(72)
+        m73 = get_date(73)
+        m88 = get_date(88)
+        m89 = get_date(89)
+        m96 = get_date(96)
+        m97 = get_date(97)
+        m100 = get_date(100)
+        m101 = get_date(101)
+        m102 = get_date(102)
+        m104 = get_date(104)
+
+        if m1 is None:
+            return []
+
+        THREE_HOURS = timedelta(hours=3)
+
+        return [
+            {"stage": "PRE_GROUP_STAGE", "label": "Pre-Tournament", "start": None, "end": iso(m1)},
+            {"stage": "GROUP_CYCLE_1", "label": "Matchday 1", "start": iso(m1), "end": iso(m25)},
+            {"stage": "GROUP_CYCLE_2", "label": "Matchday 2", "start": iso(m25), "end": iso(m49)},
+            {"stage": "GROUP_CYCLE_3", "label": "Matchday 3", "start": iso(m49), "end": iso(m72 + THREE_HOURS)},
+            {"stage": "PRE_ROUND32", "label": "Pre Round of 32", "start": iso(m72 + THREE_HOURS) if m72 else iso(m73), "end": iso(m73)},
+            {"stage": "ROUND32", "label": "Round of 32", "start": iso(m73), "end": iso(m88 + THREE_HOURS) if m88 else None},
+            {"stage": "PRE_ROUND16", "label": "Pre Round of 16", "start": iso(m88 + THREE_HOURS) if m88 else None, "end": iso(m89)},
+            {"stage": "ROUND16", "label": "Round of 16", "start": iso(m89), "end": iso(m96 + THREE_HOURS) if m96 else None},
+            {"stage": "PRE_QUARTER", "label": "Pre Quarter-Final", "start": iso(m96 + THREE_HOURS) if m96 else None, "end": iso(m97)},
+            {"stage": "QUARTER", "label": "Quarter-Final", "start": iso(m97), "end": iso(m100 + THREE_HOURS) if m100 else None},
+            {"stage": "PRE_SEMI", "label": "Pre Semi-Final", "start": iso(m100 + THREE_HOURS) if m100 else None, "end": iso(m101)},
+            {"stage": "SEMI", "label": "Semi-Final", "start": iso(m101), "end": iso(m102 + THREE_HOURS) if m102 else None},
+            {"stage": "FINAL", "label": "Final", "start": iso(m104), "end": None},
+        ]
+
     @staticmethod
     def get_penalty_for_edit() -> int:
         """Get penalty for editing at current stage"""
