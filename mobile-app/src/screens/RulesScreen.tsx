@@ -8,10 +8,12 @@ import {
   StatusBar,
   Dimensions,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { apiService, AppConfig } from '../services/api';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -46,7 +48,8 @@ type ContentBlock =
   | { type: 'tiebreaker'; items: string[] }
   | { type: 'dual-tiebreaker' }
   | { type: 'temptation-card' }
-  | { type: 'mode-cards'; cards: ModeCardData[] };
+  | { type: 'mode-cards'; cards: ModeCardData[] }
+  | { type: 'stage-timeline' };
 
 // ─── Content ─────────────────────────────────────────────────────────────────
 
@@ -193,7 +196,7 @@ const sections: Section[] = [
         blocks: [
           {
             type: 'paragraph',
-            text: 'Predict the winner of every match from R32 to the Final. Editable round by round, no later than Quarter-Finals start.',
+            text: 'Predict the winner of every match from R32 to the Final. Editable round by round, no later than Semi-Finals start.',
           },
           {
             type: 'table',
@@ -209,19 +212,32 @@ const sections: Section[] = [
           {
             type: 'note',
             color: 'green',
-            text: 'Full = correct winner via the exact path. Partial = your pick advanced through a different match in the same round.',
+            text: '✅ Full points — your picked winner won this exact match.',
           },
           {
             type: 'note',
             color: 'yellow',
-            text: 'The Bracket screen shows the full tournament picture. Use Edit Mode to freely explore changes before saving.',
+            text: '🟡 Partial points — your picked winner advanced, but through a different match in the same round.',
           },
         ],
       },
       {
-        type: 'note',
-        color: 'yellow',
-        text: 'The following applies to Multi Mode only — fines and free changes do not exist in Classic Mode.',
+        type: 'subsection',
+        title: 'Bracket View',
+        variant: 'prediction',
+        blocks: [
+          {
+            type: 'paragraph',
+            text: 'The Bracket screen shows your full knockout prediction tree — all the way from the Round of 32 to the Final. Use Edit Mode to explore changes freely before saving.',
+          },
+          {
+            type: 'bullet',
+            items: [
+              'Each match shows your predicted winner with a validity indicator.',
+              'Screenshot the bracket anytime to save or share your full tree.',
+            ],
+          },
+        ],
       },
       {
         type: 'subsection',
@@ -252,13 +268,14 @@ const sections: Section[] = [
                 type: 'table',
                 headers: ['Tournament Stage', 'Fine per Change'],
                 rows: [
-                  { cells: ['Before tournament', '0 (free)'], highlight: true },
+                  { cells: ['Pre tournament', '0 (free)'], highlight: true },
                   { cells: ['Matchday 1', '−1 pt'] },
                   { cells: ['Matchday 2', '−1 pt'] },
                   { cells: ['Matchday 3', '−2 pts'] },
-                  { cells: ['Before Round of 32', '−2 pts'] },
-                  { cells: ['Before Round of 16', '−3 pts'] },
-                  { cells: ['Before Quarter-Final', '−3 pts'] },
+                  { cells: ['Pre Round of 32', '−2 pts'] },
+                  { cells: ['Pre Round of 16', '−3 pts'] },
+                  { cells: ['Pre Quarter-Final', '−3 pts'] },
+                  { cells: ['Pre Semi-Final', '−4 pts'] },
                 ],
               },
             ],
@@ -270,12 +287,7 @@ const sections: Section[] = [
             blocks: [
               {
                 type: 'paragraph',
-                text: 'At key stages of the tournament, you receive free changes — edits that cost no fine points. These accumulate across stages, so unused changes carry forward.',
-              },
-              {
-                type: 'note',
-                color: 'yellow',
-                text: 'Use them wisely. Free changes are shared across all Multi Mode prediction types — groups, 3rd place, and knockout.',
+                text: 'At key stages of the tournament, you receive free changes edits that cost no fine points. These accumulate across stages, so unused changes carry forward.',
               },
               {
                 type: 'table',
@@ -283,10 +295,16 @@ const sections: Section[] = [
                 compact: true,
                 rows: [
                   { cells: ['Matchday 1 starts', '+12'] },
-                  { cells: ['Before Round of 32', '+8'] },
-                  { cells: ['Before Round of 16', '+4'] },
-                  { cells: ['Before Quarter-Final', '+2'] },
+                  { cells: ['Pre Round of 32', '+8'] },
+                  { cells: ['Pre Round of 16', '+4'] },
+                  { cells: ['Pre Quarter-Final', '+2'] },
+                  { cells: ['Pre Semi-Final', '+1'] },
                 ],
+              },
+              {
+                type: 'note',
+                color: 'yellow',
+                text: 'Use them wisely. Free changes are shared across all Multi Mode prediction types — groups, 3rd place, and knockout.',
               },
             ],
           },
@@ -297,36 +315,26 @@ const sections: Section[] = [
             blocks: [
               {
                 type: 'paragraph',
-                text: 'Before the Round of 32, you can fully reset your knockout bracket once — clearing all predictions to start fresh with the real teams.',
-              },
-              {
-                type: 'paragraph',
-                text: 'Two prediction statuses matter for the reset cost:',
-              },
-              {
-                type: 'bullet',
-                items: [
-                  '🔴 Invalid — no winner selected, or the selected team has already been eliminated. No points are possible from this slot.',
-                  '🟠 Unreachable — your selected winner cannot reach this match. At best, only Partial points are possible.',
-                ],
+                text: 'During the Pre Round of 32 stage, every knockout prediction gets a status indicator:',
               },
               {
                 type: 'table',
-                headers: ['Status', 'Reset Cost'],
+                headers: ['Status', 'Potential Points'],
                 compact: true,
                 rows: [
-                  { cells: ['Invalid 🔴', '−1 pt each'] },
-                  { cells: ['Unreachable 🟠', '−0.5 pt each'] },
+                  { cells: ['Invalid 🔴', '0'] },
+                  { cells: ['Unreachable 🟠', 'Partial only'] },
+                  { cells: ['Valid ⚪', 'Full'] },
                 ],
               },
               {
-                type: 'note',
-                color: 'red',
-                text: 'One-time only. Not available after Round of 32 kicks off.',
+                type: 'paragraph',
+                text: 'You get one offer to reset the entire bracket, with a penalty based on your current invalid and unreachable predictions. The exact cost is shown before you confirm.',
               },
               {
                 type: 'note',
-                text: 'If the total penalty is not a whole number, it is rounded down.',
+                color: 'green',
+                text: 'Look for the Reset Bracket button in the Bracket screen during Pre Round of 32.',
               },
             ],
           },
@@ -393,6 +401,15 @@ const sections: Section[] = [
         ],
       },
       { type: 'dual-tiebreaker' },
+    ],
+  },
+  {
+    id: 'timeline',
+    title: 'Stage Timeline',
+    emoji: '📆',
+    content: [
+      { type: 'paragraph', text: 'All times shown in your local timezone.' },
+      { type: 'stage-timeline' },
     ],
   },
 ];
@@ -644,6 +661,162 @@ const tbStyles = StyleSheet.create({
   },
 });
 
+// ─── Stage Timeline Block ─────────────────────────────────────────────────────
+
+interface StageTimelineItem {
+  stage: string;
+  label: string;
+  start: string | null;
+  end: string | null;
+}
+
+function formatDate(isoString: string | null): string {
+  if (!isoString) return '—';
+  const d = new Date(isoString);
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+const timelineStyles = StyleSheet.create({
+  tableContainer: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#1a2a45',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#0f1e38',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1a2a45',
+  },
+  headerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#16a34a',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    backgroundColor: '#0a1628',
+    borderBottomWidth: 1,
+    borderBottomColor: '#111e35',
+  },
+  tableRowAlt: {
+    backgroundColor: '#0c1c30',
+  },
+  tableRowActive: {
+    backgroundColor: 'rgba(22,163,74,0.08)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#16a34a',
+    borderBottomColor: '#1a3a2a',
+  },
+  col0: {
+    flex: 1.6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  col1: {
+    flex: 1,
+  },
+  stageLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#94a3b8',
+  },
+  stageLabelActive: {
+    color: '#e2e8f0',
+  },
+  dateText: {
+    fontSize: 11,
+    color: '#7a8fa6',
+  },
+  nowBadge: {
+    backgroundColor: '#16a34a',
+    borderRadius: 5,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  nowBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#fff',
+  },
+});
+
+function StageTimelineBlock() {
+  const [timeline, setTimeline] = React.useState<StageTimelineItem[] | null>(null);
+  const [currentStage, setCurrentStage] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    apiService.getAppConfig().then((data: AppConfig) => {
+      setTimeline(data.stage_timeline ?? []);
+      setCurrentStage(data.current_stage ?? null);
+    }).catch(() => {});
+  }, []);
+
+  if (!timeline) return <ActivityIndicator color="#16a34a" />;
+
+  const filtered = timeline.filter(
+    (item) => item.start != null || item.end != null
+  );
+
+  return (
+    <View style={timelineStyles.tableContainer}>
+      {/* Header row */}
+      <View style={timelineStyles.tableHeader}>
+        <Text style={[timelineStyles.col0, timelineStyles.headerText]}>Stage</Text>
+        <Text style={[timelineStyles.col1, timelineStyles.headerText]}>Start</Text>
+        <Text style={[timelineStyles.col1, timelineStyles.headerText]}>End</Text>
+      </View>
+
+      {filtered.map((item, index) => {
+        const isActive = item.stage === currentStage;
+        const isFirst = index === 0;
+        const isLast = index === filtered.length - 1;
+
+        const startStr = isFirst ? '—' : formatDate(item.start);
+        const endStr = isLast ? '—' : formatDate(item.end);
+
+        return (
+          <View
+            key={item.stage}
+            style={[
+              timelineStyles.tableRow,
+              isActive && timelineStyles.tableRowActive,
+              index % 2 === 1 && !isActive && timelineStyles.tableRowAlt,
+            ]}
+          >
+            <View style={timelineStyles.col0}>
+              <Text style={[timelineStyles.stageLabel, isActive && timelineStyles.stageLabelActive]}>
+                {item.label}
+              </Text>
+              {isActive && (
+                <View style={timelineStyles.nowBadge}>
+                  <Text style={timelineStyles.nowBadgeText}>NOW</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[timelineStyles.col1, timelineStyles.dateText]}>{startStr}</Text>
+            <Text style={[timelineStyles.col1, timelineStyles.dateText]}>{endStr}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 // ─── Block Renderer ───────────────────────────────────────────────────────────
 
 function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
@@ -740,6 +913,9 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
                 </Text>
               </View>
             );
+
+          case 'stage-timeline':
+            return <StageTimelineBlock key={i} />;
 
           case 'mode-cards':
             return (

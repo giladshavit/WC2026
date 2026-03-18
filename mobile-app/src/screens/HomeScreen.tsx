@@ -8,7 +8,7 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -16,6 +16,24 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import PredictOLogo from '../components/shared/PredictOLogo';
 import { MainStackParamList } from '../navigation/MainNavigator';
 import { useAuth } from '../contexts/AuthContext';
+import { apiService } from '../services/api';
+
+const STAGE_LABELS: Record<string, { label: string; emoji: string; color: string }> = {
+  PRE_GROUP_STAGE: { label: 'Pre-Tournament', emoji: '⏳', color: '#38bdf8' },
+  GROUP_CYCLE_1: { label: 'Matchday 1', emoji: '⚽', color: '#16a34a' },
+  GROUP_CYCLE_2: { label: 'Matchday 2', emoji: '⚽', color: '#16a34a' },
+  GROUP_CYCLE_3: { label: 'Matchday 3', emoji: '⚽', color: '#16a34a' },
+  PRE_ROUND32: { label: 'Pre Round of 32', emoji: '🔜', color: '#f59e0b' },
+  ROUND32: { label: 'Round of 32', emoji: '🔥', color: '#ef4444' },
+  PRE_ROUND16: { label: 'Pre Round of 16', emoji: '🔜', color: '#f59e0b' },
+  ROUND16: { label: 'Round of 16', emoji: '🔥', color: '#ef4444' },
+  PRE_QUARTER: { label: 'Pre Quarter-Final', emoji: '🔜', color: '#f59e0b' },
+  QUARTER: { label: 'Quarter-Final', emoji: '🔥', color: '#ef4444' },
+  PRE_SEMI: { label: 'Pre Semi-Final', emoji: '🔜', color: '#f59e0b' },
+  SEMI: { label: 'Semi-Final', emoji: '🔥', color: '#ef4444' },
+  THIRD_PLACE: { label: 'Third Place', emoji: '🥉', color: '#94a3b8' },
+  FINAL: { label: 'The Final', emoji: '🏆', color: '#fbbf24' },
+};
 
 type NavigationProp = StackNavigationProp<MainStackParamList, 'Home'>;
 
@@ -100,6 +118,15 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const [currentStage, setCurrentStage] = React.useState<string | null>(null);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      apiService.getAppConfig().then((config) => {
+        if (config?.current_stage) setCurrentStage(config.current_stage);
+      }).catch(() => {});
+    }, [])
+  );
 
   const isAdmin =
     (user?.user_id != null && user.user_id >= 1 && user.user_id <= 10) ||
@@ -176,7 +203,14 @@ export default function HomeScreen() {
         <Text style={styles.greeting}>
           Welcome back, {user?.username ?? 'Champ'}!
         </Text>
-        <Text style={styles.subtitle}>Where do you want to go?</Text>
+        {currentStage && STAGE_LABELS[currentStage] && (
+          <View style={styles.stageRow}>
+            <Text style={styles.stageLabel}>Stage:</Text>
+            <Text style={[styles.stageValue, { color: STAGE_LABELS[currentStage].color }]}>
+              {STAGE_LABELS[currentStage].label}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.waveSvgContainer}>
           <Svg height="32" width="100%" viewBox="0 0 390 32" preserveAspectRatio="none">
@@ -248,7 +282,22 @@ const styles = StyleSheet.create({
     width: '40%',
   },
   greeting: { fontSize: 28, fontWeight: '800', color: '#ffffff', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.8)' },
+  stageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  stageLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.5)',
+  },
+  stageValue: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
   waveSvgContainer: {
     position: 'absolute',
     bottom: -31,

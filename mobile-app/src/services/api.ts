@@ -52,9 +52,17 @@ export interface KnockoutResponse {
   can_edit_drafts?: boolean;
 }
 
+export interface StageTimelineEntry {
+  stage: string;
+  label: string;
+  start: string | null;
+  end: string | null;
+}
+
 export interface AppConfig {
   current_stage: string;
   penalty_per_change: number;
+  stage_timeline?: StageTimelineEntry[];
 }
 
 export interface User {
