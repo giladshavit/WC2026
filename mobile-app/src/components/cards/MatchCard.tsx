@@ -531,7 +531,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
           activeOpacity={0.7}
         >
           <Ionicons
-            name="dice-outline"
+            name="flash"
             size={13}
             color={isTempted ? '#ffffff' : '#7c3aed'}
           />
@@ -541,7 +541,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
               isTempted && styles.temptationButtonTextActive,
             ]}
           >
-            Temptation
+            x2
           </Text>
         </TouchableOpacity>
       )}
