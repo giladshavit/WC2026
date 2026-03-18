@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Animated,
   useWindowDimensions,
   TouchableOpacity,
   Platform,
@@ -29,6 +30,7 @@ import { useToast } from '../../components/toast/Toast';
 import { ErrorModal } from '../../components/modals/CustomModals';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 interface BracketScreenProps {}
@@ -46,6 +48,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const AVAILABLE_HEIGHT = screenHeight - STATUS_BAR_HEIGHT - TAB_BAR_HEIGHT - NAV_HEADER_HEIGHT - BOTTOM_TABS_HEIGHT;
   const Y_OFFSET = 20;
   const COLUMN_WIDTH = 110;
+  const TOTAL_BRACKET_WIDTH = 60 + 9 * (COLUMN_WIDTH + 20) + 20;
   const [predictions, setPredictions] = useState<KnockoutPrediction[]>([]);
   const [organizedBracket, setOrganizedBracket] = useState<OrganizedBracket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,6 +87,9 @@ export default function BracketScreen({}: BracketScreenProps) {
   // Ref for capturing the bracket view
   const bracketRef = useRef<View>(null);
 
+  const [showScrollHint, setShowScrollHint] = useState(true);
+  const scrollHintOpacity = useRef(new Animated.Value(1)).current;
+
   // Get tournament context data
   const { currentStage, finePerChange, isLoading: tournamentLoading, error: tournamentError } = useTournament();
   
@@ -95,6 +101,19 @@ export default function BracketScreen({}: BracketScreenProps) {
     const t = setTimeout(() => setToastMsg(null), 2500);
     return () => clearTimeout(t);
   }, [toastMsg]);
+
+  useEffect(() => {
+    if (!loading && organizedBracket) {
+      const timer = setTimeout(() => {
+        Animated.timing(scrollHintOpacity, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }).start(() => setShowScrollHint(false));
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, organizedBracket]);
 
   // Intercept back button/gesture when in edit mode
   useEffect(() => {
@@ -628,6 +647,31 @@ export default function BracketScreen({}: BracketScreenProps) {
     }
   };
 
+  const shareBracket = async () => {
+    if (!bracketRef.current) return;
+    try {
+      setIsCapturing(true);
+      const uri = await captureRef(bracketRef.current, {
+        format: 'png',
+        quality: 1.0,
+        result: 'tmpfile',
+      });
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        setErrorModal({ title: 'Not Available', message: 'Sharing is not available on this device.' });
+        return;
+      }
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        dialogTitle: 'Share your bracket',
+      });
+    } catch (error) {
+      console.error('Error sharing bracket:', error);
+      setErrorModal({ title: 'Error', message: 'Could not share bracket. Please try again.' });
+    } finally {
+      setIsCapturing(false);
+    }
+  };
 
   const renderColumn = (title: string, matches: BracketMatch[], isFinal = false, columnIndex = 0) => {
     if (matches.length === 0) return null;
@@ -816,16 +860,14 @@ export default function BracketScreen({}: BracketScreenProps) {
               onPress={handleEditModeToggle}
               disabled={loading || (!editMode && !canEditDrafts)}
             >
-              <Ionicons name={editMode ? 'log-out-outline' : 'create-outline'} size={16} color="#fff" style={{ marginRight: 4 }} />
-              <Text style={styles.editButtonText}>{editMode ? 'Exit' : 'Edit'}</Text>
+              <Ionicons name={editMode ? 'log-out-outline' : 'create-outline'} size={18} color="#fff" />
             </TouchableOpacity>
           )}
 
           {editMode && (
             <>
               <TouchableOpacity style={styles.saveButton} onPress={handleSavePress}>
-                <Ionicons name="cloud-upload-outline" size={16} color="#fff" style={{ marginRight: 4 }} />
-                <Text style={styles.actionButtonText}>Save</Text>
+                <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.resetButton} onPress={handleResetDrafts}>
@@ -841,17 +883,22 @@ export default function BracketScreen({}: BracketScreenProps) {
               onPress={handleBracketResetPress}
               disabled={isLoadingResetPreview}
             >
-              <Ionicons name="refresh-circle-outline" size={16} color="#fff" style={{ marginRight: 4 }} />
-              <Text style={styles.bracketResetButtonText}>
-                {isLoadingResetPreview ? '...' : 'Reset'}
-              </Text>
+              {isLoadingResetPreview
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Ionicons name="refresh-circle-outline" size={20} color="#fff" />
+              }
             </TouchableOpacity>
           )}
 
           {!editMode && (
-            <TouchableOpacity style={styles.screenshotButton} onPress={captureBracket} disabled={isCapturing}>
-              <Ionicons name="camera-outline" size={18} color="#fff" />
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity style={styles.screenshotButton} onPress={captureBracket} disabled={isCapturing}>
+                <Ionicons name="camera-outline" size={18} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.shareButton} onPress={shareBracket} disabled={isCapturing}>
+                <Ionicons name="share-outline" size={18} color="#fff" />
+              </TouchableOpacity>
+            </>
           )}
         </View>
       </View>
@@ -861,6 +908,16 @@ export default function BracketScreen({}: BracketScreenProps) {
         showsHorizontalScrollIndicator={true}
         contentContainerStyle={styles.scrollContent}
         style={[styles.scrollView, { pointerEvents: 'box-none', marginTop: 50 }]}
+        onScroll={() => {
+          if (showScrollHint) {
+            Animated.timing(scrollHintOpacity, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true,
+            }).start(() => setShowScrollHint(false));
+          }
+        }}
+        scrollEventThrottle={16}
       >
         {/* SVG overlay for bracket lines - AFTER the cards */}
         <Svg 
@@ -876,25 +933,24 @@ export default function BracketScreen({}: BracketScreenProps) {
         {renderBracketColumns()}
       </ScrollView>
 
-      {/* Bracket Container for Screenshot */}
-      <View ref={bracketRef} style={[styles.bracketContainer, { width: screenWidth * 3.25, height: AVAILABLE_HEIGHT + Y_OFFSET + 60 }]} collapsable={false}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          style={styles.hiddenScrollView}
+      {/* Bracket Container for Screenshot - flat layout, no ScrollView */}
+      <View
+        ref={bracketRef}
+        style={[
+          styles.bracketContainer,
+          { width: TOTAL_BRACKET_WIDTH, height: AVAILABLE_HEIGHT + Y_OFFSET + 60 }
+        ]}
+        collapsable={false}
+      >
+        <Svg
+          style={[styles.bracketLines, { height: AVAILABLE_HEIGHT + Y_OFFSET + 60 }]}
+          width={TOTAL_BRACKET_WIDTH}
+          height={AVAILABLE_HEIGHT + Y_OFFSET + 60}
+          pointerEvents="none"
         >
-          {/* SVG overlay for bracket lines */}
-          <Svg 
-            style={[styles.bracketLines, { height: AVAILABLE_HEIGHT + Y_OFFSET + 60 }]}
-            width={screenWidth * 3}
-            height={AVAILABLE_HEIGHT + Y_OFFSET + 60}
-            pointerEvents="none"
-          >
-            {drawBracketLines()}
-          </Svg>
-          
-          {/* All columns for screenshot */}
+          {drawBracketLines()}
+        </Svg>
+        <View style={{ flexDirection: 'row', paddingLeft: 60, paddingTop: 20 }}>
           {renderColumn('Round of 32 (Left)', organizedBracket.round32_left, false, 0)}
           {renderColumn('Round of 16 (Left)', organizedBracket.round16_left, false, 1)}
           {renderColumn('Quarter (Left)', organizedBracket.quarter_left, false, 2)}
@@ -904,7 +960,7 @@ export default function BracketScreen({}: BracketScreenProps) {
           {renderColumn('Quarter (Right)', organizedBracket.quarter_right, false, 6)}
           {renderColumn('Round of 16 (Right)', organizedBracket.round16_right, false, 7)}
           {renderColumn('Round of 32 (Right)', organizedBracket.round32_right, false, 8)}
-        </ScrollView>
+        </View>
       </View>
       
       {/* Inline Toast */}
@@ -1205,6 +1261,14 @@ export default function BracketScreen({}: BracketScreenProps) {
           goBackLabel: 'Go Back',
         })}
       />
+      {showScrollHint && (
+        <Animated.View
+          style={[styles.scrollHint, { opacity: scrollHintOpacity }]}
+          pointerEvents="none"
+        >
+          <Ionicons name="chevron-forward" size={20} color="#fff" />
+        </Animated.View>
+      )}
     </>
   );
 }
@@ -1319,12 +1383,11 @@ const styles = StyleSheet.create({
   },
   editButton: {
     backgroundColor: '#0f766e',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    flexShrink: 1,
+    width: 36,
+    height: 36,
     borderRadius: 10,
-    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -1355,12 +1418,11 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: '#15803d',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    flexShrink: 1,
+    width: 36,
+    height: 36,
     borderRadius: 10,
-    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -1374,17 +1436,43 @@ const styles = StyleSheet.create({
   },
   screenshotButton: {
     backgroundColor: '#1e3a8a',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    flexShrink: 1,
+    width: 36,
+    height: 36,
     borderRadius: 10,
-    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 4,
+  },
+  shareButton: {
+    backgroundColor: '#0369a1',
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  scrollHint: {
+    position: 'absolute',
+    right: 12,
+    top: '50%',
+    marginTop: -18,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   screenshotButtonText: {
     color: '#fff',
@@ -1393,12 +1481,11 @@ const styles = StyleSheet.create({
   },
   bracketResetButton: {
     backgroundColor: '#7c3aed',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    flexShrink: 1,
+    width: 36,
+    height: 36,
     borderRadius: 10,
-    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -1641,10 +1728,6 @@ const styles = StyleSheet.create({
     top: -10000, // Hide off-screen
     left: -10000,
     backgroundColor: '#1e293b',
-  },
-  hiddenScrollView: {
-    flex: 1,
-    opacity: 1,
   },
   modalOverlay: {
     flex: 1,
