@@ -2,8 +2,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 
 from api import predictions, admin, auth, leagues
 from api import bonus as bonus_router
@@ -48,36 +46,6 @@ app.include_router(config.router, prefix="/api/app", tags=["app"])
 app.include_router(statistics_router, prefix="/api", tags=["statistics"])
 app.include_router(user_view_router, prefix="/api", tags=["user_view"])
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-@app.get("/")
-def read_root():
-    return FileResponse("static/index.html")
-
-@app.get("/knockout")
-def knockout_page():
-    return FileResponse("static/knockout.html")
-
-@app.get("/round16")
-def round16_page():
-    return FileResponse("static/round16.html")
-
-@app.get("/quarter")
-def quarter_page():
-    return FileResponse("static/quarter.html")
-
-@app.get("/semi")
-def semi_page():
-    return FileResponse("static/semi.html")
-
-@app.get("/final")
-def final_page():
-    return FileResponse("static/final.html")
-
-@app.get("/admin-results")
-def admin_results_page():
-    return FileResponse("static/admin_results.html")
 
 @app.get("/health")
 def health_check():
