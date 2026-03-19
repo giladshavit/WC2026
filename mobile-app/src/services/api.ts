@@ -1715,6 +1715,7 @@ export interface UserProfileView {
   groups_score: number;
   third_place_score: number;
   knockout_score: number;
+  bonus_score?: number;
   penalty: number;
 }
 
@@ -1766,3 +1767,6 @@ export const getUserThirdPlacePredictions = (userId: number): Promise<UserThirdP
 
 export const getUserKnockoutPredictions = (userId: number): Promise<UserKnockoutPredictionsView> =>
   apiRequest(`/users/${userId}/predictions/knockout`);
+
+export const getUserBonusPrediction = (userId: number): Promise<BonusPrediction> =>
+  apiRequest(`/users/${userId}/predictions/bonus`);

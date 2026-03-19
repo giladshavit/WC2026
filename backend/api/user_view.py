@@ -56,3 +56,13 @@ def get_user_knockout_predictions(user_id: int, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/users/{user_id}/predictions/bonus", response_model=Dict[str, Any])
+def get_user_bonus_prediction(user_id: int, db: Session = Depends(get_db)):
+    try:
+        return UserViewService.get_user_bonus_prediction(db, user_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

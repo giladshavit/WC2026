@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
   getUserGroupPredictions,
   getUserThirdPlacePredictions,
   getUserKnockoutPredictions,
+  getUserBonusPrediction,
   UserProfileView,
   UserMatchPredictionsView,
   UserGroupPredictionsView,
@@ -29,10 +30,12 @@ import {
   Match,
   GroupPrediction,
   KnockoutPrediction,
+  BonusPrediction,
 } from '../services/api';
 import { ErrorModal } from '../components/modals/CustomModals';
+import { useTournament } from '../contexts/TournamentContext';
 
-type TabKey = 'matches' | 'groups' | 'third' | 'knockout';
+type TabKey = 'matches' | 'groups' | 'third' | 'knockout' | 'bonus';
 
 interface RouteParams {
   userId: number;
@@ -44,7 +47,89 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'groups', label: 'Groups' },
   { key: 'third', label: '3rd Place' },
   { key: 'knockout', label: 'Knockout' },
+  { key: 'bonus', label: 'Bonus' },
 ];
+
+const BONUS_QUESTION_LABELS: Record<string, string> = {
+  g1: 'Total goals scored in Group Stage',
+  g2: 'Top scoring group',
+  g3: 'Top scoring team in Group Stage',
+  g4: 'Teams finishing with 9/9 points',
+  g5: 'Teams with clean sheets in group stage',
+  g6: 'Scoreless draws (0:0) in the Group Stage',
+  k1: 'Total goals scored in Knockout Stage',
+  k2: 'Matches decided by penalty shootout',
+  k3: '3rd-place teams reaching Quarter Finals',
+  t1: 'Total goals in the tournament',
+  t2: 'Who will win the World Cup?',
+  t3: 'Who will be the top scorer?',
+};
+
+const BONUS_FIELD_TO_API: Record<string, keyof BonusPrediction> = {
+  g1: 'g1_total_goals_group',
+  g2: 'g2_top_group_id',
+  g3: 'g3_top_team_id',
+  g4: 'g4_perfect_teams',
+  g5: 'g5_clean_sheet_teams',
+  g6: 'g6_scoreless_draws_group',
+  k1: 'k1_total_goals_knockout',
+  k2: 'k2_penalty_shootouts',
+  k3: 'k3_third_place_quarters',
+  t1: 't1_total_goals_tournament',
+  t2: 't2_champion_team_id',
+  t3: 't3_top_scorer',
+};
+
+const G1_OPTIONS = [
+  { value: 'under_120', label: '0–119' }, { value: '120_139', label: '120–139' },
+  { value: '140_159', label: '140–159' }, { value: '160_179', label: '160–179' },
+  { value: '180_199', label: '180–199' }, { value: '200_plus', label: '200+' },
+];
+const G4_OPTIONS = [
+  { value: '0', label: '0' }, { value: '1', label: '1' }, { value: '2', label: '2' },
+  { value: '3', label: '3' }, { value: '4', label: '4' }, { value: '5_plus', label: '5+' },
+];
+const G5_OPTIONS = [
+  { value: '0', label: '0' }, { value: '1', label: '1' }, { value: '2', label: '2' },
+  { value: '3', label: '3' }, { value: '4', label: '4' }, { value: '5_plus', label: '5+' },
+];
+const G6_OPTIONS = [
+  { value: '0_2', label: '0–2' }, { value: '3_4', label: '3–4' }, { value: '5_6', label: '5–6' },
+  { value: '7_8', label: '7–8' }, { value: '9_10', label: '9–10' }, { value: '11_plus', label: '11+' },
+];
+const K1_OPTIONS = [
+  { value: 'under_30', label: '0–29' }, { value: '30_39', label: '30–39' }, { value: '40_49', label: '40–49' },
+  { value: '50_59', label: '50–59' }, { value: '60_69', label: '60–69' }, { value: '70_79', label: '70–79' },
+  { value: '80_plus', label: '80+' },
+];
+const K2_OPTIONS = [
+  { value: '0_3', label: '0–3' }, { value: '4_5', label: '4–5' }, { value: '6_7', label: '6–7' },
+  { value: '8_9', label: '8–9' }, { value: '10_11', label: '10–11' }, { value: '12_plus', label: '12+' },
+];
+const K3_OPTIONS = [
+  { value: '0', label: '0' }, { value: '1', label: '1' }, { value: '2', label: '2' },
+  { value: '3', label: '3' }, { value: '4', label: '4' }, { value: '5', label: '5' },
+  { value: '6', label: '6' }, { value: '7', label: '7' }, { value: '8', label: '8' },
+];
+const T1_OPTIONS = [
+  { value: 'under_160', label: '0–159' }, { value: '160_189', label: '160–189' },
+  { value: '190_219', label: '190–219' }, { value: '220_249', label: '220–249' },
+  { value: '250_280', label: '250–280' }, { value: '280_plus', label: '280+' },
+];
+const T3_OPTIONS = [
+  { value: 'messi', label: 'Lionel Messi' }, { value: 'ronaldo', label: 'Cristiano Ronaldo' },
+  { value: 'mbappe', label: 'Kylian Mbappé' }, { value: 'haaland', label: 'Erling Haaland' },
+  { value: 'neymar', label: 'Neymar Jr.' }, { value: 'kane', label: 'Harry Kane' },
+  { value: 'vinicius', label: 'Vinícius Jr.' }, { value: 'salah', label: 'Mohamed Salah' },
+  { value: 'bellingham', label: 'Jude Bellingham' }, { value: 'pedri', label: 'Pedri' },
+  { value: 'other', label: 'Other' },
+];
+
+const BONUS_SECTION_ICONS: Record<string, string> = {
+  'Group Stage': 'home',
+  Knockout: 'trophy',
+  Tournament: 'medal',
+};
 
 const POSITION_COLORS: Record<number, string> = {
   1: '#D4AF37', // gold
@@ -60,6 +145,12 @@ export default function PublicProfileScreen() {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const { currentStage } = useTournament();
+  const tournamentStarted = currentStage !== null && currentStage !== 'pre_tournament';
+  const knockoutStarted =
+    currentStage !== null &&
+    currentStage !== 'pre_tournament' &&
+    currentStage !== 'group_stage';
 
   const { userId, username } = route.params as RouteParams;
 
@@ -71,14 +162,17 @@ export default function PublicProfileScreen() {
     groups: null,
     third: null,
     knockout: null,
+    bonus: null,
   });
   const [loadingTabs, setLoadingTabs] = useState<Record<TabKey, boolean>>({
     matches: false,
     groups: false,
     third: false,
     knockout: false,
+    bonus: false,
   });
   const [activeTab, setActiveTab] = useState<TabKey>('matches');
+  const fetchedTabs = useRef<Set<TabKey>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -98,7 +192,11 @@ export default function PublicProfileScreen() {
   }, [userId]);
 
   const fetchTabData = useCallback(async (tab: TabKey) => {
-    if (tabData[tab] !== null) return;
+    if (fetchedTabs.current.has(tab)) return;
+    if (tab !== 'bonus' && !tournamentStarted) return;
+    if (tab === 'knockout' && !knockoutStarted) return;
+
+    fetchedTabs.current.add(tab);
     setLoadingTabs((prev) => ({ ...prev, [tab]: true }));
     try {
       let data: any;
@@ -115,16 +213,20 @@ export default function PublicProfileScreen() {
         case 'knockout':
           data = await getUserKnockoutPredictions(userId);
           break;
+        case 'bonus':
+          data = await getUserBonusPrediction(userId);
+          break;
         default:
           return;
       }
       setTabData((prev) => ({ ...prev, [tab]: data }));
     } catch (e) {
+      fetchedTabs.current.delete(tab);
       console.warn(`Failed to fetch ${tab} data:`, e);
     } finally {
       setLoadingTabs((prev) => ({ ...prev, [tab]: false }));
     }
-  }, [userId, tabData]);
+  }, [userId, tournamentStarted, knockoutStarted]);
 
   const handleTabPress = useCallback((tab: TabKey) => {
     setActiveTab(tab);
@@ -132,8 +234,14 @@ export default function PublicProfileScreen() {
   }, [fetchTabData]);
 
   useEffect(() => {
-    fetchTabData('matches');
-  }, [fetchTabData]);
+    if (tournamentStarted) {
+      fetchTabData('matches');
+    }
+  }, [tournamentStarted, fetchTabData]);
+
+  useEffect(() => {
+    fetchedTabs.current = new Set();
+  }, [userId]);
 
   const formatScore = (v: number | null | undefined) =>
     v != null ? String(v) : '—';
@@ -161,6 +269,15 @@ export default function PublicProfileScreen() {
   const renderScoreBar = () => {
     const p = profileData;
     const penalty = p?.penalty ?? 0;
+    const breakdownItems: { label: string; value: number | null | undefined }[] = [
+      { label: 'Matches', value: p?.matches_score },
+      { label: 'Groups', value: p?.groups_score },
+      { label: '3rd', value: p?.third_place_score },
+      { label: 'Knockout', value: p?.knockout_score },
+    ];
+    if (p?.bonus_score != null) {
+      breakdownItems.push({ label: 'Bonus', value: p.bonus_score });
+    }
 
     return (
       <View style={styles.scoreCard}>
@@ -170,12 +287,7 @@ export default function PublicProfileScreen() {
         </View>
         <View style={styles.scoreDivider} />
         <View style={styles.scoreBreakdownRow}>
-          {[
-            { label: 'Matches', value: p?.matches_score },
-            { label: 'Groups', value: p?.groups_score },
-            { label: '3rd', value: p?.third_place_score },
-            { label: 'Knockout', value: p?.knockout_score },
-          ].map(({ label, value }) => (
+          {breakdownItems.map(({ label, value }) => (
             <View key={label} style={styles.scoreBreakdownItem}>
               <Text style={styles.scoreBreakdownLabel}>{label}</Text>
               <Text style={styles.scoreBreakdownValue}>{formatScore(value)}</Text>
@@ -195,29 +307,34 @@ export default function PublicProfileScreen() {
   };
 
   const renderTabBar = () => (
-    <View style={styles.tabBar}>
-      {TABS.map(({ key, label }) => (
-        <TouchableOpacity
-          key={key}
-          style={[styles.tab, activeTab === key && styles.tabActive]}
-          onPress={() => handleTabPress(key)}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.tabLabel,
-              activeTab === key ? styles.tabLabelActive : styles.tabLabelInactive,
-            ]}
+    <View style={styles.tabBarWrapper}>
+      <View style={styles.tabBarScroll}>
+        {TABS.map(({ key, label }) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.tab, activeTab === key && styles.tabActive]}
+            onPress={() => handleTabPress(key)}
+            activeOpacity={0.7}
           >
-            {label}
-          </Text>
-          {activeTab === key && <View style={styles.tabUnderline} />}
-        </TouchableOpacity>
-      ))}
+            <Text style={[styles.tabLabel, activeTab === key ? styles.tabLabelActive : styles.tabLabelInactive]}>
+              {label}
+            </Text>
+            {activeTab === key && <View style={styles.tabUnderline} />}
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 
   const renderMatchesTab = () => {
+    if (!tournamentStarted) {
+      return (
+        <View style={styles.emptyTab}>
+          <Ionicons name="time-outline" size={48} color="#94a3b8" />
+          <Text style={styles.emptyText}>Available when the tournament begins</Text>
+        </View>
+      );
+    }
     const data = tabData.matches as UserMatchPredictionsView | null;
     const loading = loadingTabs.matches;
 
@@ -250,13 +367,21 @@ export default function PublicProfileScreen() {
             onInputFocus={noop}
           />
         )}
-        contentContainerStyle={styles.flatListContent}
+        contentContainerStyle={[styles.flatListContent, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       />
     );
   };
 
   const renderGroupsTab = () => {
+    if (!tournamentStarted) {
+      return (
+        <View style={styles.emptyTab}>
+          <Ionicons name="time-outline" size={48} color="#94a3b8" />
+          <Text style={styles.emptyText}>Available when the tournament begins</Text>
+        </View>
+      );
+    }
     const data = tabData.groups as UserGroupPredictionsView | null;
     const loading = loadingTabs.groups;
 
@@ -289,7 +414,15 @@ export default function PublicProfileScreen() {
       return null;
     };
     const getBadgeColor = (g: GroupPrediction, teamId: number | undefined, pos: number): string => {
-      if (!g.result || !teamId) return POSITION_COLORS[pos] ?? '#94a3b8';
+      if (!g.result || !teamId) {
+        const neutralColors: Record<number, string> = {
+          1: '#475569',
+          2: '#475569',
+          3: '#475569',
+          4: '#334155',
+        };
+        return neutralColors[pos] ?? '#334155';
+      }
       const actual = getActualPosition(g, teamId);
       const isCorrect = actual !== null && actual === pos;
       return isCorrect ? '#16a34a' : '#ef4444';
@@ -362,13 +495,21 @@ export default function PublicProfileScreen() {
             </View>
           );
         }}
-        contentContainerStyle={styles.flatListContent}
+        contentContainerStyle={[styles.flatListContent, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       />
     );
   };
 
   const renderThirdPlaceTab = () => {
+    if (!tournamentStarted) {
+      return (
+        <View style={styles.emptyTab}>
+          <Ionicons name="time-outline" size={48} color="#94a3b8" />
+          <Text style={styles.emptyText}>Available when the tournament begins</Text>
+        </View>
+      );
+    }
     const data = tabData.third as UserThirdPlacePredictionsView | null;
     const loading = loadingTabs.third;
 
@@ -390,62 +531,72 @@ export default function PublicProfileScreen() {
     }
 
     const eligibleTeams = data.eligible_teams ?? [];
-    const selectedTeams = eligibleTeams.filter((t: any) => t.is_selected);
-
-    if (selectedTeams.length === 0) {
-      return (
-        <View style={styles.emptyTab}>
-          <Ionicons name="trophy-outline" size={48} color="#94a3b8" />
-          <Text style={styles.emptyText}>No picks made yet</Text>
-        </View>
-      );
-    }
     const resultGroups: Set<string> = new Set(
       (data.result?.result_groups ?? []).filter((g: string | null) => g != null)
     );
-
-    const isCorrect = (team: any) => resultGroups.has(team.group_name);
-
     const cardWidth = (width - 32 - 24) / 4;
 
     return (
       <ScrollView
         style={styles.thirdPlaceScroll}
-        contentContainerStyle={styles.thirdPlaceGrid}
+        contentContainerStyle={[styles.thirdPlaceGrid, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        {selectedTeams.slice(0, 8).map((team: any) => (
-          <View key={team.id} style={[styles.thirdPlaceCard, { width: cardWidth }]}>
-            <Text style={styles.thirdPlaceGroupName}>{team.group_name}</Text>
-            {team.flag_url && (
-              <Image source={{ uri: team.flag_url }} style={styles.thirdPlaceFlag} />
-            )}
-            <View style={styles.thirdPlaceNameContainer}>
-              <Text
-                style={styles.thirdPlaceTeamName}
-                numberOfLines={2}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-              >
-                {team.name}
-              </Text>
-            </View>
-            <View style={styles.thirdPlaceIconSlot}>
-              {resultGroups.size > 0 && (
-                <Ionicons
-                  name={isCorrect(team) ? 'checkmark-circle' : 'close-circle'}
-                  size={20}
-                  color={isCorrect(team) ? '#16a34a' : '#ef4444'}
-                />
+        {eligibleTeams.map((team: any) => {
+          const isSelected = team.is_selected;
+          const isCorrect = resultGroups.size > 0 && resultGroups.has(team.group_name);
+
+          return (
+            <View
+              key={team.id}
+              style={[
+                styles.thirdPlaceCard,
+                { width: cardWidth },
+                !isSelected && styles.thirdPlaceCardUnselected,
+              ]}
+            >
+              <Text style={styles.thirdPlaceGroupName}>{team.group_name}</Text>
+              {team.flag_url && (
+                <Image source={{ uri: team.flag_url }} style={styles.thirdPlaceFlag} />
               )}
+              <View style={styles.thirdPlaceNameContainer}>
+                <Text
+                  style={[styles.thirdPlaceTeamName]}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                >
+                  {team.name}
+                </Text>
+              </View>
+              <View style={styles.thirdPlaceIconSlot}>
+                {isSelected && resultGroups.size > 0 && (
+                  <Ionicons
+                    name={isCorrect ? 'checkmark-circle' : 'close-circle'}
+                    size={20}
+                    color={isCorrect ? '#16a34a' : '#ef4444'}
+                  />
+                )}
+                {isSelected && resultGroups.size === 0 && (
+                  <Ionicons name="checkmark-circle" size={20} color="#f59e0b" />
+                )}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
     );
   };
 
   const renderKnockoutTab = () => {
+    if (!knockoutStarted) {
+      return (
+        <View style={styles.emptyTab}>
+          <Ionicons name="time-outline" size={48} color="#94a3b8" />
+          <Text style={styles.emptyText}>Available from the Knockout stage</Text>
+        </View>
+      );
+    }
     const data = tabData.knockout as UserKnockoutPredictionsView | null;
     const loading = loadingTabs.knockout;
 
@@ -547,9 +698,172 @@ export default function PublicProfileScreen() {
             ))}
           </View>
         )}
-        contentContainerStyle={styles.flatListContent}
+        contentContainerStyle={[styles.flatListContent, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       />
+    );
+  };
+
+  const getBonusAnswerLabel = (
+    field: string,
+    value: string | number | null,
+    groups: GroupPrediction[] | undefined
+  ): string => {
+    if (value == null) return '';
+    if (field === 'g2') {
+      const g = groups?.find((gr) => gr.group_id === Number(value));
+      return g ? `Group ${g.group_name}` : String(value);
+    }
+    if (field === 'g3' || field === 't2') {
+      const allTeams = groups?.flatMap((g) => g.teams || []) ?? [];
+      const t = allTeams.find((t) => t.id === Number(value));
+      return t?.name ?? String(value);
+    }
+    if (field === 't3') {
+      return T3_OPTIONS.find((o) => o.value === String(value))?.label ?? String(value);
+    }
+    const optMap: Record<string, Array<{ value: string; label: string }>> = {
+      g1: G1_OPTIONS, g4: G4_OPTIONS, g5: G5_OPTIONS, g6: G6_OPTIONS,
+      k1: K1_OPTIONS, k2: K2_OPTIONS, k3: K3_OPTIONS, t1: T1_OPTIONS,
+    };
+    const opt = (optMap[field] ?? []).find((o) => o.value === String(value));
+    return opt?.label ?? String(value);
+  };
+
+  const renderBonusSection = (
+    title: string,
+    icon: string,
+    fields: string[],
+    pred: any,
+    groups: GroupPrediction[] | undefined
+  ) => {
+    const isLocked =
+      (title === 'Group Stage' && !pred?.groups_is_editable) ||
+      (title === 'Knockout' && !pred?.knockout_is_editable) ||
+      (title === 'Tournament' && !pred?.tournament_is_editable);
+
+    const getStatus = (field: string): 'correct' | 'incorrect' | 'pending' => {
+      const statusKey = `q_${field}_status`;
+      const val = pred?.[statusKey];
+      if (val === 'correct') return 'correct';
+      if (val === 'incorrect' || val === 'wrong') return 'incorrect';
+      return 'pending';
+    };
+
+    const getValue = (field: string) => {
+      const apiKey = BONUS_FIELD_TO_API[field];
+      return pred?.[apiKey] ?? null;
+    };
+
+    return (
+      <View style={styles.bonusSectionCard} key={title}>
+        <View style={styles.bonusSectionHeader}>
+          <Ionicons name={icon as any} size={20} color="#16a34a" />
+          <Text style={styles.bonusSectionTitle}>{title}</Text>
+          {isLocked && (
+            <Ionicons name="lock-closed-outline" size={18} color="#94a3b8" style={{ marginLeft: 8 }} />
+          )}
+        </View>
+        {fields.map((field, idx) => {
+          const val = getValue(field);
+          const answered = val != null && val !== '';
+          const status = getStatus(field);
+          const label = getBonusAnswerLabel(field, val, groups);
+          const isLast = idx === fields.length - 1;
+          return (
+            <View
+              key={field}
+              style={[
+                styles.bonusRow,
+                { backgroundColor: idx % 2 === 0 ? '#1e3a5f' : '#162c4a' },
+                !isLast && styles.bonusRowBorder,
+              ]}
+            >
+              <Text style={styles.bonusRowLabel} numberOfLines={2}>
+                {BONUS_QUESTION_LABELS[field]}
+              </Text>
+              <View style={styles.bonusRowRight}>
+                {!answered ? (
+                  <Text style={styles.bonusRowPlaceholder}>—</Text>
+                ) : status === 'pending' ? (
+                  <Text style={styles.bonusRowValuePending}>{label}</Text>
+                ) : status === 'correct' ? (
+                  <>
+                    <Text style={styles.bonusRowValueCorrect}>{label}</Text>
+                    <Ionicons name="checkmark-circle" size={20} color="#16a34a" style={{ marginLeft: 6 }} />
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.bonusRowValueIncorrect}>{label}</Text>
+                    <Ionicons name="close-circle" size={20} color="#ef4444" style={{ marginLeft: 6 }} />
+                  </>
+                )}
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const renderBonusTab = () => {
+    if (!tournamentStarted) {
+      return (
+        <View style={styles.emptyTab}>
+          <Ionicons name="time-outline" size={48} color="#94a3b8" />
+          <Text style={styles.emptyText}>Available when the tournament begins</Text>
+        </View>
+      );
+    }
+    const data = tabData.bonus as (BonusPrediction & { groups?: GroupPrediction[] }) | null;
+    const loading = loadingTabs.bonus;
+
+    if (loading) {
+      return (
+        <View style={styles.tabLoading}>
+          <ActivityIndicator size="large" color="#16a34a" />
+        </View>
+      );
+    }
+
+    if (!data) {
+      return (
+        <View style={styles.emptyTab}>
+          <Ionicons name="trophy-outline" size={48} color="#94a3b8" />
+          <Text style={styles.emptyText}>Bonus data not available</Text>
+        </View>
+      );
+    }
+
+    const groups = data.groups ?? [];
+    return (
+      <ScrollView
+        style={styles.bonusScroll}
+        contentContainerStyle={[styles.bonusScrollContent, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {renderBonusSection(
+          'Group Stage',
+          BONUS_SECTION_ICONS['Group Stage'],
+          ['g1', 'g2', 'g3', 'g4', 'g5', 'g6'],
+          data,
+          groups
+        )}
+        {renderBonusSection(
+          'Knockout',
+          BONUS_SECTION_ICONS.Knockout,
+          ['k1', 'k2', 'k3'],
+          data,
+          groups
+        )}
+        {renderBonusSection(
+          'Tournament',
+          BONUS_SECTION_ICONS.Tournament,
+          ['t1', 't2', 't3'],
+          data,
+          groups
+        )}
+      </ScrollView>
     );
   };
 
@@ -563,6 +877,8 @@ export default function PublicProfileScreen() {
         return renderThirdPlaceTab();
       case 'knockout':
         return renderKnockoutTab();
+      case 'bonus':
+        return renderBonusTab();
       default:
         return null;
     }
@@ -571,7 +887,7 @@ export default function PublicProfileScreen() {
   if (profileError) {
     return (
       <View style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+        <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
         {renderHeader()}
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
@@ -591,7 +907,7 @@ export default function PublicProfileScreen() {
 
   return (
     <View style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+      <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
       {renderHeader()}
       {renderScoreBar()}
       {renderTabBar()}
@@ -603,10 +919,10 @@ export default function PublicProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#0f172a',
   },
   header: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#1e293b',
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
@@ -629,7 +945,9 @@ const styles = StyleSheet.create({
     width: 40,
   },
   scoreCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1e3a5f',
+    borderWidth: 1,
+    borderColor: '#152a45',
     marginHorizontal: 16,
     marginTop: 16,
     borderRadius: 16,
@@ -656,16 +974,17 @@ const styles = StyleSheet.create({
   scoreTotalValue: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#1e293b',
+    color: '#f1f5f9',
   },
   scoreDivider: {
     height: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#2d4a6e',
     marginBottom: 10,
   },
   scoreBreakdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    alignItems: 'center',
   },
   scoreBreakdownItem: {
     alignItems: 'center',
@@ -678,13 +997,15 @@ const styles = StyleSheet.create({
   scoreBreakdownValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#f1f5f9',
   },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
+  tabBarWrapper: {
     marginHorizontal: 16,
     marginTop: 12,
+  },
+  tabBarScroll: {
+    flexDirection: 'row',
+    backgroundColor: '#1e3a5f',
     borderRadius: 12,
     paddingHorizontal: 4,
     paddingVertical: 4,
@@ -693,10 +1014,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: 10,
+    paddingHorizontal: 2,
   },
   tabActive: {},
   tabLabel: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '600',
   },
   tabLabelActive: {
@@ -717,6 +1039,7 @@ const styles = StyleSheet.create({
   tabContent: {
     flex: 1,
     marginTop: 12,
+    backgroundColor: '#0f172a',
   },
   tabLoading: {
     flex: 1,
@@ -731,7 +1054,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#64748b',
+    color: '#94a3b8',
     marginTop: 12,
     textAlign: 'center',
   },
@@ -740,7 +1063,9 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   groupBlock: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1e3a5f',
+    borderWidth: 1,
+    borderColor: '#152a45',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -759,7 +1084,7 @@ const styles = StyleSheet.create({
   groupBlockTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#f1f5f9',
   },
   groupScoreBadge: {
     paddingHorizontal: 10,
@@ -804,7 +1129,7 @@ const styles = StyleSheet.create({
   teamName: {
     flex: 1,
     fontSize: 14,
-    color: '#1e293b',
+    color: '#f1f5f9',
   },
   teamNamePlaceholder: {
     flex: 1,
@@ -812,7 +1137,9 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
   },
   thirdPlaceCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1e3a5f',
+    borderWidth: 1,
+    borderColor: '#152a45',
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 6,
@@ -824,6 +1151,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
+  },
+  thirdPlaceCardUnselected: {
+    opacity: 0.45,
   },
   thirdPlaceFlag: {
     width: 44,
@@ -843,7 +1173,7 @@ const styles = StyleSheet.create({
   },
   thirdPlaceTeamName: {
     fontSize: 11,
-    color: '#1e293b',
+    color: '#f1f5f9',
     textAlign: 'center',
   },
   thirdPlaceIconSlot: {
@@ -862,7 +1192,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   knockoutCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1e3a5f',
+    borderWidth: 1,
+    borderColor: '#152a45',
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 12,
@@ -905,7 +1237,7 @@ const styles = StyleSheet.create({
   knockoutTeamName: {
     flex: 1,
     fontSize: 13,
-    color: '#64748b',
+    color: '#94a3b8',
   },
   knockoutTeamNameRight: {
     textAlign: 'right',
@@ -925,7 +1257,7 @@ const styles = StyleSheet.create({
   knockoutStageTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#f1f5f9',
     marginBottom: 12,
     paddingHorizontal: 4,
   },
@@ -937,8 +1269,76 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#64748b',
+    color: '#94a3b8',
     marginTop: 12,
     textAlign: 'center',
+  },
+  bonusScroll: {
+    flex: 1,
+  },
+  bonusScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  bonusSectionCard: {
+    backgroundColor: '#1e3a5f',
+    borderWidth: 1,
+    borderColor: '#152a45',
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  bonusSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#152a45',
+  },
+  bonusSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#f1f5f9',
+    marginLeft: 8,
+  },
+  bonusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  bonusRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#2d4a6e',
+  },
+  bonusRowLabel: {
+    flex: 1,
+    fontSize: 13,
+    color: '#94a3b8',
+    marginRight: 12,
+  },
+  bonusRowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bonusRowPlaceholder: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+  bonusRowValueCorrect: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#16a34a',
+  },
+  bonusRowValueIncorrect: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ef4444',
+  },
+  bonusRowValuePending: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#f59e0b',
   },
 });
