@@ -966,7 +966,7 @@ export default function LeagueDetailsScreen() {
                     liveMatchPredictionsList={liveMatchPredictionsList}
                     side="left"
                     scoreMode={scoreMode}
-                    onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('UserProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
+                    onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('PublicProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
                   />
                 </View>
                 {!isLiveMode && (
@@ -980,7 +980,7 @@ export default function LeagueDetailsScreen() {
                       liveMatchPredictionsList={liveMatchPredictionsList}
                       side="middle"
                       scoreMode={scoreMode}
-                      onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('UserProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
+                      onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('PublicProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
                     />
                   </View>
                 )}
@@ -995,7 +995,7 @@ export default function LeagueDetailsScreen() {
                     side="right"
                     scoreMode={scoreMode}
                     showOnlyTotalColumn={showOnlyTotalColumn}
-                    onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('UserProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
+                    onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('PublicProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
                   />
                 </View>
               </View>

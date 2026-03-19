@@ -16,7 +16,7 @@ import { apiService } from '../../services/api';
 import { useToast } from '../../components/toast/Toast';
 import { ConfirmationModal } from '../../components/modals/CustomModals';
 
-export default function ProfileScreen() {
+export default function MyProfileScreen() {
   const { user, logout, getCurrentUserId } = useAuth();
   const { showToast } = useToast();
   const [signOutModal, setSignOutModal] = useState(false);

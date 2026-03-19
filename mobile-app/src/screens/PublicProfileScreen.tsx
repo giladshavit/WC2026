@@ -55,7 +55,7 @@ const POSITION_COLORS: Record<number, string> = {
 
 const STAGE_ORDER = ['round32', 'round16', 'quarter', 'semi', 'final', 'third_place'];
 
-export default function UserProfileScreen() {
+export default function PublicProfileScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();

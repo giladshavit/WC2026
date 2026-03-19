@@ -1,7 +1,7 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/HomeScreen';
-import ProfileScreen from '../screens/profile/ProfileScreen';
+import MyProfileScreen from '../screens/profile/MyProfileScreen';
 import MatchesScreen from '../screens/predictions/MatchesScreen';
 import PredictionsMenuScreen from '../screens/predictions/PredictionsMenuScreen';
 import PredictionsTopTabs from './PredictionsTopTabs';
@@ -10,7 +10,7 @@ import StatisticsScreen from '../screens/statistics/StatisticsScreen';
 import BracketScreen from '../screens/predictions/BracketScreen';
 import BonusScreen from '../screens/predictions/BonusScreen';
 import AdminNavigator from './AdminNavigator';
-import UserProfileScreen from '../screens/UserProfileScreen';
+import PublicProfileScreen from '../screens/PublicProfileScreen';
 import RulesScreen from '../screens/RulesScreen';
 
 export type MainStackParamList = {
@@ -25,7 +25,7 @@ export type MainStackParamList = {
   Statistics: undefined;
   Rules: undefined;
   Admin: undefined;
-  UserProfile: { userId: number; username: string };
+  PublicProfile: { userId: number; username: string };
 };
 
 const Stack = createStackNavigator<MainStackParamList>();
@@ -57,7 +57,7 @@ export default function MainNavigator() {
       />
       <Stack.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={MyProfileScreen}
         options={{
           title: 'Profile',
           headerStyle: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0, borderBottomWidth: 0 },
@@ -134,8 +134,8 @@ export default function MainNavigator() {
         }}
       />
       <Stack.Screen
-        name="UserProfile"
-        component={UserProfileScreen}
+        name="PublicProfile"
+        component={PublicProfileScreen}
         options={{
           headerShown: false,
         }}

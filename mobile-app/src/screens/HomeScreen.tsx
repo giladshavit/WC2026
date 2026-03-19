@@ -72,7 +72,7 @@ const actions: Array<{
   title: string;
   subtitle: string;
   icon: string;
-  navigateTo: Exclude<keyof MainStackParamList, 'UserProfile'>;
+  navigateTo: Exclude<keyof MainStackParamList, 'PublicProfile'>;
   accent: string | null;
   accentBorder: string | null;
   iconColor?: string;
