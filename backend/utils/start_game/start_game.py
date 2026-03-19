@@ -68,10 +68,22 @@ def main() -> None:
     if failed:
         print("⚠️  Completed with errors. Failed scripts:", ", ".join(failed))
     else:
+        # Try to map external fixtures if API key is available
+        api_key = os.environ.get("FOOTBALL_DATA_API_KEY", "")
+        if api_key:
+            print("\n" + "=" * 60)
+            print("🔄 Mapping external fixture IDs...")
+            print("=" * 60)
+            if run_script("map_external_fixtures.py",
+                          "Mapping matches to football-data.org IDs"):
+                print("✅ External fixtures mapped successfully")
+            else:
+                print("⚠️  External fixture mapping failed — run manually later")
+        else:
+            print("\n⚠️  FOOTBALL_DATA_API_KEY not set — skipping fixture mapping")
+            print("   Run manually: python utils/start_game/map_external_fixtures.py")
+
         print("🎉 Game setup completed successfully!")
-        print()
-        print("Next step (run manually with API key):")
-        print("  FOOTBALL_DATA_API_KEY=your_key python utils/start_game/map_external_fixtures.py")
 
 
 if __name__ == "__main__":
