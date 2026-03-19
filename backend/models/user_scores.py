@@ -19,10 +19,6 @@ class UserScores(Base):
     classic_total_score = Column(Integer, default=0, nullable=False)
     
     # Match prediction accuracy counters
-    # DEPRECATED - replaced by GROUP BY on MatchPrediction.status (Prompt 13)
-    # matches_exact_count = Column(Integer, default=0)
-    # matches_correct_count = Column(Integer, default=0)
-    # matches_wrong_count = Column(Integer, default=0)
     matches_total_judged = Column(Integer, default=0)
     
     # Penalty points (penalty = total sum of groups + third_place + knockout)

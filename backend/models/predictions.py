@@ -129,7 +129,6 @@ class KnockoutStagePrediction(Base):
     # Relationships
     user = relationship("User")
     knockout_result = relationship("KnockoutStageResult")  # Link to result
-    # template_match = relationship("MatchTemplate", foreign_keys=[template_match_id])  # Link to template - temporarily disabled
     team1 = relationship("Team", foreign_keys=[team1_id])
     team2 = relationship("Team", foreign_keys=[team2_id])
     winner_team = relationship("Team", foreign_keys=[winner_team_id])
@@ -187,7 +186,6 @@ class BonusPrediction(Base):
 
     # Tournament answers
     t1_total_goals_tournament = Column(String, nullable=True)  # T1GoalsRange value
-    t2_scoreless_draws = Column(String, nullable=True)  # DEPRECATED: legacy T2ScorelessRange value
     t2_champion_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # Who wins WC
     t3_top_scorer = Column(String, nullable=True)  # Top scorer string value (e.g. "messi", "other")
 

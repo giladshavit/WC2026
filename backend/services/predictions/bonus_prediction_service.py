@@ -245,8 +245,6 @@ class BonusPredictionService:
             "k2_penalty_shootouts": pred.k2_penalty_shootouts,
             "k3_third_place_quarters": pred.k3_third_place_quarters,
             "t1_total_goals_tournament": pred.t1_total_goals_tournament,
-            # Deprecated legacy field kept for backward compatibility
-            "t2_scoreless_draws": pred.t2_scoreless_draws,
             "t2_champion_team_id": pred.t2_champion_team_id,
             "t3_top_scorer": pred.t3_top_scorer,
             "penalty_points": pred.penalty_points or 0,
