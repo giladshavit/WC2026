@@ -72,6 +72,26 @@ def check_database_status():
             print("📭 EMPTY TABLES:")
             for table_name in empty_tables:
                 print(f"  - {table_name}")
+
+        # Check match_predictions status values
+        if "match_predictions" in table_names:
+            print()
+            print("=== MATCH_PREDICTIONS STATUS CHECK ===")
+            result = db.execute(text("SELECT status, COUNT(*) FROM match_predictions GROUP BY status"))
+            rows = result.fetchall()
+            expected_statuses = {'PENDING', 'WRONG', 'CORRECT_OUTCOME', 'EXACT'}
+            unexpected = []
+            for row in rows:
+                status_val = row[0]
+                count_val = row[1]
+                display_val = status_val if status_val is not None else "NULL"
+                print(f"  {display_val}: {count_val}")
+                if status_val not in expected_statuses:
+                    unexpected.append(display_val)
+            if unexpected:
+                print(f"⚠️ Unexpected status values found: {unexpected}")
+            else:
+                print("✅ All status values are valid")
                 
     except Exception as e:
         print(f"Error occurred: {e}")
