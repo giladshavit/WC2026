@@ -116,7 +116,7 @@ export default function AdminKnockoutScreen() {
       });
       
       // Sort by stage and date
-      uniqueMatches.sort((a, b) => {
+      uniqueMatches.sort((a: AdminKnockoutMatch, b: AdminKnockoutMatch) => {
         const stageOrder: { [key: string]: number } = {
           'round32': 1,
           'round16': 2,
