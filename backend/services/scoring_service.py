@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Optional, Tuple
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from services.predictions.enums import MatchPredictionStatus, KnockoutPredictionStatus, PredictionType
@@ -204,7 +205,35 @@ class ScoringService:
             })
         
         return leaderboard
-    
+
+    @staticmethod
+    def get_user_scoring_breakdown(db: Session, user_id: int) -> Dict[str, Any]:
+        """
+        Get detailed scoring breakdown for a specific user from the user_scores table.
+        If user not found, raises HTTPException(404).
+        If UserScores not found, creates and returns a default one.
+        """
+        user = DBReader.get_user(db, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        user_scores = DBReader.get_user_scores(db, user_id)
+        if not user_scores:
+            user_scores = DBWriter.create_user_scores(db, user_id)
+            DBUtils.commit(db)
+
+        return {
+            "user_id": user_id,
+            "user_name": user.name,
+            "total_points": user_scores.total_points,
+            "breakdown": {
+                "matches_score": user_scores.matches_score,
+                "groups_score": user_scores.groups_score,
+                "third_place_score": user_scores.third_place_score,
+                "knockout_score": user_scores.knockout_score
+            }
+        }
+
     @staticmethod
     def update_match_scoring_for_all_users(
         db: Session,

@@ -48,45 +48,7 @@ async def get_user_scoring_breakdown(
         Detailed breakdown of user's points by prediction type
     """
     try:
-        from models.user import User
-        from models.user_scores import UserScores
-        
-        # Check if user exists
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Get user scores from new table
-        user_scores = db.query(UserScores).filter(UserScores.user_id == user_id).first()
-        
-        if not user_scores:
-            # Create default scores if they don't exist
-            user_scores = UserScores(
-                user_id=user_id,
-                matches_score=0,
-                groups_score=0,
-                third_place_score=0,
-                knockout_score=0,
-                total_points=0
-            )
-            db.add(user_scores)
-            db.commit()
-            db.refresh(user_scores)
-        
-        breakdown = {
-            "user_id": user_id,
-            "user_name": user.name,
-            "total_points": user_scores.total_points,
-            "breakdown": {
-                "matches_score": user_scores.matches_score,
-                "groups_score": user_scores.groups_score,
-                "third_place_score": user_scores.third_place_score,
-                "knockout_score": user_scores.knockout_score
-            }
-        }
-        
-        return breakdown
-        
+        return ScoringService.get_user_scoring_breakdown(db, user_id)
     except HTTPException:
         raise
     except Exception as e:
