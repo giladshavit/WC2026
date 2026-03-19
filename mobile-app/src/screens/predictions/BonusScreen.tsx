@@ -23,7 +23,6 @@ import { apiService, BonusPrediction, BonusOptions, GroupPrediction } from '../.
 import { useAuth } from '../../contexts/AuthContext';
 import { useTournament } from '../../contexts/TournamentContext';
 import { useToast } from '../../components/toast/Toast';
-import ConfirmSaveModal from '../../components/modals/ConfirmSaveModal';
 import ConfirmExitModal from '../../components/modals/ConfirmExitModal';
 import { ErrorModal } from '../../components/modals/CustomModals';
 
@@ -647,7 +646,6 @@ export default function BonusScreen() {
   const [saving, setSaving] = useState(false);
   const [localAnswers, setLocalAnswers] = useState<Record<string, string | number | null>>({});
   const [savedAnswers, setSavedAnswers] = useState<Record<string, string | number | null>>({});
-  const [showSaveModal, setShowSaveModal] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [allowExit, setAllowExit] = useState(false);
   const allowExitRef = useRef(false);
@@ -868,25 +866,6 @@ export default function BonusScreen() {
       }
     });
     return updates;
-  };
-
-  const handleSave = async () => {
-    const updates = getChangedUpdates();
-    if (Object.keys(updates).length === 0) return;
-    setShowSaveModal(false);
-    setSaving(true);
-    try {
-      const updated = await apiService.updateBonusPrediction(updates);
-      setPrediction(updated);
-      const newSaved = { ...localAnswers };
-      setSavedAnswers(newSaved);
-      showToast?.('Saved successfully');
-    } catch (e) {
-      console.error('Bonus save error:', e);
-      setErrorModal({ title: 'Error', message: 'Could not save. Please try again.' });
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleExitConfirm = () => {
@@ -1930,8 +1909,8 @@ export default function BonusScreen() {
                   </View>
                 ) : (
                   <View style={styles.summaryRowRightContent}>
-                    <Text style={styles.summaryValueEditable}>{label}</Text>
-                    <Ionicons name="chevron-forward" size={14} color="#16a34a" />
+                    <Text style={styles.summaryValuePending}>{label}</Text>
+                    <Ionicons name="chevron-forward" size={14} color="#f59e0b" />
                   </View>
                 )}
               </View>
@@ -2037,33 +2016,6 @@ export default function BonusScreen() {
           isSectionLocked(SECTION_TOURNAMENT_FIELDS)
         )}
       </ScrollView>
-
-      {finePerChangeVal > 0 && (
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.saveButton, (!isDirty || saving) && styles.saveButtonDisabled]}
-            onPress={() => (isDirty ? setShowSaveModal(true) : null)}
-            disabled={!isDirty || saving}
-          >
-          {saving ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : isDirty ? (
-              <Text style={styles.saveButtonText}>Save</Text>
-            ) : (
-              <Text style={styles.saveButtonTextDisabled}>Save</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <ConfirmSaveModal
-        visible={showSaveModal}
-        changesCount={changedCount}
-        finePoints={penaltyPoints}
-        finePerChange={finePerChangeVal}
-        onClose={() => setShowSaveModal(false)}
-        onConfirm={handleSave}
-      />
 
       <ConfirmExitModal
         visible={showExitModal}
@@ -2397,7 +2349,7 @@ const styles = StyleSheet.create({
   autoSaveText: { fontSize: 13, color: '#16a34a', fontWeight: '500' },
 
   scroll: { flex: 1, backgroundColor: '#f1f5f9' },
-  scrollContent: { padding: 20, paddingBottom: 140 },
+  scrollContent: { padding: 20, paddingBottom: 40 },
   sectionCardSummary: {
     backgroundColor: '#1e3a5f',
     borderRadius: 16,
@@ -2553,6 +2505,7 @@ const styles = StyleSheet.create({
   summaryValueSettled: { fontSize: 13, color: '#16a34a', fontWeight: '600' },
   summaryValueCorrect: { fontSize: 13, color: '#16a34a', fontWeight: '700' },
   summaryValueIncorrect: { fontSize: 13, color: '#ef4444', fontWeight: '700' },
+  summaryValuePending: { fontSize: 13, color: '#f59e0b', fontWeight: '700' },
 
   footer: {
     position: 'absolute',
