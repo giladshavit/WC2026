@@ -38,20 +38,22 @@ def delete_all_users():
 
         # Count before
         user_count = db.query(User).count()
+        league_count = db.query(League).count()
         print(f"\nUsers to delete: {user_count}")
+        print(f"Leagues to delete: {league_count}")
 
-        if user_count == 0:
-            print("No users found.")
+        if user_count == 0 and league_count == 0:
+            print("No users or leagues found.")
             return
 
         # Delete in order (respecting foreign keys)
         print("\nDeleting related data...")
 
-        deleted_memberships = db.query(LeagueMembership).delete()
-        print(f"  - League memberships: {deleted_memberships}")
-
         deleted_leagues = db.query(League).delete()
         print(f"  - Leagues: {deleted_leagues}")
+
+        deleted_memberships = db.query(LeagueMembership).delete()
+        print(f"  - League memberships: {deleted_memberships}")
 
         deleted_draft = db.query(KnockoutStagePredictionDraft).delete()
         print(f"  - Knockout draft predictions: {deleted_draft}")

@@ -31,8 +31,8 @@ const QUESTION_LABELS: Record<string, string> = {
   g2: 'Top scoring group',
   g3: 'Top scoring team in Group Stage',
   g4: 'Teams finishing with 9/9 points',
-  g5: 'Teams with clean sheets in group stage',
-  g6: 'Scoreless draws (0:0) in the Group Stage',
+  g5: 'Teams with clean sheets in Group Stage',
+  g6: 'Scoreless draws (0:0) in Group Stage',
   k1: 'Total goals scored in Knockout Stage',
   k2: 'Matches decided by penalty shootout',
   k3: '3rd-place teams reaching Quarter Finals',
@@ -153,16 +153,26 @@ const T1_OPTIONS = [
   { value: '280_plus', label: '280+' },
 ];
 const T3_OPTIONS = [
+  { value: 'mbappe', label: 'Kylian Mbappé', flag: '🇫🇷' },
+  { value: 'kane', label: 'Harry Kane', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+  { value: 'haaland', label: 'Erling Haaland', flag: '🇳🇴' },
+  { value: 'yamal', label: 'Lamine Yamal', flag: '🇪🇸' },
   { value: 'messi', label: 'Lionel Messi', flag: '🇦🇷' },
   { value: 'ronaldo', label: 'Cristiano Ronaldo', flag: '🇵🇹' },
-  { value: 'mbappe', label: 'Kylian Mbappé', flag: '🇫🇷' },
-  { value: 'haaland', label: 'Erling Haaland', flag: '🇳🇴' },
-  { value: 'neymar', label: 'Neymar Jr.', flag: '🇧🇷' },
-  { value: 'kane', label: 'Harry Kane', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+  { value: 'lukaku', label: 'Romelu Lukaku', flag: '🇧🇪' },
   { value: 'vinicius', label: 'Vinícius Jr.', flag: '🇧🇷' },
-  { value: 'salah', label: 'Mohamed Salah', flag: '🇪🇬' },
+  { value: 'lautaro', label: 'Lautaro Martínez', flag: '🇦🇷' },
   { value: 'bellingham', label: 'Jude Bellingham', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-  { value: 'pedri', label: 'Pedri', flag: '🇪🇸' },
+  { value: 'alvarez', label: 'Julián Álvarez', flag: '🇦🇷' },
+  { value: 'gakpo', label: 'Cody Gakpo', flag: '🇳🇱' },
+  { value: 'saka', label: 'Bukayo Saka', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+  { value: 'nunez', label: 'Darwin Núñez', flag: '🇺🇾' },
+  { value: 'wirtz', label: 'Florian Wirtz', flag: '🇩🇪' },
+  { value: 'dembele', label: 'Ousmane Dembélé', flag: '🇫🇷' },
+  { value: 'bruno', label: 'Bruno Fernandes', flag: '🇵🇹' },
+  { value: 'memphis', label: 'Memphis Depay', flag: '🇳🇱' },
+  { value: 'salah', label: 'Mohamed Salah', flag: '🇪🇬' },
+  { value: 'mane', label: 'Sadio Mané', flag: '🇸🇳' },
   { value: 'other', label: 'Other', flag: undefined as any },
 ];
 
@@ -1887,7 +1897,7 @@ export default function BonusScreen() {
             >
               <View style={styles.summaryRowLeft}>
                 <Text style={styles.summaryQNew}>Q{globalIdx + 1}</Text>
-                <Text style={styles.summaryQuestionLabelNew} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                <Text style={styles.summaryQuestionLabelNew} numberOfLines={2}>
                   {QUESTION_LABELS[field]}
                 </Text>
               </View>
@@ -2492,14 +2502,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     minHeight: 52,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   summaryRowBorder: { borderBottomWidth: 1, borderBottomColor: '#2d4a6e' },
-  summaryRowLeft: { flex: 1, marginRight: 8 },
+  summaryRowLeft: { flex: 1, marginRight: 8, overflow: 'hidden', minWidth: 0 },
   summaryRowRight: { alignItems: 'flex-end', minWidth: 80 },
   summaryRowRightContent: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   summaryQNew: { fontSize: 10, fontWeight: '800', color: '#16a34a', letterSpacing: 0.5, marginBottom: 2 },
-  summaryQuestionLabelNew: { fontSize: 13, color: '#94a3b8', lineHeight: 18 },
+  summaryQuestionLabelNew: { fontSize: 12, color: '#94a3b8', lineHeight: 16, flexShrink: 1 },
   summaryAnswerPrompt: { fontSize: 12, color: '#475569' },
   summaryValueEditable: { fontSize: 13, color: '#16a34a', fontWeight: '700' },
   summaryValueSettled: { fontSize: 13, color: '#16a34a', fontWeight: '600' },

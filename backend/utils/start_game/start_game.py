@@ -21,7 +21,7 @@ def run_script(script_name: str, description: str) -> bool:
     print("\n" + "=" * 60)
     print(f"🔄 {description}")
     print("=" * 60)
-    script_path = HERE / script_name
+    script_path = (HERE / script_name).resolve()
     
     # Set working directory to backend root for proper imports
     backend_dir = HERE.parent.parent
@@ -54,7 +54,9 @@ def main() -> None:
         ("update_team_flags.py", "Updating team flags"),
         ("create_groups.py", "Creating groups from teams"),
         ("create_matches.py", "Creating all matches from templates"),
-        ("create_knockout_results.py", "Creating knockout results for bracket building"),
+        ("create_knockout_results.py", "Creating knockout results"),
+        ("../fill_knockout_result_ids.py", "Filling knockout_result_id in match templates"),
+        ("create_global_league.py", "Creating global league"),
     ]
 
     failed = []
@@ -67,6 +69,9 @@ def main() -> None:
         print("⚠️  Completed with errors. Failed scripts:", ", ".join(failed))
     else:
         print("🎉 Game setup completed successfully!")
+        print()
+        print("Next step (run manually with API key):")
+        print("  FOOTBALL_DATA_API_KEY=your_key python utils/start_game/map_external_fixtures.py")
 
 
 if __name__ == "__main__":

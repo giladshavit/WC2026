@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
 """
 Master script to reset the entire tournament database.
-This script runs all deletion scripts in the correct order to completely reset the tournament.
+This script runs all deletion scripts in the correct order for a complete full reset.
 
 Order of operations:
-1. Delete all predictions
-2. Delete all results  
+1. Delete all predictions and drafts
+2. Delete all results
 3. Delete all matches
 4. Delete all groups
 5. Delete all teams
+6. Delete all users and leagues
+7. Delete static templates and singletons (column_mapping, matches_template, group_template, third_place_combinations, bonus_results, third_place_group_counts, tournament_config)
 
-This will completely reset the tournament while preserving:
-- Users
-- Tournament configuration
-- Column mappings
-- Third place combinations (reference data)
+After reset: empty database. Restore with create_all_templates.py then start_game.py.
 """
 
 import sys
@@ -24,6 +22,9 @@ from pathlib import Path
 
 # Add the backend directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from database import SessionLocal
+
 
 def run_script(script_name, description):
     """Run a deletion script and handle errors."""
@@ -58,29 +59,73 @@ def run_script(script_name, description):
     
     return True
 
+
+def delete_static_templates():
+    """Delete all static template data and singletons."""
+    from models.column_mapping import ColumnMapping
+    from models.matches_template import MatchTemplate
+    from models.group_template import GroupTemplate
+    from models.third_place_combinations import ThirdPlaceCombination
+    from models.results import BonusResults
+    from models.statistics import ThirdPlaceGroupCounts
+    from models.tournament_config import TournamentConfig
+
+    db = SessionLocal()
+    try:
+        db.query(ColumnMapping).delete()
+        print("  ✅ Deleted column_mapping")
+
+        db.query(MatchTemplate).delete()
+        print("  ✅ Deleted matches_template")
+
+        db.query(GroupTemplate).delete()
+        print("  ✅ Deleted group_template")
+
+        db.query(ThirdPlaceCombination).delete()
+        print("  ✅ Deleted third_place_combinations")
+
+        db.query(BonusResults).delete()
+        print("  ✅ Deleted bonus_results")
+
+        db.query(ThirdPlaceGroupCounts).delete()
+        print("  ✅ Deleted third_place_group_counts")
+
+        db.query(TournamentConfig).delete()
+        print("  ✅ Deleted tournament_config")
+
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"\n❌ delete_static_templates() failed: {e}")
+        raise
+    finally:
+        db.close()
+
+
 def reset_all():
     """Reset the entire tournament database."""
     
     print("🚀 STARTING COMPLETE TOURNAMENT RESET")
     print("This will delete ALL tournament data in the following order:")
-    print("1. All predictions (match, group, third place, knockout)")
+    print("1. All predictions (match, group, third place, knockout, draft)")
     print("2. All results (match, group, third place, knockout)")
-    print("3. All matches (tournament matches only)")
-    print("4. All groups (tournament groups and templates)")
+    print("3. All matches")
+    print("4. All groups")
     print("5. All teams")
-    print("6. All users' points (reset to zero)")
+    print("6. All users, leagues, and memberships")
+    print("7. Static templates and singletons (column_mapping, matches_template, group_template, third_place_combinations, bonus_results, third_place_group_counts, tournament_config)")
     print()
     print("⚠️  This action cannot be undone!")
     print()
     
     # List of scripts to run in order
     scripts = [
-        ("delete_all_pred.py", "Deleting all predictions"),
+        ("delete_all_pred.py", "Deleting all predictions and drafts"),
         ("delete_all_results.py", "Deleting all results"),
         ("delete_all_matches.py", "Deleting all matches"),
         ("delete_all_groups.py", "Deleting all groups"),
         ("delete_all_teams.py", "Deleting all teams"),
-        ("reset_all_users_points.py", "Resetting all users' points")
+        ("delete_all_users.py", "Deleting all users and leagues"),
     ]
     
     failed_scripts = []
@@ -102,14 +147,15 @@ def reset_all():
     else:
         print("✅ All deletion scripts completed successfully!")
         print()
-        print("The tournament database has been completely reset.")
-        print("Remaining data:")
-        print("- Users")
-        print("- Tournament configuration")
-        print("- Column mappings")
-        print("- Third place combinations (reference data)")
-        print()
-        print("You can now set up a fresh tournament!")
+        print("✅ Database completely reset. Ready for fresh initialization.")
+        print("Run in this order to restore:")
+        print("  1. python utils/create_templates/create_all_templates.py")
+        print("  2. python utils/start_game/start_game.py")
+    
+    print("\n" + "=" * 60)
+    print("🗂️  Deleting static templates...")
+    delete_static_templates()
+
 
 if __name__ == "__main__":
     reset_all()

@@ -8,6 +8,9 @@ Order of operations:
 2. Create match templates (all 104 matches)
 3. Create group templates (12 groups with round32 mappings)
 4. Load third place combinations from Google Sheets (495 combinations)
+5. Create BonusResults singleton
+6. Create ThirdPlaceGroupCounts singleton
+7. Create TournamentConfig (PRE_GROUP_STAGE)
 
 This will set up the complete tournament structure templates.
 """
@@ -26,13 +29,14 @@ def run_script(script_name, description):
     print(f"🔄 {description}")
     print(f"{'='*60}")
     
-    script_path = Path(__file__).parent / script_name
+    script_path = (Path(__file__).parent / script_name).resolve()
+    backend_dir = Path(__file__).parent.parent.parent
     
     try:
-        # Run the script
+        # Run the script from backend root for proper imports
         result = subprocess.run([
             sys.executable, str(script_path)
-        ], capture_output=True, text=True, cwd=Path(__file__).parent)
+        ], capture_output=True, text=True, cwd=str(backend_dir))
         
         if result.returncode == 0:
             print("✅ SUCCESS")
@@ -61,6 +65,9 @@ def create_all_templates():
     print("2. Match templates (all 104 tournament matches)")
     print("3. Group templates (12 groups with round32 mappings)")
     print("4. Third place combinations (495 combinations from Google Sheets)")
+    print("5. BonusResults singleton")
+    print("6. ThirdPlaceGroupCounts singleton")
+    print("7. TournamentConfig (PRE_GROUP_STAGE)")
     print()
     print("⚠️  This will create/overwrite existing template data!")
     print()
@@ -70,7 +77,10 @@ def create_all_templates():
         ("create_column_mapping.py", "Creating column mappings"),
         ("create_matches_template.py", "Creating match templates"),
         ("create_group_template.py", "Creating group templates"),
-        ("load_combinations_from_google_sheet.py", "Loading third place combinations")
+        ("load_combinations_from_google_sheet.py", "Loading third place combinations"),
+        ("create_bonus_results.py", "Creating BonusResults singleton"),
+        ("create_third_place_group_counts.py", "Creating ThirdPlaceGroupCounts singleton"),
+        ("create_tournament_config.py", "Creating TournamentConfig (PRE_GROUP_STAGE)"),
     ]
     
     failed_scripts = []
@@ -93,12 +103,15 @@ def create_all_templates():
         print("✅ All template creation scripts completed successfully!")
         print()
         print("The tournament templates have been created:")
-        print("- Column mappings configured")
-        print("- 104 match templates created (group stage + knockout)")
-        print("- 12 group templates with round32 mappings")
-        print("- 495 third place combinations loaded from Google Sheets")
+        print("- Column mappings (8 rows)")
+        print("- 104 match templates")
+        print("- 12 group templates")
+        print("- 495 third place combinations")
+        print("- BonusResults singleton")
+        print("- ThirdPlaceGroupCounts singleton")
+        print("- TournamentConfig (PRE_GROUP_STAGE)")
         print()
-        print("The tournament structure is now ready for setup!")
+        print("Next step: run python utils/start_game/start_game.py")
 
 if __name__ == "__main__":
     create_all_templates()

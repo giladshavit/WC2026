@@ -5,10 +5,11 @@ Script to create GroupTemplate with group to round32 matches mapping
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))
 
-from backend.database import SessionLocal
-from backend.models.group_template import GroupTemplate
+from database import SessionLocal
+from models.group_template import GroupTemplate
 
 def create_group_template():
     """

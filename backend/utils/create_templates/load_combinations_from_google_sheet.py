@@ -6,7 +6,8 @@ This script reads the Google Sheet and creates all combinations
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))
 
 from database import SessionLocal, engine
 from models.third_place_combinations import ThirdPlaceCombination
