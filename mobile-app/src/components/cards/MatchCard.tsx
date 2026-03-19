@@ -532,7 +532,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
         >
           <Ionicons
             name="flash"
-            size={13}
+            size={11}
             color={isTempted ? '#ffffff' : '#7c3aed'}
           />
           <Text
@@ -896,7 +896,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 7,
     paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1.5,
@@ -908,7 +908,7 @@ const styles = StyleSheet.create({
     borderColor: '#7c3aed',
   },
   temptationButtonText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: '#7c3aed',
   },
