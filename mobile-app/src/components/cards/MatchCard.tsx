@@ -17,6 +17,9 @@ interface MatchCardProps {
   match: Match;
   onScoreChange: (matchId: number, homeScore: number | null, awayScore: number | null, isTempted?: boolean) => void;
   onInputFocus?: (matchId: number) => void;
+  hideStats?: boolean;
+  hideTemptation?: boolean;
+  compact?: boolean;
 }
 
 const MatchStatusIndicator = ({ status }: { status: string }) => {
@@ -142,7 +145,7 @@ const BlinkingCursor = () => {
 };
 
 const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
-  function MatchCard({ match, onScoreChange, onInputFocus }, ref) {
+  function MatchCard({ match, onScoreChange, onInputFocus, hideStats, hideTemptation, compact }, ref) {
   const rootRef = useRef<View>(null);
   const { getCurrentUserId } = useAuth();
   const { showToast } = useToast();
@@ -386,7 +389,9 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
       <View style={styles.teamNameWrapper}>
         <Text
           style={[styles.teamName, field === 'home' && styles.teamNameHome]}
-          numberOfLines={field === 'home' ? 1 : 2}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
           ellipsizeMode="tail"
         >
           {name}
@@ -454,6 +459,8 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
                 styles.scoreInput,
                 isEditable ? styles.scoreInputEditable : styles.scoreInputDisabled,
                 !scoreValue && { color: placeholderColor },
+                !scoreValue && { lineHeight: 20 },
+                scoreValue && { lineHeight: 24 },
                 showLiveColor && { color: liveColor! },
               ]}
             >
@@ -468,14 +475,24 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
   return (
     <View
       ref={rootRef}
-      style={styles.container}
+      style={[
+        styles.container,
+        compact && { paddingHorizontal: 12, paddingBottom: 12, marginHorizontal: 8 },
+      ]}
     >
       <View style={styles.header}>
         <View style={styles.stageContainer}>
           <Text style={styles.stageText}>{getStageText(match.stage)}</Text>
         </View>
         <View style={styles.timeContainer}>
-          <Text style={styles.kickoffText}>{formatDate(match.date)}</Text>
+          <Text
+            style={styles.kickoffText}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+          >
+            {formatDate(match.date)}
+          </Text>
         </View>
         <View style={styles.statusWrapper}>
           <MatchStatusIndicator status={match.status} />
@@ -511,17 +528,19 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
         <ActualResultDisplay actualResult={match.actual_result} />
 
       {/* Stats button - bottom left */}
-      <TouchableOpacity
-        style={styles.statsButton}
-        onPress={() => setShowStats(true)}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="stats-chart" size={13} color="#38bdf8" />
-        <Text style={styles.statsButtonText}>Stats</Text>
-      </TouchableOpacity>
+      {!hideStats && (
+        <TouchableOpacity
+          style={styles.statsButton}
+          onPress={() => setShowStats(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="stats-chart" size={13} color="#38bdf8" />
+          <Text style={styles.statsButtonText}>Stats</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Temptation button - bottom right (only when editable) */}
-      {isEditable && (
+      {!hideTemptation && isEditable && (
         <TouchableOpacity
           style={[
             styles.temptationButton,
@@ -687,6 +706,7 @@ const styles = StyleSheet.create({
   timeContainer: {
     flex: 1,
     alignItems: 'center',
+    flexShrink: 0,
   },
   kickoffText: {
     fontSize: 14,
@@ -785,7 +805,6 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     textAlign: 'center',
     textAlignVertical: 'center',
-    lineHeight: 24,
     paddingTop: 0,
     paddingBottom: 0,
     fontSize: 20,
