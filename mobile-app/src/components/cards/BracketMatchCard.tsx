@@ -9,9 +9,11 @@ interface BracketMatchCardProps {
   onPress?: (match: BracketMatch) => void;
   onLayout?: (matchId: number, layout: { x: number; y: number; width: number; height: number }) => void;
   isModified?: boolean;
+  scaleFactor?: number;
 }
 
-export default function BracketMatchCard({ match, onPress, onLayout, isModified }: BracketMatchCardProps) {
+export default function BracketMatchCard({ match, onPress, onLayout, isModified, scaleFactor = 1 }: BracketMatchCardProps) {
+  const sf = scaleFactor;
   const isLocked = match.is_editable === false;
   const hasWinner = !!match.winner_team_id && match.winner_team_id !== 0;
   const isTeam1Winner = hasWinner && match.winner_team_id === match.team1_id;
@@ -87,26 +89,30 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified 
     const displayName = isTBD ? '' : (teamShortName || (teamName ? teamName : ''));
 
     return (
-      <View style={[styles.teamHalf, { backgroundColor: halfBg }]}>
+      <View style={[styles.teamHalf, { backgroundColor: halfBg, paddingLeft: 4 * sf, paddingRight: 4 * sf }]}>
         <View style={styles.teamHalfInner}>
           {isTBD ? (
-            <View style={styles.tbdFlagPlaceholder} />
+            <View style={[styles.tbdFlagPlaceholder, { width: 16 * sf, height: 10 * sf, marginRight: Math.max(3, 4 * sf) }]} />
           ) : teamFlag ? (
             <Image
               source={{ uri: teamFlag }}
-              style={styles.flag}
+              style={[styles.flag, { width: 20 * sf, height: 14 * sf, marginRight: Math.max(3, 4 * sf) }]}
               resizeMode="contain"
             />
           ) : (
-            <View style={styles.tbdFlagPlaceholder} />
+            <View style={[styles.tbdFlagPlaceholder, { width: 16 * sf, height: 10 * sf, marginRight: Math.max(3, 4 * sf) }]} />
           )}
           <Text
             style={[
               styles.teamName,
+              { fontSize: Math.max(8, 11 * sf) },
               isInvalid && styles.teamNameInvalid,
               isEliminated && styles.teamNameStrikethrough,
             ]}
             numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+            ellipsizeMode="clip"
           >
             {displayName}
           </Text>
@@ -123,15 +129,20 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified 
 
     const renderFinalTeam1 = () => (
       <View style={styles.finalTeamBlock}>
-        <Text style={[styles.finalTeamName, team1Eliminated && styles.finalTeamNameStrikethrough]}>
+        <Text
+          style={[styles.finalTeamName, { fontSize: Math.max(12, 18 * sf) }, team1Eliminated && styles.finalTeamNameStrikethrough]}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+        >
           {team1Name}
         </Text>
         {match.team1_flag ? (
           <View style={styles.finalFlagWrapper}>
-            <Image source={{ uri: match.team1_flag }} style={styles.finalFlag} resizeMode="contain" />
+            <Image source={{ uri: match.team1_flag }} style={[styles.finalFlag, { width: 44 * sf, height: 30 * sf }]} resizeMode="contain" />
           </View>
         ) : (
-          <View style={styles.finalTbdPlaceholder} />
+          <View style={[styles.finalTbdPlaceholder, { width: 44 * sf, height: 30 * sf }]} />
         )}
       </View>
     );
@@ -140,12 +151,17 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified 
       <View style={styles.finalTeamBlock}>
         {match.team2_flag ? (
           <View style={styles.finalFlagWrapper}>
-            <Image source={{ uri: match.team2_flag }} style={styles.finalFlag} resizeMode="contain" />
+            <Image source={{ uri: match.team2_flag }} style={[styles.finalFlag, { width: 44 * sf, height: 30 * sf }]} resizeMode="contain" />
           </View>
         ) : (
-          <View style={styles.finalTbdPlaceholder} />
+          <View style={[styles.finalTbdPlaceholder, { width: 44 * sf, height: 30 * sf }]} />
         )}
-        <Text style={[styles.finalTeamName, team2Eliminated && styles.finalTeamNameStrikethrough]}>
+        <Text
+          style={[styles.finalTeamName, { fontSize: Math.max(12, 18 * sf) }, team2Eliminated && styles.finalTeamNameStrikethrough]}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+        >
           {team2Name}
         </Text>
       </View>
@@ -154,7 +170,7 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified 
     return (
       <View style={styles.finalContainer}>
         {renderFinalTeam1()}
-        <Text style={styles.finalVsText}>VS</Text>
+        <Text style={[styles.finalVsText, { fontSize: Math.max(9, 13 * sf) }]}>VS</Text>
         {renderFinalTeam2()}
       </View>
     );
@@ -169,27 +185,27 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified 
       <View style={[styles.finalWrapper, isLocked && { opacity: 0.45 }]}>
         {/* Winner or placeholder ABOVE the card */}
         {match.winner_team_id ? (
-          <View style={styles.winnerBanner}>
-            <Text style={styles.winnerLabel}>WINNER</Text>
+          <View style={[styles.winnerBanner, { height: 80 * sf }]}>
+            <Text style={[styles.winnerLabel, { fontSize: Math.max(10, 15 * sf) }]}>WINNER</Text>
             <View style={styles.winnerTeamRow}>
               {resolvedWinnerFlag ? (
                 <Image
                   source={{ uri: resolvedWinnerFlag }}
-                  style={styles.winnerBannerFlag}
+                  style={[styles.winnerBannerFlag, { width: 80 * sf, height: 54 * sf }]}
                   resizeMode="contain"
                 />
               ) : (
-                <View style={styles.winnerFlagPlaceholder} />
+                <View style={[styles.winnerFlagPlaceholder, { width: 80 * sf, height: 54 * sf }]} />
               )}
             </View>
           </View>
         ) : (
-          <View style={styles.winnerPlaceholder} />
+          <View style={[styles.winnerPlaceholder, { height: 80 * sf }]} />
         )}
 
         {/* Trophy image between winner and card */}
-        <View style={styles.trophyWrapper}>
-          <Image source={TROPHY_IMAGE} style={styles.trophyImage} resizeMode="contain" />
+        <View style={[styles.trophyWrapper, { height: 110 * sf, width: 80 * sf, marginBottom: 12 * sf, marginTop: 8 * sf }]}>
+          <Image source={TROPHY_IMAGE} style={[styles.trophyImage, { width: 72 * sf, height: 96 * sf }]} resizeMode="contain" />
         </View>
 
         {/* The actual final match card - invalid = red+glow, else gold */}
@@ -203,7 +219,7 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified 
           },
         ]}>
           <TouchableOpacity
-            style={[styles.container, styles.finalCardContainer, { borderColor: finalBorderColor }]}
+            style={[styles.container, styles.finalCardContainer, { borderColor: finalBorderColor, width: 130 * sf, height: 220 * sf, borderRadius: 20 * sf }]}
             onPress={() => onPress?.(match)}
             onLayout={(event) => {
               const { x, y, width, height } = event.nativeEvent.layout;
@@ -211,6 +227,18 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified 
             }}
             activeOpacity={isLocked ? 1 : 0.7}
           >
+            {isModified && hasWinner && (
+              <View style={{
+                position: 'absolute',
+                top: 6,
+                right: 6,
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: '#f59e0b',
+                zIndex: 10,
+              }} />
+            )}
             {renderFinalMatch()}
             {scoreBadge && (
               <View style={[styles.scoreBadgeCircle, { backgroundColor: scoreBadge.bg }]}>
@@ -238,7 +266,7 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified 
         }
       ]}>
         <TouchableOpacity
-          style={[styles.container, { borderColor }]}
+          style={[styles.container, { borderColor, width: 100 * sf, height: 68 * sf, borderRadius: 20 * sf }]}
           onPress={() => onPress?.(match)}
           onLayout={(event) => {
             const { x, y, width, height } = event.nativeEvent.layout;
@@ -246,7 +274,7 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified 
           }}
           activeOpacity={isLocked ? 1 : 0.7}
         >
-          {isModified && (
+          {isModified && hasWinner && (
             <View style={{
               position: 'absolute',
               top: 6,

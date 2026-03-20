@@ -138,7 +138,7 @@ export function calculateMatchSide(matchId: number): 'left' | 'right' {
 /**
  * Organize matches by stage and side for bracket display
  */
-export function organizeBracketMatches(predictions: any[]): { organized: OrganizedBracket; calculateCardCoordinates: (spacing: number) => void } {
+export function organizeBracketMatches(predictions: any[]): { organized: OrganizedBracket; calculateCardCoordinates: (spacing: number, cardHeight?: number) => void } {
   const organized: OrganizedBracket = {
     round32_left: [],
     round32_right: [],
@@ -256,7 +256,7 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
   // Calculate proper vertical positioning for bracket flow
   // The goal is to position matches so that the next match is centered between its two source matches
   
-  const calculateVerticalPositions = () => {
+  const calculateVerticalPositions = (cardHeight: number = 60) => {
     // Round32 matches get sequential positions (0, 1, 2, 3...) - compact spacing to fit screen
     organized.round32_left = organized.round32_left.map((match, index) => ({
       ...match,
@@ -273,7 +273,6 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       const sourceMatches = organized.round32_left.filter(m => getNextMatchId(m.id) === match.id);
       if (sourceMatches.length === 2) {
         // Calculate the center of each source match (position + half height of card)
-        const cardHeight = 60; // Height of the match card (this should match BracketMatchCard height)
         const center1 = sourceMatches[0].verticalPosition! + (cardHeight / 2);
         const center2 = sourceMatches[1].verticalPosition! + (cardHeight / 2);
         const avgCenter = (center1 + center2) / 2;
@@ -290,7 +289,6 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       const sourceMatches = organized.round32_right.filter(m => getNextMatchId(m.id) === match.id);
       if (sourceMatches.length === 2) {
         // Calculate the center of each source match (position + half height of card)
-        const cardHeight = 60; // Height of the match card (this should match BracketMatchCard height)
         const center1 = sourceMatches[0].verticalPosition! + (cardHeight / 2);
         const center2 = sourceMatches[1].verticalPosition! + (cardHeight / 2);
         const avgCenter = (center1 + center2) / 2;
@@ -308,7 +306,6 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       const sourceMatches = organized.round16_left.filter(m => getNextMatchId(m.id) === match.id);
       if (sourceMatches.length === 2) {
         // Calculate the center of each source match (position + half height of card)
-        const cardHeight = 60; // Height of the match card (this should match BracketMatchCard height)
         const center1 = sourceMatches[0].verticalPosition! + (cardHeight / 2);
         const center2 = sourceMatches[1].verticalPosition! + (cardHeight / 2);
         const avgCenter = (center1 + center2) / 2;
@@ -325,7 +322,6 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       const sourceMatches = organized.round16_right.filter(m => getNextMatchId(m.id) === match.id);
       if (sourceMatches.length === 2) {
         // Calculate the center of each source match (position + half height of card)
-        const cardHeight = 60; // Height of the match card (this should match BracketMatchCard height)
         const center1 = sourceMatches[0].verticalPosition! + (cardHeight / 2);
         const center2 = sourceMatches[1].verticalPosition! + (cardHeight / 2);
         const avgCenter = (center1 + center2) / 2;
@@ -347,7 +343,6 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
       
       if (sourceMatches.length === 2) {
         // Calculate the center of each source match (position + half height of card)
-        const cardHeight = 60; // Height of the match card (this should match BracketMatchCard height)
         const center1 = sourceMatches[0].verticalPosition! + (cardHeight / 2);
         const center2 = sourceMatches[1].verticalPosition! + (cardHeight / 2);
         const avgCenter = (center1 + center2) / 2;
@@ -361,7 +356,7 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
     // Final is positioned at the center of the two Semi matches
     if (organized.final.length > 0 && organized.semi.length === 2) {
       // Calculate the center of each semi match (position + half height of card)
-      const semiCardHeight = 60; // Height of semi match card
+      const semiCardHeight = cardHeight;
       const finalCardHeight = 140; // Height of final match card
       
       const center1 = organized.semi[0].verticalPosition!;
@@ -384,10 +379,12 @@ export function organizeBracketMatches(predictions: any[]): { organized: Organiz
     }
   };
 
-  calculateVerticalPositions();
+  calculateVerticalPositions(60); // Initial call with default for organizeBracketMatches
 
   // Calculate actual card coordinates for all matches
-  const calculateCardCoordinates = (spacing: number) => {
+  const calculateCardCoordinates = (spacing: number, cardHeight?: number) => {
+    const ch = cardHeight ?? 60;
+    calculateVerticalPositions(ch);
     // First, determine the visual column index (accounting for empty columns)
     const getVisualColumnIndex = (logicalColumnIndex: number): number => {
       let visualIndex = 0;

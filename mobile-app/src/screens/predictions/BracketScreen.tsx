@@ -46,8 +46,17 @@ export default function BracketScreen({}: BracketScreenProps) {
   const NAV_HEADER_HEIGHT = 60;
   const BOTTOM_TABS_HEIGHT = 80;
   const AVAILABLE_HEIGHT = screenHeight - STATUS_BAR_HEIGHT - TAB_BAR_HEIGHT - NAV_HEADER_HEIGHT - BOTTOM_TABS_HEIGHT;
-  const Y_OFFSET = 20;
-  const COLUMN_WIDTH = 110;
+  const BASE_HEIGHT = 680;
+  const scaleFactor = Math.min(1.0, Math.max(0.82, AVAILABLE_HEIGHT / BASE_HEIGHT));
+  const CARD_W = Math.round(100 * scaleFactor);
+  const CARD_H = Math.round(68 * scaleFactor);
+  const COLUMN_WIDTH = Math.round(110 * scaleFactor);
+  const FINAL_WRAPPER_ABOVE_CARD = Math.round(184 * scaleFactor);
+  const Y_OFFSET = 10;
+  const rawSpacing = (AVAILABLE_HEIGHT - 40) / 8;
+  const minSpacing = CARD_H + 8;
+  const spacing = Math.max(rawSpacing, minSpacing);
+  const totalBracketHeight = spacing * 8 + CARD_H + 40;
   const TOTAL_BRACKET_WIDTH = 60 + 9 * (COLUMN_WIDTH + 20) + 20;
   const [predictions, setPredictions] = useState<KnockoutPrediction[]>([]);
   const [organizedBracket, setOrganizedBracket] = useState<OrganizedBracket | null>(null);
@@ -71,6 +80,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [showBracketResetModal, setShowBracketResetModal] = useState(false);
   const [bracketResetPreview, setBracketResetPreview] = useState<BracketResetPreview | null>(null);
   const [isLoadingResetPreview, setIsLoadingResetPreview] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   const { showToast } = useToast();
   const [errorModal, setErrorModal] = useState<{
@@ -114,6 +124,20 @@ export default function BracketScreen({}: BracketScreenProps) {
       return () => clearTimeout(timer);
     }
   }, [loading, organizedBracket]);
+
+  // Info button in header
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setShowInfo(true)}
+          style={{ marginRight: 12, padding: 4 }}
+        >
+          <Ionicons name="information-circle-outline" size={24} color="#fff" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, editMode, isPreTournament, canEditDrafts, currentStage, hasUsedBracketReset]);
 
   // Intercept back button/gesture when in edit mode
   useEffect(() => {
@@ -183,9 +207,9 @@ export default function BracketScreen({}: BracketScreenProps) {
       // Organize into bracket structure
       const { organized, calculateCardCoordinates } = organizeBracketMatches(allPredictions.predictions);
       
-      // Calculate card coordinates with current spacing
-      const spacing = (AVAILABLE_HEIGHT - 40) / 8;
-      calculateCardCoordinates(spacing);
+      // Calculate card coordinates with current spacing and scaled card height
+      const cardHeight = Math.round(60 * scaleFactor);
+      calculateCardCoordinates(spacing, cardHeight);
       
       setOrganizedBracket(organized);
 
@@ -210,9 +234,6 @@ export default function BracketScreen({}: BracketScreenProps) {
     const PADDING = 60; // must match scrollContent paddingLeft
     const SCROLL_PADDING_TOP = 21; // matches scrollContent paddingTop style
     const COL_WIDTH = COLUMN_WIDTH + 20; // column width + marginRight gap
-    const CARD_W = 100; // must match BracketMatchCard container width
-    const CARD_H = 68;  // must match BracketMatchCard container height
-    const spacing = (AVAILABLE_HEIGHT - 40) / 8;
     const LINE_COLOR = '#94a3b8';
     const LINE_WIDTH = 1.5;
 
@@ -676,18 +697,12 @@ export default function BracketScreen({}: BracketScreenProps) {
   const renderColumn = (title: string, matches: BracketMatch[], isFinal = false, columnIndex = 0) => {
     if (matches.length === 0) return null;
 
-    // Calculate spacing based on available height
-    // Reserve some space for margins, divide remaining by 8 matches
-    const spacing = (AVAILABLE_HEIGHT - 40) / 8; // 40px for margins
-
     return (
       <View style={[styles.column, isFinal && styles.finalColumn, { width: COLUMN_WIDTH }]}>
         {/* Remove column titles to save space */}
-        <View style={[styles.matchesContainer, { minHeight: AVAILABLE_HEIGHT + Y_OFFSET + 40 }]}>
+        <View style={[styles.matchesContainer, { minHeight: totalBracketHeight + Y_OFFSET }]}>
           {matches.map((match, index) => {
             // For final cards, shift the wrapper UP so the card itself sits at the correct Y
-            // winnerBanner(80) + marginBottom(2) + trophyWrapper(96) + marginBottom(6) = 184
-            const FINAL_WRAPPER_ABOVE_CARD = 184;
             const isThisFinal = match.stage === 'final';
             const calculatedMarginTop = Math.max(
               0,
@@ -706,6 +721,7 @@ export default function BracketScreen({}: BracketScreenProps) {
                 match={match}
                 onPress={handleMatchPress}
                 isModified={editMode && match.is_winner_modified === true}
+                scaleFactor={scaleFactor}
               />
             </View>
             );
@@ -907,7 +923,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         horizontal
         showsHorizontalScrollIndicator={true}
         contentContainerStyle={styles.scrollContent}
-        style={[styles.scrollView, { pointerEvents: 'box-none', marginTop: 50 }]}
+        style={[styles.scrollView, { pointerEvents: 'box-none', marginTop: 44 }]}
         onScroll={() => {
           if (showScrollHint) {
             Animated.timing(scrollHintOpacity, {
@@ -919,17 +935,14 @@ export default function BracketScreen({}: BracketScreenProps) {
         }}
         scrollEventThrottle={16}
       >
-        {/* SVG overlay for bracket lines - AFTER the cards */}
-        <Svg 
-          style={[styles.bracketLines, { height: AVAILABLE_HEIGHT + Y_OFFSET }]}
+        <Svg
+          style={[styles.bracketLines, { height: totalBracketHeight + Y_OFFSET + 60 }]}
           width={screenWidth * 3}
-          height={AVAILABLE_HEIGHT + Y_OFFSET}
+          height={totalBracketHeight + Y_OFFSET + 60}
           pointerEvents="none"
         >
           {drawBracketLines()}
         </Svg>
-        
-        {/* All bracket columns */}
         {renderBracketColumns()}
       </ScrollView>
 
@@ -938,14 +951,14 @@ export default function BracketScreen({}: BracketScreenProps) {
         ref={bracketRef}
         style={[
           styles.bracketContainer,
-          { width: TOTAL_BRACKET_WIDTH, height: AVAILABLE_HEIGHT + Y_OFFSET + 60 }
+          { width: TOTAL_BRACKET_WIDTH, height: totalBracketHeight + Y_OFFSET + 60 }
         ]}
         collapsable={false}
       >
         <Svg
-          style={[styles.bracketLines, { height: AVAILABLE_HEIGHT + Y_OFFSET + 60 }]}
+          style={[styles.bracketLines, { height: totalBracketHeight + Y_OFFSET + 60 }]}
           width={TOTAL_BRACKET_WIDTH}
-          height={AVAILABLE_HEIGHT + Y_OFFSET + 60}
+          height={totalBracketHeight + Y_OFFSET + 60}
           pointerEvents="none"
         >
           {drawBracketLines()}
@@ -969,6 +982,93 @@ export default function BracketScreen({}: BracketScreenProps) {
           <Text style={styles.toastText}>{toastMsg}</Text>
         </View>
       )}
+
+      {/* Info Modal */}
+      <Modal visible={showInfo} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowInfo(false)}>
+          <Pressable style={[styles.modalCard, { backgroundColor: '#1e293b' }]} onPress={e => e.stopPropagation()}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 16 }}>
+              <Text style={[styles.modalTitle, { color: '#f1f5f9' }]}>Bracket Legend</Text>
+              <TouchableOpacity onPress={() => setShowInfo(false)}>
+                <Ionicons name="close" size={24} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+            {(() => {
+              const isPostGroupStage = currentStage != null &&
+                currentStage !== 'PRE_GROUP_STAGE' &&
+                !['GROUP_CYCLE_1', 'GROUP_CYCLE_2', 'GROUP_CYCLE_3'].includes(currentStage);
+
+              const colorLegendRows: { borderColor: string; prefix: string; prefixColor: string; suffix: string }[] = [
+                { borderColor: '#cbd5e1', prefix: 'Valid — ', prefixColor: '#cbd5e1', suffix: 'full points potential' },
+                { borderColor: '#ef4444', prefix: 'Invalid — ', prefixColor: '#ef4444', suffix: '0 points potential' },
+              ];
+              if (isPostGroupStage) {
+                colorLegendRows.push({
+                  borderColor: '#fb923c',
+                  prefix: 'Unreachable — ',
+                  prefixColor: '#fb923c',
+                  suffix: 'your predicted winner is expected in a different match at this stage (partial points potential)',
+                });
+              }
+
+              const buttonRows: { icon: string; color: string; label: string }[] = [];
+              if (!editMode) {
+                buttonRows.push({ icon: 'camera-outline', color: '#1e3a8a', label: 'Camera: save bracket as photo' });
+                buttonRows.push({ icon: 'share-outline', color: '#0369a1', label: 'Share: share bracket image' });
+              }
+              if (!isPreTournament && !editMode && canEditDrafts) {
+                buttonRows.push({ icon: 'create-outline', color: '#0f766e', label: 'Edit: enter edit mode to change predictions' });
+              }
+              if (currentStage === 'PRE_ROUND32' && !editMode && !hasUsedBracketReset) {
+                buttonRows.push({ icon: 'refresh-circle-outline', color: '#7c3aed', label: 'Bracket Reset: rebuild predictions from actual Round of 32 teams (one time only)' });
+              }
+              if (editMode) {
+                buttonRows.push({ icon: 'checkmark-circle-outline', color: '#15803d', label: 'Save: save all changes' });
+                buttonRows.push({ icon: 'refresh-outline', color: '#475569', label: 'Reset: undo all unsaved changes in this session' });
+                buttonRows.push({ icon: 'log-out-outline', color: '#9a3412', label: 'Exit: leave edit mode (will ask to discard changes)' });
+              }
+              const sectionHeaderBase = { marginBottom: 6, marginTop: 12, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, alignSelf: 'center' as const };
+              const sectionHeaderText = { fontSize: 10, fontWeight: '700' as const, letterSpacing: 1, color: '#94a3b8' };
+              return (
+                <>
+                  <View style={[sectionHeaderBase, { backgroundColor: 'rgba(45, 74, 110, 0.6)' }]}>
+                    <Text style={sectionHeaderText}>CARD COLORS</Text>
+                  </View>
+                  {colorLegendRows.map((row, i) => (
+                    <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 8 }}>
+                      <View style={{
+                        width: 28, height: 20, borderRadius: 6,
+                        borderWidth: 2, borderColor: row.borderColor,
+                        backgroundColor: '#0f2744',
+                        flexShrink: 0,
+                        marginTop: 2,
+                      }} />
+                      <Text style={{ flex: 1, fontSize: 13, lineHeight: 20, color: '#cbd5e1' }}>
+                        <Text style={{ color: row.prefixColor, fontWeight: '700' }}>{row.prefix}</Text>
+                        <Text style={{ color: '#cbd5e1', fontSize: 13 }}>{row.suffix}</Text>
+                      </Text>
+                    </View>
+                  ))}
+                  {buttonRows.length > 0 && (
+                    <>
+                      <View style={{ height: 1, backgroundColor: '#2d4a6e', marginVertical: 12, width: '100%' }} />
+                      <View style={[sectionHeaderBase, { backgroundColor: 'rgba(71, 85, 105, 0.5)' }]}>
+                        <Text style={sectionHeaderText}>BUTTONS</Text>
+                      </View>
+                      {buttonRows.map((row, i) => (
+                        <View key={`btn-${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 }}>
+                          <Ionicons name={row.icon as any} size={20} color={row.color} />
+                          <Text style={{ flex: 1, fontSize: 13, color: '#cbd5e1', lineHeight: 18 }}>{row.label}</Text>
+                        </View>
+                      ))}
+                    </>
+                  )}
+                </>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Enter Edit Mode Modal */}
       <EnterEditModeModal
@@ -1220,8 +1320,8 @@ export default function BracketScreen({}: BracketScreenProps) {
                 const freshPredictions = await apiService.getKnockoutPredictions(userId, undefined, editMode);
                 setPredictions(freshPredictions.predictions);
                 const { organized, calculateCardCoordinates } = organizeBracketMatches(freshPredictions.predictions);
-                const spacing = (AVAILABLE_HEIGHT - 40) / 8;
-                calculateCardCoordinates(spacing);
+                const cardHeight = Math.round(60 * scaleFactor);
+                calculateCardCoordinates(spacing, cardHeight);
                 setOrganizedBracket(organized);
                 await refreshFineCount();
               } catch (error) {
@@ -1727,7 +1827,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -10000, // Hide off-screen
     left: -10000,
-    backgroundColor: '#1e293b',
+    backgroundColor: 'transparent',
   },
   modalOverlay: {
     flex: 1,
