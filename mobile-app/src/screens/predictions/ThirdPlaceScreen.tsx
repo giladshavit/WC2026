@@ -108,8 +108,12 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     // Calculate height per card
     const cardHeight = (availableHeight - marginsBetweenRows) / 4;
     
-    return Math.max(cardHeight, 80); // Minimum height of 80px
+    return Math.max(cardHeight, 110); // Minimum height of 110px for iPhone mini
   };
+
+  // Scale factor for small cards: 0.8 when height=110, 1 when height>=120
+  const getScaleForCard = (cardHeight: number) =>
+    cardHeight >= 120 ? 1 : 0.8 + ((cardHeight - 110) / 10) * 0.2;
 
   const fetchData = async (): Promise<{ selectedCount: number }> => {
     let freshSelectedCount = 0;
@@ -374,23 +378,33 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       cardStyle = [styles.teamCard, styles.teamCardSelected];
     }
     
+    const cardHeight = getCardHeight();
+    const scale = getScaleForCard(cardHeight);
+
     return (
       <TouchableOpacity
-        style={[cardStyle, { height: getCardHeight() }]}
+        style={[cardStyle, { height: cardHeight }]}
         onPress={() => handleTeamPress(item.id)}
         activeOpacity={(isThirdPlaceLocked || !isEditable) ? 1 : 0.7}
         disabled={isThirdPlaceLocked || !isEditable}
       >
         {/* Flag in center */}
         {item.flag_url && (
-          <View style={styles.teamFlagWrapper}>
-            <Image source={{ uri: item.flag_url }} style={styles.teamFlag} />
+          <View style={[styles.teamFlagWrapper, { marginTop: Math.round(6 + 30 * (scale - 0.8)) }]}>
+            <Image
+              source={{ uri: item.flag_url }}
+              style={{
+                width: Math.round(40 * scale),
+                height: Math.round(28 * scale),
+                borderRadius: 4,
+              }}
+            />
           </View>
         )}
         
         {/* Team name below flag */}
-        <Text 
-          style={styles.teamName}
+        <Text
+          style={[styles.teamName, { fontSize: Math.round(14 * scale) }]}
           numberOfLines={2}
           adjustsFontSizeToFit={true}
           minimumFontScale={0.7}
@@ -399,7 +413,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         </Text>
         
         {/* Group name at bottom */}
-        <Text style={styles.groupName}>Group {item.group_name}</Text>
+        <Text style={[styles.groupName, { fontSize: Math.round(12 * scale) }]}>Group {item.group_name}</Text>
         
         {/* Selection indicators - only show if no result */}
         {isSelected && !hasResult && (
@@ -912,6 +926,7 @@ const styles = StyleSheet.create({
     flex: 1,
     margin: 4,
     padding: 8,
+    paddingBottom: 8,
     backgroundColor: '#1e3a5f',
     borderRadius: 12,
     alignItems: 'center',
@@ -974,7 +989,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94a3b8',
     textAlign: 'center',
-    marginBottom: 6, // Further reduced distance from bottom
+    marginBottom: 12,
   },
   selectedIndicator: {
     position: 'absolute',
