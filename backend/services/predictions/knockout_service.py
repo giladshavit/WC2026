@@ -1,4 +1,3 @@
-import time
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, List, Set, Tuple
 from sqlalchemy.orm import Session
@@ -234,7 +233,6 @@ class KnockoutService:
             HTTPException: If prediction not found, not editable, or invalid input
         """
         # Get prediction
-        print(f"DEBUG: prediction_id={prediction_id}, is_draft={is_draft}")
         prediction = DBReader.get_knockout_prediction_by_id(db, prediction_id, is_draft=is_draft)
         if not prediction:
             raise HTTPException(status_code=404, detail="Knockout prediction not found")
@@ -1147,34 +1145,18 @@ class KnockoutService:
         Update knockout predictions when third place teams change.
         This updates Round of 32 predictions where team2 comes from third-place teams.
         """
-        t0 = time.time()
-
         hash_key = KnockoutService._create_new_hash_key(db, advancing_team_ids)
-        print(f"[PERF] _create_new_hash_key: {time.time()-t0:.3f}s")
-        t1 = time.time()
-
         combination = DBReader.get_third_place_combination_by_hash(db, hash_key)
-        print(f"[PERF] get_third_place_combination_by_hash: {time.time()-t1:.3f}s")
-        t2 = time.time()
-
         if not combination:
-            print(f"[PERF] No combination found — returning early")
             return
 
         templates = KnockoutService._get_third_place_relevant_templates(db)
-        print(f"[PERF] _get_third_place_relevant_templates ({len(templates)} templates): {time.time()-t2:.3f}s")
-        t3 = time.time()
-
         for template in templates:
             KnockoutService._update_single_third_place_prediction(
                 db, user_id, template, combination
             )
-        print(f"[PERF] update loop ({len(templates)} iterations): {time.time()-t3:.3f}s")
-        t4 = time.time()
 
         DBUtils.commit(db)
-        print(f"[PERF] final commit: {time.time()-t4:.3f}s")
-        print(f"[PERF] TOTAL update_knockout_predictions: {time.time()-t0:.3f}s")
 
     # ═══════════════════════════════════════════════════════
     # PRIVATE - Serialization
@@ -1661,11 +1643,11 @@ class KnockoutService:
         column_name = KnockoutService.THIRD_TEAM_MAPPING.get(team_source)
         if not column_name:
             return None
-        
+
         third_place_source = getattr(combination, column_name, None)
         if not third_place_source:
             return None
-        
+
         group_letter = third_place_source[1]
         group = DBReader.get_group_by_name(db, group_letter)
         if not group:
@@ -1700,13 +1682,11 @@ class KnockoutService:
     @staticmethod
     def _create_new_hash_key(db: Session, advancing_team_ids: List[int]) -> str:
         """Create hash key from advancing team IDs"""
-        t0 = time.time()
         letters = []
         for team_id in advancing_team_ids:
             team = DBReader.get_team(db, team_id)
             if team and team.group_letter:
                 letters.append(team.group_letter)
-        print(f"[PERF] _create_new_hash_key {len(advancing_team_ids)} teams: {time.time()-t0:.3f}s")
         hash_key = ''.join(sorted(letters))
         return hash_key
 
