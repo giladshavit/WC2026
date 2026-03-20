@@ -114,6 +114,7 @@ npm install
 2. Update database connection in `backend/database.py`
 3. Run database migrations
 4. Seed with initial data using scripts in `mock_data/`
+5. Populate team short names (for bracket display): `cd backend && python utils/migrations/20260320_populate_team_short_names.py`
 
 ## Development
 
