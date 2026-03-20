@@ -85,7 +85,7 @@ export default function MatchEditModal({ visible, match, onClose, onSave, errorM
     <Modal
       visible={visible}
       transparent={true}
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
