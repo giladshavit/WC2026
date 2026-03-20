@@ -24,7 +24,6 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
   const [errorModal, setErrorModal] = useState<{
     title: string;
     message: string;
@@ -41,34 +40,33 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
     if (!username.trim() || !password.trim() || !name.trim()) {
       return 'Please fill in all fields';
     }
-
     if (username.length < 3) {
       return 'Username must be at least 3 characters';
     }
-
-    if (password.length < 6) {
-      return 'Password must be at least 6 characters';
+    if (username.length > 15) {
+      return 'Username must be 15 characters or less';
     }
-
-    if (password !== confirmPassword) {
-      return 'Passwords do not match';
-    }
-
     if (name.length < 2) {
       return 'Name must be at least 2 characters';
     }
-
+    if (name.length > 15) {
+      return 'Name must be 15 characters or less';
+    }
+    if (password.length < 6) {
+      return 'Password must be at least 6 characters';
+    }
+    if (password !== confirmPassword) {
+      return 'Passwords do not match';
+    }
     return null;
   };
 
   const handleRegister = async () => {
     const validationError = validateForm();
     if (validationError) {
-      setError(validationError);
+      setErrorModal({ title: 'Invalid Input', message: validationError });
       return;
     }
-
-    setError('');
     try {
       setIsLoading(true);
       await register(username.trim(), password, name.trim());
@@ -88,8 +86,6 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
       setIsLoading(false);
     }
   };
-
-  const clearError = () => setError('');
 
   return (
     <>
@@ -113,10 +109,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                   focusedInput === 'name' && styles.inputFocused,
                 ]}
                 value={name}
-                onChangeText={(t) => {
-                  setName(t);
-                  clearError();
-                }}
+                onChangeText={(t) => setName(t)}
                 onFocus={() => { setFocusedInput('name'); scrollToInput(0); }}
                 onBlur={() => setFocusedInput(null)}
                 placeholder="Enter full name"
@@ -125,6 +118,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 autoCapitalize="words"
                 autoCorrect={false}
                 editable={!isLoading}
+                maxLength={15}
               />
             </View>
 
@@ -136,10 +130,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                   focusedInput === 'username' && styles.inputFocused,
                 ]}
                 value={username}
-                onChangeText={(t) => {
-                  setUsername(t);
-                  clearError();
-                }}
+                onChangeText={(t) => setUsername(t)}
                 onFocus={() => { setFocusedInput('username'); scrollToInput(80); }}
                 onBlur={() => setFocusedInput(null)}
                 placeholder="Enter username (at least 3 characters)"
@@ -148,6 +139,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
+                maxLength={15}
               />
             </View>
 
@@ -159,10 +151,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                   focusedInput === 'password' && styles.inputFocused,
                 ]}
                 value={password}
-                onChangeText={(t) => {
-                  setPassword(t);
-                  clearError();
-                }}
+                onChangeText={(t) => setPassword(t)}
                 onFocus={() => { setFocusedInput('password'); scrollToInput(160); }}
                 onBlur={() => setFocusedInput(null)}
                 placeholder="Enter password (at least 6 characters)"
@@ -183,10 +172,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                   focusedInput === 'confirmPassword' && styles.inputFocused,
                 ]}
                 value={confirmPassword}
-                onChangeText={(t) => {
-                  setConfirmPassword(t);
-                  clearError();
-                }}
+                onChangeText={(t) => setConfirmPassword(t)}
                 onFocus={() => { setFocusedInput('confirmPassword'); scrollToInput(240); }}
                 onBlur={() => setFocusedInput(null)}
                 placeholder="Enter password again"
@@ -198,8 +184,6 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 editable={!isLoading}
               />
             </View>
-
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
               style={[styles.button, isLoading && styles.buttonDisabled]}
@@ -281,11 +265,6 @@ const styles = StyleSheet.create({
   },
   inputFocused: {
     borderColor: '#16a34a',
-  },
-  errorText: {
-    color: '#ef4444',
-    fontSize: 14,
-    marginBottom: 12,
   },
   button: {
     backgroundColor: '#16a34a',
