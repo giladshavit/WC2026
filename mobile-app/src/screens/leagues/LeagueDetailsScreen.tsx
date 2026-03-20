@@ -48,13 +48,16 @@ function getLivePredBadgeColor(
   hasActualResult: boolean,
   actualResult?: { home_score: number; away_score: number } | null
 ): string {
-  if (!p) return '#334155';
-  // Use backend prediction_status when available (exact, correct_outcome, wrong)
+  // No prediction at all, or scores are null — always gray
+  if (!p || p.home_score == null || p.away_score == null) return '#334155';
+
+  // Use backend status when available
   if (p.prediction_status === 'exact') return '#16a34a';
   if (p.prediction_status === 'correct_outcome') return '#f59e0b';
   if (p.prediction_status === 'wrong') return '#ef4444';
-  // For live/pending: compute client-side from actual result
-  if (hasActualResult && actualResult && p.home_score != null && p.away_score != null) {
+
+  // Client-side calculation when actual result is available
+  if (hasActualResult && actualResult) {
     const { home_score: ah, away_score: aa } = actualResult;
     const { home_score: ph, away_score: pa } = p;
     if (ph === ah && pa === aa) return '#16a34a';
@@ -63,6 +66,8 @@ function getLivePredBadgeColor(
     if (predWinner === actualWinner) return '#f59e0b';
     return '#ef4444';
   }
+
+  // Live but no result yet — gray
   return '#334155';
 }
 
@@ -227,6 +232,8 @@ function AnimatedPlayerRow({
               <Text
                 style={[styles.cellName, styles.cellLeft, isCurrentUser && styles.cellBold]}
                 numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
                 ellipsizeMode="tail"
               >
                 {truncateName(item.name ?? (item as any).username ?? 'Player')}
@@ -300,7 +307,9 @@ function AnimatedPlayerRow({
                   <View style={styles.fineBadge}>
                     <Text style={styles.fineBadgeText}>{fineVal}</Text>
                   </View>
-                ) : null}
+                ) : (
+                  <Text style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}>0</Text>
+                )}
               </View>
             </>
           )}
@@ -627,8 +636,7 @@ export default function LeagueDetailsScreen() {
     }
   };
 
-  const truncateName = (name: string, maxLen: number = 12) =>
-    name.length > maxLen ? `${name.slice(0, maxLen - 1)}…` : name;
+  const truncateName = (name: string) => name;
 
   const topThree = allStandings.slice(0, 3);
   const restStandings = allStandings;
@@ -670,6 +678,15 @@ export default function LeagueDetailsScreen() {
   const memberCount = totalCount;
   const effectiveLiveList = isLiveMode ? liveMatchPredictionsList : [];
   const showOnlyTotalColumn = isLiveMode;
+
+  // Fixed widths
+  const COL_NUM_W = 30;
+  const COL_FINE_W = 30;
+  const COL_TOTAL_W = 50;
+
+  const middleWidth = scoreMode === 'classic'
+    ? COL_NUM_W * 5           // exact, correct, wrong, matches, bonus
+    : COL_NUM_W * 4 + COL_FINE_W; // matches, groups, knockout, bonus, fine
 
   return (
     <SafeAreaView style={styles.container}>
@@ -747,36 +764,58 @@ export default function LeagueDetailsScreen() {
         {liveMatchPredictionsList.length === 0 && <View />}
         <View style={styles.scoreModeToggle}>
           <TouchableOpacity
-            style={[styles.scoreModeBtn, scoreMode === 'multi' && styles.scoreModeBtnActive]}
+            style={[
+              styles.scoreModeBtn,
+              scoreMode === 'multi' && {
+                backgroundColor: 'rgba(251,191,36,0.18)',
+                borderWidth: 1,
+                borderColor: '#f59e0b',
+              },
+            ]}
             onPress={() => {
-              if (scoreMode === 'multi') return; // already active
+              if (scoreMode === 'multi') return;
               skipNextFetchRef.current = true;
               setPage(1);
               setAllStandings([]);
               setSortBy('total');
               setScoreMode('multi');
-              // fetch manually with clean state
               setTimeout(() => fetchStandings(false, 1, 'total'), 0);
             }}
           >
-            <Text style={[styles.scoreModeBtnText, scoreMode === 'multi' && styles.scoreModeBtnTextActive]}>
+            <Text
+              style={[
+                styles.scoreModeBtnText,
+                scoreMode === 'multi' && { color: '#f59e0b', fontWeight: '700' },
+              ]}
+            >
               Multi
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.scoreModeBtn, scoreMode === 'classic' && styles.scoreModeBtnActive]}
+            style={[
+              styles.scoreModeBtn,
+              scoreMode === 'classic' && {
+                backgroundColor: 'rgba(56,189,248,0.18)',
+                borderWidth: 1,
+                borderColor: '#38bdf8',
+              },
+            ]}
             onPress={() => {
-              if (scoreMode === 'classic') return; // already active
+              if (scoreMode === 'classic') return;
               skipNextFetchRef.current = true;
               setPage(1);
               setAllStandings([]);
               setSortBy('total');
               setScoreMode('classic');
-              // fetch manually with clean state
               setTimeout(() => fetchStandings(false, 1, 'total'), 0);
             }}
           >
-            <Text style={[styles.scoreModeBtnText, scoreMode === 'classic' && styles.scoreModeBtnTextActive]}>
+            <Text
+              style={[
+                styles.scoreModeBtnText,
+                scoreMode === 'classic' && { color: '#38bdf8', fontWeight: '700' },
+              ]}
+            >
               Classic
             </Text>
           </TouchableOpacity>
@@ -850,14 +889,8 @@ export default function LeagueDetailsScreen() {
                   </View>
                 </View>
                 {!isLiveMode && (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.tableScrollMiddle}
-                    contentContainerStyle={styles.tableScrollMiddleContent}
-                  >
-                    <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
-                      <View style={[styles.tableHeader, styles.tableHeaderMiddle, { height: 46, backgroundColor: '#334155' }]}>
+                  <View style={[styles.tableScrollMiddle, { width: middleWidth }]}>
+                    <View style={[styles.tableHeader, styles.tableHeaderMiddle, { height: 46, backgroundColor: '#334155' }]}>
                         {scoreMode === 'classic' ? (
                           <>
                             <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} activeOpacity={0.7} onPress={() => handleSortByChange('exact')}>
@@ -925,11 +958,10 @@ export default function LeagueDetailsScreen() {
                             </TouchableOpacity>
                           </>
                         )}
-                      </View>
                     </View>
-                  </ScrollView>
+                  </View>
                 )}
-                <View style={[styles.tableFixedRight, { width: isLiveMode ? undefined : 54, flex: isLiveMode ? 1 : undefined, backgroundColor: '#0f172a' }]}>
+                <View style={[styles.tableFixedRight, { flex: isLiveMode ? 1 : undefined, backgroundColor: '#0f172a' }]}>
                   <View style={[styles.tableHeader, styles.tableHeaderRight, { height: 46, backgroundColor: '#334155' }, showOnlyTotalColumn && { justifyContent: 'flex-end' }]}>
                     {effectiveLiveList.map((liveData) => (
                       <View key={liveData.match_id} style={[styles.colLive, styles.headerIconCell]}>
@@ -970,7 +1002,7 @@ export default function LeagueDetailsScreen() {
                   />
                 </View>
                 {!isLiveMode && (
-                  <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+                  <View style={{ width: middleWidth, backgroundColor: '#0f172a' }}>
                     <AnimatedPlayerRow
                       item={item}
                       index={index}
@@ -984,7 +1016,7 @@ export default function LeagueDetailsScreen() {
                     />
                   </View>
                 )}
-                <View style={[styles.tableFixedRight, { width: isLiveMode ? undefined : 54, flex: isLiveMode ? 1 : undefined, backgroundColor: '#0f172a' }]}>
+                <View style={[styles.tableFixedRight, { flex: isLiveMode ? 1 : undefined, backgroundColor: '#0f172a' }]}>
                   <AnimatedPlayerRow
                     item={item}
                     index={index}
@@ -1028,13 +1060,8 @@ export default function LeagueDetailsScreen() {
                 </View>
               </View>
               {!isLiveMode && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.tableScrollMiddle}
-                contentContainerStyle={styles.tableScrollMiddleContent}
-              >
-                <View style={[styles.playerRow, styles.playerRowContent, { minHeight: 52, borderBottomWidth: 0, paddingHorizontal: 14, backgroundColor: '#1a2744' }]}>
+              <View style={[styles.tableScrollMiddle, { width: middleWidth }]}>
+                <View style={[styles.playerRow, styles.playerRowContent, { minHeight: 52, borderBottomWidth: 0, paddingHorizontal: 0, backgroundColor: '#1a2744' }]}>
                   {scoreMode === 'classic' ? (
                     <>
                       <View style={styles.colNum}>
@@ -1091,18 +1118,18 @@ export default function LeagueDetailsScreen() {
                             <Text style={styles.fineBadgeText}>-{currentUserEntry.penalty}</Text>
                           </View>
                         ) : (
-                          <Text style={[styles.cellText, styles.cellCenter]}>0</Text>
+                          <Text style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}>0</Text>
                         )}
                       </View>
                     </>
                   )}
                 </View>
-              </ScrollView>
+              </View>
               )}
               <View style={[
                 styles.tableFixedRight,
                 styles.stickyUserRowRight,
-                { width: isLiveMode ? undefined : 54, flex: isLiveMode ? 1 : undefined, backgroundColor: '#1a2744' }
+                { flex: isLiveMode ? 1 : undefined, backgroundColor: '#1a2744' }
               ]}>
                 <View style={[
                   styles.playerRow,
@@ -1382,26 +1409,37 @@ const styles = StyleSheet.create({
   },
   scoreModeToggle: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: 20,
     padding: 3,
     gap: 2,
   },
   scoreModeBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 17,
   },
-  scoreModeBtnActive: {
-    backgroundColor: '#475569',
+  scoreModeBtn_multi_active: {
+    backgroundColor: 'rgba(251,191,36,0.18)',
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  scoreModeBtn_classic_active: {
+    backgroundColor: 'rgba(56,189,248,0.18)',
+    borderWidth: 1,
+    borderColor: '#38bdf8',
   },
   scoreModeBtnText: {
-    fontSize: 11,
-    color: '#94a3b8',
-    fontWeight: '500',
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
   },
-  scoreModeBtnTextActive: {
-    color: '#ffffff',
+  scoreModeBtnText_multi_active: {
+    color: '#f59e0b',
+    fontWeight: '700',
+  },
+  scoreModeBtnText_classic_active: {
+    color: '#38bdf8',
     fontWeight: '700',
   },
   liveDot: {
@@ -1421,7 +1459,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     height: 46,
-    paddingHorizontal: 14,
+    paddingHorizontal: 0,
     backgroundColor: '#334155',
   },
   headerIconWrapper: {
@@ -1459,7 +1497,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 56,
-    paddingHorizontal: 14,
+    paddingHorizontal: 0,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.06)',
   },
@@ -1514,10 +1552,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   colNum: {
-    width: 36,
+    width: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   colFine: {
-    width: 36,
+    width: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1532,7 +1572,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   colTotal: {
-    width: 54,
+    width: 50,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1569,16 +1609,17 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   tableFixedLeft: {
-    width: 130,
+    flex: 1,
+    minWidth: 80,
+    maxWidth: 160,
     overflow: 'hidden',
   },
   tableScrollMiddle: {
-    flex: 1,
     backgroundColor: '#0f172a',
+    overflow: 'hidden',
   },
   tableScrollMiddleContent: {
     flexGrow: 1,
-    minWidth: 140,
   },
   tableHeaderMiddle: {
     backgroundColor: '#334155',
@@ -1587,6 +1628,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   tableFixedRight: {
+    width: 50,
     overflow: 'hidden',
   },
   playerRowContentRight: {
@@ -1622,10 +1664,10 @@ const styles = StyleSheet.create({
   },
   ptsBadge: {
     backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    width: 50,
+    width: 46,
     height: 30,
     borderRadius: 10,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
     borderWidth: 1,
     borderColor: 'rgba(59, 130, 246, 0.3)',
     alignItems: 'center',

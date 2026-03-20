@@ -213,40 +213,67 @@ export default function CreateLeagueScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Default View Mode</Text>
-              <Text style={{ fontSize: 11, color: '#475569', marginBottom: 8, marginLeft: 4 }}>
-                Classic = Matches + Bonus · Multi = Full prediction suite
-              </Text>
               <View style={styles.modeToggleRow}>
                 <TouchableOpacity
-                  style={[styles.modeBtn, scoreMode === 'multi' && styles.modeBtnActive]}
+                  style={[
+                    styles.modeBtn,
+                    scoreMode === 'multi'
+                      ? { backgroundColor: 'rgba(251,191,36,0.18)', borderColor: '#f59e0b' }
+                      : { backgroundColor: '#0f2744', borderColor: '#2d4a6e' },
+                  ]}
                   onPress={() => setScoreMode('multi')}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="trophy-outline" size={14} color={scoreMode === 'multi' ? '#ffffff' : '#64748b'} />
-                  <Text style={[styles.modeBtnText, scoreMode === 'multi' && styles.modeBtnTextActive]}>Multi Mode</Text>
+                  <Ionicons name="trophy-outline" size={14} color={scoreMode === 'multi' ? '#f59e0b' : '#64748b'} />
+                  <Text style={[styles.modeBtnText, scoreMode === 'multi' ? { color: '#f59e0b', fontWeight: '700' } : {}]}>
+                    Multi Mode
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.modeBtn, scoreMode === 'classic' && styles.modeBtnActive]}
+                  style={[
+                    styles.modeBtn,
+                    scoreMode === 'classic'
+                      ? { backgroundColor: 'rgba(56,189,248,0.18)', borderColor: '#38bdf8' }
+                      : { backgroundColor: '#0f2744', borderColor: '#2d4a6e' },
+                  ]}
                   onPress={() => setScoreMode('classic')}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="football-outline" size={14} color={scoreMode === 'classic' ? '#ffffff' : '#64748b'} />
-                  <Text style={[styles.modeBtnText, scoreMode === 'classic' && styles.modeBtnTextActive]}>Classic Mode</Text>
+                  <Ionicons name="football-outline" size={14} color={scoreMode === 'classic' ? '#38bdf8' : '#64748b'} />
+                  <Text style={[styles.modeBtnText, scoreMode === 'classic' ? { color: '#38bdf8', fontWeight: '700' } : {}]}>
+                    Classic Mode
+                  </Text>
                 </TouchableOpacity>
               </View>
+              <View style={{ marginTop: 8, marginHorizontal: 4, gap: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#38bdf8', flexShrink: 0, marginTop: 1 }} />
+                  <Text style={{ fontSize: 12, color: '#94a3b8', flexShrink: 1 }} numberOfLines={1}>
+                    <Text style={{ color: '#38bdf8', fontWeight: '700' }}>Classic</Text>
+                    {' — Match predictions + Bonus'}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
+                  <Text style={{ fontSize: 12, color: '#94a3b8', flexShrink: 1 }} numberOfLines={1}>
+                    <Text style={{ color: '#f59e0b', fontWeight: '700' }}>Multi</Text>
+                    {' — Full prediction suite'}
+                  </Text>
+                </View>
+              </View>
             </View>
-          </View>
 
-          <TouchableOpacity
-            style={[styles.createButton, loading && styles.createButtonDisabled]}
-            onPress={handleCreateLeague}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.createButtonText}>
-              {loading ? 'Creating...' : 'Create League'}
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.createButton, loading && styles.createButtonDisabled, { marginTop: 8 }]}
+              onPress={handleCreateLeague}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.createButtonText}>
+                {loading ? 'Creating...' : 'Create League'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
       <ErrorModal

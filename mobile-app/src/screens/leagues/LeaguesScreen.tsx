@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   listContainerWithBottomBar: {
-    paddingBottom: 100,
+    paddingBottom: 80,
   },
   globalLeagueCard: {
     marginBottom: 12,
@@ -532,9 +532,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 120,
     paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
     backgroundColor: '#1e293b',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
