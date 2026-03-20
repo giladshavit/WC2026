@@ -38,8 +38,17 @@ class GroupStatisticsService:
 
     @staticmethod
     def _pre_result_stats(group, predictions, teams: Dict[int, str]) -> Dict[str, Any]:
-        total = len(predictions)
-        position_counts = GroupStatisticsService._count_positions(predictions, teams)
+        # Keep only predictions where at least one position was filled
+        answered = [
+            p for p in predictions
+            if any(getattr(p, pos, None) is not None for pos in GroupStatisticsService.POSITIONS)
+        ]
+        total = len(answered)
+
+        if total == 0:
+            return {"group_id": group.id, "group_name": group.name, "has_result": False, "total_predictions": 0}
+
+        position_counts = GroupStatisticsService._count_positions(answered, teams)
 
         return {
             "group_id": group.id,

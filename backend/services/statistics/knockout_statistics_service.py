@@ -36,12 +36,21 @@ class KnockoutStatisticsService:
 
     @staticmethod
     def _pre_result_stats(db, template_match_id, predictions) -> Dict[str, Any]:
-        total = len(predictions)
+        # Only count predictions with both teams filled (complete matchups)
+        answered = [
+            p for p in predictions
+            if p.team1_id is not None and p.team2_id is not None
+        ]
+        total = len(answered)
+
+        if total == 0:
+            return {"template_match_id": template_match_id, "has_result": False, "total_predictions": 0}
+
         return {
             "template_match_id": template_match_id,
             "has_result": False,
             "total_predictions": total,
-            "top_matchups": KnockoutStatisticsService._calc_top_matchups(db, predictions, total),
+            "top_matchups": KnockoutStatisticsService._calc_top_matchups(db, answered, total),
         }
 
     @staticmethod

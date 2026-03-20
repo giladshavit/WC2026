@@ -42,8 +42,25 @@ class ThirdPlaceStatisticsService:
     @staticmethod
     def _pre_result_stats(predictions, team_group_cache: Dict[int, str]) -> Dict[str, Any]:
         """How many % picked each group to have a qualifier."""
-        total = len(predictions)
-        group_counts = ThirdPlaceStatisticsService._count_groups_picked(predictions, team_group_cache)
+        # Only count predictions where at least one team was picked (exclude users who never made picks)
+        answered = [
+            p for p in predictions
+            if any(getattr(p, field, None) is not None for field in ThirdPlaceStatisticsService.TEAM_FIELDS)
+        ]
+        total = len(answered)
+
+        if total == 0:
+            return {
+                "has_result": False,
+                "total_predictions": 0,
+                "group_pick_pct": {group: 0.0 for group in "ABCDEFGHIJKL"},
+            }
+
+        # Initialize with ALL 12 groups at 0, then add counts from picks
+        group_counts = {group: 0 for group in "ABCDEFGHIJKL"}
+        picked_counts = ThirdPlaceStatisticsService._count_groups_picked(answered, team_group_cache)
+        for group, count in picked_counts.items():
+            group_counts[group] = count
 
         return {
             "has_result": False,
