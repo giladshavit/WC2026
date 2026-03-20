@@ -146,11 +146,11 @@ export default function PublicProfileScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { currentStage } = useTournament();
-  const tournamentStarted = currentStage !== null && currentStage !== 'pre_tournament';
+  const tournamentStarted = currentStage !== null && currentStage !== 'PRE_GROUP_STAGE';
   const knockoutStarted =
     currentStage !== null &&
-    currentStage !== 'pre_tournament' &&
-    currentStage !== 'group_stage';
+    currentStage !== 'PRE_GROUP_STAGE' &&
+    !['GROUP_CYCLE_1', 'GROUP_CYCLE_2', 'GROUP_CYCLE_3'].includes(currentStage);
 
   const { userId, username } = route.params as RouteParams;
 
@@ -171,7 +171,7 @@ export default function PublicProfileScreen() {
     knockout: false,
     bonus: false,
   });
-  const [activeTab, setActiveTab] = useState<TabKey>('matches');
+  const [activeTab, setActiveTab] = useState<TabKey>(tournamentStarted ? 'matches' : 'bonus');
   const fetchedTabs = useRef<Set<TabKey>>(new Set());
 
   useEffect(() => {
@@ -306,10 +306,12 @@ export default function PublicProfileScreen() {
     );
   };
 
+  const visibleTabs = tournamentStarted ? TABS : TABS.filter((t) => t.key === 'bonus');
+
   const renderTabBar = () => (
     <View style={styles.tabBarWrapper}>
       <View style={styles.tabBarScroll}>
-        {TABS.map(({ key, label }) => (
+        {visibleTabs.map(({ key, label }) => (
           <TouchableOpacity
             key={key}
             style={[styles.tab, activeTab === key && styles.tabActive]}
@@ -365,6 +367,9 @@ export default function PublicProfileScreen() {
             match={item}
             onScoreChange={noop}
             onInputFocus={noop}
+            hideStats
+            hideTemptation
+            compact
           />
         )}
         contentContainerStyle={[styles.flatListContent, { paddingBottom: insets.bottom + 24 }]}
@@ -901,6 +906,22 @@ export default function PublicProfileScreen() {
           onGoBack={() => navigation.goBack()}
           goBackLabel="Go Back"
         />
+      </View>
+    );
+  }
+
+  if (!tournamentStarted) {
+    return (
+      <View style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
+        {renderHeader()}
+        {renderScoreBar()}
+        <View style={styles.emptyTab}>
+          <Ionicons name="time-outline" size={48} color="#94a3b8" />
+          <Text style={styles.emptyText}>
+            {username ? `${username}'s predictions will be visible once the tournament begins` : 'Predictions will be visible once the tournament begins'}
+          </Text>
+        </View>
       </View>
     );
   }
