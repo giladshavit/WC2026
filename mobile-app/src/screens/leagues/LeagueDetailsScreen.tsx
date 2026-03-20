@@ -267,25 +267,25 @@ function AnimatedPlayerRow({
           {scoreMode === 'classic' ? (
             <>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#22c55e' }]}>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#4b7c5e' }]}>
                   {item.matches_exact_count ?? 0}
                 </Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#f59e0b' }]}>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#7a6230' }]}>
                   {item.matches_correct_count ?? 0}
                 </Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#7a3535' }]}>
                   {item.matches_wrong_count ?? 0}
                 </Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#60a5fa' }]}>{item.matches_points ?? 0}</Text>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#93c5fd' }]}>{item.matches_points ?? 0}</Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#4ade80' }]}>{item.bonus_points ?? 0}</Text>
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#86efac' }]}>{item.bonus_points ?? 0}</Text>
               </View>
             </>
           ) : (
@@ -303,13 +303,9 @@ function AnimatedPlayerRow({
                 <Text style={[styles.cellText, styles.cellCenter, { color: '#4ade80' }]}>{item.bonus_points ?? 0}</Text>
               </View>
               <View style={styles.colFine}>
-                {fineVal > 0 ? (
-                  <View style={styles.fineBadge}>
-                    <Text style={styles.fineBadgeText}>{fineVal}</Text>
-                  </View>
-                ) : (
-                  <Text style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}>0</Text>
-                )}
+                <Text style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}>
+                  {fineVal > 0 ? fineVal : 0}
+                </Text>
               </View>
             </>
           )}
@@ -438,9 +434,9 @@ export default function LeagueDetailsScreen() {
   const [userDismissedLive, setUserDismissedLive] = useState(false);
 
   const SORT_COLORS: Record<string, string> = {
-    exact: '#22c55e',
-    correct: '#f59e0b',
-    wrong: '#ef4444',
+    exact: '#4b7c5e',
+    correct: '#7a6230',
+    wrong: '#7a3535',
     matches: '#60a5fa',
     groups: '#c084fc',
     knockout: '#fbbf24',
@@ -513,7 +509,7 @@ export default function LeagueDetailsScreen() {
     }
   };
 
-  const fetchStandings = async (append: boolean, pageOverride?: number, sortByOverride?: SortKey) => {
+  const fetchStandings = async (append: boolean, pageOverride?: number, sortByOverride?: SortKey, scoreModeOverride?: 'multi' | 'classic') => {
     if (append) {
       setLoadingMore(true);
     }
@@ -527,6 +523,7 @@ export default function LeagueDetailsScreen() {
       setStandingsData(data);
       setTotalCount(data.total_count);
       setCurrentUserEntry((data.current_user_entry as StandingWithFine) ?? null);
+      const effectiveScoreMode = scoreModeOverride ?? (scoreModeInitializedRef.current ? scoreMode : (data.league_info?.score_mode ?? 'multi'));
       if (!scoreModeInitializedRef.current) {
         const leagueMode = data.league_info?.score_mode;
         if (leagueMode === 'classic') {
@@ -537,10 +534,22 @@ export default function LeagueDetailsScreen() {
         }
         scoreModeInitializedRef.current = true;
       }
+      const activeSortKey = sortByOverride ?? sortBy;
+      let processedStandings = data.standings as StandingWithFine[];
+      if (effectiveScoreMode === 'classic' && activeSortKey === 'total') {
+        processedStandings = [...processedStandings].sort((a, b) => {
+          const scoreA = (a.matches_points ?? 0) + (a.bonus_points ?? 0);
+          const scoreB = (b.matches_points ?? 0) + (b.bonus_points ?? 0);
+          return scoreB - scoreA;
+        });
+      }
+      if (!append) {
+        processedStandings = processedStandings.map((s, i) => ({ ...s, rank: i + 1 }));
+      }
       if (append) {
-        setAllStandings((prev) => [...prev, ...(data.standings as StandingWithFine[])]);
+        setAllStandings((prev) => [...prev, ...processedStandings]);
       } else {
-        setAllStandings(data.standings as StandingWithFine[]);
+        setAllStandings(processedStandings);
       }
       await fetchAndSetupLiveMatches();
     } catch (error) {
@@ -779,7 +788,7 @@ export default function LeagueDetailsScreen() {
               setAllStandings([]);
               setSortBy('total');
               setScoreMode('multi');
-              setTimeout(() => fetchStandings(false, 1, 'total'), 0);
+              setTimeout(() => fetchStandings(false, 1, 'total', 'multi'), 0);
             }}
           >
             <Text
@@ -807,7 +816,7 @@ export default function LeagueDetailsScreen() {
               setAllStandings([]);
               setSortBy('total');
               setScoreMode('classic');
-              setTimeout(() => fetchStandings(false, 1, 'total'), 0);
+              setTimeout(() => fetchStandings(false, 1, 'total', 'classic'), 0);
             }}
           >
             <Text
@@ -1065,27 +1074,27 @@ export default function LeagueDetailsScreen() {
                   {scoreMode === 'classic' ? (
                     <>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#22c55e' }]}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#4b7c5e' }]}>
                           {currentUserEntry.matches_exact_count ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#f59e0b' }]}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#7a6230' }]}>
                           {currentUserEntry.matches_correct_count ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#7a3535' }]}>
                           {currentUserEntry.matches_wrong_count ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#60a5fa' }]}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#93c5fd' }]}>
                           {currentUserEntry.matches_points ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#4ade80' }]}>
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#86efac' }]}>
                           {currentUserEntry.bonus_points ?? 0}
                         </Text>
                       </View>
@@ -1113,13 +1122,9 @@ export default function LeagueDetailsScreen() {
                         </Text>
                       </View>
                       <View style={styles.colFine}>
-                        {(currentUserEntry.penalty ?? 0) > 0 ? (
-                          <View style={styles.fineBadge}>
-                            <Text style={styles.fineBadgeText}>-{currentUserEntry.penalty}</Text>
-                          </View>
-                        ) : (
-                          <Text style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}>0</Text>
-                        )}
+                        <Text style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}>
+                          {(currentUserEntry.penalty ?? 0) > 0 ? (currentUserEntry.penalty ?? 0) : 0}
+                        </Text>
                       </View>
                     </>
                   )}

@@ -878,6 +878,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     flexShrink: 0,
+    flexWrap: 'nowrap',
   },
   netScoreToggle: {
     flexDirection: 'row',
@@ -914,7 +915,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     marginRight: 4,
-    flexShrink: 1,
+    minWidth: 72,
+    alignItems: 'center',
+    flexShrink: 0,
   },
   pointsContainerZero: {
     backgroundColor: '#f59e0b',
@@ -926,6 +929,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#fff',
+    textAlign: 'center',
   },
   saveButton: {
     backgroundColor: '#48bb78',

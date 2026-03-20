@@ -758,7 +758,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flexShrink: 1,
+    flexShrink: 0,
+    flexWrap: 'nowrap',
     minWidth: 0,
   },
   freePill: {
@@ -808,7 +809,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    flexShrink: 1,
+    flexShrink: 0,
+    minWidth: 72,
+    alignItems: 'center',
   },
   pointsContainerZero: {
     backgroundColor: '#f59e0b',
@@ -849,6 +852,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#FFFFFF',
+    textAlign: 'center',
   },
   saveButton: {
     backgroundColor: '#48bb78',
