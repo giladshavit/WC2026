@@ -394,25 +394,6 @@ class KnockoutService:
     ) -> Dict[str, Any]:
         old_winner = prediction.winner_team_id
 
-        # Validate no duplicate winner in same stage (draft mode only)
-        if is_draft and winner_team_id and winner_team_id != 0:
-            normalized_winner = KnockoutService._normalize_team_id(winner_team_id)
-            if normalized_winner:
-                duplicate = DBReader.get_draft_prediction_with_winner_in_stage(
-                    db,
-                    user_id=prediction.user_id,
-                    stage=prediction.stage,
-                    winner_team_id=normalized_winner,
-                    exclude_prediction_id=prediction.id,
-                )
-                if duplicate:
-                    winner_team = DBReader.get_team(db, normalized_winner)
-                    team_name = winner_team.name if winner_team else str(normalized_winner)
-                    raise HTTPException(
-                        status_code=409,
-                        detail=f"DUPLICATE_WINNER:{team_name}"
-                    )
-
         stored_winner = KnockoutService._persist_winner(
             db, prediction, winner_team_id, is_draft
         )
@@ -760,6 +741,15 @@ class KnockoutService:
 
         if not drafts:
             return {"success": True, "message": "No drafts to commit", "changes_count": 0, "penalty_points": 0, "penalty_applied": 0}
+
+        # Validate no duplicate winners across stages before committing
+        duplicates = KnockoutService._find_duplicate_winners_in_drafts(db, user_id)
+        if duplicates:
+            team_names = ", ".join(duplicates)
+            raise HTTPException(
+                status_code=409,
+                detail=f"DUPLICATE_WINNERS:{team_names}"
+            )
 
         penalty_points = 0
         changes_count = 0
@@ -1693,6 +1683,38 @@ class KnockoutService:
     # ═══════════════════════════════════════════════════════
     # PRIVATE - Utilities
     # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def _find_duplicate_winners_in_drafts(db: Session, user_id: int) -> List[str]:
+        """
+        Returns list of team names that appear as winner in more than one draft
+        prediction within the same stage. Empty list = no duplicates.
+        """
+        from collections import defaultdict
+        drafts = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=True)
+
+        stage_winner_counts: dict = defaultdict(lambda: defaultdict(int))
+
+        for draft in drafts:
+            winner_id = KnockoutService._normalize_team_id(draft.winner_team_id)
+            if winner_id:
+                stage_winner_counts[draft.stage][winner_id] += 1
+
+        duplicate_team_ids = set()
+        for stage, winner_counts in stage_winner_counts.items():
+            for team_id, count in winner_counts.items():
+                if count > 1:
+                    duplicate_team_ids.add(team_id)
+
+        if not duplicate_team_ids:
+            return []
+
+        team_names = []
+        for team_id in duplicate_team_ids:
+            team = DBReader.get_team(db, team_id)
+            team_names.append(team.name if team else str(team_id))
+
+        return sorted(team_names)
 
     @staticmethod
     def _extract_match_id_from_winner_string(team_source: str) -> Optional[int]:

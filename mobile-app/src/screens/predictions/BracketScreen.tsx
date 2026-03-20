@@ -74,7 +74,7 @@ export default function BracketScreen({}: BracketScreenProps) {
   const [showResetModal, setShowResetModal] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [showNotEditableModal, setShowNotEditableModal] = useState(false);
-  const [duplicateWinnerTeamName, setDuplicateWinnerTeamName] = useState<string | null>(null);
+  const [duplicateWinnersModal, setDuplicateWinnersModal] = useState<string[] | null>(null);
   const [saveSuccessInfo, setSaveSuccessInfo] = useState<{ changes_count: number; penalty_applied: number } | null>(null);
   const [hasUsedBracketReset, setHasUsedBracketReset] = useState(false);
   const [showBracketResetModal, setShowBracketResetModal] = useState(false);
@@ -602,7 +602,27 @@ export default function BracketScreen({}: BracketScreenProps) {
     const userId = getCurrentUserId();
     if (!userId) return;
     setIsConfirmSaveModalVisible(false);
-    await executeCommit(userId);
+    try {
+      setLoading(true);
+      const result = await apiService.commitDrafts(userId);
+      setEditMode(false);
+      setFineInfo(null);
+      setSaveSuccessInfo({
+        changes_count: result.changes_count,
+        penalty_applied: result.penalty_applied,
+      });
+      await fetchPredictions();
+    } catch (error: any) {
+      const detail = error?.detail || error?.message || '';
+      if (typeof detail === 'string' && detail.startsWith('DUPLICATE_WINNERS:')) {
+        const teams = detail.split(':')[1]?.trim().split(', ') ?? [];
+        setDuplicateWinnersModal(teams);
+      } else {
+        setErrorModal({ title: 'Error', message: 'Save failed. Please try again.' });
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleMatchPress = (match: BracketMatch) => {
@@ -1283,13 +1303,37 @@ export default function BracketScreen({}: BracketScreenProps) {
         </Pressable>
       </Modal>
 
+      {/* Duplicate Winners Modal */}
+      <Modal visible={duplicateWinnersModal !== null} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setDuplicateWinnersModal(null)}>
+          <View style={styles.modalCard}>
+            <Ionicons name="warning-outline" size={48} color="#f59e0b" />
+            <Text style={styles.modalTitle}>Duplicate Winners</Text>
+            <Text style={styles.modalSubtitle}>
+              The following teams are selected as winners more than once in the same stage. Please fix before saving:
+            </Text>
+            <View style={{ alignSelf: 'flex-start', width: '100%', marginBottom: 8 }}>
+              {duplicateWinnersModal?.map((name, i) => (
+                <Text key={i} style={{ fontSize: 14, fontWeight: '700', color: '#1e293b', marginBottom: 4 }}>
+                  • {name}
+                </Text>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: '#f59e0b' }]}
+              onPress={() => setDuplicateWinnersModal(null)}
+            >
+              <Text style={styles.modalButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* Match Edit Modal - OUTSIDE ScrollView */}
       <MatchEditModal
         visible={isModalVisible}
         match={selectedMatch}
-        onClose={() => { setIsModalVisible(false); setDuplicateWinnerTeamName(null); }}
-        errorMessage={duplicateWinnerTeamName ? `${duplicateWinnerTeamName} is already the winner in another match at this stage. Remove them first.` : null}
-        onClearError={() => setDuplicateWinnerTeamName(null)}
+        onClose={() => { setIsModalVisible(false); setDuplicateWinnersModal(null); }}
         onSave={async (matchId, winnerId) => {
           console.log(`💾 Saving match ${matchId} with winner ${winnerId}`);
           try {
@@ -1338,14 +1382,8 @@ export default function BracketScreen({}: BracketScreenProps) {
 
           } catch (error: any) {
             console.error('❌ Error updating match:', error);
-            const detail = error?.detail || error?.message || '';
-            if (typeof detail === 'string' && detail.startsWith('DUPLICATE_WINNER:')) {
-              const teamName = detail.split(':')[1]?.trim() || 'This team';
-              setDuplicateWinnerTeamName(teamName);
-            } else {
-              setIsModalVisible(false);
-              setErrorModal({ title: 'Error', message: 'Could not update match. Please try again.' });
-            }
+            setIsModalVisible(false);
+            setErrorModal({ title: 'Error', message: 'Could not update match. Please try again.' });
             throw error; // re-throw so MatchEditModal can revert selectedWinner
           }
         }}
