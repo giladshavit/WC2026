@@ -1946,13 +1946,11 @@ export default function BonusScreen() {
               <Ionicons name="chevron-back" size={24} color="#fff" />
             </TouchableOpacity>
 
-            <View style={styles.headerTitleWrapper} pointerEvents="none">
-              <Text style={styles.headerTitle}>Bonus Predictions</Text>
-            </View>
+            <Text style={styles.headerTitle}>Bonus Predictions</Text>
 
             <TouchableOpacity
               onPress={() => setViewMode('wizard')}
-              style={[styles.editPillBtn, { position: 'absolute', right: 16, zIndex: 1 }]}
+              style={styles.editPillBtn}
               hitSlop={8}
             >
               <Text style={styles.editPillText}>Edit</Text>
@@ -2247,26 +2245,19 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerBackBtn: {
     width: 36,
     alignItems: 'flex-start',
-    zIndex: 1,
-  },
-  headerTitleWrapper: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '800',
     color: '#fff',
     textAlign: 'center',
+    flex: 1,
+    paddingHorizontal: 8,
   },
   headerSpacer: {
     width: 72,
@@ -2291,12 +2282,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.4)',
-    minWidth: 72,
+    minWidth: 60,
   },
   editPillText: {
     fontSize: 13,
