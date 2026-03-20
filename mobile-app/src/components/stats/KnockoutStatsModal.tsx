@@ -307,12 +307,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   winnerSegmentA: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#3b82f6',
     justifyContent: 'center',
     alignItems: 'center',
   },
   winnerSegmentB: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#f97316',
     justifyContent: 'center',
     alignItems: 'center',
   },

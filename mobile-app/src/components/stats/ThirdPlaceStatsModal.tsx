@@ -50,18 +50,10 @@ export default function ThirdPlaceStatsModal({ visible, onClose }: Props) {
 
     const allEntries = Object.entries(stats.group_pick_pct);
 
-    // Always compute rank by % to determine colors
     const sortedByPct = [...allEntries].sort((a, b) => b[1] - a[1]);
-    const rank8Pct = sortedByPct[7]?.[1];
-    const rank9Pct = sortedByPct[8]?.[1];
-    const isTie = rank8Pct !== undefined && rank9Pct !== undefined && rank8Pct === rank9Pct;
-
     const getRowColor = (group: string): string => {
       const rank = sortedByPct.findIndex(([g]) => g === group);
-      const pct = stats!.group_pick_pct![group];
-      if (isTie && pct === rank8Pct) return '#f97316'; // orange tie
-      if (rank < 8) return '#16a34a'; // green top 8
-      return '#ef4444'; // red bottom 4
+      return rank < 8 ? '#16a34a' : '#ef4444';
     };
 
     // Display order based on sort toggle

@@ -252,15 +252,15 @@ export default function StatisticsScreen() {
             </View>
             <View style={styles.pointsStatSeparator} />
             <View style={styles.pointsStatBlock}>
-              <Ionicons name="trophy-outline" size={20} color="#a7f3d0" />
-              <Text style={styles.pointsStatNumber}>{bracketPts}</Text>
-              <Text style={styles.pointsStatLabel}>Bracket</Text>
-            </View>
-            <View style={styles.pointsStatSeparator} />
-            <View style={styles.pointsStatBlock}>
               <Ionicons name="gift-outline" size={20} color="#a7f3d0" />
               <Text style={styles.pointsStatNumber}>{bonusScore}</Text>
               <Text style={styles.pointsStatLabel}>Bonus</Text>
+            </View>
+            <View style={styles.pointsStatSeparator} />
+            <View style={styles.pointsStatBlock}>
+              <Ionicons name="trophy-outline" size={20} color="#a7f3d0" />
+              <Text style={styles.pointsStatNumber}>{bracketPts}</Text>
+              <Text style={styles.pointsStatLabel}>Bracket</Text>
             </View>
             <View style={styles.pointsStatSeparator} />
             <View style={styles.pointsStatBlock}>
@@ -302,7 +302,35 @@ export default function StatisticsScreen() {
           )}
         </View>
 
-        {/* 3. Group Stage + Position Accuracy card */}
+        {/* 3. Bonus Predictions card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Bonus Predictions</Text>
+            <View style={styles.cardScoreCircle}>
+              <Text style={styles.cardScoreCircleText}>{profile.bonus?.score ?? 0}</Text>
+            </View>
+          </View>
+          {!profile.bonus?.has_any_judged ? (
+            <Text style={styles.noDataText}>No results yet</Text>
+          ) : (
+            <View style={styles.bonusResultRow}>
+              <View style={[styles.bonusResultChip, { backgroundColor: '#dcfce7' }]}>
+                <Text style={[styles.bonusResultCount, { color: '#16a34a' }]}>
+                  ✓ {profile.bonus.correct_count}
+                </Text>
+                <Text style={[styles.bonusResultLabel, { color: '#16a34a' }]}>correct</Text>
+              </View>
+              <View style={[styles.bonusResultChip, { backgroundColor: '#fee2e2' }]}>
+                <Text style={[styles.bonusResultCount, { color: '#dc2626' }]}>
+                  ✗ {profile.bonus.incorrect_count}
+                </Text>
+                <Text style={[styles.bonusResultLabel, { color: '#dc2626' }]}>wrong</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* 4. Group Stage + Position Accuracy card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Group Stage</Text>
@@ -376,7 +404,7 @@ export default function StatisticsScreen() {
           )}
         </View>
 
-        {/* 5. Third Place card */}
+        {/* 5. Third Place card (Bracket) */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>3rd Place Picks</Text>
@@ -461,7 +489,7 @@ export default function StatisticsScreen() {
           )}
         </View>
 
-        {/* 6. Knockout card */}
+        {/* 6. Knockout card (Bracket) */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Knockout</Text>
@@ -495,35 +523,7 @@ export default function StatisticsScreen() {
           )}
         </View>
 
-        {/* 7. Bonus Predictions card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Bonus Predictions</Text>
-            <View style={styles.cardScoreCircle}>
-              <Text style={styles.cardScoreCircleText}>{profile.bonus?.score ?? 0}</Text>
-            </View>
-          </View>
-          {!profile.bonus?.has_any_judged ? (
-            <Text style={styles.noDataText}>No results yet</Text>
-          ) : (
-            <View style={styles.bonusResultRow}>
-              <View style={[styles.bonusResultChip, { backgroundColor: '#dcfce7' }]}>
-                <Text style={[styles.bonusResultCount, { color: '#16a34a' }]}>
-                  ✓ {profile.bonus.correct_count}
-                </Text>
-                <Text style={[styles.bonusResultLabel, { color: '#16a34a' }]}>correct</Text>
-              </View>
-              <View style={[styles.bonusResultChip, { backgroundColor: '#fee2e2' }]}>
-                <Text style={[styles.bonusResultCount, { color: '#dc2626' }]}>
-                  ✗ {profile.bonus.incorrect_count}
-                </Text>
-                <Text style={[styles.bonusResultLabel, { color: '#dc2626' }]}>wrong</Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* 8. Fine Breakdown card */}
+        {/* 7. Fine Breakdown card */}
         <View style={[styles.card, styles.cardLast]}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Fines</Text>
@@ -603,19 +603,17 @@ export default function StatisticsScreen() {
                     )}
                   </View>
                 )}
-                <View style={styles.fineLegendChips}>
-                  {allSegments.map(({ label, value, color }) => (
-                    <View key={label} style={[styles.fineChip, { backgroundColor: color + '18' }]}>
-                      <View style={[styles.statChipDot, styles.fineChipDot, { backgroundColor: color }]} />
-                      <View style={styles.fineChipLabelWrap}>
-                        <Text style={[styles.fineChipLabel, { color }]} numberOfLines={1}>{label}</Text>
-                      </View>
-                      <View style={styles.fineChipValueWrap}>
+                {total > 0 && (
+                  <View style={styles.fineLegendChips}>
+                    {allSegments.map(({ label, value, color }) => (
+                      <View key={label} style={[styles.fineChip, { backgroundColor: color + '18' }]}>
+                        <View style={[styles.statChipDot, { backgroundColor: color, marginRight: 0 }]} />
+                        <Text style={[styles.fineChipLabel, { color }]}>{label}</Text>
                         <Text style={[styles.fineChipValue, { color }]}>{value}</Text>
                       </View>
-                    </View>
-                  ))}
-                </View>
+                    ))}
+                  </View>
+                )}
                 {total === 0 && (
                   <Text style={[styles.noDataText, { textAlign: 'center', marginTop: 16 }]}>
                     No fines yet
@@ -690,45 +688,27 @@ const styles = StyleSheet.create({
   },
   fineLegendChips: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     gap: 12,
-    marginTop: 20,
-    paddingHorizontal: 8,
+    marginTop: 12,
+    paddingHorizontal: 20,
+    flexWrap: 'wrap',
   },
   fineChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingRight: 20,
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 20,
-    gap: 8,
-    width: '47%',
-    minHeight: 44,
-  },
-  fineChipDot: {
-    marginRight: 0,
-  },
-  fineChipLabelWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
-  fineChipValueWrap: {
-    marginLeft: 8,
-    paddingLeft: 8,
-    flexShrink: 0,
   },
   fineChipLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    flexShrink: 0,
+    fontSize: 11,
+    fontWeight: '500',
   },
   fineChipValue: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    flexShrink: 0,
+    fontSize: 11,
+    fontWeight: '700',
   },
   cardHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
