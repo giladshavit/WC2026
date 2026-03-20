@@ -434,9 +434,9 @@ export default function LeagueDetailsScreen() {
   const [userDismissedLive, setUserDismissedLive] = useState(false);
 
   const SORT_COLORS: Record<string, string> = {
-    exact: '#4b7c5e',
-    correct: '#7a6230',
-    wrong: '#7a3535',
+    exact: '#22c55e',
+    correct: '#f59e0b',
+    wrong: '#ef4444',
     matches: '#60a5fa',
     groups: '#c084fc',
     knockout: '#fbbf24',
