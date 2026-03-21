@@ -556,11 +556,13 @@ class BonusInterimRequest(BaseModel):
     g3_interim: Optional[str] = None
     g4_interim: Optional[str] = None
     g5_interim: Optional[str] = None
+    g6_interim: Optional[str] = None
     k1_interim: Optional[str] = None
     k2_interim: Optional[str] = None
     k3_interim: Optional[str] = None
     t1_interim: Optional[str] = None
     t2_interim: Optional[str] = None
+    t3_interim: Optional[str] = None
 
 
 @router.post("/admin/bonus/settle-groups", response_model=Dict[str, Any])
@@ -719,7 +721,7 @@ def update_bonus_interim(
 ):
     """Update interim (live/current) values for bonus questions. Display-only, no scoring."""
     from services.database import DBWriter, DBUtils
-    fields = ["g1", "g2", "g3", "g4", "g5", "k1", "k2", "k3", "t1", "t2"]
+    fields = ["g1", "g2", "g3", "g4", "g5", "g6", "k1", "k2", "k3", "t1", "t2", "t3"]
     updates = {}
     request_dict = request.model_dump()
     for f in fields:

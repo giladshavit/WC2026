@@ -10,18 +10,20 @@ FIELD_TO_COLUMN: Dict[str, str] = {
     "g3": "g3_top_team_id",
     "g4": "g4_perfect_teams",
     "g5": "g5_clean_sheet_teams",
+    "g6": "g6_scoreless_draws_group",
     "k1": "k1_total_goals_knockout",
     "k2": "k2_penalty_shootouts",
     "k3": "k3_third_place_quarters",
     "t1": "t1_total_goals_tournament",
-    "t2": "t2_scoreless_draws",
+    "t2": "t2_champion_team_id",
+    "t3": "t3_top_scorer",
 }
 
 STATUS_COLUMN_MAP: Dict[str, str] = {
     "g1": "q_g1_status", "g2": "q_g2_status", "g3": "q_g3_status",
-    "g4": "q_g4_status", "g5": "q_g5_status",
+    "g4": "q_g4_status", "g5": "q_g5_status", "g6": "q_g6_status",
     "k1": "q_k1_status", "k2": "q_k2_status", "k3": "q_k3_status",
-    "t1": "q_t1_status", "t2": "q_t2_status",
+    "t1": "q_t1_status", "t2": "q_t2_status", "t3": "q_t3_status",
 }
 
 

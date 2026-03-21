@@ -911,7 +911,7 @@ class DBReader:
     def get_bonus_interim_values_dict(db: Session) -> dict[str, str | None]:
         """Read all interim values from bonus_results table."""
         from models.results import BonusResults
-        fields = ["g1", "g2", "g3", "g4", "g5", "k1", "k2", "k3", "t1", "t2"]
+        fields = ["g1", "g2", "g3", "g4", "g5", "g6", "k1", "k2", "k3", "t1", "t2", "t3"]
         row = db.query(BonusResults).filter_by(id=1).first()
         if not row:
             return {f: None for f in fields}
