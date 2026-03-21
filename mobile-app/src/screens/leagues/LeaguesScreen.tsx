@@ -214,8 +214,11 @@ export default function LeaguesScreen() {
     <View style={styles.headerWrapper}>
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          style={[styles.backButton, { zIndex: 999 }]}
+          onPress={() => {
+            const parent = navigation.getParent();
+            parent?.goBack();
+          }}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Ionicons name="chevron-back" size={24} color="#ffffff" />
