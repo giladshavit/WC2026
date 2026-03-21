@@ -540,7 +540,6 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
           activeOpacity={0.7}
         >
           <Ionicons name="stats-chart" size={13} color="#38bdf8" />
-          <Text style={styles.statsButtonText}>Stats</Text>
         </TouchableOpacity>
       )}
 
@@ -884,7 +883,6 @@ const styles = StyleSheet.create({
     left: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
@@ -893,7 +891,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(2,132,199,0.3)',
   },
   statsButtonText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#38bdf8',
   },

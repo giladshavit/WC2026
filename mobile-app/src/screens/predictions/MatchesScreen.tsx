@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Platform, Dimensions, Keyboard, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Platform, Dimensions, Keyboard, StatusBar, Modal, TouchableOpacity } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Match, apiService, MatchesResponse } from '../../services/api';
 import MatchCard, { MatchCardHandle } from '../../components/cards/MatchCard';
@@ -9,6 +9,128 @@ import { useToast } from '../../components/toast/Toast';
 import { ErrorModal, LockedMatchModal } from '../../components/modals/CustomModals';
 
 const DEBOUNCE_MS = 800;
+
+function MatchLegendModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const rows = [
+    {
+      icon: 'stats-chart',
+      color: '#38bdf8',
+      label: 'Statistics',
+      desc: 'See how all players in your leagues predicted this match',
+    },
+    {
+      icon: 'flash',
+      color: '#7c3aed',
+      label: 'x2 Temptation',
+      desc: 'Rare prediction suggested by the app. If correct, you earn double points!',
+    },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity
+        style={matchLegendStyles.overlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableOpacity activeOpacity={1} style={matchLegendStyles.card} onPress={() => {}}>
+
+          <View style={matchLegendStyles.titleRow}>
+            <Ionicons name="information-circle" size={18} color="#94a3b8" />
+            <Text style={matchLegendStyles.title}>Match Card Guide</Text>
+          </View>
+
+          {rows.map((row) => (
+            <View key={row.label} style={matchLegendStyles.row}>
+              <View style={[matchLegendStyles.iconBox, { backgroundColor: row.color + '22' }]}>
+                <Ionicons name={row.icon as any} size={16} color={row.color} />
+              </View>
+              <View style={matchLegendStyles.rowText}>
+                <Text style={[matchLegendStyles.rowLabel, { color: row.color }]}>{row.label}</Text>
+                <Text style={matchLegendStyles.rowDesc}>{row.desc}</Text>
+              </View>
+            </View>
+          ))}
+
+          <TouchableOpacity style={matchLegendStyles.closeBtn} onPress={onClose}>
+            <Text style={matchLegendStyles.closeBtnText}>Got it</Text>
+          </TouchableOpacity>
+
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+const matchLegendStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  card: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 360,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#f1f5f9',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowText: {
+    flex: 1,
+  },
+  rowLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  rowDesc: {
+    fontSize: 12,
+    color: '#94a3b8',
+    lineHeight: 17,
+  },
+  closeBtn: {
+    marginTop: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  closeBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#e2e8f0',
+  },
+});
 
 export default function MatchesScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -36,6 +158,20 @@ export default function MatchesScreen() {
   } | null>(null);
   const [fetchCount, setFetchCount] = useState(0);
   const [resetCount, setResetCount] = useState(0);
+  const [infoModalVisible, setInfoModalVisible] = useState(false);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setInfoModalVisible(true)}
+          style={{ paddingRight: 16, paddingVertical: 8 }}
+        >
+          <Ionicons name="information-circle" size={24} color="#e2e8f0" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
 
   const fetchMatches = useCallback(async () => {
     try {
@@ -300,6 +436,10 @@ export default function MatchesScreen() {
         message={lockedModal?.message ?? ''}
         onClose={() => setLockedModal(null)}
       />
+      <MatchLegendModal
+        visible={infoModalVisible}
+        onClose={() => setInfoModalVisible(false)}
+      />
     </View>
   );
 }
@@ -319,6 +459,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     backgroundColor: '#1e293b',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   pointsBadge: {
     backgroundColor: '#1e293b',
