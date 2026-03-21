@@ -336,7 +336,9 @@ export default function AdminBonusScreen() {
             </Text>
           )}
       {groups.map((g) => {
-            const isSelected = sel[q.id] === String(g.group_id);
+            const isSelected = useMulti
+              ? (Array.isArray(sel[q.id]) ? (sel[q.id] as string[]).includes(String(g.group_id)) : sel[q.id] === String(g.group_id))
+              : sel[q.id] === String(g.group_id);
             const teams = (g.teams || []).slice(0, 4);
             return (
               <TouchableOpacity
@@ -345,11 +347,15 @@ export default function AdminBonusScreen() {
                   styles.groupCard,
                   isSelected && (isInterim ? { backgroundColor: accentBg, borderColor: accentColor } : styles.groupCardSelected),
                 ]}
-                onPress={() =>
-                  (isInterim
-                    ? setSelString((prev) => ({ ...prev, [q.id]: String(g.group_id) }))
-                    : setSelValue((prev) => ({ ...prev, [q.id]: String(g.group_id) })))
-                }
+                onPress={() => {
+                  if (isInterim) {
+                    setSelString((prev) => ({ ...prev, [q.id]: String(g.group_id) }));
+                  } else if (useMulti) {
+                    handleMultiToggle(q.id, String(g.group_id));
+                  } else {
+                    setSelValue((prev) => ({ ...prev, [q.id]: String(g.group_id) }));
+                  }
+                }}
               >
                 <Text style={[styles.groupName, isSelected && { color: accentColor }]}>{g.group_name}</Text>
                 <View style={styles.flagRow}>
@@ -370,6 +376,7 @@ export default function AdminBonusScreen() {
 
     if (q.id === 'g3' || q.id === 't2') {
       if (loadingGroups) return <ActivityIndicator color={accentColor} style={{ marginVertical: 12 }} />;
+      const useMulti = !isInterim && MULTI_SELECT_FIELDS.includes(q.id);
       const GAP = 6;
       const COLS = 6;
       const CELL_W = Math.floor((screenWidth - 40 - (COLS - 1) * GAP) / COLS);
@@ -379,7 +386,9 @@ export default function AdminBonusScreen() {
         <ScrollView horizontal={false} showsVerticalScrollIndicator style={{ maxHeight: 220 }}>
           <View style={[styles.flagGrid, { gap: GAP }]}>
             {allTeams.map((t) => {
-              const isSelected = sel[q.id] === String(t.id);
+              const isSelected = useMulti
+                ? (Array.isArray(sel[q.id]) ? (sel[q.id] as string[]).includes(String(t.id)) : sel[q.id] === String(t.id))
+                : sel[q.id] === String(t.id);
               return (
                 <TouchableOpacity
                   key={t.id}
@@ -388,11 +397,15 @@ export default function AdminBonusScreen() {
                     isSelected && (isInterim ? { backgroundColor: accentBg, borderColor: accentColor } : styles.teamCellSelected),
                     { width: CELL_W },
                   ]}
-                  onPress={() =>
-                    (isInterim
-                      ? setSelString((prev) => ({ ...prev, [q.id]: String(t.id) }))
-                      : setSelValue((prev) => ({ ...prev, [q.id]: String(t.id) })))
-                  }
+                  onPress={() => {
+                    if (isInterim) {
+                      setSelString((prev) => ({ ...prev, [q.id]: String(t.id) }));
+                    } else if (useMulti) {
+                      handleMultiToggle(q.id, String(t.id));
+                    } else {
+                      setSelValue((prev) => ({ ...prev, [q.id]: String(t.id) }));
+                    }
+                  }}
                 >
                   {t.flag_url ? (
                     <Image source={{ uri: t.flag_url }} style={{ width: FLAG_W, height: FLAG_H, borderRadius: 4 }} resizeMode="contain" />
