@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, Image } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, Image, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const TROPHY_IMAGE = require('../../assets/trophy.png');
@@ -126,7 +126,9 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
                 opacity: letterOOpacity,
               }}
             >
-              <Text style={styles.footballEmoji}>⚽</Text>
+              <Text style={[styles.footballEmoji, { marginLeft: Platform.OS === 'android' ? -42 : -46 }]}>
+                ⚽
+              </Text>
             </Animated.View>
           </View>
           <Text style={styles.tagline}>World Cup 2026 Predictions</Text>
