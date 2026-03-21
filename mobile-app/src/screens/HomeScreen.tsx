@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
+    elevation: 0,
   },
   profileButton: {
     backgroundColor: 'transparent',
