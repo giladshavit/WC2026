@@ -3,10 +3,12 @@ import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 
 // Change this to your Mac's IP address when testing on physical device
+const PRODUCTION_URL = 'https://wc2026-production-73ee.up.railway.app';
 const DEVICE_IP = '10.100.102.108';
 
 // For web: localhost. For iOS Simulator: localhost. For Android Emulator: 10.0.2.2. For physical device: network IP
 function getApiBaseUrl(): string {
+  if (!__DEV__) return PRODUCTION_URL;
   if (Platform.OS === 'web') return 'http://localhost:8000';
   if (!Device.isDevice) {
     // Simulator/Emulator
