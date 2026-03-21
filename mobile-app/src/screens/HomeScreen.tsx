@@ -38,7 +38,8 @@ const STAGE_LABELS: Record<string, { label: string; emoji: string; color: string
 type NavigationProp = StackNavigationProp<MainStackParamList, 'Home'>;
 
 const screenWidth = Dimensions.get('window').width;
-const buttonSize = (screenWidth - 24 * 2 - 16) / 2;
+const MAX_BUTTON_SIZE = 200;
+const buttonSize = Math.min((screenWidth - 24 * 2 - 16) / 2, MAX_BUTTON_SIZE);
 
 function StatsBarChartIcon({ size = 36 }: { size?: number }) {
   const bars = [
@@ -308,7 +309,11 @@ const styles = StyleSheet.create({
   buttonsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 16,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 420,
     marginTop: 32,
     marginBottom: 8,
   },
@@ -358,6 +363,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#334155',
     marginBottom: 12,
+    maxWidth: 420,
+    alignSelf: 'center',
+    width: '100%',
   },
   rulesIconWrap: {
     width: 38,
