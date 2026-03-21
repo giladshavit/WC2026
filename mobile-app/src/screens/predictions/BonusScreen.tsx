@@ -1034,7 +1034,9 @@ export default function BonusScreen() {
     if (field === 'g2') {
       const PARENT_PADDING = 40;
       const COL_GAP = 20;
-      const availableWidth = screenWidth - PARENT_PADDING * 2 - COL_GAP * 2;
+      const MAX_GRID_WIDTH = 480;
+      const effectiveWidth = Math.min(screenWidth - PARENT_PADDING * 2, MAX_GRID_WIDTH);
+      const availableWidth = effectiveWidth - COL_GAP * 2;
       const cardWidth = Math.floor(availableWidth / 3);
       const cardHeight = cardWidth;
       const flagAreaWidth = cardWidth - 32;
@@ -1058,6 +1060,9 @@ export default function BonusScreen() {
             justifyContent: 'center',
             alignContent: 'center',
             paddingBottom: 16,
+            maxWidth: 480,
+            alignSelf: 'center',
+            width: '100%',
           }}
         >
           {groups.map((g) => {
