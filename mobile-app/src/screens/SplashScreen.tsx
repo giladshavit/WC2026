@@ -4,6 +4,121 @@ import { View, Text, StyleSheet, Animated, Easing, Image, Platform } from 'react
 import { LinearGradient } from 'expo-linear-gradient';
 
 const TROPHY_IMAGE = require('../../assets/trophy.png');
+const FOOTBALL_IMAGE = require('../../assets/football_2026.png');
+
+function RadialGlowLayer() {
+  const layers = [
+    { size: 260, opacity: 0.001 },
+    { size: 255, opacity: 0.001 },
+    { size: 250, opacity: 0.001 },
+    { size: 245, opacity: 0.002 },
+    { size: 240, opacity: 0.002 },
+    { size: 235, opacity: 0.003 },
+    { size: 230, opacity: 0.003 },
+    { size: 225, opacity: 0.004 },
+    { size: 220, opacity: 0.004 },
+    { size: 215, opacity: 0.005 },
+    { size: 210, opacity: 0.005 },
+    { size: 205, opacity: 0.005 },
+    { size: 200, opacity: 0.006 },
+    { size: 195, opacity: 0.006 },
+    { size: 190, opacity: 0.006 },
+    { size: 185, opacity: 0.007 },
+    { size: 180, opacity: 0.007 },
+    { size: 175, opacity: 0.007 },
+    { size: 170, opacity: 0.008 },
+    { size: 165, opacity: 0.008 },
+    { size: 160, opacity: 0.008 },
+    { size: 155, opacity: 0.008 },
+    { size: 150, opacity: 0.009 },
+    { size: 145, opacity: 0.009 },
+    { size: 140, opacity: 0.009 },
+    { size: 135, opacity: 0.009 },
+    { size: 130, opacity: 0.009 },
+    { size: 125, opacity: 0.010 },
+    { size: 120, opacity: 0.010 },
+    { size: 115, opacity: 0.010 },
+    { size: 110, opacity: 0.010 },
+    { size: 105, opacity: 0.010 },
+    { size: 100, opacity: 0.010 },
+    { size: 96, opacity: 0.010 },
+    { size: 92, opacity: 0.010 },
+  ];
+
+  return (
+    <View style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center' }}>
+      {layers.map((layer, i) => (
+        <View
+          key={i}
+          style={{
+            position: 'absolute',
+            width: layer.size,
+            height: layer.size,
+            borderRadius: layer.size / 2,
+            backgroundColor: `rgba(212, 175, 55, ${layer.opacity})`,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+function StarField() {
+  const stars = [
+    { top: '4%', left: '8%', size: 2.0, opacity: 0.55 },
+    { top: '7%', left: '55%', size: 1.2, opacity: 0.35 },
+    { top: '5%', left: '82%', size: 4.5, opacity: 0.65 },
+    { top: '11%', left: '30%', size: 1.0, opacity: 0.3 },
+    { top: '13%', left: '70%', size: 1.8, opacity: 0.45 },
+    { top: '18%', left: '15%', size: 3.5, opacity: 0.55 },
+    { top: '20%', left: '90%', size: 1.2, opacity: 0.3 },
+    { top: '25%', left: '48%', size: 1.0, opacity: 0.25 },
+    { top: '28%', left: '5%', size: 2.2, opacity: 0.45 },
+    { top: '32%', left: '78%', size: 4.0, opacity: 0.6 },
+    { top: '36%', left: '22%', size: 1.5, opacity: 0.3 },
+    { top: '39%', left: '65%', size: 1.0, opacity: 0.25 },
+    { top: '42%', left: '92%', size: 2.5, opacity: 0.4 },
+    { top: '58%', left: '3%', size: 1.8, opacity: 0.35 },
+    { top: '60%', left: '72%', size: 1.0, opacity: 0.25 },
+    { top: '62%', left: '88%', size: 3.5, opacity: 0.55 },
+    { top: '65%', left: '10%', size: 1.2, opacity: 0.3 },
+    { top: '70%', left: '60%', size: 1.8, opacity: 0.35 },
+    { top: '73%', left: '25%', size: 1.0, opacity: 0.25 },
+    { top: '75%', left: '45%', size: 4.5, opacity: 0.6 },
+    { top: '78%', left: '75%', size: 2.5, opacity: 0.5 },
+    { top: '80%', left: '42%', size: 1.2, opacity: 0.3 },
+    { top: '83%', left: '18%', size: 3.0, opacity: 0.5 },
+    { top: '85%', left: '5%', size: 1.8, opacity: 0.4 },
+    { top: '87%', left: '88%', size: 1.0, opacity: 0.25 },
+    { top: '89%', left: '55%', size: 2.0, opacity: 0.4 },
+    { top: '91%', left: '32%', size: 4.0, opacity: 0.6 },
+    { top: '93%', left: '78%', size: 1.5, opacity: 0.35 },
+    { top: '94%', left: '65%', size: 1.5, opacity: 0.35 },
+    { top: '96%', left: '18%', size: 1.2, opacity: 0.3 },
+    { top: '97%', left: '42%', size: 2.5, opacity: 0.45 },
+    { top: '98%', left: '85%', size: 3.5, opacity: 0.5 },
+  ];
+
+  return (
+    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+      {stars.map((star, i) => (
+        <View
+          key={i}
+          style={{
+            position: 'absolute',
+            top: star.top as any,
+            left: star.left as any,
+            width: star.size,
+            height: star.size,
+            borderRadius: star.size / 2,
+            backgroundColor: '#ffffff',
+            opacity: star.opacity,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
 
 interface SplashScreenProps {
   onAnimationComplete: () => void;
@@ -78,11 +193,12 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
 
   return (
     <LinearGradient
-      colors={['#0f4d2e', '#146635', '#1a7a3d']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
+      colors={['#0d1f3c', '#0f2744', '#060d1a']}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
       style={styles.container}
     >
+      <StarField />
       <View style={styles.decorativeCircle1} />
       <View style={styles.decorativeCircle2} />
       <View style={styles.decorativeCircle3} />
@@ -90,7 +206,7 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
       <View style={styles.contentContainer}>
         {/* Trophy with glow and pop-in animation */}
         <View style={styles.trophyWrapper}>
-          <View style={styles.trophyGlow} />
+          <RadialGlowLayer />
           <Animated.View
             style={[
               styles.trophyImageWrapper,
@@ -124,11 +240,15 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
               style={{
                 transform: [{ translateY: letterOTranslateY }],
                 opacity: letterOOpacity,
+                marginLeft: Platform.OS === 'android' ? -44 : -48,
+                marginTop: Platform.OS === 'ios' ? 0 : 0,
               }}
             >
-              <Text style={[styles.footballEmoji, { marginLeft: Platform.OS === 'android' ? -42 : -46 }]}>
-                ⚽
-              </Text>
+              <Image
+                source={FOOTBALL_IMAGE}
+                style={styles.footballImage}
+                resizeMode="contain"
+              />
             </Animated.View>
           </View>
           <Text style={styles.tagline}>World Cup 2026 Predictions</Text>
@@ -148,28 +268,28 @@ const styles = StyleSheet.create({
   },
   decorativeCircle1: {
     position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    top: -50,
-    right: -50,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+    top: -40,
+    right: -40,
   },
   decorativeCircle2: {
     position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(212, 175, 55, 0.04)',
     bottom: 100,
-    left: -30,
+    left: -25,
   },
   decorativeCircle3: {
     position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(59, 130, 246, 0.04)',
     top: 150,
     right: 50,
   },
@@ -181,22 +301,15 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   trophyWrapper: {
-    width: 140,
-    height: 140,
+    width: 280,
+    height: 280,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
   },
-  trophyGlow: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
   trophyImageWrapper: {
-    width: 120,
-    height: 120,
+    width: 150,
+    height: 150,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -204,8 +317,8 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   trophyImage: {
-    width: 120,
-    height: 120,
+    width: 150,
+    height: 150,
   },
   titleTaglineWrapper: {
     alignItems: 'center',
@@ -224,14 +337,13 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     lineHeight: 62,
   },
-  footballEmoji: {
-    fontSize: 46,
-    lineHeight: 62,
-    marginLeft: -46,
+  footballImage: {
+    width: 57,
+    height: 57,
   },
   tagline: {
     fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: 'rgba(148, 163, 184, 0.9)',
     fontWeight: '500',
     letterSpacing: 1,
     marginTop: 8,
