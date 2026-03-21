@@ -740,8 +740,19 @@ class DBWriter:
     # ═══════════════════════════════════════════════════════
     @staticmethod
     def create_bonus_prediction(db: Session, user_id: int) -> BonusPrediction:
-        """Create empty bonus prediction for a user."""
-        pred = BonusPrediction(user_id=user_id)
+        """Create empty bonus prediction for a user, with correct editability for current stage."""
+        from services.stage_manager import StageManager, Stage
+        current_stage = StageManager.get_current_stage(db)
+
+        # Bonus locks entirely at GROUP_CYCLE_1 and beyond
+        is_editable = current_stage == Stage.PRE_GROUP_STAGE
+
+        pred = BonusPrediction(
+            user_id=user_id,
+            groups_is_editable=is_editable,
+            knockout_is_editable=is_editable,
+            tournament_is_editable=is_editable,
+        )
         db.add(pred)
         db.flush()
         db.refresh(pred)
