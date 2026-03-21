@@ -126,7 +126,7 @@ function PodiumSection({
   const stageColors = ['#D4AF37', '#A8A9AD', '#AD6F3B'];
 
   return (
-    <View style={styles.podiumSection}>
+    <View style={[styles.podiumSection, { maxWidth: 600, alignSelf: 'center', width: '100%' }]}>
       {ordered.map((item, displayIdx) => {
         if (!item) return null;
         const rankIdx = displayIdx === 0 ? 1 : displayIdx === 1 ? 0 : 2;
@@ -841,7 +841,7 @@ export default function LeagueDetailsScreen() {
         )}
 
         {topThree.length < 3 && topThree.length > 0 && (
-          <View style={styles.podiumSection}>
+          <View style={[styles.podiumSection, { maxWidth: 520, alignSelf: 'center', width: '100%' }]}>
             {topThree.map((item, idx) => {
               const isCurrentUser = currentUserId !== null && item.user_id === currentUserId;
               const medalConfig = PODIUM_MEDAL_CONFIG[idx];
@@ -867,7 +867,7 @@ export default function LeagueDetailsScreen() {
           </View>
         )}
 
-        <View style={styles.tableSection}>
+        <View style={[styles.tableSection, { maxWidth: 520, alignSelf: 'center', width: '100%' }]}>
           <FlashList
             key={sortBy + '-' + scoreMode}
             ref={flashListRef}
@@ -1536,6 +1536,7 @@ const styles = StyleSheet.create({
   },
   colPlayer: {
     flex: 1,
+    paddingLeft: 16,
   },
   rankNameRow: {
     flexDirection: 'row',
@@ -1577,9 +1578,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   colTotal: {
-    width: 50,
+    width: 74,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingRight: 4,
   },
   livePredBadge: {
     width: 46,
@@ -1616,7 +1618,7 @@ const styles = StyleSheet.create({
   tableFixedLeft: {
     flex: 1,
     minWidth: 80,
-    maxWidth: 160,
+    maxWidth: 520,
     overflow: 'hidden',
   },
   tableScrollMiddle: {
@@ -1631,9 +1633,11 @@ const styles = StyleSheet.create({
   },
   tableHeaderRight: {
     paddingHorizontal: 0,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 0,
   },
   tableFixedRight: {
-    width: 50,
+    width: 74,
     overflow: 'hidden',
   },
   playerRowContentRight: {
