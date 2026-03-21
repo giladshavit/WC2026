@@ -8,6 +8,7 @@ import {
   ScrollView,
   Animated,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -398,6 +399,201 @@ function AnimatedPlayerRow({
   return rightContent;
 }
 
+interface ColumnLegendModalProps {
+  visible: boolean;
+  onClose: () => void;
+  initialMode: 'classic' | 'multi';
+}
+
+function ColumnLegendModal({ visible, onClose, initialMode }: ColumnLegendModalProps) {
+  const [activeMode, setActiveMode] = React.useState<'classic' | 'multi'>(initialMode);
+
+  React.useEffect(() => {
+    if (visible) setActiveMode(initialMode);
+  }, [visible, initialMode]);
+
+  const classicRows = [
+    { icon: 'checkmark-circle-outline', color: '#22c55e', label: 'Exact', desc: 'Predicted the exact scoreline' },
+    { icon: 'remove-circle-outline', color: '#f59e0b', label: 'Correct', desc: 'Right outcome, wrong score' },
+    { icon: 'close-circle-outline', color: '#ef4444', label: 'Wrong', desc: 'Wrong outcome' },
+    { icon: 'football-outline', color: '#60a5fa', label: 'Matches', desc: 'Points from match predictions' },
+    { icon: 'gift-outline', color: '#4ade80', label: 'Bonus', desc: 'Points from bonus questions' },
+    { icon: 'star-outline', color: '#fbbf24', label: 'Total', desc: 'Total points (Matches + Bonus)' },
+  ];
+
+  const multiRows = [
+    { icon: 'football-outline', color: '#60a5fa', label: 'Matches', desc: 'Points from match predictions' },
+    { icon: 'home-outline', color: '#c084fc', label: 'Groups', desc: 'Points from group stage + 3rd place predictions' },
+    { icon: 'trophy-outline', color: '#fbbf24', label: 'Knockout', desc: 'Points from knockout bracket predictions' },
+    { icon: 'gift-outline', color: '#4ade80', label: 'Bonus', desc: 'Points from bonus questions' },
+    { icon: 'warning-outline', color: '#ef4444', label: 'Fines', desc: 'Point deductions for prediction changes' },
+    { icon: 'star-outline', color: '#fbbf24', label: 'Total', desc: 'Total points (all categories minus fines)' },
+  ];
+
+  const rows = activeMode === 'classic' ? classicRows : multiRows;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={legendStyles.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={legendStyles.card} onPress={() => {}}>
+
+          <View style={legendStyles.titleRow}>
+            <Ionicons name="information-circle" size={18} color="#94a3b8" />
+            <Text style={legendStyles.title}>Column Guide</Text>
+          </View>
+
+          <View style={legendStyles.toggleRow}>
+            <TouchableOpacity
+              style={[
+                legendStyles.toggleBtn,
+                activeMode === 'classic' && {
+                  backgroundColor: 'rgba(56,189,248,0.15)',
+                  borderColor: '#38bdf8',
+                },
+              ]}
+              onPress={() => setActiveMode('classic')}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                legendStyles.toggleBtnText,
+                activeMode === 'classic' && { color: '#38bdf8', fontWeight: '700' },
+              ]}>
+                Classic
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                legendStyles.toggleBtn,
+                activeMode === 'multi' && {
+                  backgroundColor: 'rgba(251,191,36,0.15)',
+                  borderColor: '#f59e0b',
+                },
+              ]}
+              onPress={() => setActiveMode('multi')}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                legendStyles.toggleBtnText,
+                activeMode === 'multi' && { color: '#f59e0b', fontWeight: '700' },
+              ]}>
+                Multi
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {rows.map((row) => (
+            <View key={row.label} style={legendStyles.row}>
+              <View style={[legendStyles.iconBox, { backgroundColor: row.color + '22' }]}>
+                <Ionicons name={row.icon as any} size={16} color={row.color} />
+              </View>
+              <View style={legendStyles.rowText}>
+                <Text style={[legendStyles.rowLabel, { color: row.color }]}>{row.label}</Text>
+                <Text style={legendStyles.rowDesc}>{row.desc}</Text>
+              </View>
+            </View>
+          ))}
+
+          <TouchableOpacity style={legendStyles.closeBtn} onPress={onClose}>
+            <Text style={legendStyles.closeBtnText}>Got it</Text>
+          </TouchableOpacity>
+
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+const legendStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  card: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 360,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 14,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#f1f5f9',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  toggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  toggleBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  iconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowText: {
+    flex: 1,
+  },
+  rowLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 1,
+  },
+  rowDesc: {
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  closeBtn: {
+    marginTop: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  closeBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#e2e8f0',
+  },
+});
+
 export default function LeagueDetailsScreen() {
   const route = useRoute();
   const navigation = useNavigation();
@@ -432,6 +628,7 @@ export default function LeagueDetailsScreen() {
   const [scoreMode, setScoreMode] = useState<'multi' | 'classic'>('classic');
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [userDismissedLive, setUserDismissedLive] = useState(false);
+  const [infoModalVisible, setInfoModalVisible] = useState(false);
 
   const SORT_COLORS: Record<string, string> = {
     exact: '#22c55e',
@@ -710,6 +907,13 @@ export default function LeagueDetailsScreen() {
             onPress={() => navigation.goBack()}
           >
             <Ionicons name="chevron-back" size={24} color="#ffffff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.infoButton, { right: isGlobalLeague ? 0 : 36 }]}
+            onPress={() => setInfoModalVisible(true)}
+          >
+            <Ionicons name="information-circle" size={22} color="#e2e8f0" />
           </TouchableOpacity>
 
           {!isGlobalLeague && (
@@ -1211,6 +1415,11 @@ export default function LeagueDetailsScreen() {
         onConfirm={handleLeaveConfirm}
         onCancel={() => setLeaveModalVisible(false)}
       />
+      <ColumnLegendModal
+        visible={infoModalVisible}
+        onClose={() => setInfoModalVisible(false)}
+        initialMode={scoreMode}
+      />
       <ErrorModal
         visible={!!errorModal}
         title={errorModal?.title}
@@ -1242,6 +1451,13 @@ const styles = StyleSheet.create({
     top: 0,
     zIndex: 1,
     padding: 4,
+  },
+  infoButton: {
+    position: 'absolute',
+    top: 0,
+    zIndex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
   },
   menuButton: {
     position: 'absolute',
