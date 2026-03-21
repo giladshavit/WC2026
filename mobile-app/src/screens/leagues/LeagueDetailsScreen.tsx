@@ -1536,7 +1536,7 @@ const styles = StyleSheet.create({
   },
   colPlayer: {
     flex: 1,
-    paddingLeft: 16,
+    paddingLeft: 36,
   },
   rankNameRow: {
     flexDirection: 'row',
