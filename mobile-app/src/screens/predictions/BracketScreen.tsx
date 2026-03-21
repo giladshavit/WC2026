@@ -661,28 +661,35 @@ export default function BracketScreen({}: BracketScreenProps) {
     try {
       setIsCapturing(true);
 
-      // Request permission to save to photos
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        setErrorModal({ title: 'Permission Required', message: 'Photo library access is required to save bracket images.' });
-        return;
-      }
-
-      // Capture the entire bracket view (including off-screen parts)
       const uri = await captureRef(bracketRef.current, {
         format: 'png',
         quality: 1.0,
-        result: 'tmpfile'
+        result: 'tmpfile',
       });
 
-      // Save to device photos
-      const asset = await MediaLibrary.createAssetAsync(uri);
-      await MediaLibrary.createAlbumAsync('Bracket Screenshots', asset, false);
+      try {
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status === 'granted') {
+          const asset = await MediaLibrary.createAssetAsync(uri);
+          await MediaLibrary.createAlbumAsync('Bracket Screenshots', asset, false);
+          showToast('Bracket saved to photos!', 'success');
+          return;
+        }
+      } catch (_) {
+        // MediaLibrary not available (Expo Go) — fall through to sharing
+      }
 
-      showToast('Bracket saved to photos!', 'success');
+      // Fallback: share instead
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'image/png',
+          dialogTitle: 'Save or share your bracket',
+        });
+      }
     } catch (error) {
       console.error('Error capturing bracket:', error);
-      setErrorModal({ title: 'Error', message: 'Could not save bracket to photos. Please try again.' });
+      setErrorModal({ title: 'Error', message: 'Could not capture bracket. Please try again.' });
     } finally {
       setIsCapturing(false);
     }
@@ -696,6 +703,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         format: 'png',
         quality: 1.0,
         result: 'tmpfile',
+        ...(Platform.OS === 'android' && { width: TOTAL_BRACKET_WIDTH, height: totalBracketHeight + Y_OFFSET + 60 }),
       });
       const isAvailable = await Sharing.isAvailableAsync();
       if (!isAvailable) {
@@ -943,7 +951,7 @@ export default function BracketScreen({}: BracketScreenProps) {
         horizontal
         showsHorizontalScrollIndicator={true}
         contentContainerStyle={styles.scrollContent}
-        style={[styles.scrollView, { pointerEvents: 'box-none', marginTop: 44 }]}
+        style={[styles.scrollView, { marginTop: 44 }]}
         onScroll={() => {
           if (showScrollHint) {
             Animated.timing(scrollHintOpacity, {
@@ -964,38 +972,37 @@ export default function BracketScreen({}: BracketScreenProps) {
           {drawBracketLines()}
         </Svg>
         {renderBracketColumns()}
+
+        {/* Hidden bracket for screenshot - inside ScrollView so Android can capture it */}
+        <View
+          ref={bracketRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: TOTAL_BRACKET_WIDTH,
+            height: totalBracketHeight + Y_OFFSET + 60,
+            opacity: Platform.OS === 'android' ? 0.01 : 0,
+          }}
+          collapsable={false}
+        >
+          <Svg width={TOTAL_BRACKET_WIDTH} height={totalBracketHeight + Y_OFFSET + 60} style={styles.bracketLines} pointerEvents="none">
+            {drawBracketLines()}
+          </Svg>
+          <View style={{ flexDirection: 'row', paddingLeft: 60, paddingTop: 20 }}>
+            {renderColumn('Round of 32 (Left)', organizedBracket.round32_left, false, 0)}
+            {renderColumn('Round of 16 (Left)', organizedBracket.round16_left, false, 1)}
+            {renderColumn('Quarter (Left)', organizedBracket.quarter_left, false, 2)}
+            {renderColumn('Semi 101', organizedBracket.semi.filter(m => m.id === 101), false, 3)}
+            {renderColumn('Final', organizedBracket.final, true, 4)}
+            {renderColumn('Semi 102', organizedBracket.semi.filter(m => m.id === 102), false, 5)}
+            {renderColumn('Quarter (Right)', organizedBracket.quarter_right, false, 6)}
+            {renderColumn('Round of 16 (Right)', organizedBracket.round16_right, false, 7)}
+            {renderColumn('Round of 32 (Right)', organizedBracket.round32_right, false, 8)}
+          </View>
+        </View>
       </ScrollView>
 
-      {/* Bracket Container for Screenshot - flat layout, no ScrollView */}
-      <View
-        ref={bracketRef}
-        style={[
-          styles.bracketContainer,
-          { width: TOTAL_BRACKET_WIDTH, height: totalBracketHeight + Y_OFFSET + 60 }
-        ]}
-        collapsable={false}
-      >
-        <Svg
-          style={[styles.bracketLines, { height: totalBracketHeight + Y_OFFSET + 60 }]}
-          width={TOTAL_BRACKET_WIDTH}
-          height={totalBracketHeight + Y_OFFSET + 60}
-          pointerEvents="none"
-        >
-          {drawBracketLines()}
-        </Svg>
-        <View style={{ flexDirection: 'row', paddingLeft: 60, paddingTop: 20 }}>
-          {renderColumn('Round of 32 (Left)', organizedBracket.round32_left, false, 0)}
-          {renderColumn('Round of 16 (Left)', organizedBracket.round16_left, false, 1)}
-          {renderColumn('Quarter (Left)', organizedBracket.quarter_left, false, 2)}
-          {renderColumn('Semi 101', organizedBracket.semi.filter(match => match.id === 101), false, 3)}
-          {renderColumn('Final', organizedBracket.final, true, 4)}
-          {renderColumn('Semi 102', organizedBracket.semi.filter(match => match.id === 102), false, 5)}
-          {renderColumn('Quarter (Right)', organizedBracket.quarter_right, false, 6)}
-          {renderColumn('Round of 16 (Right)', organizedBracket.round16_right, false, 7)}
-          {renderColumn('Round of 32 (Right)', organizedBracket.round32_right, false, 8)}
-        </View>
-      </View>
-      
       {/* Inline Toast */}
       {toastMsg && (
         <View style={styles.toast} pointerEvents="none">
@@ -1860,12 +1867,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     overflow: 'hidden',
-  },
-  bracketContainer: {
-    position: 'absolute',
-    top: -10000, // Hide off-screen
-    left: -10000,
-    backgroundColor: 'transparent',
   },
   modalOverlay: {
     flex: 1,
