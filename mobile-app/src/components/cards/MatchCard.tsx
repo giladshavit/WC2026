@@ -411,8 +411,8 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
     const hasNoResult = !match.actual_result;
     const shouldShowCursor = hasNoResult && isEditable && !scoreValue && isFieldFocused;
 
-    const displayValue = scoreValue || (isEditable ? (isFieldFocused ? '' : '+') : '-');
-    const placeholderColor = isEditable ? '#94a3b8' : '#475569';
+    const displayValue = scoreValue || (isEditable ? (isFieldFocused ? '' : '+') : '–');
+    const placeholderColor = isEditable ? '#94a3b8' : '#64748b';
 
     // Live match: color score box by prediction accuracy (only when not focused and has score)
     const showLiveColor = liveColor && isLive && scoreValue && !isFieldFocused;
@@ -460,6 +460,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
                 isEditable ? styles.scoreInputEditable : styles.scoreInputDisabled,
                 !scoreValue && { color: placeholderColor },
                 !scoreValue && { lineHeight: 20 },
+                !scoreValue && !isEditable && { fontSize: 18, fontWeight: '500' },
                 scoreValue && { lineHeight: 24 },
                 showLiveColor && { color: liveColor! },
               ]}
@@ -502,7 +503,11 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
         <View style={styles.matchLayout}>
           {renderTeamColumn('home')}
 
-          <View style={[styles.scoreSection, !isEditable && { opacity: 0.45 }]}>
+          <View style={[
+            styles.scoreSection,
+            !isEditable && (homeScore || awayScore) && { opacity: 0.45 },
+            !isEditable && !homeScore && !awayScore && { opacity: 0.65 },
+          ]}>
             {renderScoreInput('home')}
             <Text
               style={[
