@@ -694,9 +694,6 @@ export default function BonusScreen() {
     (k) => String(localAnswers[k] ?? '') !== String(savedAnswers[k] ?? '')
   ).length;
 
-  const penaltyPoints = changedCount * (finePerChange ?? 0);
-  const finePerChangeVal = finePerChange ?? 0;
-
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -887,7 +884,7 @@ export default function BonusScreen() {
 
   const handleBack = () => {
     if (isDirty) {
-      if (finePerChangeVal === 0) {
+      if ((finePerChange ?? 0) === 0) {
         handleSaveAndExit();
       } else {
         setShowExitModal(true);
@@ -930,8 +927,8 @@ export default function BonusScreen() {
       return g ? `Group ${g.group_name}` : String(value);
     }
     if (field === 'g3' || field === 't2') {
-      const allTeams = groups.flatMap((g) => g.teams || []);
-      const t = allTeams.find((t) => t.id === Number(value));
+      const allTeamsFlat = groups.flatMap((g) => g.teams || []);
+      const t = allTeamsFlat.find((t) => t.id === Number(value));
       return t?.name ?? String(value);
     }
     if (field === 't3') {
@@ -946,9 +943,18 @@ export default function BonusScreen() {
       k2: K2_OPTIONS,
       k3: K3_OPTIONS,
       t1: T1_OPTIONS,
+      t3: T3_OPTIONS,
     };
     const opt = (optMap[field] ?? []).find((o) => o.value === String(value));
     return opt?.label ?? String(value);
+  };
+
+  const getInterimLabel = (field: string): string | null => {
+    // Don't show interim if question is already settled
+    if (getQuestionStatusForField(field) !== 'pending') return null;
+    const interim = prediction?.interim_values?.[field];
+    if (!interim) return null;
+    return getAnswerLabel(field, interim);
   };
 
   const isSectionEditable = (field: string): boolean => {
@@ -1031,6 +1037,9 @@ export default function BonusScreen() {
     const isEditable = prediction
       ? (prediction as any)[FIELD_TO_EDITABLE[field]] === true
       : true;
+    const interimVal = (!isEditable && getQuestionStatusForField(field) === 'pending')
+      ? (prediction?.interim_values?.[field] ?? null)
+      : null;
     if (field === 'g2') {
       const PARENT_PADDING = 40;
       const COL_GAP = 20;
@@ -1092,19 +1101,30 @@ export default function BonusScreen() {
                 } else if (qStatus === 'incorrect') {
                   cardStyle = { ...cardStyle, borderColor: '#ef4444', borderWidth: 2, opacity: 1 };
                   textColor = '#ef4444';
+                } else {
+                  cardStyle = { ...cardStyle, borderColor: '#38bdf8', borderWidth: 2, opacity: 1, backgroundColor: 'rgba(56,189,248,0.1)' };
+                  textColor = '#38bdf8';
                 }
-              } else if (correctIds.includes(String(g.group_id)) && qStatus === 'incorrect') {
+              } else if (correctIds.includes(String(g.group_id)) && (qStatus === 'incorrect' || (qStatus === 'correct' && !isUserAnswer))) {
                 cardStyle = {
                   ...cardStyle,
                   borderColor: '#16a34a',
                   borderWidth: 2.5,
                   opacity: 1,
-                  backgroundColor: 'rgba(22,163,74,0.15)',
+                  backgroundColor: '#152a45',
                 };
                 textColor = '#16a34a';
               } else {
                 cardStyle = { ...cardStyle, opacity: 0.35 };
               }
+            }
+            if (interimVal !== null && String(g.group_id) === interimVal) {
+              cardStyle = {
+                ...cardStyle,
+                borderColor: '#f59e0b',
+                borderWidth: selected ? 3 : 2,
+                opacity: 1,
+              };
             }
             return (
               <TouchableOpacity
@@ -1186,22 +1206,32 @@ export default function BonusScreen() {
             const isCorrectAnswer = correctIds.includes(String(t.id));
             let cellOpacity = 1;
             let flagWrapperStyle: object | undefined;
-            let showCheckmark = false;
+            let badgeType: 'correct' | 'incorrect' | null = null;
             if (!isEditable) {
               if (isUserAnswer) {
                 if (qStatus === 'correct') {
                   flagWrapperStyle = { borderColor: '#16a34a', borderWidth: 2, borderRadius: 5, padding: 1 };
+                  badgeType = 'correct';
                 } else if (qStatus === 'incorrect') {
                   flagWrapperStyle = { borderColor: '#ef4444', borderWidth: 2, borderRadius: 5, padding: 1 };
+                  badgeType = 'incorrect';
+                } else {
+                  flagWrapperStyle = { borderColor: '#38bdf8', borderWidth: 2, borderRadius: 5, padding: 1 };
+                  badgeType = null;
                 }
-              } else if (isCorrectAnswer && qStatus === 'incorrect') {
+              } else if (isCorrectAnswer && (qStatus === 'incorrect' || (qStatus === 'correct' && !isUserAnswer))) {
                 flagWrapperStyle = { borderColor: '#16a34a', borderWidth: 2.5, borderRadius: 5, padding: 1 };
-                showCheckmark = true;
+                badgeType = null;
               } else {
                 cellOpacity = 0.35;
               }
             } else if (selected) {
               flagWrapperStyle = { borderWidth: 2, borderColor: '#16a34a', borderRadius: 4, padding: 1 };
+            }
+            if (interimVal !== null && String(t.id) === interimVal && !flagWrapperStyle) {
+              flagWrapperStyle = { borderColor: '#f59e0b', borderWidth: 2, borderRadius: 5, padding: 1 };
+            } else if (interimVal !== null && String(t.id) === interimVal && flagWrapperStyle) {
+              flagWrapperStyle = { ...(flagWrapperStyle as object), borderColor: '#f59e0b', borderWidth: 2.5 };
             }
             return (
               <TouchableOpacity
@@ -1224,9 +1254,23 @@ export default function BonusScreen() {
                       <View style={[styles.flagPlaceholder, { width: flagW, height: flagH, borderRadius: 3 }]} />
                     )}
                   </View>
-                  {showCheckmark && (
-                    <View style={{ position: 'absolute', bottom: -2, right: -2 }}>
-                      <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                  {badgeType !== null && (
+                    <View style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -4,
+                      width: 16,
+                      height: 16,
+                      borderRadius: 8,
+                      backgroundColor: badgeType === 'correct' ? '#16a34a' : '#ef4444',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}>
+                      <Ionicons
+                        name={badgeType === 'correct' ? 'checkmark' : 'close'}
+                        size={10}
+                        color="#fff"
+                      />
                     </View>
                   )}
                 </View>
@@ -1285,22 +1329,32 @@ export default function BonusScreen() {
             const isCorrectAnswer = correctIds.includes(String(t.id));
             let cellOpacity = 1;
             let flagWrapperStyle: object | undefined;
-            let showCheckmark = false;
+            let badgeType: 'correct' | 'incorrect' | null = null;
             if (!isEditable) {
               if (isUserAnswer) {
                 if (qStatus === 'correct') {
                   flagWrapperStyle = { borderColor: '#16a34a', borderWidth: 2, borderRadius: 5, padding: 1 };
+                  badgeType = 'correct';
                 } else if (qStatus === 'incorrect') {
                   flagWrapperStyle = { borderColor: '#ef4444', borderWidth: 2, borderRadius: 5, padding: 1 };
+                  badgeType = 'incorrect';
+                } else {
+                  flagWrapperStyle = { borderColor: '#38bdf8', borderWidth: 2, borderRadius: 5, padding: 1 };
+                  badgeType = null;
                 }
-              } else if (isCorrectAnswer && qStatus === 'incorrect') {
+              } else if (isCorrectAnswer && (qStatus === 'incorrect' || (qStatus === 'correct' && !isUserAnswer))) {
                 flagWrapperStyle = { borderColor: '#16a34a', borderWidth: 2.5, borderRadius: 5, padding: 1 };
-                showCheckmark = true;
+                badgeType = null;
               } else {
                 cellOpacity = 0.35;
               }
             } else if (selected) {
               flagWrapperStyle = { borderWidth: 2, borderColor: '#16a34a', borderRadius: 4, padding: 1 };
+            }
+            if (interimVal !== null && String(t.id) === interimVal && !flagWrapperStyle) {
+              flagWrapperStyle = { borderColor: '#f59e0b', borderWidth: 2, borderRadius: 5, padding: 1 };
+            } else if (interimVal !== null && String(t.id) === interimVal && flagWrapperStyle) {
+              flagWrapperStyle = { ...(flagWrapperStyle as object), borderColor: '#f59e0b', borderWidth: 2.5 };
             }
             return (
               <TouchableOpacity
@@ -1323,9 +1377,23 @@ export default function BonusScreen() {
                       <View style={[styles.flagPlaceholder, { width: flagW, height: flagH, borderRadius: 3 }]} />
                     )}
                   </View>
-                  {showCheckmark && (
-                    <View style={{ position: 'absolute', bottom: -2, right: -2 }}>
-                      <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                  {badgeType !== null && (
+                    <View style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -4,
+                      width: 16,
+                      height: 16,
+                      borderRadius: 8,
+                      backgroundColor: badgeType === 'correct' ? '#16a34a' : '#ef4444',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}>
+                      <Ionicons
+                        name={badgeType === 'correct' ? 'checkmark' : 'close'}
+                        size={10}
+                        color="#fff"
+                      />
                     </View>
                   )}
                 </View>
@@ -1369,6 +1437,8 @@ export default function BonusScreen() {
           if (qStatus === 'incorrect') return { style: styles.pillIncorrect, textColor: '#ef4444' as const, showCheckmark: false };
         }
         if (isCorrectAnswer && qStatus === 'incorrect') return { style: styles.pillCorrectAnswer, textColor: undefined, showCheckmark: false };
+        if (isCorrectAnswer && qStatus === 'correct' && !isUserAnswer) return { style: styles.pillCorrectAnswer, textColor: undefined, showCheckmark: false };
+        if (isUserAnswer) return { style: styles.pillLockedSelected, textColor: '#38bdf8' as const, showCheckmark: false };
         return { style: styles.pillDimmed, textColor: undefined, showCheckmark: false };
       };
       return (
@@ -1400,6 +1470,7 @@ export default function BonusScreen() {
                   },
                   isEditable && selected && styles.wizardPillSelected,
                   !isEditable && lockedStyle?.style,
+                  !isEditable && interimVal !== null && opt.value === interimVal && (selected ? styles.pillInterimAndSelected : styles.pillInterim),
                 ]}
                 onPress={isEditable ? () => handleSelect(field, opt.value) : undefined}
                 activeOpacity={isEditable ? 0.7 : 1}
@@ -1439,6 +1510,8 @@ export default function BonusScreen() {
           if (qStatus === 'incorrect') return { style: styles.pillIncorrect, textColor: '#ef4444' as const };
         }
         if (isCorrectAnswer && qStatus === 'incorrect') return { style: styles.pillCorrectAnswer, textColor: undefined };
+        if (isCorrectAnswer && qStatus === 'correct' && !isUserAnswer) return { style: styles.pillCorrectAnswer, textColor: undefined };
+        if (isUserAnswer) return { style: styles.pillLockedSelected, textColor: '#38bdf8' as const };
         return { style: styles.pillDimmed, textColor: undefined };
       };
 
@@ -1476,6 +1549,7 @@ export default function BonusScreen() {
                   },
                   isEditable && selected && styles.wizardPillSelected,
                   !isEditable && lockedStyle?.style,
+                  !isEditable && interimVal !== null && opt.value === interimVal && (selected ? styles.pillInterimAndSelected : styles.pillInterim),
                 ]}
                 onPress={isEditable ? () => handleSelect(field, opt.value) : undefined}
                 activeOpacity={isEditable ? 0.7 : 1}
@@ -1520,6 +1594,8 @@ export default function BonusScreen() {
           if (qStatus === 'incorrect') return { style: styles.pillIncorrect, textColor: '#ef4444' as const, showCheckmark: false };
         }
         if (isCorrectAnswer && qStatus === 'incorrect') return { style: styles.pillCorrectAnswer, textColor: undefined, showCheckmark: false };
+        if (isCorrectAnswer && qStatus === 'correct' && !isUserAnswer) return { style: styles.pillCorrectAnswer, textColor: undefined, showCheckmark: false };
+        if (isUserAnswer) return { style: styles.pillLockedSelected, textColor: '#38bdf8' as const, showCheckmark: false };
         return { style: styles.pillDimmed, textColor: undefined, showCheckmark: false };
       };
       return (
@@ -1530,7 +1606,13 @@ export default function BonusScreen() {
             return (
               <TouchableOpacity
                 key={opt.value}
-                style={[styles.wizardPill3col, { width: pillW }, isEditable && selected && styles.wizardPillSelected, !isEditable && lockedStyle?.style]}
+                style={[
+                  styles.wizardPill3col,
+                  { width: pillW },
+                  isEditable && selected && styles.wizardPillSelected,
+                  !isEditable && lockedStyle?.style,
+                  !isEditable && interimVal !== null && opt.value === interimVal && (selected ? styles.pillInterimAndSelected : styles.pillInterim),
+                ]}
                 onPress={isEditable ? () => handleSelect(field, opt.value) : undefined}
                 activeOpacity={isEditable ? 0.7 : 1}
               >
@@ -1566,6 +1648,8 @@ export default function BonusScreen() {
           if (qStatus === 'incorrect') return { style: styles.pillIncorrect, textColor: '#ef4444' as const, showCheckmark: false };
         }
         if (isCorrectAnswer && qStatus === 'incorrect') return { style: styles.pillCorrectAnswer, textColor: undefined, showCheckmark: false };
+        if (isCorrectAnswer && qStatus === 'correct' && !isUserAnswer) return { style: styles.pillCorrectAnswer, textColor: undefined, showCheckmark: false };
+        if (isUserAnswer) return { style: styles.pillLockedSelected, textColor: '#38bdf8' as const, showCheckmark: false };
         return { style: styles.pillDimmed, textColor: undefined, showCheckmark: false };
       };
       const renderK1Pill = (opt: { value: string; label: string }, extraStyle?: object) => {
@@ -1579,6 +1663,7 @@ export default function BonusScreen() {
               extraStyle,
               isEditable && selected && styles.wizardPillSelected,
               !isEditable && lockedStyle?.style,
+              !isEditable && interimVal !== null && opt.value === interimVal && (selected ? styles.pillInterimAndSelected : styles.pillInterim),
             ]}
             onPress={isEditable ? () => handleSelect(field, opt.value) : undefined}
             activeOpacity={isEditable ? 0.7 : 1}
@@ -1622,6 +1707,8 @@ export default function BonusScreen() {
         if (qStatus === 'incorrect') return { style: styles.pillIncorrect, textColor: '#ef4444' as const, showCheckmark: false };
       }
       if (isCorrectAnswer && qStatus === 'incorrect') return { style: styles.pillCorrectAnswer, textColor: undefined, showCheckmark: false };
+      if (isCorrectAnswer && qStatus === 'correct' && !isUserAnswer) return { style: styles.pillCorrectAnswer, textColor: undefined, showCheckmark: false };
+      if (isUserAnswer) return { style: styles.pillLockedSelected, textColor: '#38bdf8' as const, showCheckmark: false };
       return { style: styles.pillDimmed, textColor: undefined, showCheckmark: false };
     };
     return (
@@ -1632,7 +1719,12 @@ export default function BonusScreen() {
           return (
             <TouchableOpacity
               key={opt.value}
-              style={[styles.wizardPill, isEditable && selected && styles.wizardPillSelected, !isEditable && lockedStyle?.style]}
+              style={[
+              styles.wizardPill,
+              isEditable && selected && styles.wizardPillSelected,
+              !isEditable && lockedStyle?.style,
+              !isEditable && interimVal !== null && opt.value === interimVal && (selected ? styles.pillInterimAndSelected : styles.pillInterim),
+            ]}
               onPress={isEditable ? () => handleSelect(field, opt.value) : undefined}
               activeOpacity={isEditable ? 0.7 : 1}
             >
@@ -1755,15 +1847,41 @@ export default function BonusScreen() {
                   </View>
                   <Text style={styles.questionTextDark}>{QUESTION_LABELS[currentField]}</Text>
                   {prediction && !(prediction as any)[FIELD_TO_EDITABLE[currentField]] && (
-                    <View style={styles.lockedNotice}>
-                      <Ionicons name="lock-closed-outline" size={13} color="#64748b" />
-                      <Text style={styles.lockedNoticeText}>This question is no longer open for editing</Text>
+                    <View>
+                      <View style={styles.lockedNotice}>
+                        <Ionicons name="lock-closed-outline" size={13} color="#64748b" />
+                        <Text style={styles.lockedNoticeText}>This question is no longer open for editing</Text>
+                      </View>
                     </View>
                   )}
                 </View>
 
                 <View style={{ flex: 1, paddingHorizontal: 20, marginTop: 8 }}>
                   {renderAnswerArea(currentField)}
+                  {(() => {
+                    const showPick = !isSectionEditable(currentField)
+                      && localAnswers[currentField] != null
+                      && localAnswers[currentField] !== ''
+                      && getQuestionStatusForField(currentField) === 'pending';
+                    const showInterim = !!getInterimLabel(currentField);
+                    if (!showPick && !showInterim) return null;
+                    return (
+                      <View style={{ marginTop: 14, marginBottom: 8, paddingHorizontal: 4, gap: 6 }}>
+                        {showPick && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: '#38bdf8' }} />
+                            <Text style={{ fontSize: 11, color: '#38bdf8', fontWeight: '500' }}>Your pick</Text>
+                          </View>
+                        )}
+                        {showInterim && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <View style={styles.interimLegendDot} />
+                            <Text style={styles.interimLegendText}>Current known result</Text>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })()}
                 </View>
               </View>
             </Animated.View>
@@ -1925,7 +2043,7 @@ export default function BonusScreen() {
                 ) : (
                   <View style={styles.summaryRowRightContent}>
                     <Text style={styles.summaryValuePending}>{label}</Text>
-                    <Ionicons name="chevron-forward" size={14} color="#f59e0b" />
+                    <Ionicons name="chevron-forward" size={14} color="#38bdf8" />
                   </View>
                 )}
               </View>
@@ -1971,37 +2089,6 @@ export default function BonusScreen() {
       </LinearGradient>
 
       <ScrollView style={{ flex: 1, backgroundColor: '#1e293b' }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      {finePerChangeVal > 0 && changedCount > 0 && (
-        <View style={styles.changesChipsContainer}>
-          <View style={styles.changesChip1}>
-            <Ionicons name="create-outline" size={14} color="#94a3b8" />
-            <Text style={styles.changesChip1Text}>
-              {changedCount} change{changedCount !== 1 ? 's' : ''}
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.changesChip2,
-              penaltyPoints > 0 ? styles.changesChip2Fine : styles.changesChip2NoFine,
-            ]}
-          >
-            <Ionicons
-              name="warning-outline"
-              size={14}
-              color={penaltyPoints > 0 ? '#ef4444' : '#16a34a'}
-            />
-            <Text
-              style={[
-                styles.changesChip2Text,
-                { color: penaltyPoints > 0 ? '#ef4444' : '#16a34a' },
-              ]}
-            >
-              {penaltyPoints > 0 ? `Fine: -${penaltyPoints} pts` : '✓ No fine'}
-            </Text>
-          </View>
-        </View>
-      )}
-
       {hasAnySettledQuestion && (
         <View style={[styles.bonusScoreRow, { justifyContent: 'flex-end' }]}>
           <View style={styles.bonusPointsContainer}>
@@ -2032,7 +2119,7 @@ export default function BonusScreen() {
 
       <ConfirmExitModal
         visible={showExitModal}
-        changesCount={changedCount}
+        changesCount={0}
         onClose={() => setShowExitModal(false)}
         onConfirm={handleExitConfirm}
       />
@@ -2355,7 +2442,7 @@ const styles = StyleSheet.create({
   autoSaveText: { fontSize: 13, color: '#16a34a', fontWeight: '500' },
 
   scroll: { flex: 1, backgroundColor: '#f1f5f9' },
-  scrollContent: { padding: 20, paddingBottom: 40 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 },
   sectionCardSummary: {
     backgroundColor: '#1e3a5f',
     borderRadius: 16,
@@ -2436,13 +2523,73 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontWeight: '500',
   },
+  interimBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(245,158,11,0.1)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 6,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.25)',
+  },
+  interimBannerText: {
+    fontSize: 12,
+    color: '#f59e0b',
+    fontWeight: '600',
+  },
+  pillInterim: {
+    borderColor: '#f59e0b',
+    borderWidth: 2,
+    opacity: 1,
+  },
+  pillInterimAndSelected: {
+    borderColor: '#f59e0b',
+    borderWidth: 2.5,
+    opacity: 1,
+    backgroundColor: 'rgba(22,163,74,0.2)',
+  },
+  pillLockedSelected: {
+    borderColor: '#38bdf8',
+    borderWidth: 2,
+    opacity: 1,
+    backgroundColor: 'rgba(56,189,248,0.15)',
+  },
+  pillLockedSelectedText: {
+    color: '#38bdf8',
+    fontWeight: '700',
+  },
+  interimLegend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 14,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  interimLegendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 3,
+    borderWidth: 2,
+    borderColor: '#f59e0b',
+    backgroundColor: 'transparent',
+  },
+  interimLegendText: {
+    fontSize: 11,
+    color: '#f59e0b',
+    fontWeight: '500',
+  },
   bonusScoreRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    marginBottom: 16,
+    paddingVertical: 4,
+    marginBottom: 6,
     gap: 12,
   },
   bonusNetScoreToggle: {
@@ -2511,7 +2658,7 @@ const styles = StyleSheet.create({
   summaryValueSettled: { fontSize: 13, color: '#16a34a', fontWeight: '600' },
   summaryValueCorrect: { fontSize: 13, color: '#16a34a', fontWeight: '700' },
   summaryValueIncorrect: { fontSize: 13, color: '#ef4444', fontWeight: '700' },
-  summaryValuePending: { fontSize: 13, color: '#f59e0b', fontWeight: '700' },
+  summaryValuePending: { fontSize: 13, color: '#38bdf8', fontWeight: '700' },
 
   footer: {
     position: 'absolute',
