@@ -147,10 +147,12 @@ export default function PublicProfileScreen() {
   const { width } = useWindowDimensions();
   const { currentStage } = useTournament();
   const tournamentStarted = currentStage !== null && currentStage !== 'PRE_GROUP_STAGE';
-  const knockoutStarted =
+  // Show knockout predictions during active stages (group cycles + active knockout rounds)
+  // Hide during pre-stage windows where users can still edit their bracket
+  const PRE_STAGE_WINDOWS = ['PRE_GROUP_STAGE', 'PRE_ROUND32'];
+  const knockoutVisible =
     currentStage !== null &&
-    currentStage !== 'PRE_GROUP_STAGE' &&
-    !['GROUP_CYCLE_1', 'GROUP_CYCLE_2', 'GROUP_CYCLE_3'].includes(currentStage);
+    !PRE_STAGE_WINDOWS.includes(currentStage);
 
   const { userId, username } = route.params as RouteParams;
 
@@ -194,7 +196,7 @@ export default function PublicProfileScreen() {
   const fetchTabData = useCallback(async (tab: TabKey) => {
     if (fetchedTabs.current.has(tab)) return;
     if (tab !== 'bonus' && !tournamentStarted) return;
-    if (tab === 'knockout' && !knockoutStarted) return;
+    if (tab === 'knockout' && !knockoutVisible) return;
 
     fetchedTabs.current.add(tab);
     setLoadingTabs((prev) => ({ ...prev, [tab]: true }));
@@ -226,7 +228,7 @@ export default function PublicProfileScreen() {
     } finally {
       setLoadingTabs((prev) => ({ ...prev, [tab]: false }));
     }
-  }, [userId, tournamentStarted, knockoutStarted]);
+  }, [userId, tournamentStarted, knockoutVisible]);
 
   const handleTabPress = useCallback((tab: TabKey) => {
     setActiveTab(tab);
@@ -594,11 +596,11 @@ export default function PublicProfileScreen() {
   };
 
   const renderKnockoutTab = () => {
-    if (!knockoutStarted) {
+    if (!knockoutVisible) {
       return (
         <View style={styles.emptyTab}>
           <Ionicons name="time-outline" size={48} color="#94a3b8" />
-          <Text style={styles.emptyText}>Available from the Knockout stage</Text>
+          <Text style={styles.emptyText}>Available during active match stages</Text>
         </View>
       );
     }
@@ -614,16 +616,44 @@ export default function PublicProfileScreen() {
     }
 
     const predictions = data?.predictions ?? [];
-    if (predictions.length === 0) {
+    // Only show predictions for stages that have already started
+    // (hide future stages that the user is still editing)
+    const STAGE_VISIBILITY: Record<string, string[]> = {
+      // Group cycles — show all knockout predictions (bracket is locked, all visible)
+      GROUP_CYCLE_1:  ['round32', 'round16', 'quarter', 'semi', 'final', 'third_place'],
+      GROUP_CYCLE_2:  ['round32', 'round16', 'quarter', 'semi', 'final', 'third_place'],
+      GROUP_CYCLE_3:  ['round32', 'round16', 'quarter', 'semi', 'final', 'third_place'],
+      // Pre-stage windows — show only completed stages (up to but not including next editable stage)
+      PRE_ROUND32:    [],
+      PRE_ROUND16:    ['round32'],
+      PRE_QUARTER:    ['round32', 'round16'],
+      PRE_SEMI:       ['round32', 'round16', 'quarter'],
+      // Active knockout rounds — show everything
+      ROUND32:        ['round32', 'round16', 'quarter', 'semi', 'final', 'third_place'],
+      ROUND16:        ['round32', 'round16', 'quarter', 'semi', 'final', 'third_place'],
+      QUARTER:        ['round32', 'round16', 'quarter', 'semi', 'final', 'third_place'],
+      SEMI:           ['round32', 'round16', 'quarter', 'semi', 'final', 'third_place'],
+      THIRD_PLACE:    ['round32', 'round16', 'quarter', 'semi', 'final', 'third_place'],
+      FINAL:          ['round32', 'round16', 'quarter', 'semi', 'final', 'third_place'],
+    };
+    const visibleStages = currentStage ? (STAGE_VISIBILITY[currentStage] ?? []) : [];
+    const filteredPredictions = currentStage && STAGE_VISIBILITY[currentStage] !== undefined
+      ? predictions.filter((p) => visibleStages.includes(p.stage))
+      : predictions;
+
+    if (filteredPredictions.length === 0) {
+      const isPreWindow = currentStage != null && ['PRE_ROUND16', 'PRE_QUARTER', 'PRE_SEMI'].includes(currentStage);
       return (
         <View style={styles.emptyTab}>
           <Ionicons name="trophy-outline" size={48} color="#94a3b8" />
-          <Text style={styles.emptyText}>No knockout results yet</Text>
+          <Text style={styles.emptyText}>
+            {isPreWindow ? 'Previous round results will appear here once available' : 'No knockout results yet'}
+          </Text>
         </View>
       );
     }
 
-    const byStage = predictions.reduce<Record<string, KnockoutPrediction[]>>(
+    const byStage = filteredPredictions.reduce<Record<string, KnockoutPrediction[]>>(
       (acc, p) => {
         const s = p.stage || 'other';
         if (!acc[s]) acc[s] = [];
