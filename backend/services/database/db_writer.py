@@ -672,11 +672,13 @@ class DBWriter:
 
     @staticmethod
     def update_knockout_prediction(db: Session, prediction, **kwargs):
+        # Fields that are allowed to be set to None (clearing is intentional)
+        NULLABLE_FIELDS = {"winner_team_id", "team1_id", "team2_id"}
         for key, value in kwargs.items():
             if not hasattr(prediction, key):
                 continue
-            # Allow None for winner_team_id (clears the winner, stored as NULL)
-            if key == "winner_team_id":
+            if key in NULLABLE_FIELDS:
+                # Allow explicit None to clear these fields
                 setattr(prediction, key, value)
             elif value is not None:
                 setattr(prediction, key, value)
