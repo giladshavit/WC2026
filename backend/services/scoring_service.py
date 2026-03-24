@@ -249,6 +249,9 @@ class ScoringService:
         dialect = db.get_bind().dialect.name
 
         if dialect == "postgresql":
+            match = DBReader.get_match(db, match_id)
+            match_stage = match.stage if match else None
+            scoring = ScoringService._get_match_scoring_for_stage(match_stage)
             updated_users = DBWriter.bulk_update_match_prediction_scoring(
                 db,
                 match_id=match_id,
@@ -256,6 +259,8 @@ class ScoringService:
                 away=result.away_team_score,
                 winner_id=result.winner_team_id,
                 update_status=update_status,
+                exact_pts=scoring["exact"],
+                correct_pts=scoring["correct_winner"],
             )
         else:
             # SQLite fallback (dev/tests) — no unnest/UPDATE FROM

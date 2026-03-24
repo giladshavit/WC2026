@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 
-from services.predictions.enums import BonusSectionStatus
+from services.predictions.enums import MatchPredictionStatus, BonusSectionStatus
 
 from .team import Team
 from .base import Base
@@ -18,7 +18,11 @@ class MatchPrediction(Base):
     away_score = Column(Integer, nullable=True)
     predicted_winner = Column(Integer, ForeignKey("teams.id"), nullable=True)  # NULL for draw
     points = Column(Integer, default=0, nullable=False)  # Points awarded for this prediction
-    status = Column(String, nullable=True)
+    status = Column(
+        String,
+        nullable=True,
+        default=MatchPredictionStatus.PENDING.value,
+    )
     is_editable = Column(Boolean, default=True, nullable=False)  # Whether this prediction can be edited
     is_tempted = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

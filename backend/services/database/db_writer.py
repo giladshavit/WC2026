@@ -306,6 +306,8 @@ class DBWriter:
         away: int,
         winner_id: Optional[int],
         update_status: bool,
+        exact_pts: int = 3,
+        correct_pts: int = 1,
     ) -> int:
         """
         Bulk SQL: update match_predictions points/status + user_scores.
@@ -321,10 +323,10 @@ class DBWriter:
                     mp.is_tempted,
                     CASE
                         WHEN mp.home_score IS NULL OR mp.away_score IS NULL THEN 0
-                        WHEN mp.home_score = :home AND mp.away_score = :away THEN 3
-                        WHEN :winner_id IS NULL AND mp.predicted_winner = 0  THEN 1
+                        WHEN mp.home_score = :home AND mp.away_score = :away THEN :exact_pts
+                        WHEN :winner_id IS NULL AND mp.predicted_winner = 0  THEN :correct_pts
                         WHEN :winner_id IS NOT NULL
-                         AND mp.predicted_winner = :winner_id               THEN 1
+                         AND mp.predicted_winner = :winner_id               THEN :correct_pts
                         ELSE 0
                     END                            AS base_points,
                     CASE
@@ -350,6 +352,8 @@ class DBWriter:
             "home": home,
             "away": away,
             "winner_id": winner_id,
+            "exact_pts": exact_pts,
+            "correct_pts": correct_pts,
         }).fetchall()
 
         if not rows:
