@@ -81,7 +81,7 @@ export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTe
         {/* Legend: colored dot + flag for home/away, dot + "Draw" for draw */}
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#16a34a' }]} />
+            <View style={[styles.legendDot, { backgroundColor: '#f97316' }]} />
             {homeTeamFlagCode ? (
               <Image source={{ uri: flagUrl(homeTeamFlagCode) }} style={styles.flagImage} />
             ) : null}
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
-  barHome: { backgroundColor: '#16a34a' },
+  barHome: { backgroundColor: '#f97316' },
   barDraw: { backgroundColor: '#9ca3af' },
   barAway: { backgroundColor: '#2563eb' },
   barExact: { backgroundColor: '#4CAF50' },
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   scoreHome: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#16a34a',
+    color: '#f97316',
   },
   scoreSep: {
     fontSize: 20,

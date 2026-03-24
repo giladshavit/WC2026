@@ -65,7 +65,10 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
                 ) : (
                   <View style={styles.teamFlagPlaceholder} />
                 )}
-                <Text style={styles.teamNameInCard} numberOfLines={2}>{matchup.team_a.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#3b82f6' }} />
+                  <Text style={styles.teamNameInCard} numberOfLines={2}>{matchup.team_a.name}</Text>
+                </View>
               </View>
               <Text style={styles.vsLabel}>vs</Text>
               <View style={styles.teamColumn}>
@@ -74,7 +77,10 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
                 ) : (
                   <View style={styles.teamFlagPlaceholder} />
                 )}
-                <Text style={styles.teamNameInCard} numberOfLines={2}>{matchup.team_b.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#f97316' }} />
+                  <Text style={styles.teamNameInCard} numberOfLines={2}>{matchup.team_b.name}</Text>
+                </View>
               </View>
             </View>
             <View style={styles.winnerBar}>
