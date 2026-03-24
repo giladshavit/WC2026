@@ -406,11 +406,13 @@ class KnockoutService:
             is_next_draft = hasattr(next_prediction, "knockout_pred_id")
             if position == 1:
                 KnockoutService.set_team(
-                    db, next_prediction, team1_id=stored_winner, is_draft=is_next_draft
+                    db, next_prediction, team1_id=stored_winner,
+                    is_draft=is_next_draft, force_team1=True
                 )
             else:
                 KnockoutService.set_team(
-                    db, next_prediction, team2_id=stored_winner, is_draft=is_next_draft
+                    db, next_prediction, team2_id=stored_winner,
+                    is_draft=is_next_draft, force_team2=True
                 )
 
         changed = (old_winner != prediction.winner_team_id)
@@ -426,11 +428,17 @@ class KnockoutService:
         team1_id: Optional[int] = None,
         team2_id: Optional[int] = None,
         is_draft: bool = False,
+        force_team1: bool = False,
+        force_team2: bool = False,
     ) -> None:
+        """
+        force_team1/force_team2: if True, allows setting None explicitly
+        (used when clearing old winner from next stages).
+        """
         update_kwargs: Dict[str, Any] = {}
-        if team1_id is not None:
+        if team1_id is not None or force_team1:
             update_kwargs["team1_id"] = team1_id
-        if team2_id is not None:
+        if team2_id is not None or force_team2:
             update_kwargs["team2_id"] = team2_id
 
         if not update_kwargs:
