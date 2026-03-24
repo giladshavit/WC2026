@@ -386,8 +386,9 @@ class DBWriter:
             db.execute(text("""
                 INSERT INTO user_scores
                     (user_id, matches_score, total_points, classic_total_score,
-                     groups_score, third_place_score, knockout_score, penalty)
-                SELECT u, d, d, d, 0, 0, 0, 0
+                     groups_score, third_place_score, knockout_score, bonus_score,
+                     bonus_penalty, penalty)
+                SELECT u, d, d, d, 0, 0, 0, 0, 0, 0
                 FROM unnest(CAST(:user_ids AS int[]), CAST(:deltas AS int[])) AS t(u, d)
                 ON CONFLICT (user_id) DO UPDATE
                     SET matches_score = user_scores.matches_score + EXCLUDED.matches_score,

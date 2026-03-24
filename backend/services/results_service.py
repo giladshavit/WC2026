@@ -557,43 +557,41 @@ class ResultsService:
         home_score_120: Optional[int], away_score_120: Optional[int],
         home_penalties: Optional[int], away_penalties: Optional[int],
         outcome_type: str
-    ) -> int:
+    ) -> Optional[int]:
         """
         Calculate the winner based on the outcome type and scores.
-        Returns the team ID of the winner, or 0 for a draw.
+        Returns the team ID of the winner, or None for a draw.
+        NULL is stored in DB for draws — 0 violates FK constraint.
         """
         if outcome_type == "penalties":
-            # Winner determined by penalties
             if home_penalties is not None and away_penalties is not None:
                 if home_penalties > away_penalties:
                     return home_team_id
                 elif away_penalties > home_penalties:
                     return away_team_id
                 else:
-                    return 0  # Draw in penalties (shouldn't happen)
+                    return None  # Draw in penalties (shouldn't happen)
             else:
-                return 0  # No penalty data
+                return None  # No penalty data
         
         elif outcome_type == "extra_time":
-            # Winner determined by extra time scores
             if home_score_120 is not None and away_score_120 is not None:
                 if home_score_120 > away_score_120:
                     return home_team_id
                 elif away_score_120 > home_score_120:
                     return away_team_id
                 else:
-                    return 0  # Draw after extra time (shouldn't happen)
+                    return None  # Draw after extra time (shouldn't happen)
             else:
-                return 0  # No extra time data
+                return None  # No extra time data
         
         else:  # outcome_type == "regular"
-            # Winner determined by 90-minute scores
             if home_score_90 > away_score_90:
                 return home_team_id
             elif away_score_90 > home_score_90:
                 return away_team_id
             else:
-                return 0  # Draw
+                return None  # Draw — NULL in DB, 0 violates FK constraint
 
     @staticmethod
     def _update_knockout_stage_result(db: Session, match_id: int, winner_team_id: int):
