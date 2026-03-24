@@ -532,6 +532,7 @@ function BonusStatsModal({
     );
     if (fieldKey === 'g2') return renderG2Grid();
     if (fieldKey === 'g3') return renderG3Grid();
+    if (fieldKey === 't2') return renderG3Grid();
     return renderPillGrid();
   };
 
@@ -555,9 +556,10 @@ function BonusStatsModal({
               </TouchableOpacity>
             </View>
 
-            {/* Content — show scroll bar for g3 (many teams) */}
+            {/* Content — show scroll bar for g3 / t2 (team grids) and t3 (many scorer pills) */}
             <ScrollView
-              showsVerticalScrollIndicator={fieldKey === 'g3'}
+              style={{ maxHeight: screenWidth * 1.8 - 84 }}
+              showsVerticalScrollIndicator={fieldKey === 'g3' || fieldKey === 't2' || fieldKey === 't3'}
               contentContainerStyle={{ paddingBottom: 8, paddingTop: 12 }}
             >
               {renderContent()}
@@ -581,7 +583,7 @@ const bonusStatsStyles = StyleSheet.create({
     backgroundColor: '#1e293b',
     borderRadius: 20,
     width: screenWidth * 0.88,
-    maxHeight: screenWidth * 1.4,
+    maxHeight: screenWidth * 1.8,
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 20,

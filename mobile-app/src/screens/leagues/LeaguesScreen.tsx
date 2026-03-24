@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -51,10 +51,6 @@ export default function LeaguesScreen() {
     await fetchLeagues();
     setRefreshing(false);
   };
-
-  useEffect(() => {
-    fetchLeagues();
-  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
