@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
@@ -24,7 +25,7 @@ class ResultsService:
         Returns matches with home_team, away_team, stage, date, and result data.
         """
         # Get all matches where both teams are defined
-        matches = DBReader.get_matches_with_teams(db)
+        matches = sorted(DBReader.get_matches_with_teams(db), key=lambda m: m.date or datetime.min)
         
         matches_with_results = []
         
