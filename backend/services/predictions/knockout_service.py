@@ -315,7 +315,7 @@ class KnockoutService:
         Returns stored_winner (normalized int, 0 if None).
         """
         resolved_winner = KnockoutService._normalize_team_id(winner_team_id)
-        stored_winner = resolved_winner if resolved_winner is not None else 0
+        stored_winner = resolved_winner  # None means no winner — stored as NULL in DB
 
         update_kwargs: Dict[str, Any] = {"winner_team_id": stored_winner}
         if hasattr(prediction, "updated_at"):

@@ -673,7 +673,12 @@ class DBWriter:
     @staticmethod
     def update_knockout_prediction(db: Session, prediction, **kwargs):
         for key, value in kwargs.items():
-            if hasattr(prediction, key):
+            if not hasattr(prediction, key):
+                continue
+            # Allow None for winner_team_id (clears the winner, stored as NULL)
+            if key == "winner_team_id":
+                setattr(prediction, key, value)
+            elif value is not None:
                 setattr(prediction, key, value)
         db.flush()
         return prediction
