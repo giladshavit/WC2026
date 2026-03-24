@@ -1752,7 +1752,7 @@ const styles = StyleSheet.create({
   },
   colPlayer: {
     flex: 1,
-    paddingLeft: 36,
+    paddingLeft: 28,
   },
   rankNameRow: {
     flexDirection: 'row',
@@ -1808,7 +1808,7 @@ const styles = StyleSheet.create({
   },
   livePredBadgeTempted: {
     borderWidth: 2,
-    borderColor: '#7c3aed',
+    borderColor: '#a855f7',
   },
   livePredText: {
     fontSize: 12,
@@ -1834,7 +1834,7 @@ const styles = StyleSheet.create({
   tableFixedLeft: {
     flex: 1,
     minWidth: 80,
-    maxWidth: 520,
+    maxWidth: 160,
     overflow: 'hidden',
   },
   tableScrollMiddle: {
