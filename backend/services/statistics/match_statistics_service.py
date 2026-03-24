@@ -64,7 +64,7 @@ class MatchStatisticsService:
     def _pre_result_stats(match, predictions) -> Dict[str, Any]:
         """Before result: who people think will win + popular predicted scores."""
         home = sum(1 for p in predictions if p.predicted_winner == match.home_team_id)
-        draw = sum(1 for p in predictions if p.predicted_winner is None and p.home_score is not None)
+        draw = sum(1 for p in predictions if p.predicted_winner == 0)
         away = sum(1 for p in predictions if p.predicted_winner == match.away_team_id)
         total_with_winner = home + draw + away
         total_all = len(predictions)

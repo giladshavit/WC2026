@@ -301,7 +301,7 @@ class MatchPredictionService:
     def _calculate_predicted_winner(match: Any, home_score: Optional[int], away_score: Optional[int]) -> Optional[int]:
         """
         Calculate predicted winner based on scores
-        Returns: team_id, or None for draw or if scores are None
+        Returns: team_id, 0 for draw, or None if scores are None
         """
         if home_score is None or away_score is None:
             return None
@@ -311,7 +311,7 @@ class MatchPredictionService:
         elif away_score > home_score:
             return match.away_team_id
         else:
-            return None  # draw — NULL in DB, 0 violates FK constraint in PostgreSQL
+            return 0  # draw — 0 means draw, NULL means no prediction at all
     
     @staticmethod
     def _apply_penalty_if_needed(db: Session, user_id: int, match: Any) -> int:
