@@ -354,7 +354,7 @@ class DBReader:
         query = db.query(model).filter(model.user_id == user_id)
         if stage:
             query = query.filter(model.stage == stage)
-        return query.all()
+        return query.order_by(model.template_match_id).all()
 
     @staticmethod
     def get_unreachable_knockout_prediction_with_winner(
