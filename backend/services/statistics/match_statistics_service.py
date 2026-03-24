@@ -88,9 +88,9 @@ class MatchStatisticsService:
     @staticmethod
     def _post_result_stats(match, predictions) -> Dict[str, Any]:
         """After result: how many got it right."""
-        exact = sum(1 for p in predictions if p.status == MatchPredictionStatus.EXACT)
-        correct = sum(1 for p in predictions if p.status == MatchPredictionStatus.CORRECT_OUTCOME)
-        wrong = sum(1 for p in predictions if p.status == MatchPredictionStatus.WRONG)
+        exact = sum(1 for p in predictions if p.status == MatchPredictionStatus.EXACT.value)
+        correct = sum(1 for p in predictions if p.status == MatchPredictionStatus.CORRECT_OUTCOME.value)
+        wrong = sum(1 for p in predictions if p.status == MatchPredictionStatus.WRONG.value)
         judged = exact + correct + wrong
 
         if judged == 0:

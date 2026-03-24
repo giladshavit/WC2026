@@ -698,9 +698,9 @@ class DBReader:
         match_counts = (
             db.query(
                 MatchPrediction.user_id,
-                func.count(case((MatchPrediction.status == MatchPredictionStatus.EXACT, 1))).label('exact_count'),
-                func.count(case((MatchPrediction.status == MatchPredictionStatus.CORRECT_OUTCOME, 1))).label('correct_count'),
-                func.count(case((MatchPrediction.status == MatchPredictionStatus.WRONG, 1))).label('wrong_count'),
+                func.count(case((MatchPrediction.status == MatchPredictionStatus.EXACT.value, 1))).label('exact_count'),
+                func.count(case((MatchPrediction.status == MatchPredictionStatus.CORRECT_OUTCOME.value, 1))).label('correct_count'),
+                func.count(case((MatchPrediction.status == MatchPredictionStatus.WRONG.value, 1))).label('wrong_count'),
             )
             .group_by(MatchPrediction.user_id)
             .subquery()

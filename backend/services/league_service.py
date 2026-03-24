@@ -335,7 +335,7 @@ class LeagueService:
         predictions = []
         for user, pred in rows:
             if pred:
-                pred_status = pred.status.value if pred.status else None
+                pred_status = pred.status if pred.status else None
                 predictions.append({
                     "user_id": user.id,
                     "username": user.username,
@@ -393,7 +393,7 @@ class LeagueService:
         predictions = []
         for user, pred in rows:
             if pred:
-                pred_status = pred.status.value if pred.status else None
+                pred_status = pred.status if pred.status else None
                 predictions.append({
                     "user_id": user.id,
                     "username": user.username,

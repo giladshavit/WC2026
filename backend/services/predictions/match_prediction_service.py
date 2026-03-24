@@ -111,7 +111,7 @@ class MatchPredictionService:
                 "points": prediction.points if prediction else None,
                 "is_editable": prediction.is_editable if prediction else None,
                 "is_tempted": prediction.is_tempted if prediction else False,
-                "status": prediction.status.value if prediction and prediction.status else None,
+                "status": prediction.status if prediction else None,
             },
             "can_edit": match.is_editable,
         }

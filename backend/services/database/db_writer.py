@@ -236,7 +236,9 @@ class DBWriter:
         status: Union[str, MatchPredictionStatus],
     ) -> MatchPrediction:
         """Set the status field on a match prediction."""
-        prediction.status = status
+        prediction.status = (
+            status.value if isinstance(status, MatchPredictionStatus) else status
+        )
         db.flush()
         return prediction
 
@@ -248,7 +250,7 @@ class DBWriter:
     def reset_match_prediction_statuses(db: Session) -> int:
         """Reset all match prediction statuses to pending (when results are deleted)."""
         return db.query(MatchPrediction).update({
-            MatchPrediction.status: MatchPredictionStatus.PENDING
+            MatchPrediction.status: MatchPredictionStatus.PENDING.value
         })
 
     @staticmethod
