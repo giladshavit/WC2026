@@ -204,7 +204,9 @@ export default function LeaguesScreen() {
 
   const renderLoadingSkeletons = () => (
     <View style={styles.skeletonContainer}>
-      <View style={[styles.skeleton, styles.skeletonTall]} />
+      {/* Global league card skeleton */}
+      <View style={[styles.skeleton, styles.skeletonTall, { backgroundColor: '#1e3a8a', borderColor: '#2563eb' }]} />
+      {/* Private league skeletons */}
       <View style={styles.skeleton} />
       <View style={styles.skeleton} />
     </View>
@@ -572,13 +574,16 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   skeleton: {
-    backgroundColor: '#e2e8f0',
-    borderRadius: 8,
+    backgroundColor: '#1e3a5f',
+    borderRadius: 14,
     height: 80,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#2d4a6e',
   },
   skeletonTall: {
     height: 100,
     marginBottom: 16,
+    borderRadius: 16,
   },
 });

@@ -980,6 +980,13 @@ class DBWriter:
         return membership
 
     @staticmethod
+    def update_league_owner(db: Session, league_id: int, new_owner_id: int) -> None:
+        league = db.query(League).filter(League.id == league_id).first()
+        if league:
+            league.created_by = new_owner_id
+            db.flush()
+
+    @staticmethod
     def delete_league_membership(db: Session, membership: LeagueMembership) -> None:
         db.delete(membership)
         db.flush()

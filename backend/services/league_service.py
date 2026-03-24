@@ -111,28 +111,39 @@ class LeagueService:
     def get_user_leagues(db: Session, user_id: int) -> List[Dict[str, Any]]:
         """Get all leagues that a user is a member of."""
         try:
-            memberships = DBReader.get_league_memberships_by_user(db, user_id)
-            
+            from sqlalchemy import func
+            from models.league import League, LeagueMembership
+
+            # Single query: get leagues + member counts in one shot
+            rows = (
+                db.query(
+                    League,
+                    LeagueMembership.joined_at,
+                    func.count(LeagueMembership.id).over(
+                        partition_by=LeagueMembership.league_id
+                    ).label("member_count"),
+                )
+                .join(LeagueMembership, League.id == LeagueMembership.league_id)
+                .filter(LeagueMembership.user_id == user_id, League.is_active == True)
+                .all()
+            )
+
             leagues = []
-            for membership in memberships:
-                league = membership.league
-                if league and league.is_active:
-                    # Count members
-                    member_count = DBReader.get_league_membership_count(db, league.id)
-                    
-                    leagues.append({
-                        "id": league.id,
-                        "name": league.name,
-                        "description": league.description,
-                        "invite_code": league.invite_code,
-                        "created_by": league.created_by,
-                        "created_at": league.created_at.isoformat(),
-                        "member_count": member_count,
-                        "joined_at": membership.joined_at.isoformat()
-                    })
-            
+            for league, joined_at, member_count in rows:
+                leagues.append({
+                    "id": league.id,
+                    "name": league.name,
+                    "description": league.description,
+                    "invite_code": league.invite_code,
+                    "created_by": league.created_by,
+                    "created_at": league.created_at.isoformat(),
+                    "member_count": member_count,
+                    "joined_at": joined_at.isoformat(),
+                    "score_mode": league.score_mode.value if hasattr(league.score_mode, 'value') else league.score_mode,
+                })
+
             return leagues
-            
+
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -426,12 +437,18 @@ class LeagueService:
         if league and league.created_by == user_id:
             member_count = DBReader.get_league_membership_count(db, league_id)
             if member_count == 1:
+                # Last member — delete the league
                 DBWriter.delete_league(db, league_id)
             else:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="League creator cannot leave their own league"
-                )
+                # Transfer ownership to the earliest-joining other member
+                all_memberships = DBReader.get_league_memberships_by_league(db, league_id)
+                other_memberships = [m for m in all_memberships if m.user_id != user_id]
+                other_memberships.sort(key=lambda m: m.joined_at)
+                new_owner_id = other_memberships[0].user_id
+                # Update league owner
+                DBWriter.update_league_owner(db, league_id, new_owner_id)
+                # Remove the leaving member
+                DBWriter.delete_league_membership(db, membership)
         else:
             DBWriter.delete_league_membership(db, membership)
 
