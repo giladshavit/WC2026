@@ -860,6 +860,28 @@ class DBWriter:
         return result
 
     @staticmethod
+    def reset_round32_match_teams(db: Session) -> int:
+        """Reset home_team_id and away_team_id to None for all round32 matches. Returns count reset."""
+        matches = db.query(Match).filter(Match.stage == 'round32').all()
+        count = 0
+        for match in matches:
+            if match.home_team_id is not None or match.away_team_id is not None:
+                match.home_team_id = None
+                match.away_team_id = None
+                count += 1
+        db.flush()
+        return count
+
+    @staticmethod
+    def delete_match_results_by_match_ids(db: Session, match_ids: List[int]) -> int:
+        """Delete all MatchResult rows for the given match IDs. Returns count deleted."""
+        if not match_ids:
+            return 0
+        count = db.query(MatchResult).filter(MatchResult.match_id.in_(match_ids)).delete(synchronize_session=False)
+        db.flush()
+        return count
+
+    @staticmethod
     def ensure_match_result_exists(db: Session, match_id: int) -> None:
         """Ensure a match_result row exists for this match. If not, insert 0-0."""
         existing = db.query(MatchResult).filter(MatchResult.match_id == match_id).first()

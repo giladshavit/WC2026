@@ -9,7 +9,7 @@ from services.team_service import TeamService
 from services.group_service import GroupService
 from services.results_service import ResultsService
 from services.stage_manager import StageManager, Stage
-from services.database import DBUtils
+from services.database import DBReader, DBWriter, DBUtils
 from models.groups import Group
 from models.matches import Match, MatchStatus
 from models.team import Team
@@ -883,6 +883,13 @@ def delete_all_results_only(db: Session = Depends(get_db)):
                 match.status = "scheduled"
                 match_count += 1
         
+        # Step 6: Reset round32 match teams and delete their MatchResult rows
+        round32_matches = DBReader.get_matches_by_stage(db, 'round32')
+        round32_match_ids = [m.id for m in round32_matches]
+        round32_results_deleted = DBWriter.delete_match_results_by_match_ids(db, round32_match_ids)
+        round32_teams_reset = DBWriter.reset_round32_match_teams(db)
+        print(f"✅ Reset {round32_teams_reset} round32 match teams, deleted {round32_results_deleted} match results")
+        
         db.commit()
         
         return {
@@ -895,7 +902,9 @@ def delete_all_results_only(db: Session = Depends(get_db)):
             "group_predictions_reset": scores_result["group_predictions_reset"],
             "third_place_predictions_reset": scores_result["third_place_predictions_reset"],
             "knockout_predictions_reset": scores_result["knockout_predictions_reset"],
-            "matches_reset": match_count
+            "matches_reset": match_count,
+            "round32_teams_reset": round32_teams_reset,
+            "round32_results_deleted": round32_results_deleted
         }
         
     except Exception as e:
