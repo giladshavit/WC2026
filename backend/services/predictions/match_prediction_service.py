@@ -78,6 +78,9 @@ class MatchPredictionService:
             match_data = MatchPredictionService._create_match_data(match, prediction, actual_result)
             all_matches.append(match_data)
 
+        # Single commit for all status updates
+        DBUtils.commit(db)
+
         all_matches.sort(key=lambda x: x["date"])
 
         user_scores = DBReader.get_user_scores(db, user_id)
@@ -163,7 +166,7 @@ class MatchPredictionService:
 
         if new_status != match.status:
             DBWriter.set_match_status(db, match, new_status)
-        DBUtils.commit(db)
+        # NOTE: caller commits after the loop
 
     @staticmethod
     def _are_both_teams_set(match: Match) -> bool:

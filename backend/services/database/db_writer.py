@@ -219,7 +219,12 @@ class DBWriter:
     @staticmethod
     def update_match_prediction(db: Session, prediction: MatchPrediction, **kwargs) -> MatchPrediction:
         for key, value in kwargs.items():
-            if hasattr(prediction, key) and value is not None:
+            if not hasattr(prediction, key):
+                continue
+            # Allow 0 for predicted_winner (draw), but skip other None values
+            if key == "predicted_winner":
+                setattr(prediction, key, value)
+            elif value is not None:
                 setattr(prediction, key, value)
         db.flush()
         return prediction
@@ -315,6 +320,7 @@ class DBWriter:
                     CASE
                         WHEN mp.home_score IS NULL OR mp.away_score IS NULL THEN 0
                         WHEN mp.home_score = :home AND mp.away_score = :away THEN 3
+                        WHEN :winner_id IS NULL AND mp.predicted_winner = 0  THEN 1
                         WHEN :winner_id IS NOT NULL
                          AND mp.predicted_winner = :winner_id               THEN 1
                         ELSE 0
@@ -322,6 +328,7 @@ class DBWriter:
                     CASE
                         WHEN mp.home_score IS NULL OR mp.away_score IS NULL THEN 'pending'
                         WHEN mp.home_score = :home AND mp.away_score = :away THEN 'exact'
+                        WHEN :winner_id IS NULL AND mp.predicted_winner = 0  THEN 'correct_outcome'
                         WHEN :winner_id IS NOT NULL
                          AND mp.predicted_winner = :winner_id               THEN 'correct_outcome'
                         ELSE 'wrong'
