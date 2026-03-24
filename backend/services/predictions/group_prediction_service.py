@@ -455,6 +455,15 @@ class GroupPredictionService:
                     current_stage = StageManager.get_current_stage(db)
                     penalty_per = current_stage.get_penalty_for()
                     total_penalty = paid_changes * penalty_per
+                    # Update groups_penalty specifically (not just total penalty)
+                    user_scores = DBReader.get_user_scores(db, user_id)
+                    if not user_scores:
+                        user_scores = DBWriter.create_user_scores(db, user_id)
+                    DBWriter.update_user_scores(
+                        db,
+                        user_scores,
+                        groups_penalty=(user_scores.groups_penalty or 0) + total_penalty,
+                    )
                     ScoringService.apply_penalty_to_user(db, user_id, total_penalty)
                     penalty_points = total_penalty
                 # consume_free_changes does NOT commit; commit here so free_changes update persists
