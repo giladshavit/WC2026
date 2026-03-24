@@ -69,17 +69,10 @@ class MatchPredictionService:
             if not MatchPredictionService._are_both_teams_set(match):
                 continue
 
-            MatchPredictionService._update_match_status_if_needed(match, db)
-
             prediction = DBReader.get_match_prediction(db, user_id, match.id)
-
             actual_result = DBReader.get_match_result(db, match.id)
-
             match_data = MatchPredictionService._create_match_data(match, prediction, actual_result)
             all_matches.append(match_data)
-
-        # Single commit for all status updates
-        DBUtils.commit(db)
 
         all_matches.sort(key=lambda x: x["date"])
 
@@ -308,7 +301,7 @@ class MatchPredictionService:
     def _calculate_predicted_winner(match: Any, home_score: Optional[int], away_score: Optional[int]) -> Optional[int]:
         """
         Calculate predicted winner based on scores
-        Returns: team_id (or 0 for draw, or None if scores are None)
+        Returns: team_id, or None for draw or if scores are None
         """
         if home_score is None or away_score is None:
             return None
@@ -318,7 +311,7 @@ class MatchPredictionService:
         elif away_score > home_score:
             return match.away_team_id
         else:
-            return 0  # draw
+            return None  # draw — NULL in DB, 0 violates FK constraint in PostgreSQL
     
     @staticmethod
     def _apply_penalty_if_needed(db: Session, user_id: int, match: Any) -> int:
