@@ -311,11 +311,11 @@ class ThirdPlacePredictionService:
         for pred in group_predictions:
             third_place_team_id = pred.third_place
             team = DBReader.get_team(db, third_place_team_id)
-            
+
             if team:
                 group = DBReader.get_group(db, pred.group_id)
                 group_name = group.name if group else f"Group {pred.group_id}"
-                
+
                 third_place_teams.append({
                     "id": team.id,
                     "name": team.name,
@@ -324,7 +324,9 @@ class ThirdPlacePredictionService:
                     "flag_url": team.flag_url,
                     "is_selected": team.id in advancing_team_ids
                 })
-        
+
+        # Sort alphabetically by group name (A, B, C, ... L)
+        third_place_teams.sort(key=lambda t: t["group_name"])
         return third_place_teams
     
     @staticmethod
