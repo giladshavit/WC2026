@@ -76,7 +76,13 @@ const PointsDisplay = ({ userPrediction, actualResult, matchStatus }: {
   if (!actualResult || matchStatus !== 'finished') return null;
 
   const points = userPrediction?.points ?? 0;
-  const pointsColor = points > 0 ? '#16a34a' : '#ef4444';
+  const status = userPrediction?.status;
+  const isFinished = matchStatus === 'finished';
+  const pointsColor = isFinished && status
+    ? (status === 'exact' ? '#16a34a'
+      : status === 'correct_outcome' ? '#f59e0b'
+      : '#ef4444')
+    : (points > 0 ? '#16a34a' : '#ef4444');
 
   return (
     <View style={[styles.pointsContainer, { backgroundColor: pointsColor }]}>
@@ -193,10 +199,19 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
     setOptimisticTempted(null);
   }, [match.id, match.user_prediction?.is_tempted]);
 
+  useEffect(() => {
+    if (!homeFocused && !awayFocused) {
+      const incomingHome = match.user_prediction.home_score?.toString() || '';
+      const incomingAway = match.user_prediction.away_score?.toString() || '';
+      if (incomingHome !== homeScore) setHomeScore(incomingHome);
+      if (incomingAway !== awayScore) setAwayScore(incomingAway);
+    }
+  }, [match.user_prediction.home_score, match.user_prediction.away_score]);
+
   const separatorChar = ':';
   const homeName = match.home_team.name || '';
   const isLive = match.status === 'live';
-  const liveColor = getLivePredictionColor(match.user_prediction, match.actual_result, isLive);
+  const predictionColor = getLivePredictionColor(match.user_prediction, match.actual_result, isLive);
   const awayName = match.away_team.name || '';
 
   // Call onScoreChange only when user manually changes scores
@@ -415,9 +430,9 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
     const placeholderColor = isEditable ? '#94a3b8' : '#64748b';
 
     // Live match: color score box by prediction accuracy (only when not focused and has score)
-    const showLiveColor = liveColor && isLive && scoreValue && !isFieldFocused;
+    const showLiveColor = predictionColor && isLive && scoreValue && !isFieldFocused;
     // Temptation: purple border when is_tempted (replaces green when active)
-    const showTemptedBorder = isTempted && isEditable && !showLiveColor;
+    const showTemptedBorder = isTempted && (isEditable || isLive);
 
     return (
       <View
@@ -425,8 +440,8 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
           styles.scoreBox,
           isEditable ? styles.scoreBoxEditable : styles.scoreBoxLocked,
           isFieldFocused && isEditable && styles.scoreBoxFocused,
-          showLiveColor && { borderColor: liveColor, borderWidth: 2 },
-          showTemptedBorder && { borderColor: '#7c3aed', borderWidth: 2 },
+          showLiveColor && { borderColor: predictionColor, borderWidth: 2 },
+          showTemptedBorder && { borderColor: '#7c3aed', borderWidth: 2.5 },
         ]}
       >
         <TextInput
@@ -462,7 +477,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
                 !scoreValue && { lineHeight: 20 },
                 !scoreValue && !isEditable && { fontSize: 18, fontWeight: '500' },
                 scoreValue && { lineHeight: 24 },
-                showLiveColor && { color: liveColor! },
+                showLiveColor && { color: predictionColor! },
               ]}
             >
               {displayValue}
@@ -802,8 +817,14 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
   },
   scoreBoxFocused: {
-    borderColor: '#15803d',
+    borderColor: '#4ade80',
     borderWidth: 2.5,
+    backgroundColor: '#0d3320',
+    shadowColor: '#4ade80',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 4,
   },
   scoreInput: {
     borderWidth: 0,
