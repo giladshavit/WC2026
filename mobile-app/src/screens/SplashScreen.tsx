@@ -240,7 +240,7 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
               style={{
                 transform: [{ translateY: letterOTranslateY }],
                 opacity: letterOOpacity,
-                marginLeft: Platform.OS === 'android' ? -44 : -48,
+                marginLeft: Platform.OS === 'android' ? -46 : -50,
                 marginTop: Platform.OS === 'ios' ? 0 : 0,
               }}
             >
