@@ -388,8 +388,9 @@ class DBWriter:
                     (user_id, matches_score, total_points, classic_total_score,
                      groups_score, third_place_score, knockout_score, bonus_score,
                      bonus_penalty, groups_penalty, third_place_penalty,
-                     knockout_penalty, free_changes, penalty, has_used_bracket_reset)
-                SELECT u, d, d, d, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false
+                     knockout_penalty, free_changes, free_changes_used,
+                     penalty, has_used_bracket_reset)
+                SELECT u, d, d, d, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false
                 FROM unnest(CAST(:user_ids AS int[]), CAST(:deltas AS int[])) AS t(u, d)
                 ON CONFLICT (user_id) DO UPDATE
                     SET matches_score = user_scores.matches_score + EXCLUDED.matches_score,
