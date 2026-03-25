@@ -160,12 +160,12 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
             </Text>
           </View>
         ) : isUnreachable ? (
-          <View style={[styles.warningIconTopRight, styles.invalidIndicator, styles.unreachableIndicator]}>
-            <Ionicons name="alert-circle-outline" size={22} color="#ca8a04" />
+          <View style={[styles.warningIconTopRight, styles.warningIconOnly]}>
+            <Ionicons name="alert-circle-outline" size={18} color="#ca8a04" />
           </View>
         ) : isInvalid ? (
-          <View style={[styles.warningIconTopRight, styles.invalidIndicator]}>
-            <Ionicons name="warning-outline" size={12} color="#ffffff" style={{ marginTop: 1 }} />
+          <View style={[styles.warningIconTopRight, styles.warningIconOnly]}>
+            <Ionicons name="warning-outline" size={18} color="#ef4444" />
           </View>
         ) : null}
 
@@ -289,20 +289,9 @@ const styles = StyleSheet.create({
     right: 8,
     zIndex: 10,
   },
-  invalidIndicator: {
-    backgroundColor: '#ef4444',
-    borderRadius: 11,
-    width: 22,
-    height: 22,
+  warningIconOnly: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: 1,
-  },
-  unreachableIndicator: {
-    backgroundColor: '#fef3c7',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
   },
   scoreBadge: {
     position: 'absolute',
