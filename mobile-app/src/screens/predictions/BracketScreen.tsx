@@ -151,10 +151,7 @@
           try {
             const countResult = await apiService.getDraftChangesCount(userId);
             setFineInfo(countResult);
-            if (countResult.post_reset_free) {
-              // Post-reset: all changes are free regardless of free_changes pool
-              setFreeChanges(countResult.changes_count ?? 0);
-            } else if (countResult.free_changes !== undefined) {
+            if (countResult.free_changes !== undefined) {
               setFreeChanges(countResult.free_changes ?? 0);
             }
             if (countResult.changes_count > 0) {
@@ -181,10 +178,7 @@
         if (!userId || !editMode) return;
         const result = await apiService.getDraftChangesCount(userId);
         setFineInfo(result);
-        if (result.post_reset_free) {
-          // Post-reset: all changes are free regardless of free_changes pool
-          setFreeChanges(result.changes_count ?? 0);
-        } else if (result.free_changes !== undefined) {
+        if (result.free_changes !== undefined) {
           setFreeChanges(result.free_changes ?? 0);
         }
       } catch (error) {
@@ -212,9 +206,7 @@
         setPredictions(allPredictions.predictions);
         setCanEditDrafts(allPredictions.can_edit_drafts ?? true);
         setKnockoutScore(allPredictions.knockout_score ?? null);
-        if (!hasUsedBracketReset) {
-          setFreeChanges(allPredictions.free_changes ?? 0);
-        }
+        setFreeChanges(allPredictions.free_changes ?? 0);
 
         // Organize into bracket structure
         const { organized, calculateCardCoordinates } = organizeBracketMatches(allPredictions.predictions);
@@ -440,10 +432,7 @@
         if (!userId) return;
         try {
           const countResult = await apiService.getDraftChangesCount(userId);
-          if (countResult.post_reset_free) {
-            // Post-reset: all changes are free regardless of free_changes pool
-            setFreeChanges(countResult.changes_count ?? 0);
-          } else if (countResult.free_changes !== undefined) {
+          if (countResult.free_changes !== undefined) {
             setFreeChanges(countResult.free_changes ?? 0);
           }
           if (countResult.changes_count === 0) {
@@ -513,10 +502,7 @@
       if (!userId) return;
       try {
         const countResult = await apiService.getDraftChangesCount(userId);
-        if (countResult.post_reset_free) {
-          // Post-reset: all changes are free regardless of free_changes pool
-          setFreeChanges(countResult.changes_count ?? 0);
-        } else if (countResult.free_changes !== undefined) {
+        if (countResult.free_changes !== undefined) {
           setFreeChanges(countResult.free_changes ?? 0);
         }
         if (countResult.changes_count === 0) {
@@ -605,10 +591,7 @@
         if (!userId) return;
 
         const countResult = await apiService.getDraftChangesCount(userId);
-        if (countResult.post_reset_free) {
-          // Post-reset: all changes are free regardless of free_changes pool
-          setFreeChanges(countResult.changes_count ?? 0);
-        } else if (countResult.free_changes !== undefined) {
+        if (countResult.free_changes !== undefined) {
           setFreeChanges(countResult.free_changes ?? 0);
         }
 
@@ -864,8 +847,13 @@
             const changesCount = fineInfo?.changes_count ?? 0;
             const penaltyPer = fineInfo?.penalty_per_change ?? 0;
             const freeAvailable = freeChanges;
-            const freeRemaining = Math.max(0, freeAvailable - changesCount);
-            const paidChanges = Math.max(0, changesCount - freeAvailable);
+            // After bracket reset, all changes are free — don't subtract from free pool display
+            const freeRemaining = hasUsedBracketReset
+              ? freeAvailable
+              : Math.max(0, freeAvailable - changesCount);
+            const paidChanges = hasUsedBracketReset
+              ? 0
+              : Math.max(0, changesCount - freeAvailable);
             const actualPenalty = paidChanges * penaltyPer;
             return (
               <View style={[styles.fineChip, { maxWidth: 160 }]}>
@@ -1106,10 +1094,10 @@
             const cc = fineInfo?.changes_count ?? 0;
             const penaltyPer = fineInfo?.penalty_per_change ?? 0;
             const freeAvailable = freeChanges;
-            const freeRemaining = Math.max(0, freeAvailable - cc);
-            const paidChanges = Math.max(0, cc - freeAvailable);
+            const freeRemaining = hasUsedBracketReset ? freeAvailable : Math.max(0, freeAvailable - cc);
+            const paidChanges = hasUsedBracketReset ? 0 : Math.max(0, cc - freeAvailable);
             const actualPenalty = paidChanges * penaltyPer;
-            const freeUsed = Math.min(cc, freeAvailable);
+            const freeUsed = hasUsedBracketReset ? 0 : Math.min(cc, freeAvailable);
             return {
               changesCount: cc,
               freeAvailable,

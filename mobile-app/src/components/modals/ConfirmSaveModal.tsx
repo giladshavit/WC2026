@@ -61,7 +61,7 @@ export default function ConfirmSaveModal({
               ))}
               <Pressable style={[styles.primaryButton, { backgroundColor: '#15803d' }]} onPress={onConfirm}>
                 <Ionicons name="save-outline" size={20} color="#ffffff" />
-                <Text style={styles.primaryButtonText}>Save (Free)</Text>
+                <Text style={styles.primaryButtonText}>Save free</Text>
               </Pressable>
               <Pressable style={styles.secondaryButton} onPress={onClose}>
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
@@ -93,7 +93,45 @@ export default function ConfirmSaveModal({
                 </View>
               </View>
               <Pressable style={[styles.primaryButton, { backgroundColor: '#15803d' }]} onPress={onConfirm}>
-                <Text style={styles.primaryButtonText}>Save for Free</Text>
+                <Text style={styles.primaryButtonText}>Save free</Text>
+              </Pressable>
+              <Pressable style={styles.secondaryButton} onPress={onClose}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      );
+    }
+
+    // Case 3b: No penalty but freeUsed === 0 (e.g. post bracket reset) — avoid "-0 pts"
+    if (actualPenalty === 0 && freeUsed === 0 && changesCount > 0) {
+      return (
+        <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
+          <Pressable style={styles.overlay} onPress={onClose}>
+            <Pressable style={styles.content} onPress={() => {}}>
+              <View style={[styles.iconContainer, { backgroundColor: '#dcfce7' }]}>
+                <Ionicons name="gift-outline" size={32} color="#4ade80" />
+              </View>
+              <Text style={styles.title}>Confirm Save</Text>
+              <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginBottom: 20 }}>
+                <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 12, paddingVertical: 12, borderWidth: 1.5, borderColor: '#fca5a5' }}>
+                  <Text style={{ fontSize: 22, fontWeight: '700', color: '#dc2626' }}>{changesCount}</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>changes made</Text>
+                </View>
+                <View style={{ flex: 1, alignItems: 'center', backgroundColor: 'rgba(74,222,128,0.12)', borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: '#4ade80' }}>
+                  <Text style={{ fontSize: 22, fontWeight: '700', color: '#16a34a' }}>{freeRemaining}</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>free remaining</Text>
+                </View>
+              </View>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>FINE</Text>
+              <View style={{ width: '85%', alignSelf: 'center', alignItems: 'center', backgroundColor: '#f0fdf4', borderRadius: 16, paddingVertical: 14, marginBottom: 20, borderWidth: 1.5, borderColor: '#86efac' }}>
+                <Text style={{ fontSize: 36, fontWeight: '900', color: '#16a34a', letterSpacing: -1 }}>
+                  Free
+                </Text>
+              </View>
+              <Pressable style={[styles.primaryButton, { backgroundColor: '#15803d' }]} onPress={onConfirm}>
+                <Text style={styles.primaryButtonText}>Save free</Text>
               </Pressable>
               <Pressable style={styles.secondaryButton} onPress={onClose}>
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
@@ -124,11 +162,13 @@ export default function ConfirmSaveModal({
               <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>FINE</Text>
               <View style={{ width: '85%', alignSelf: 'center', alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 16, paddingVertical: 14, marginBottom: 20, borderWidth: 1.5, borderColor: '#fca5a5' }}>
                 <Text style={{ fontSize: 36, fontWeight: '900', color: '#dc2626', letterSpacing: -1 }}>
-                  -{actualPenalty} pts
+                  {actualPenalty === 0 ? 'Free' : `-${actualPenalty} pts`}
                 </Text>
               </View>
               <Pressable style={[styles.primaryButton, { backgroundColor: '#dc2626' }]} onPress={onConfirm}>
-                <Text style={styles.primaryButtonText}>Save (-{actualPenalty} pts)</Text>
+                <Text style={styles.primaryButtonText}>
+                  {actualPenalty === 0 ? 'Save free' : `Save (-${actualPenalty} pts)`}
+                </Text>
               </Pressable>
               <Pressable style={styles.secondaryButton} onPress={onClose}>
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
@@ -148,16 +188,20 @@ export default function ConfirmSaveModal({
             <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>
               FINE
             </Text>
-            <View style={{ width: '85%', alignSelf: 'center', alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 16, paddingVertical: 14, marginBottom: 8, borderWidth: 1.5, borderColor: '#fca5a5' }}>
-              <Text style={{ fontSize: 36, fontWeight: '900', color: '#dc2626', letterSpacing: -1 }}>
-                -{actualPenalty} pts
+            <View style={{ width: '85%', alignSelf: 'center', alignItems: 'center', backgroundColor: actualPenalty === 0 ? '#f0fdf4' : '#fef2f2', borderRadius: 16, paddingVertical: 14, marginBottom: 8, borderWidth: 1.5, borderColor: actualPenalty === 0 ? '#86efac' : '#fca5a5' }}>
+              <Text style={{ fontSize: 36, fontWeight: '900', color: actualPenalty === 0 ? '#16a34a' : '#dc2626', letterSpacing: -1 }}>
+                {actualPenalty === 0 ? 'Free' : `-${actualPenalty} pts`}
               </Text>
             </View>
             <Text style={{ fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 20 }}>
-              {changesCount} changes will cost {actualPenalty} pts
+              {actualPenalty === 0
+                ? `${changesCount} changes — no fine`
+                : `${changesCount} changes will cost ${actualPenalty} pts`}
             </Text>
-            <Pressable style={[styles.primaryButton, { backgroundColor: '#dc2626' }]} onPress={onConfirm}>
-              <Text style={styles.primaryButtonText}>Save (-{actualPenalty} pts)</Text>
+            <Pressable style={[styles.primaryButton, { backgroundColor: actualPenalty === 0 ? '#15803d' : '#dc2626' }]} onPress={onConfirm}>
+              <Text style={styles.primaryButtonText}>
+                {actualPenalty === 0 ? 'Save free' : `Save (-${actualPenalty} pts)`}
+              </Text>
             </Pressable>
             <Pressable style={styles.secondaryButton} onPress={onClose}>
               <Text style={styles.secondaryButtonText}>Cancel</Text>
