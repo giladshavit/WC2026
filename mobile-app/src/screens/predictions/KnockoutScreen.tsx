@@ -70,6 +70,9 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const { getCurrentUserId } = useAuth();
   const { currentStage } = useTournament();
   const isPreTournament = currentStage === 'PRE_GROUP_STAGE';
+  const isPostGroupStage = currentStage != null &&
+    currentStage !== 'PRE_GROUP_STAGE' &&
+    !['GROUP_CYCLE_1', 'GROUP_CYCLE_2', 'GROUP_CYCLE_3'].includes(currentStage);
 
   const isStageKeyEditable = useCallback((stageKey: string): boolean => {
     if (!currentStage) return false;
@@ -92,6 +95,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const [hasEverPredictedFinal, setHasEverPredictedFinal] = useState(false);
   const [showBracketCompleteModal, setShowBracketCompleteModal] = useState(false);
   const [showBracketModal, setShowBracketModal] = useState(false);
+  const [showLegendModal, setShowLegendModal] = useState(false);
 
   const [predictionsByStage, setPredictionsByStage] = useState<Record<string, KnockoutPrediction[]>>({
     round32: [],
@@ -439,6 +443,14 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
             </TouchableOpacity>
           </View>
           <View style={styles.headerRight}>
+            {isPostGroupStage && (
+              <TouchableOpacity
+                onPress={() => setShowLegendModal(true)}
+                style={{ padding: 4 }}
+              >
+                <Ionicons name="information-circle-outline" size={22} color="#ffffff" />
+              </TouchableOpacity>
+            )}
             {showPoints && (
               <>
                 <TouchableOpacity
@@ -558,6 +570,42 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
             >
               <Text style={styles.modalButtonSecondaryText}>Later</Text>
             </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Legend Modal */}
+      <Modal visible={showLegendModal} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowLegendModal(false)}
+        >
+          <TouchableOpacity style={[styles.modalCard, { backgroundColor: '#1e293b' }]} activeOpacity={1} onPress={() => {}}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 16 }}>
+              <Text style={[styles.modalTitle, { color: '#f1f5f9', marginTop: 0 }]}>Card Legend</Text>
+              <TouchableOpacity onPress={() => setShowLegendModal(false)}>
+                <Ionicons name="close" size={24} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Invalid */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, width: '100%' }}>
+              <Ionicons name="warning-outline" size={22} color="#ef4444" />
+              <Text style={{ flex: 1, fontSize: 13, lineHeight: 20, color: '#cbd5e1' }}>
+                <Text style={{ color: '#ef4444', fontWeight: '700' }}>Invalid — </Text>
+                your predicted winner has been eliminated. 0 points potential
+              </Text>
+            </View>
+
+            {/* Unreachable */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, width: '100%' }}>
+              <Ionicons name="alert-circle-outline" size={22} color="#ca8a04" />
+              <Text style={{ flex: 1, fontSize: 13, lineHeight: 20, color: '#cbd5e1' }}>
+                <Text style={{ color: '#ca8a04', fontWeight: '700' }}>Unreachable — </Text>
+                your predicted winner is expected in a different match at this stage. Partial points potential
+              </Text>
+            </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
