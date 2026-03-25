@@ -20,6 +20,18 @@ from database import SQLALCHEMY_DATABASE_URL
 from models.results import MatchResult, GroupStageResult, ThirdPlaceResult, KnockoutStageResult
 
 
+def run_delete_all_results(db):
+    """Delete all results directly using the provided DB session."""
+    from models.results import MatchResult, GroupStageResult, ThirdPlaceResult, KnockoutStageResult
+
+    db.query(KnockoutStageResult).delete()
+    db.query(ThirdPlaceResult).delete()
+    db.query(GroupStageResult).delete()
+    db.query(MatchResult).delete()
+    db.flush()
+    return {"deleted": True}
+
+
 def delete_match_results():
     """Delete all match results (individual match scores)."""
     

@@ -740,32 +740,10 @@ def reset_all_results_and_scores(db: Session = Depends(get_db)):
     7. Reset all match statuses to scheduled
     """
     try:
-        import subprocess
-        import os
-        
-        # Step 1: Delete all results using the existing script
-        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "deletion", "delete_all_results.py")
-        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
-        
-        print(f"🔧 Running delete_all_results script...")
-        print(f"Script path: {script_path}")
-        print(f"Python path: {python_path}")
-        
-        process_result = subprocess.run(
-            [python_path, script_path],
-            capture_output=True,
-            text=True,
-            cwd=os.path.dirname(os.path.dirname(__file__))
-        )
-        
-        print(f"Script return code: {process_result.returncode}")
-        if process_result.stdout:
-            print(f"Script stdout: {process_result.stdout}")
-        if process_result.stderr:
-            print(f"Script stderr: {process_result.stderr}")
-        
-        if process_result.returncode != 0:
-            raise Exception(f"Script failed with return code {process_result.returncode}: {process_result.stderr}")
+        print(f"🔧 Running delete_all_results...")
+        from utils.deletion.delete_all_results import run_delete_all_results
+        run_delete_all_results(db)
+        print(f"✅ delete_all_results completed")
         
         # Step 2: Recalculate knockout statuses using reachable logic
         from services.predictions.knockout_service import KnockoutService
@@ -818,32 +796,10 @@ def delete_all_results_only(db: Session = Depends(get_db)):
     8. Reset all match statuses to scheduled
     """
     try:
-        import subprocess
-        import os
-        
-        # Step 1: Delete all results using the existing script
-        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "deletion", "delete_all_results.py")
-        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
-        
-        print(f"🔧 Running delete_all_results script...")
-        print(f"Script path: {script_path}")
-        print(f"Python path: {python_path}")
-        
-        process_result = subprocess.run(
-            [python_path, script_path],
-            capture_output=True,
-            text=True,
-            cwd=os.path.dirname(os.path.dirname(__file__))
-        )
-        
-        print(f"Script return code: {process_result.returncode}")
-        if process_result.stdout:
-            print(f"Script stdout: {process_result.stdout}")
-        if process_result.stderr:
-            print(f"Script stderr: {process_result.stderr}")
-        
-        if process_result.returncode != 0:
-            raise Exception(f"Script failed with return code {process_result.returncode}: {process_result.stderr}")
+        print(f"🔧 Running delete_all_results...")
+        from utils.deletion.delete_all_results import run_delete_all_results
+        run_delete_all_results(db)
+        print(f"✅ delete_all_results completed")
         
         # Step 2: Reset is_eliminated for all teams (no results = no eliminations)
         eliminated_teams = db.query(Team).filter(Team.is_eliminated == True).all()
