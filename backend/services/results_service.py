@@ -704,10 +704,12 @@ class ResultsService:
         
         if position == 1:
             DBWriter.update_knockout_result(db, next_knockout_result, team_1=winner_team_id)
-            DBWriter.update_match(db, next_match, home_team_id=winner_team_id)
+            status_kwargs = {"status": "scheduled"} if next_match.status not in ("scheduled", "live", "finished") else {}
+            DBWriter.update_match(db, next_match, home_team_id=winner_team_id, **status_kwargs)
         elif position == 2:
             DBWriter.update_knockout_result(db, next_knockout_result, team_2=winner_team_id)
-            DBWriter.update_match(db, next_match, away_team_id=winner_team_id)
+            status_kwargs = {"status": "scheduled"} if next_match.status not in ("scheduled", "live", "finished") else {}
+            DBWriter.update_match(db, next_match, away_team_id=winner_team_id, **status_kwargs)
         
         DBUtils.commit(db)
     

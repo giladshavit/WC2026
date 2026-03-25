@@ -71,7 +71,9 @@ class Match(Base):
     
     @property
     def is_editable(self) -> bool:
-        """Check if match is editable. Only scheduled (upcoming) matches can be edited."""
-        if self.status != MatchStatus.SCHEDULED.value:
+        """Check if match is editable. Live and finished matches cannot be edited."""
+        if self.status == MatchStatus.LIVE.value:
+            return False
+        if self.status == MatchStatus.FINISHED.value:
             return False
         return True
