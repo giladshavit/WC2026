@@ -780,7 +780,10 @@ class KnockoutService:
         if changes_count > 0:
             user_scores = DBReader.get_user_scores(db, user_id)
             has_used_reset = user_scores and getattr(user_scores, 'has_used_bracket_reset', False)
-            if not has_used_reset:
+            if has_used_reset:
+                # Post-reset edits are completely free — do NOT touch free_changes pool
+                penalty_points = 0
+            else:
                 paid_changes = ScoringService.consume_free_changes(db, user_id, changes_count)
                 if paid_changes > 0:
                     penalty_points = ScoringService.record_prediction_penalty(
