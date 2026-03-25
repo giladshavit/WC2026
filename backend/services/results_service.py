@@ -161,8 +161,20 @@ class ResultsService:
             is_knockout = match.stage in ['round32', 'round16', 'quarter', 'semi', 'final']
             if is_knockout:
                 if is_final:
+                    knockout_winner_id = ResultsService._resolve_knockout_winner(
+                        match.home_team_id, match.away_team_id,
+                        home_team_score, away_team_score,
+                        home_team_score_120, away_team_score_120,
+                        home_team_penalties, away_team_penalties,
+                        outcome_type
+                    )
+                    if knockout_winner_id is None:
+                        raise ValueError(
+                            f"Cannot finalize knockout match {match_id}: winner could not be determined. "
+                            f"Ensure extra_time or penalty scores are provided for drawn knockout matches."
+                        )
                     ResultsService.update_knockout_result(
-                        db, match_id, match.home_team_id, match.away_team_id, winner_team_id
+                        db, match_id, match.home_team_id, match.away_team_id, knockout_winner_id
                     )
                 ScoringService.update_match_scoring_for_all_users(db, result, update_status=is_final)
                 return {
@@ -592,6 +604,44 @@ class ResultsService:
                 return away_team_id
             else:
                 return None  # Draw — NULL in DB, 0 violates FK constraint
+
+    @staticmethod
+    def _resolve_knockout_winner(
+        home_team_id: int, away_team_id: int,
+        home_score_90: int, away_score_90: int,
+        home_score_120: Optional[int], away_score_120: Optional[int],
+        home_penalties: Optional[int], away_penalties: Optional[int],
+        outcome_type: str
+    ) -> Optional[int]:
+        """
+        Like _calculate_winner but for knockout matches.
+        If 90-min result is a draw, falls back to extra_time then penalties.
+        """
+        winner = ResultsService._calculate_winner(
+            home_team_id, away_team_id,
+            home_score_90, away_score_90,
+            home_score_120, away_score_120,
+            home_penalties, away_penalties,
+            outcome_type
+        )
+        if winner is not None:
+            return winner
+
+        # Draw at 90min — try extra time
+        if home_score_120 is not None and away_score_120 is not None:
+            if home_score_120 > away_score_120:
+                return home_team_id
+            elif away_score_120 > home_score_120:
+                return away_team_id
+
+        # Still a draw — try penalties
+        if home_penalties is not None and away_penalties is not None:
+            if home_penalties > away_penalties:
+                return home_team_id
+            elif away_penalties > home_penalties:
+                return away_team_id
+
+        return None  # Could not determine winner
 
     @staticmethod
     def _update_knockout_stage_result(db: Session, match_id: int, winner_team_id: int):
