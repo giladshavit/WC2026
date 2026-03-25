@@ -169,6 +169,7 @@ function AnimatedPlayerRow({
   side,
   scoreMode,
   showOnlyTotalColumn,
+  liveNamesNoShrink,
   onRowPress,
 }: {
   item: StandingWithFine;
@@ -180,6 +181,8 @@ function AnimatedPlayerRow({
   side: 'left' | 'middle' | 'right';
   scoreMode?: 'multi' | 'classic';
   showOnlyTotalColumn?: boolean;
+  /** Live table: keep full font size; truncate with ellipsis instead of shrinking */
+  liveNamesNoShrink?: boolean;
   onRowPress?: () => void;
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -207,8 +210,9 @@ function AnimatedPlayerRow({
         <Text
           style={styles.rankNumber}
           numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.7}
+          {...(liveNamesNoShrink
+            ? {}
+            : { adjustsFontSizeToFit: true, minimumFontScale: 0.7 })}
         >
           {rank}
         </Text>
@@ -230,15 +234,18 @@ function AnimatedPlayerRow({
           <View style={styles.colPlayer}>
             <View style={styles.rankNameRow}>
               {renderRankIcon()}
-              <Text
-                style={[styles.cellName, styles.cellLeft, isCurrentUser && styles.cellBold]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
-                ellipsizeMode="tail"
-              >
-                {truncateName(item.name ?? (item as any).username ?? 'Player')}
-              </Text>
+              <View style={styles.playerNameTextWrap}>
+                <Text
+                  style={[styles.cellName, styles.cellLeft, isCurrentUser && styles.cellBold]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  {...(liveNamesNoShrink
+                    ? { adjustsFontSizeToFit: true, minimumFontScale: 0.75 }
+                    : {})}
+                >
+                  {truncateName(item.name ?? (item as any).username ?? 'Player')}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -1073,7 +1080,7 @@ export default function LeagueDetailsScreen() {
 
         <View style={[styles.tableSection, { maxWidth: 520, alignSelf: 'center', width: '100%' }]}>
           <FlashList
-            key={sortBy + '-' + scoreMode}
+            key={sortBy + '-' + scoreMode + '-' + String(isLiveMode)}
             ref={flashListRef}
             data={allStandings}
             extraData={sortBy + scoreMode + String(page)}
@@ -1093,8 +1100,8 @@ export default function LeagueDetailsScreen() {
               />
             }
             ListHeaderComponent={
-              <View style={styles.tableRowContainer}>
-                <View style={styles.tableFixedLeft}>
+              <View style={[styles.tableRowContainer, isLiveMode && styles.tableRowContainerLive]}>
+                <View style={[styles.tableFixedLeft, isLiveMode && styles.tableFixedLeftLive]}>
                   <View style={[styles.tableHeader, { height: 46, backgroundColor: '#334155' }]}>
                     <View style={styles.colPlayer}>
                       <Text style={[styles.headerCell, styles.cellLeft]}>Rank</Text>
@@ -1102,7 +1109,7 @@ export default function LeagueDetailsScreen() {
                   </View>
                 </View>
                 {!isLiveMode && (
-                  <View style={[styles.tableScrollMiddle, { width: middleWidth }]}>
+                  <View style={[styles.tableScrollMiddle, styles.tableMiddleFixed, { width: middleWidth }]}>
                     <View style={[styles.tableHeader, styles.tableHeaderMiddle, { height: 46, backgroundColor: '#334155' }]}>
                         {scoreMode === 'classic' ? (
                           <>
@@ -1174,7 +1181,13 @@ export default function LeagueDetailsScreen() {
                     </View>
                   </View>
                 )}
-                <View style={[styles.tableFixedRight, { flex: isLiveMode ? 1 : undefined, backgroundColor: '#0f172a' }]}>
+                <View
+                  style={[
+                    styles.tableFixedRight,
+                    { flex: isLiveMode ? 1 : undefined, backgroundColor: '#0f172a' },
+                    isLiveMode && styles.tableFixedRightLive,
+                  ]}
+                >
                   <View style={[styles.tableHeader, styles.tableHeaderRight, { height: 46, backgroundColor: '#334155' }, showOnlyTotalColumn && { justifyContent: 'flex-end' }]}>
                     {effectiveLiveList.map((liveData) => (
                       <View key={liveData.match_id} style={[styles.colLive, styles.headerIconCell]}>
@@ -1200,8 +1213,8 @@ export default function LeagueDetailsScreen() {
               </View>
             }
             renderItem={({ item, index }) => (
-              <View style={styles.tableRowContainer}>
-                <View style={styles.tableFixedLeft}>
+              <View style={[styles.tableRowContainer, isLiveMode && styles.tableRowContainerLive]}>
+                <View style={[styles.tableFixedLeft, isLiveMode && styles.tableFixedLeftLive]}>
                   <AnimatedPlayerRow
                     item={item}
                     index={index}
@@ -1211,11 +1224,12 @@ export default function LeagueDetailsScreen() {
                     liveMatchPredictionsList={liveMatchPredictionsList}
                     side="left"
                     scoreMode={scoreMode}
+                    liveNamesNoShrink={isLiveMode}
                     onRowPress={item.user_id !== currentUserId ? () => (navigation as any).navigate('PublicProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` }) : undefined}
                   />
                 </View>
                 {!isLiveMode && (
-                  <View style={{ width: middleWidth, backgroundColor: '#0f172a' }}>
+                  <View style={[styles.tableMiddleFixed, { width: middleWidth, backgroundColor: '#0f172a' }]}>
                     <AnimatedPlayerRow
                       item={item}
                       index={index}
@@ -1229,7 +1243,13 @@ export default function LeagueDetailsScreen() {
                     />
                   </View>
                 )}
-                <View style={[styles.tableFixedRight, { flex: isLiveMode ? 1 : undefined, backgroundColor: '#0f172a' }]}>
+                <View
+                  style={[
+                    styles.tableFixedRight,
+                    { flex: isLiveMode ? 1 : undefined, backgroundColor: '#0f172a' },
+                    isLiveMode && styles.tableFixedRightLive,
+                  ]}
+                >
                   <AnimatedPlayerRow
                     item={item}
                     index={index}
@@ -1250,8 +1270,14 @@ export default function LeagueDetailsScreen() {
           />
 
           {currentUserEntry && currentUserEntry.rank != null && currentUserEntry.rank > 3 && (
-            <View style={styles.stickyUserRow}>
-              <View style={[styles.tableFixedLeft, { backgroundColor: '#1a2744' }]}>
+            <View style={[styles.stickyUserRow, isLiveMode && styles.tableRowContainerLive]}>
+              <View
+                style={[
+                  styles.tableFixedLeft,
+                  { backgroundColor: '#1a2744' },
+                  isLiveMode && styles.tableFixedLeftLive,
+                ]}
+              >
                 <View style={[styles.playerRow, styles.playerRowContent, { minHeight: 52, borderBottomWidth: 0 }]}>
                   <View style={styles.colPlayer}>
                     <View style={styles.rankNameRow}>
@@ -1259,21 +1285,28 @@ export default function LeagueDetailsScreen() {
                         <Text
                           style={styles.stickyRankNumber}
                           numberOfLines={1}
-                          adjustsFontSizeToFit
-                          minimumFontScale={0.7}
+                          {...(isLiveMode
+                            ? {}
+                            : { adjustsFontSizeToFit: true, minimumFontScale: 0.7 })}
                         >
                           {currentUserEntry.rank}
                         </Text>
                       </View>
-                      <Text style={[styles.cellName, styles.cellLeft, styles.cellBold]} numberOfLines={1}>
-                        {truncateName(currentUserEntry.name ?? (currentUserEntry as any).username ?? 'You')}
-                      </Text>
+                      <View style={styles.playerNameTextWrap}>
+                        <Text
+                          style={[styles.cellName, styles.cellLeft, styles.cellBold]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {truncateName(currentUserEntry.name ?? (currentUserEntry as any).username ?? 'You')}
+                        </Text>
+                      </View>
                     </View>
                   </View>
                 </View>
               </View>
               {!isLiveMode && (
-              <View style={[styles.tableScrollMiddle, { width: middleWidth }]}>
+              <View style={[styles.tableScrollMiddle, styles.tableMiddleFixed, { width: middleWidth }]}>
                 <View style={[styles.playerRow, styles.playerRowContent, { minHeight: 52, borderBottomWidth: 0, paddingHorizontal: 0, backgroundColor: '#1a2744' }]}>
                   {scoreMode === 'classic' ? (
                     <>
@@ -1335,11 +1368,14 @@ export default function LeagueDetailsScreen() {
                 </View>
               </View>
               )}
-              <View style={[
-                styles.tableFixedRight,
-                styles.stickyUserRowRight,
-                { flex: isLiveMode ? 1 : undefined, backgroundColor: '#1a2744' }
-              ]}>
+              <View
+                style={[
+                  styles.tableFixedRight,
+                  styles.stickyUserRowRight,
+                  { flex: isLiveMode ? 1 : undefined, backgroundColor: '#1a2744' },
+                  isLiveMode && styles.tableFixedRightLive,
+                ]}
+              >
                 <View style={[
                   styles.playerRow,
                   styles.playerRowRight,
@@ -1718,6 +1754,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 56,
+    minWidth: 0,
     paddingHorizontal: 0,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.06)',
@@ -1749,22 +1786,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    minWidth: 0,
   },
   colPlayer: {
     flex: 1,
-    paddingLeft: 28,
+    paddingLeft: 8,
   },
   rankNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flex: 1,
+    minWidth: 0,
+  },
+  /** Bounds name Text so ellipsis works; keeps stat columns aligned with header on narrow screens */
+  playerNameTextWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   rankIconContainer: {
-    width: 20,
+    minWidth: 24,
+    width: 'auto',
     height: 20,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    paddingHorizontal: 1,
   },
   rankNumber: {
     fontSize: 14,
@@ -1831,15 +1878,40 @@ const styles = StyleSheet.create({
     flex: 1,
     alignSelf: 'stretch',
   },
+  tableRowContainerLive: {
+    position: 'relative',
+  },
   tableFixedLeft: {
     flex: 1,
-    minWidth: 80,
-    maxWidth: 160,
+    minWidth: 0,
+    maxWidth: 520,
     overflow: 'hidden',
+  },
+  /** Live mode: names column stays behind; keep narrow so match columns get space */
+  tableFixedLeftLive: {
+    zIndex: 0,
+    elevation: 0,
+    flex: 0,
+    flexGrow: 0,
+    flexShrink: 1,
+    flexBasis: 168,
+    maxWidth: 210,
+    minWidth: 88,
+  },
+  /** Live mode: scores + total draw above the name column so pills are not clipped */
+  tableFixedRightLive: {
+    zIndex: 2,
+    elevation: 4,
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   tableScrollMiddle: {
     backgroundColor: '#0f172a',
     overflow: 'hidden',
+  },
+  tableMiddleFixed: {
+    flexShrink: 0,
   },
   tableScrollMiddleContent: {
     flexGrow: 1,
@@ -1855,6 +1927,7 @@ const styles = StyleSheet.create({
   tableFixedRight: {
     width: 74,
     overflow: 'hidden',
+    flexShrink: 0,
   },
   playerRowContentRight: {
     flex: 0,

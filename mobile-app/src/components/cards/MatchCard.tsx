@@ -433,6 +433,9 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
     const showLiveColor = predictionColor && isLive && scoreValue && !isFieldFocused;
     // Temptation: purple border when is_tempted (replaces green when active)
     const showTemptedBorder = isTempted && (isEditable || isLive);
+    // Finished + result: show predicted score digits in purple when this was a temptation
+    const showTemptedFinishedScoreText =
+      isTempted && match.status === 'finished' && !!match.actual_result;
 
     return (
       <View
@@ -478,6 +481,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
                 !scoreValue && !isEditable && { fontSize: 18, fontWeight: '500' },
                 scoreValue && { lineHeight: 24 },
                 showLiveColor && { color: predictionColor! },
+                showTemptedFinishedScoreText && { color: '#a855f7' },
               ]}
             >
               {displayValue}
