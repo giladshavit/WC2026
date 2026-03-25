@@ -265,15 +265,18 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   }, [predictionsByStage, originalWinners]);
 
   const isStageVisible = useCallback((stageKey: string): boolean => {
+    // Once we're at PRE_ROUND32 or later, show all stages regardless of predictions
+    if (isPostGroupStage) return true;
     return unlockedStages.has(stageKey);
-  }, [unlockedStages]);
+  }, [unlockedStages, isPostGroupStage]);
 
   const isNextLockedStage = useCallback((stageKey: string): boolean => {
+    if (isPostGroupStage) return false;
     const stageIndex = STAGES.findIndex(s => s.key === stageKey);
     if (stageIndex === 0) return false;
     const prevKey = STAGES[stageIndex - 1].key;
     return unlockedStages.has(prevKey) && !isStageComplete(prevKey);
-  }, [unlockedStages, isStageComplete]);
+  }, [unlockedStages, isStageComplete, isPostGroupStage]);
 
   const handleTeamPress = async (
     prediction: KnockoutPrediction,
