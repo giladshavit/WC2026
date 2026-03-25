@@ -11,6 +11,7 @@ from services.stage_manager import StageManager, Stage
 from models.results import KnockoutStageResult
 from models.predictions import KnockoutStagePrediction
 from models.team import Team
+from models.matches_template import MatchTemplate
 
 
 @dataclass
@@ -885,13 +886,27 @@ class KnockoutService:
         """
         Initialize/recalculate status for all knockout predictions using reachable logic.
         Iterates over all predictions per user, skips post-result statuses (CORRECT_FULL,
-        CORRECT_PARTIAL, INCORRECT), calls _compute_and_set_status with check_reachable=True.
+        CORRECT_PARTIAL, INCORRECT), uses _compute_and_set_status_cached with check_reachable=True.
         Called after admin operations that affect the bracket (entering results, rebuilding).
         Uses check_reachable=True because this runs only after group results exist.
         """
+        all_templates: Dict[int, MatchTemplate] = {
+            t.id: t for t in db.query(MatchTemplate).all()
+        }
+        all_results: Dict[int, KnockoutStageResult] = {
+            r.match_id: r for r in db.query(KnockoutStageResult).all()
+        }
+        all_teams: Dict[int, Team] = {t.id: t for t in db.query(Team).all()}
         predictions = DBReader.get_all_knockout_predictions(db)
         for prediction in predictions:
-            KnockoutService._compute_and_set_status(db, prediction, check_reachable=True)
+            KnockoutService._compute_and_set_status_cached(
+                db,
+                prediction,
+                check_reachable=True,
+                templates_cache=all_templates,
+                results_cache=all_results,
+                teams_cache=all_teams,
+            )
         DBUtils.flush(db)
 
     @staticmethod
@@ -1465,6 +1480,62 @@ class KnockoutService:
         return status
 
     @staticmethod
+    def _compute_and_set_status_cached(
+        db: Session,
+        prediction,
+        check_reachable: bool,
+        templates_cache: Dict[int, MatchTemplate],
+        results_cache: Dict[int, KnockoutStageResult],
+        teams_cache: Dict[int, Team],
+    ) -> Optional[KnockoutPredictionStatus]:
+        template = templates_cache.get(prediction.template_match_id)
+        result = results_cache.get(prediction.template_match_id)
+
+        if not template:
+            return None
+
+        winner_team_id = KnockoutService._normalize_team_id(prediction.winner_team_id)
+        current_status = prediction.status
+
+        if result and result.winner_team_id:
+            return None
+
+        if not winner_team_id:
+            status = KnockoutPredictionStatus.INVALID
+            DBWriter.set_prediction_status(prediction, status.value)
+            return status
+
+        winner_team = teams_cache.get(winner_team_id)
+        if winner_team and winner_team.is_eliminated:
+            status = KnockoutPredictionStatus.INVALID
+            DBWriter.set_prediction_status(prediction, status.value)
+            return status
+
+        if check_reachable:
+            if not KnockoutService._is_winner_reachable_recursive_cached(
+                prediction.template_match_id,
+                winner_team_id,
+                templates_cache,
+                results_cache,
+            ):
+                status = KnockoutPredictionStatus.UNREACHABLE
+                DBWriter.set_prediction_status(prediction, status.value)
+                return status
+            status = KnockoutPredictionStatus.VALID
+            DBWriter.set_prediction_status(prediction, status.value)
+            return status
+
+        if current_status == KnockoutPredictionStatus.UNREACHABLE.value:
+            return KnockoutPredictionStatus.UNREACHABLE
+
+        if current_status == KnockoutPredictionStatus.VALID.value:
+            return KnockoutPredictionStatus.VALID
+
+        status = KnockoutPredictionStatus.VALID
+        DBWriter.set_prediction_status(prediction, status.value)
+        return status
+
+    @staticmethod
     def _compute_status_pre_result(
         db: Session,
         prediction,
@@ -1556,6 +1627,44 @@ class KnockoutService:
             )) or
             (source_match_2_id and KnockoutService._is_winner_reachable_recursive(
                 db, source_match_2_id, winner_team_id, visited.copy()
+            ))
+        )
+
+    @staticmethod
+    def _is_winner_reachable_recursive_cached(
+        match_id: int,
+        winner_team_id: int,
+        templates_cache: Dict[int, MatchTemplate],
+        results_cache: Dict[int, KnockoutStageResult],
+        visited: Optional[Set[int]] = None,
+    ) -> bool:
+        if visited is None:
+            visited = set()
+
+        if match_id in visited:
+            return False
+        visited.add(match_id)
+
+        template = templates_cache.get(match_id)
+        if not template:
+            return False
+
+        knockout_result = results_cache.get(match_id)
+        if knockout_result and knockout_result.team_1 and knockout_result.team_2:
+            return winner_team_id in {knockout_result.team_1, knockout_result.team_2}
+
+        if template.stage == "round32":
+            return True
+
+        source_match_1_id = KnockoutService._extract_match_id_from_winner_string(template.team_1)
+        source_match_2_id = KnockoutService._extract_match_id_from_winner_string(template.team_2)
+
+        return (
+            (source_match_1_id and KnockoutService._is_winner_reachable_recursive_cached(
+                source_match_1_id, winner_team_id, templates_cache, results_cache, visited.copy()
+            )) or
+            (source_match_2_id and KnockoutService._is_winner_reachable_recursive_cached(
+                source_match_2_id, winner_team_id, templates_cache, results_cache, visited.copy()
             ))
         )
 

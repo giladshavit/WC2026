@@ -486,14 +486,6 @@ def rebuild_round32_bracket(db: Session = Depends(get_db)):
         bracket_result = ResultsService.build_round32_bracket_from_results(db)
         print(f"✅ Bracket built: {bracket_result['matches_created']} created, {bracket_result['matches_updated']} updated")
         
-        # Step 2: Update Round of 32 prediction statuses
-        print("🔧 Updating Round of 32 prediction statuses...")
-        ResultsService.update_round32_statuses(db)
-        
-        # Step 3: Update prediction statuses for all subsequent knockout stages
-        print("🔧 Updating subsequent knockout stage statuses...")
-        ResultsService.update_knockout_statuses_after_round32(db)
-        
         # Step 4: Update validity for all predictions
         print("🔧 Updating prediction validity...")
         from services.predictions.knockout_service import KnockoutService
