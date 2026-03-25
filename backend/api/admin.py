@@ -745,7 +745,8 @@ def reset_all_results_and_scores(db: Session = Depends(get_db)):
         
         # Step 1: Delete all results using the existing script
         script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "deletion", "delete_all_results.py")
-        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
+        import sys
+        python_path = sys.executable
         
         print(f"🔧 Running delete_all_results script...")
         print(f"Script path: {script_path}")
@@ -823,7 +824,8 @@ def delete_all_results_only(db: Session = Depends(get_db)):
         
         # Step 1: Delete all results using the existing script
         script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "deletion", "delete_all_results.py")
-        python_path = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
+        import sys
+        python_path = sys.executable
         
         print(f"🔧 Running delete_all_results script...")
         print(f"Script path: {script_path}")
