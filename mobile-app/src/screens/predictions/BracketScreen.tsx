@@ -151,7 +151,12 @@
           try {
             const countResult = await apiService.getDraftChangesCount(userId);
             setFineInfo(countResult);
-            if (countResult.free_changes !== undefined) setFreeChanges(countResult.free_changes ?? 0);
+            if (countResult.post_reset_free) {
+              // Post-reset: all changes are free regardless of free_changes pool
+              setFreeChanges(countResult.changes_count ?? 0);
+            } else if (countResult.free_changes !== undefined) {
+              setFreeChanges(countResult.free_changes ?? 0);
+            }
             if (countResult.changes_count > 0) {
               setShowExitModal(true);
               pendingNavActionRef.current = e.data.action;
@@ -176,7 +181,12 @@
         if (!userId || !editMode) return;
         const result = await apiService.getDraftChangesCount(userId);
         setFineInfo(result);
-        if (result.free_changes !== undefined) setFreeChanges(result.free_changes ?? 0);
+        if (result.post_reset_free) {
+          // Post-reset: all changes are free regardless of free_changes pool
+          setFreeChanges(result.changes_count ?? 0);
+        } else if (result.free_changes !== undefined) {
+          setFreeChanges(result.free_changes ?? 0);
+        }
       } catch (error) {
         console.error('Error refreshing fine count:', error);
       }
@@ -202,8 +212,10 @@
         setPredictions(allPredictions.predictions);
         setCanEditDrafts(allPredictions.can_edit_drafts ?? true);
         setKnockoutScore(allPredictions.knockout_score ?? null);
-        setFreeChanges(allPredictions.free_changes ?? 0);
-        
+        if (!hasUsedBracketReset) {
+          setFreeChanges(allPredictions.free_changes ?? 0);
+        }
+
         // Organize into bracket structure
         const { organized, calculateCardCoordinates } = organizeBracketMatches(allPredictions.predictions);
         
@@ -428,7 +440,12 @@
         if (!userId) return;
         try {
           const countResult = await apiService.getDraftChangesCount(userId);
-          if (countResult.free_changes !== undefined) setFreeChanges(countResult.free_changes ?? 0);
+          if (countResult.post_reset_free) {
+            // Post-reset: all changes are free regardless of free_changes pool
+            setFreeChanges(countResult.changes_count ?? 0);
+          } else if (countResult.free_changes !== undefined) {
+            setFreeChanges(countResult.free_changes ?? 0);
+          }
           if (countResult.changes_count === 0) {
             try {
               setLoading(true);
@@ -496,7 +513,12 @@
       if (!userId) return;
       try {
         const countResult = await apiService.getDraftChangesCount(userId);
-        if (countResult.free_changes !== undefined) setFreeChanges(countResult.free_changes ?? 0);
+        if (countResult.post_reset_free) {
+          // Post-reset: all changes are free regardless of free_changes pool
+          setFreeChanges(countResult.changes_count ?? 0);
+        } else if (countResult.free_changes !== undefined) {
+          setFreeChanges(countResult.free_changes ?? 0);
+        }
         if (countResult.changes_count === 0) {
           showToast('No changes to reset', 'info');
           return;
@@ -583,7 +605,12 @@
         if (!userId) return;
 
         const countResult = await apiService.getDraftChangesCount(userId);
-        if (countResult.free_changes !== undefined) setFreeChanges(countResult.free_changes ?? 0);
+        if (countResult.post_reset_free) {
+          // Post-reset: all changes are free regardless of free_changes pool
+          setFreeChanges(countResult.changes_count ?? 0);
+        } else if (countResult.free_changes !== undefined) {
+          setFreeChanges(countResult.free_changes ?? 0);
+        }
 
         if (countResult.changes_count === 0) {
           showToast('No changes to save', 'info');

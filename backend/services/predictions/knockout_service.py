@@ -702,11 +702,13 @@ class KnockoutService:
         if user_scores and getattr(user_scores, 'has_used_bracket_reset', False):
             penalty_per_change = 0
 
+        has_used_reset = user_scores and getattr(user_scores, 'has_used_bracket_reset', False)
         return {
             "changes_count": changes_count,
             "penalty_per_change": penalty_per_change,
             "total_penalty": changes_count * penalty_per_change,
             "free_changes": getattr(user_scores, 'free_changes', 0) if user_scores else 0,
+            "post_reset_free": bool(has_used_reset),
         }
 
     @staticmethod

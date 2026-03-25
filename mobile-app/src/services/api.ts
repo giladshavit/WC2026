@@ -303,6 +303,14 @@ export interface BonusPrediction {
   interim_values?: Record<string, string | null>;
 }
 
+export interface DraftChangesCountResponse {
+  changes_count: number;
+  penalty_per_change: number;
+  total_penalty: number;
+  free_changes?: number;
+  post_reset_free?: boolean;
+}
+
 export interface LeagueStanding {
   rank: number;
   user_id: number;
@@ -760,7 +768,7 @@ export class ApiService {
     }
   }
 
-  async getDraftChangesCount(userId: number = 1): Promise<any> {
+  async getDraftChangesCount(userId: number = 1): Promise<DraftChangesCountResponse> {
     try {
       const timestamp = new Date().getTime();
       const response = await fetch(`${this.baseUrl}/api/predictions/knockout/draft-changes-count?user_id=${userId}&_t=${timestamp}`);
