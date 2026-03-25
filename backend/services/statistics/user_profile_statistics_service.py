@@ -194,8 +194,9 @@ class UserProfileStatisticsService:
     # ═══════════════════════════════════════════════════════
 
     BONUS_STATUS_COLS = [
-        "q_g1_status", "q_g2_status", "q_g3_status", "q_g4_status", "q_g5_status",
-        "q_k1_status", "q_k2_status", "q_k3_status", "q_t1_status", "q_t2_status",
+        "q_g1_status", "q_g2_status", "q_g3_status", "q_g4_status", "q_g5_status", "q_g6_status",
+        "q_k1_status", "q_k2_status", "q_k3_status",
+        "q_t1_status", "q_t2_status", "q_t3_status",
     ]
 
     @staticmethod

@@ -844,22 +844,19 @@
         {/* Buttons Container - chip left, buttons right */}
         <View style={styles.buttonsContainer}>
           {editMode ? (() => {
-            const changesCount = fineInfo?.changes_count ?? 0;
+            const cc = fineInfo?.changes_count ?? 0;
             const penaltyPer = fineInfo?.penalty_per_change ?? 0;
             const freeAvailable = freeChanges;
-            // After bracket reset, all changes are free — don't subtract from free pool display
-            const freeRemaining = hasUsedBracketReset
-              ? freeAvailable
-              : Math.max(0, freeAvailable - changesCount);
-            const paidChanges = hasUsedBracketReset
-              ? 0
-              : Math.max(0, changesCount - freeAvailable);
+            const isAllFree = hasUsedBracketReset && currentStage === 'PRE_ROUND32';
+            const freeRemaining = isAllFree ? freeAvailable : Math.max(0, freeAvailable - cc);
+            const paidChanges = isAllFree ? 0 : Math.max(0, cc - freeAvailable);
             const actualPenalty = paidChanges * penaltyPer;
+            const freeUsed = isAllFree ? 0 : Math.min(cc, freeAvailable);
             return (
               <View style={[styles.fineChip, { maxWidth: 160 }]}>
                 <View style={styles.fineStat}>
                   <Text style={styles.fineStatLabel}>Changes</Text>
-                  <Text style={styles.fineStatValue}>{changesCount}</Text>
+                  <Text style={styles.fineStatValue}>{cc}</Text>
                 </View>
                 {freeAvailable > 0 && !isPreTournament && (
                   <>
@@ -873,7 +870,7 @@
                 <View style={styles.fineDivider} />
                 <View style={styles.fineStat}>
                   <Text style={styles.fineStatLabel}>Fine</Text>
-                  {hasUsedBracketReset ? (
+                  {isAllFree ? (
                     <Text style={styles.fineStatFree}>FREE</Text>
                   ) : isPreTournament && actualPenalty === 0 ? (
                     <Text style={styles.fineStatFree}>Free!</Text>
@@ -1094,10 +1091,11 @@
             const cc = fineInfo?.changes_count ?? 0;
             const penaltyPer = fineInfo?.penalty_per_change ?? 0;
             const freeAvailable = freeChanges;
-            const freeRemaining = hasUsedBracketReset ? freeAvailable : Math.max(0, freeAvailable - cc);
-            const paidChanges = hasUsedBracketReset ? 0 : Math.max(0, cc - freeAvailable);
+            const isAllFree = hasUsedBracketReset && currentStage === 'PRE_ROUND32';
+            const freeRemaining = isAllFree ? freeAvailable : Math.max(0, freeAvailable - cc);
+            const paidChanges = isAllFree ? 0 : Math.max(0, cc - freeAvailable);
             const actualPenalty = paidChanges * penaltyPer;
-            const freeUsed = hasUsedBracketReset ? 0 : Math.min(cc, freeAvailable);
+            const freeUsed = isAllFree ? 0 : Math.min(cc, freeAvailable);
             return {
               changesCount: cc,
               freeAvailable,
