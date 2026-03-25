@@ -1156,6 +1156,8 @@
               <Text style={styles.bracketResetModalSubtitle}>
                 Resets ALL knockout predictions using the actual Round of 32 teams. Winners will be cleared so you can start fresh.{'\n'}
                 <Text style={{ color: '#dc2626', fontWeight: '700' }}>This can only be done once.</Text>
+                {'\n\n'}
+                <Text style={{ color: '#16a34a', fontWeight: '600' }}>✓ All edits after the reset are free — no fines.</Text>
               </Text>
 
               <View style={styles.bracketResetDivider} />

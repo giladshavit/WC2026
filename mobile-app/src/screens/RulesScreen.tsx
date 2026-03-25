@@ -334,7 +334,12 @@ const sections: Section[] = [
               {
                 type: 'note',
                 color: 'green',
-                text: 'Look for the Reset Bracket button in the Bracket screen during Pre Round of 32.',
+                text: 'After a reset, all knockout edits are completely free — no fines, regardless of stage.',
+              },
+              {
+                type: 'note',
+                color: 'yellow',
+                text: 'Your accumulated free changes are NOT affected by the reset — they stay intact for use across all Multi Mode predictions.',
               },
             ],
           },
