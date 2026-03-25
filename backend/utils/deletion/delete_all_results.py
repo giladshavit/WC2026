@@ -24,7 +24,8 @@ def delete_match_results():
     """Delete all match results (individual match scores)."""
     
     # Create database connection
-    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+    connect_args = {"check_same_thread": False} if "sqlite" in SQLALCHEMY_DATABASE_URL else {}
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     
     db = SessionLocal()
@@ -73,7 +74,8 @@ def delete_path_results():
     """Delete all path results (groups, 3rd place, and knockout stage results)."""
     
     # Create database connection
-    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+    connect_args = {"check_same_thread": False} if "sqlite" in SQLALCHEMY_DATABASE_URL else {}
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     
     db = SessionLocal()
