@@ -1272,6 +1272,13 @@ class KnockoutService:
 
         # 6. Mode-specific fields
         KnockoutService._add_additional_fields_to_item(item, prediction, is_draft)
+        if is_draft:
+            # Mirror committed prediction's is_editable (draft rows do not store this column)
+            committed = None
+            pred_link = getattr(prediction, "knockout_pred_id", None)
+            if pred_link:
+                committed = DBReader.get_knockout_prediction_by_id(db, pred_link, is_draft=False)
+            item["is_editable"] = getattr(committed, "is_editable", True) if committed else True
 
         return item
 
