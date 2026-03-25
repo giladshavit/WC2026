@@ -710,8 +710,74 @@ class ResultsService:
             DBWriter.update_knockout_result(db, next_knockout_result, team_2=winner_team_id)
             status_kwargs = {"status": "scheduled"} if next_match.status not in ("scheduled", "live", "finished") else {}
             DBWriter.update_match(db, next_match, away_team_id=winner_team_id, **status_kwargs)
-        
+
+        if current_template.stage == "semi":
+            ResultsService._route_semi_loser_to_third_place(db, match_id, winner_team_id)
+
         DBUtils.commit(db)
+
+    @staticmethod
+    def _route_semi_loser_to_third_place(db: Session, match_id: int, winner_team_id: int) -> None:
+        """
+        After a semi-final result, route the loser to the third-place match (ID 103).
+        Match 101 loser → third_place position 1 (home)
+        Match 102 loser → third_place position 2 (away)
+        """
+        match = DBReader.get_match(db, match_id)
+        if not match or match.match_number is None:
+            return
+        current_template = DBReader.get_match_template(db, match.match_number)
+        if not current_template:
+            return
+
+        current_kr = DBReader.get_knockout_result(db, match_id)
+        if (
+            not current_kr
+            or current_kr.team_1 is None
+            or current_kr.team_2 is None
+        ):
+            return
+        loser_team_id = (
+            current_kr.team_1
+            if winner_team_id != current_kr.team_1
+            else current_kr.team_2
+        )
+        match_103 = DBReader.get_match_by_number(db, 103)
+        if not match_103:
+            return
+        kr_103 = DBReader.get_knockout_result(db, match_103.id)
+        if not kr_103:
+            return
+
+        mn = match.match_number
+        status_kwargs_103 = (
+            {"status": "scheduled"}
+            if match_103.status not in ("scheduled", "live", "finished")
+            else {}
+        )
+        if mn == 101:
+            DBWriter.update_knockout_result(db, kr_103, team_1=loser_team_id)
+            DBWriter.update_match(
+                db,
+                match_103,
+                home_team_id=loser_team_id,
+                **status_kwargs_103,
+            )
+        elif mn == 102:
+            DBWriter.update_knockout_result(db, kr_103, team_2=loser_team_id)
+            DBWriter.update_match(
+                db,
+                match_103,
+                away_team_id=loser_team_id,
+                **status_kwargs_103,
+            )
+        else:
+            return
+
+        DBUtils.commit(db)
+        print(
+            f"Updated third_place match {match_103.id} with loser {loser_team_id}"
+        )
     
     @staticmethod
     def get_predicted_loser(prediction):
