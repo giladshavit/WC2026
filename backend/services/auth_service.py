@@ -98,6 +98,7 @@ class AuthService:
             created_predictions = KnockoutService.create_user_knockout_predictions(
                 db, new_user.id
             )
+            KnockoutService.apply_free_bracket_reset_for_new_user(db, new_user.id)
             DBUtils.commit(db)
             print(f"Created {len(created_predictions)} empty knockout predictions for user {new_user.id}")
         except Exception as e:

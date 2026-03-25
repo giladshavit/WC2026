@@ -699,7 +699,7 @@ class KnockoutService:
 
         # If the user has already used their one-time bracket reset,
         # all changes in PRE_ROUND32 are free — they already paid upfront.
-        if user_scores and getattr(user_scores, 'has_used_bracket_reset', False):
+        if user_scores and getattr(user_scores, 'has_used_bracket_reset', False) and stage == Stage.PRE_ROUND32:
             penalty_per_change = 0
 
         has_used_reset = user_scores and getattr(user_scores, 'has_used_bracket_reset', False)
@@ -781,9 +781,14 @@ class KnockoutService:
         # Apply penalty after loop (with free changes consumption)
         if changes_count > 0:
             user_scores = DBReader.get_user_scores(db, user_id)
-            has_used_reset = user_scores and getattr(user_scores, 'has_used_bracket_reset', False)
+            current_stage_for_reset = StageManager.get_current_stage(db)
+            has_used_reset = (
+                user_scores and
+                getattr(user_scores, 'has_used_bracket_reset', False) and
+                current_stage_for_reset == Stage.PRE_ROUND32
+            )
             if has_used_reset:
-                # Post-reset edits are completely free — do NOT touch free_changes pool
+                # Post-reset edits in PRE_ROUND32 are free — do NOT touch free_changes pool
                 penalty_points = 0
             else:
                 paid_changes = ScoringService.consume_free_changes(db, user_id, changes_count)
@@ -881,6 +886,58 @@ class KnockoutService:
 
         DBUtils.flush(db)
         return created
+
+    @staticmethod
+    def apply_free_bracket_reset_for_new_user(db: Session, user_id: int) -> bool:
+        """
+        Called during user registration when stage is PRE_ROUND32.
+        Resets all round32 predictions with actual teams, no penalty.
+        Marks has_used_bracket_reset=True so the user cannot use the paid reset.
+        Returns True if reset was applied, False otherwise.
+        """
+        current_stage = StageManager.get_current_stage(db)
+        if current_stage != Stage.PRE_ROUND32:
+            return False
+
+        predictions = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
+
+        for prediction in predictions:
+            if prediction.stage == 'round32':
+                knockout_result = DBReader.get_knockout_result_by_id(db, prediction.knockout_result_id) if prediction.knockout_result_id else None
+                team1 = knockout_result.team_1 if knockout_result else None
+                team2 = knockout_result.team_2 if knockout_result else None
+                DBWriter.update_knockout_prediction(
+                    db, prediction,
+                    team1_id=team1,
+                    team2_id=team2,
+                    winner_team_id=None,
+                    status=KnockoutPredictionStatus.INVALID.value,
+                    points=0,
+                    is_editable=True,
+                )
+            else:
+                DBWriter.update_knockout_prediction(
+                    db, prediction,
+                    team1_id=None,
+                    team2_id=None,
+                    winner_team_id=None,
+                    status=KnockoutPredictionStatus.INVALID.value,
+                    points=0,
+                    is_editable=True,
+                )
+
+        user_scores = DBReader.get_user_scores(db, user_id)
+        if not user_scores:
+            user_scores = DBWriter.create_user_scores(db, user_id)
+
+        DBWriter.update_user_scores(
+            db,
+            user_scores,
+            has_used_bracket_reset=True,
+        )
+
+        DBUtils.commit(db)
+        return True
 
     # ═══════════════════════════════════════════════════════
     # VALIDITY & STATUS
