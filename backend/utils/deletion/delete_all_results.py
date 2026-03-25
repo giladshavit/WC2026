@@ -23,9 +23,8 @@ from models.results import MatchResult, GroupStageResult, ThirdPlaceResult, Knoc
 def run_delete_all_results(db):
     from sqlalchemy import text
 
-    # Null out ALL FK references to knockout_stage_results before deleting it
+    # Must null out FK references before deleting knockout_stage_results
     db.execute(text("UPDATE matches_template SET knockout_result_id = NULL WHERE knockout_result_id IS NOT NULL"))
-    db.execute(text("UPDATE knockout_stage_predictions SET knockout_result_id = NULL WHERE knockout_result_id IS NOT NULL"))
     db.execute(text("DELETE FROM knockout_stage_results"))
     db.execute(text("DELETE FROM third_place_results"))
     db.execute(text("DELETE FROM group_stage_results"))
