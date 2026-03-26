@@ -160,9 +160,13 @@ def map_and_save(
         if match:
             method = "exact"
 
-        # Strategy B — partial (group stage external: home name present)
-        if match is None and ext_home_raw.strip():
-            if ext_away_raw.strip():
+        # Strategy B — partial match (one team known, group stage)
+        if match is None:
+            has_home = bool(ext_home_raw.strip())
+            has_away = bool(ext_away_raw.strip())
+
+            if has_home and has_away:
+                # Both teams known: require intersection of both
                 candidates_home = partial_index.get((date_str, home_name), [])
                 candidates_away = partial_index.get((date_str, away_name), [])
                 ids_home = {m.id for m in candidates_home}
@@ -172,9 +176,21 @@ def map_and_save(
                     mid = next(iter(inter))
                     match = next(m for m in candidates_home if m.id == mid)
                     method = "partial"
+            elif has_home and not has_away:
+                # Only home team known: match by (date, home_team)
+                candidates = partial_index.get((date_str, home_name), [])
+                if len(candidates) == 1:
+                    match = candidates[0]
+                    method = "partial"
+            elif has_away and not has_home:
+                # Only away team known: match by (date, away_team)
+                candidates = partial_index.get((date_str, away_name), [])
+                if len(candidates) == 1:
+                    match = candidates[0]
+                    method = "partial"
 
         # Strategy C — time-only knockout (TBD: no home name on API)
-        if match is None and not ext_home_raw.strip():
+        if match is None and not ext_home_raw.strip() and not ext_away_raw.strip():
             time_hhmm = utc_date[11:16] if len(utc_date) >= 16 else ""
             key_ko = (date_str, time_hhmm)
             match = knockout_index.get(key_ko)
