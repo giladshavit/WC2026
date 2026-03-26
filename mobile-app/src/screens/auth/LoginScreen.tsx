@@ -16,9 +16,10 @@ import { useAuth } from '../../contexts/AuthContext';
 
 interface LoginScreenProps {
   onSwitchToRegister: () => void;
+  onForgotPassword: () => void;
 }
 
-export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
+export default function LoginScreen({ onSwitchToRegister, onForgotPassword }: LoginScreenProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -123,6 +124,14 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
               />
             </View>
 
+            <TouchableOpacity
+              style={styles.forgotLink}
+              onPress={onForgotPassword}
+              disabled={isLoading}
+            >
+              <Text style={styles.forgotLinkText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
@@ -205,6 +214,14 @@ const styles = StyleSheet.create({
   },
   inputFocused: {
     borderColor: '#16a34a',
+  },
+  forgotLink: {
+    alignSelf: 'flex-end',
+    marginBottom: 8,
+  },
+  forgotLinkText: {
+    color: '#94a3b8',
+    fontSize: 14,
   },
   errorText: {
     color: '#ef4444',

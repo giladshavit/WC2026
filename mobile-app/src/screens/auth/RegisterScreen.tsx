@@ -18,11 +18,14 @@ interface RegisterScreenProps {
   onSwitchToLogin: () => void;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorModal, setErrorModal] = useState<{
     title: string;
@@ -37,20 +40,23 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
   };
 
   const validateForm = (): string | null => {
-    if (!username.trim() || !password.trim() || !name.trim()) {
+    if (!username.trim() || !password.trim() || !name.trim() || !email.trim()) {
       return 'Please fill in all fields';
+    }
+    if (!EMAIL_REGEX.test(email.trim())) {
+      return 'Please enter a valid email address';
     }
     if (username.length < 3) {
       return 'Username must be at least 3 characters';
     }
-    if (username.length > 15) {
-      return 'Username must be 15 characters or less';
+    if (username.length > 14) {
+      return 'Username must be 14 characters or less';
     }
     if (name.length < 2) {
       return 'Name must be at least 2 characters';
     }
-    if (name.length > 15) {
-      return 'Name must be 15 characters or less';
+    if (name.length > 14) {
+      return 'Name must be 14 characters or less';
     }
     if (password.length < 6) {
       return 'Password must be at least 6 characters';
@@ -69,12 +75,16 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
     }
     try {
       setIsLoading(true);
-      await register(username.trim(), password, name.trim());
+      await register(username.trim(), password, name.trim(), email.trim().toLowerCase());
     } catch (err) {
       let msg = 'Something went wrong. Please try again.';
       if (err instanceof Error) {
         if (err.message.includes('400') || err.message.toLowerCase().includes('exist') || err.message.toLowerCase().includes('taken') || err.message.toLowerCase().includes('already')) {
-          msg = 'This username is already taken. Please choose a different one.';
+          if (err.message.toLowerCase().includes('email')) {
+            msg = 'This email is already registered. Please use a different one.';
+          } else {
+            msg = 'This username is already taken. Please choose a different one.';
+          }
         } else if (err.message.includes('Network') || err.message.includes('fetch') || err.message.includes('connect')) {
           msg = 'Cannot connect to server. Please check your connection.';
         } else {
@@ -118,7 +128,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 autoCapitalize="words"
                 autoCorrect={false}
                 editable={!isLoading}
-                maxLength={15}
+                maxLength={14}
               />
             </View>
 
@@ -139,7 +149,28 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
-                maxLength={15}
+                maxLength={14}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  focusedInput === 'email' && styles.inputFocused,
+                ]}
+                value={email}
+                onChangeText={(t) => setEmail(t)}
+                onFocus={() => { setFocusedInput('email'); scrollToInput(160); }}
+                onBlur={() => setFocusedInput(null)}
+                placeholder="Enter your email"
+                placeholderTextColor="#64748b"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!isLoading}
+                maxLength={100}
               />
             </View>
 
@@ -152,7 +183,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 ]}
                 value={password}
                 onChangeText={(t) => setPassword(t)}
-                onFocus={() => { setFocusedInput('password'); scrollToInput(160); }}
+                onFocus={() => { setFocusedInput('password'); scrollToInput(240); }}
                 onBlur={() => setFocusedInput(null)}
                 placeholder="Enter password (at least 6 characters)"
                 placeholderTextColor="#64748b"
@@ -173,7 +204,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 ]}
                 value={confirmPassword}
                 onChangeText={(t) => setConfirmPassword(t)}
-                onFocus={() => { setFocusedInput('confirmPassword'); scrollToInput(240); }}
+                onFocus={() => { setFocusedInput('confirmPassword'); scrollToInput(320); }}
                 onBlur={() => setFocusedInput(null)}
                 placeholder="Enter password again"
                 placeholderTextColor="#64748b"

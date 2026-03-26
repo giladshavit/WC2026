@@ -96,6 +96,17 @@ export interface RegisterRequest {
   username: string;
   password: string;
   name: string;
+  email: string;
+}
+
+export interface ForgotPasswordRequestBody {
+  email: string;
+}
+
+export interface ResetPasswordRequestBody {
+  email: string;
+  otp_code: string;
+  new_password: string;
 }
 
 export interface Match {
@@ -453,6 +464,42 @@ export class ApiService {
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
+    }
+  }
+
+  async forgotPassword(body: ForgotPasswordRequestBody): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const detail =
+        typeof errorData.detail === 'string'
+          ? errorData.detail
+          : 'Could not send reset code';
+      const err = new Error(detail) as Error & { httpStatus?: number };
+      err.httpStatus = response.status;
+      throw err;
+    }
+  }
+
+  async resetPassword(body: ResetPasswordRequestBody): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const detail =
+        typeof errorData.detail === 'string'
+          ? errorData.detail
+          : 'Password reset failed';
+      const err = new Error(detail) as Error & { httpStatus?: number };
+      err.httpStatus = response.status;
+      throw err;
     }
   }
 

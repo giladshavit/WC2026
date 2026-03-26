@@ -7,7 +7,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string, name: string) => Promise<void>;
+  register: (username: string, password: string, name: string, email: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   getCurrentUserId: () => number | null;
@@ -92,9 +92,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (username: string, password: string, name: string) => {
+  const register = async (username: string, password: string, name: string, email: string) => {
     try {
-      const authResponse = await apiService.register({ username, password, name });
+      const authResponse = await apiService.register({ username, password, name, email });
       const userData = await apiService.getCurrentUser();
       await storeAuth(authResponse, userData);
       setUser(userData);
