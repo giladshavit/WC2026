@@ -77,51 +77,38 @@ def fetch_all_wc_matches() -> list[dict]:
 def build_our_match_index(session) -> tuple[dict, dict, dict]:
     """
     Build three lookup structures from our DB:
-    - exact_index: (date_str, home_norm, away_norm) → Match (both teams set)
+    - exact_index: (date_str, home_norm, away_norm) → Match (group stage, both teams set)
     - partial_index: (date_str, team_norm) → list[Match] (group stage, both teams set)
-    - knockout_index: (date_str, time_hhmm) → Match (knockout placeholders, no home team yet)
+    - knockout_index: (date_str, time_hhmm) → Match (non-group stages, regardless of teams)
     """
-    matches = session.query(Match).filter(
-        Match.home_team_id.isnot(None),
-        Match.away_team_id.isnot(None)
-    ).all()
+    matches = session.query(Match).all()
 
     # Build team id → name map
     teams = session.query(Team).all()
     team_map = {t.id: t.name for t in teams}
 
     exact_index = {}
-    for match in matches:
-        home_name = normalize(team_map.get(match.home_team_id, ""))
-        away_name = normalize(team_map.get(match.away_team_id, ""))
-        if match.date:
-            date_str = match.date.strftime("%Y-%m-%d")
-            key = (date_str, home_name, away_name)
-            exact_index[key] = match
-
     partial_index: dict = defaultdict(list)
-    group_matches = session.query(Match).filter(
-        Match.stage == "group",
-        Match.home_team_id.isnot(None),
-        Match.away_team_id.isnot(None),
-    ).all()
-    for match in group_matches:
-        if not match.date:
-            continue
-        date_str = match.date.strftime("%Y-%m-%d")
-        home_norm = normalize(team_map.get(match.home_team_id, ""))
-        away_norm = normalize(team_map.get(match.away_team_id, ""))
-        partial_index[(date_str, home_norm)].append(match)
-        partial_index[(date_str, away_norm)].append(match)
-
     knockout_slot_lists: dict = defaultdict(list)
-    knockout_candidates = session.query(Match).filter(Match.home_team_id.is_(None)).all()
-    for match in knockout_candidates:
+
+    for match in matches:
         if not match.date:
             continue
         date_str = match.date.strftime("%Y-%m-%d")
-        time_hhmm = match.date.strftime("%H:%M")
-        knockout_slot_lists[(date_str, time_hhmm)].append(match)
+
+        if (
+            match.stage == "group"
+            and match.home_team_id is not None
+            and match.away_team_id is not None
+        ):
+            home_norm = normalize(team_map.get(match.home_team_id, ""))
+            away_norm = normalize(team_map.get(match.away_team_id, ""))
+            exact_index[(date_str, home_norm, away_norm)] = match
+            partial_index[(date_str, home_norm)].append(match)
+            partial_index[(date_str, away_norm)].append(match)
+        elif match.stage != "group":
+            time_hhmm = match.date.strftime("%H:%M")
+            knockout_slot_lists[(date_str, time_hhmm)].append(match)
 
     knockout_index = {}
     for slot_key, slot_matches in knockout_slot_lists.items():
@@ -158,8 +145,11 @@ def map_and_save(
         utc_date = ext.get("utcDate", "")  # "2026-06-14T16:00:00Z"
         date_str = utc_date[:10] if utc_date else ""
 
-        home_name = normalize(ext.get("homeTeam", {}).get("name", ""))
-        away_name = normalize(ext.get("awayTeam", {}).get("name", ""))
+        ext_home_raw = ext.get("homeTeam", {}).get("name") or ""
+        ext_away_raw = ext.get("awayTeam", {}).get("name") or ""
+
+        home_name = normalize(ext_home_raw)
+        away_name = normalize(ext_away_raw)
 
         match = None
         method = None
@@ -170,11 +160,9 @@ def map_and_save(
         if match:
             method = "exact"
 
-        # Strategy B — partial (group stage)
-        if match is None:
-            ext_home_raw = ext.get("homeTeam", {}).get("name") or ""
-            ext_away_raw = ext.get("awayTeam", {}).get("name") or ""
-            if ext_home_raw.strip() and ext_away_raw.strip():
+        # Strategy B — partial (group stage external: home name present)
+        if match is None and ext_home_raw.strip():
+            if ext_away_raw.strip():
                 candidates_home = partial_index.get((date_str, home_name), [])
                 candidates_away = partial_index.get((date_str, away_name), [])
                 ids_home = {m.id for m in candidates_home}
@@ -185,8 +173,8 @@ def map_and_save(
                     match = next(m for m in candidates_home if m.id == mid)
                     method = "partial"
 
-        # Strategy C — time-only knockout
-        if match is None:
+        # Strategy C — time-only knockout (TBD: no home name on API)
+        if match is None and not ext_home_raw.strip():
             time_hhmm = utc_date[11:16] if len(utc_date) >= 16 else ""
             key_ko = (date_str, time_hhmm)
             match = knockout_index.get(key_ko)
