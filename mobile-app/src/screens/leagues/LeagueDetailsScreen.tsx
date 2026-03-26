@@ -168,6 +168,11 @@ function PodiumSection({
               >
                 {scoreModeLoading ? '' : truncateName((item as any).username ?? item.name ?? 'Player')}
               </Text>
+              {!scoreModeLoading && item.name && item.name !== ((item as any).username ?? item.name) && (
+                <Text style={styles.podiumSubName} numberOfLines={1} ellipsizeMode="tail">
+                  {item.name}
+                </Text>
+              )}
               <Text style={styles.podiumPts}>
                 {scoreModeLoading ? '' : scoreMode === 'classic'
                   ? (item.matches_points ?? 0) + (item.bonus_points ?? 0)
@@ -257,19 +262,22 @@ function AnimatedPlayerRow({
           <View style={styles.colPlayer}>
             <View style={styles.rankNameRow}>
               {renderRankIcon()}
-              <View style={styles.playerNameTextWrap}>
-                <Text
-                  style={[styles.cellName, styles.cellLeft, isCurrentUser && styles.cellBold]}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                  {...(liveNamesNoShrink
-                    ? { adjustsFontSizeToFit: true, minimumFontScale: 0.75 }
-                    : {})}
-                >
-                  {truncateName((item as any).username ?? item.name ?? 'Player')}
-                </Text>
-              </View>
+              <Text
+                style={[styles.cellName, styles.cellLeft, isCurrentUser && styles.cellBold]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                {...(liveNamesNoShrink
+                  ? { adjustsFontSizeToFit: true, minimumFontScale: 0.75 }
+                  : {})}
+              >
+                {truncateName((item as any).username ?? item.name ?? 'Player')}
+              </Text>
             </View>
+            {item.name && item.name !== (item as any).username && (
+              <Text style={styles.cellSubName} numberOfLines={1} ellipsizeMode="tail">
+                {item.name}
+              </Text>
+            )}
           </View>
         </View>
       </Animated.View>
@@ -1347,16 +1355,19 @@ export default function LeagueDetailsScreen() {
                           {currentUserEntry.rank}
                         </Text>
                       </View>
-                      <View style={styles.playerNameTextWrap}>
-                        <Text
-                          style={[styles.cellName, styles.cellLeft, styles.cellBold]}
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                        >
-                          {truncateName((currentUserEntry as any).username ?? currentUserEntry.name ?? 'You')}
-                        </Text>
-                      </View>
+                      <Text
+                        style={[styles.cellName, styles.cellLeft, styles.cellBold]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {truncateName((currentUserEntry as any).username ?? currentUserEntry.name ?? 'You')}
+                      </Text>
                     </View>
+                    {currentUserEntry.name && currentUserEntry.name !== (currentUserEntry as any).username && (
+                      <Text style={styles.cellSubName} numberOfLines={1} ellipsizeMode="tail">
+                        {currentUserEntry.name}
+                      </Text>
+                    )}
                   </View>
                 </View>
               </View>
@@ -1810,6 +1821,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
     minWidth: 0,
     paddingHorizontal: 0,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.06)',
   },
@@ -1857,6 +1869,19 @@ const styles = StyleSheet.create({
   playerNameTextWrap: {
     flex: 1,
     minWidth: 0,
+  },
+  cellSubName: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 6,
+    marginLeft: 30,
+  },
+  podiumSubName: {
+    fontSize: 9,
+    color: '#64748b',
+    marginTop: 2,
+    textAlign: 'center',
+    width: '100%',
   },
   rankIconContainer: {
     minWidth: 24,
