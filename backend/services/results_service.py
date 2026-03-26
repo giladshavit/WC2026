@@ -157,6 +157,8 @@ class ResultsService:
             if is_final:
                 DBWriter.set_match_status(db, match, "finished")
                 DBUtils.commit(db)
+                from services.stage_manager import StageManager
+                StageManager.maybe_advance_stage_for_match(db, match.id, "finished")
 
             is_knockout = match.stage in ['round32', 'round16', 'quarter', 'semi', 'final']
             if is_knockout:
