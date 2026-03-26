@@ -335,10 +335,11 @@
         const s = getCardCenter(semi101, vc(3));
         const fColX = PADDING + vc(4) * COL_WIDTH;
         const fCardLeftX = fColX + (COLUMN_WIDTH - CARD_W) / 2;
+        const GAP = 14;
         lines.push(
           <Line key={lineKey++}
             x1={s.rightX} y1={s.centerY}
-            x2={fCardLeftX} y2={s.centerY}
+            x2={fCardLeftX - GAP} y2={s.centerY}
             stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />
         );
       }
@@ -381,10 +382,11 @@
         const s = getCardCenter(semi102, vc(5));
         const fColX = PADDING + vc(4) * COL_WIDTH;
         const fCardRightX = fColX + (COLUMN_WIDTH - CARD_W) / 2 + CARD_W;
+        const GAP = 14;
         lines.push(
           <Line key={lineKey++}
             x1={s.leftX} y1={s.centerY}
-            x2={fCardRightX} y2={s.centerY}
+            x2={fCardRightX + GAP} y2={s.centerY}
             stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />
         );
       }
@@ -725,7 +727,14 @@
       if (matches.length === 0) return null;
 
       return (
-        <View style={[styles.column, isFinal && styles.finalColumn, { width: COLUMN_WIDTH }]}>
+        <View
+          style={[
+            styles.column,
+            isFinal && styles.finalColumn,
+            { width: COLUMN_WIDTH },
+            isFinal && { zIndex: 10 },
+          ]}
+        >
           {/* Remove column titles to save space */}
           <View style={[styles.matchesContainer, { minHeight: totalBracketHeight + Y_OFFSET }]}>
             {matches.map((match, index) => {
@@ -741,7 +750,8 @@
                 key={match.id} 
                 style={[
                   styles.matchWrapper,
-                  { marginTop: calculatedMarginTop }
+                  { marginTop: calculatedMarginTop },
+                  isFinal && { zIndex: 10, elevation: 10 },
                 ]}
               >
                 <BracketMatchCard
@@ -964,15 +974,15 @@
           }}
           scrollEventThrottle={16}
         >
+          {renderBracketColumns()}
           <Svg
-            style={[styles.bracketLines, { height: totalBracketHeight + Y_OFFSET + 60 }]}
+            style={[styles.bracketLines, { height: totalBracketHeight + Y_OFFSET + 60, zIndex: 0 }]}
             width={screenWidth * 3}
             height={totalBracketHeight + Y_OFFSET + 60}
             pointerEvents="none"
           >
             {drawBracketLines()}
           </Svg>
-          {renderBracketColumns()}
 
           {/* hidden view removed - rendered outside ScrollView below */}
         </ScrollView>
@@ -1415,6 +1425,7 @@
               style={[styles.bracketLines, {
                 height: totalBracketHeight + Y_OFFSET + 60 + screenshotPaddingTop,
                 top: screenshotPaddingTop,
+                zIndex: 0,
               }]}
               width={TOTAL_BRACKET_WIDTH}
               height={totalBracketHeight + Y_OFFSET + 60 + screenshotPaddingTop}
@@ -1493,9 +1504,11 @@
       alignItems: 'center',
       pointerEvents: 'box-none',
       zIndex: 2,
+      overflow: 'visible',
     },
     finalColumn: {
-      // No special styling - just like regular column
+      zIndex: 10,
+      elevation: 10,
     },
     // Removed column titles to save space
     matchesContainer: {
@@ -1523,7 +1536,7 @@
       position: 'absolute',
       top: 0,
       left: 0,
-      zIndex: 1,
+      zIndex: 0,
       pointerEvents: 'none',
     },
     buttonsContainer: {
