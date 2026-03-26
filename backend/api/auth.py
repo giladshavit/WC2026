@@ -38,8 +38,8 @@ class UserRegisterRequest(BaseModel):
     def validate_password(cls, v):
         if len(v) < 6:
             raise ValueError('Password must be at least 6 characters long')
-        if len(v) > 50:
-            raise ValueError('Password must be at most 50 characters long')
+        if len(v) > 20:
+            raise ValueError('Password must be at most 20 characters long')
         return v
     
     @validator('name')
@@ -113,7 +113,7 @@ def register_user(
     Register a new user.
     
     - **username**: Unique username (3-14 characters, letters/numbers/underscores only)
-    - **password**: Password (6-50 characters)
+    - **password**: Password (6-20 characters)
     - **name**: Display name (2-14 characters)
     - **email**: Valid email (max 100 characters), unique
     """

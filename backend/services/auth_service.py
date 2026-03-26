@@ -171,8 +171,10 @@ class AuthService:
     @staticmethod
     def login_user(db: Session, username: str, password: str) -> Dict[str, Any]:
         """Authenticate user and return access token."""
-        # Find user by username
+        # Find user by username, or by email (login field may contain either)
         user = DBReader.get_user_by_username(db, username)
+        if not user:
+            user = DBReader.get_user_by_email(db, username.strip().lower())
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -227,10 +229,10 @@ class AuthService:
     @staticmethod
     def reset_password_with_otp(db: Session, email: str, otp_code: str, new_password: str) -> None:
         """Step 2: user submits OTP + new password."""
-        if len(new_password) < 6 or len(new_password) > 50:
+        if len(new_password) < 6 or len(new_password) > 20:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password must be 6–50 characters",
+                detail="Password must be 6–20 characters",
             )
 
         user = DBReader.get_user_by_email(db, email)

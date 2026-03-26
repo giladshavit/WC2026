@@ -14,6 +14,7 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ScrollView as RNScrollView } from 'react-native';
 import { apiService } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ForgotPasswordScreenProps {
   onBack: () => void;
@@ -34,6 +35,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
   const [successModal, setSuccessModal] = useState(false);
   const scrollViewRef = useRef<RNScrollView>(null);
+  const { login } = useAuth();
 
   const scrollToInput = (yPosition: number) => {
     scrollViewRef.current?.scrollTo({ y: yPosition, animated: true });
@@ -76,10 +78,10 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
       });
       return;
     }
-    if (newPassword.length < 6) {
+    if (newPassword.length < 6 || newPassword.length > 20) {
       setErrorModal({
         title: 'Invalid Password',
-        message: 'Password must be at least 6 characters.',
+        message: 'Password must be 6–20 characters.',
       });
       return;
     }
@@ -97,7 +99,11 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
         otp_code: otp,
         new_password: newPassword,
       });
-      setSuccessModal(true);
+      try {
+        await login(email.trim().toLowerCase(), newPassword);
+      } catch {
+        setSuccessModal(true);
+      }
     } catch (err) {
       const status = err && typeof err === 'object' && 'httpStatus' in err ? (err as { httpStatus?: number }).httpStatus : undefined;
       if (status === 400) {
@@ -240,6 +246,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!isLoading}
+                  maxLength={20}
                 />
               </View>
               <View style={styles.inputContainer}>
@@ -262,6 +269,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!isLoading}
+                  maxLength={20}
                 />
               </View>
               <TouchableOpacity

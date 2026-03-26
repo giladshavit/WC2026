@@ -97,6 +97,7 @@ export default function LoginScreen({ onSwitchToRegister, onForgotPassword }: Lo
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
+                maxLength={14}
               />
             </View>
 
@@ -121,6 +122,7 @@ export default function LoginScreen({ onSwitchToRegister, onForgotPassword }: Lo
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
+                maxLength={20}
               />
             </View>
 

@@ -61,6 +61,9 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
     if (password.length < 6) {
       return 'Password must be at least 6 characters';
     }
+    if (password.length > 20) {
+      return 'Password must be at most 20 characters';
+    }
     if (password !== confirmPassword) {
       return 'Passwords do not match';
     }
@@ -192,6 +195,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
+                maxLength={20}
               />
             </View>
 
@@ -213,6 +217,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
+                maxLength={20}
               />
             </View>
 
