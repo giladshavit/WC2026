@@ -33,6 +33,7 @@ const STAGE_LABELS: Record<string, { label: string; emoji: string; color: string
   SEMI: { label: 'Semi-Final', emoji: '🔥', color: '#ef4444' },
   THIRD_PLACE: { label: 'Third Place', emoji: '🥉', color: '#94a3b8' },
   FINAL: { label: 'The Final', emoji: '🏆', color: '#fbbf24' },
+  TOURNAMENT_OVER: { label: 'Tournament Over', emoji: '🎉', color: '#94a3b8' },
 };
 
 type NavigationProp = StackNavigationProp<MainStackParamList, 'Home'>;
