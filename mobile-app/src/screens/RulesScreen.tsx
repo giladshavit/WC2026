@@ -774,8 +774,29 @@ function StageTimelineBlock() {
   if (!timeline) return <ActivityIndicator color="#16a34a" />;
 
   const filtered = timeline.filter(
-    (item) => item.start != null || item.end != null
+    (item) =>
+      (item.start != null || item.end != null) &&
+      item.stage !== 'TOURNAMENT_OVER' &&
+      item.stage !== 'THIRD_PLACE'
   );
+
+  const STAGE_ORDER = [
+    'PRE_GROUP_STAGE', 'GROUP_CYCLE_1', 'GROUP_CYCLE_2', 'GROUP_CYCLE_3',
+    'PRE_ROUND32', 'ROUND32', 'PRE_ROUND16', 'ROUND16',
+    'PRE_QUARTER', 'QUARTER', 'PRE_SEMI', 'SEMI',
+    'PRE_FINAL', 'FINAL',
+  ];
+  filtered.sort((a, b) => {
+    const ai = STAGE_ORDER.indexOf(a.stage);
+    const bi = STAGE_ORDER.indexOf(b.stage);
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
+
+  const semiIndex = STAGE_ORDER.indexOf('SEMI');
+  const rowsUpToSemi = filtered.filter((item) => {
+    const idx = STAGE_ORDER.indexOf(item.stage);
+    return idx !== -1 && idx <= semiIndex;
+  });
 
   return (
     <View style={timelineStyles.tableContainer}>
@@ -786,13 +807,16 @@ function StageTimelineBlock() {
         <Text style={[timelineStyles.col1, timelineStyles.headerText]}>End</Text>
       </View>
 
-      {filtered.map((item, index) => {
+      {rowsUpToSemi.map((item, index) => {
         const isActive = item.stage === currentStage;
         const isFirst = index === 0;
-        const isLast = index === filtered.length - 1;
+        const isLast = index === rowsUpToSemi.length - 1;
 
         const startStr = isFirst ? '—' : formatDate(item.start);
-        const endStr = isLast ? '—' : formatDate(item.end);
+        let endStr = isLast ? '—' : formatDate(item.end);
+        if (item.stage === 'SEMI') {
+          endStr = '—';
+        }
 
         return (
           <View
@@ -805,7 +829,7 @@ function StageTimelineBlock() {
           >
             <View style={timelineStyles.col0}>
               <Text style={[timelineStyles.stageLabel, isActive && timelineStyles.stageLabelActive]}>
-                {item.label}
+                {item.stage === 'SEMI' ? 'Semi-Final - End' : item.label}
               </Text>
               {isActive && (
                 <View style={timelineStyles.nowBadge}>
