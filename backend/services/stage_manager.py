@@ -23,8 +23,11 @@ class Stage(Enum):
     QUARTER = 9
     PRE_SEMI = 10
     SEMI = 11
-    FINAL = 12
-    
+    THIRD_PLACE = 12
+    PRE_FINAL = 13
+    FINAL = 14
+    TOURNAMENT_OVER = 15
+
     def get_penalty_for(self) -> int:
         """Get penalty points for editing at this stage"""
         penalty_map = {
@@ -40,7 +43,10 @@ class Stage(Enum):
             Stage.QUARTER: 3,
             Stage.PRE_SEMI: 4,
             Stage.SEMI: 4,
+            Stage.THIRD_PLACE: 4,
+            Stage.PRE_FINAL: 4,
             Stage.FINAL: 4,
+            Stage.TOURNAMENT_OVER: 4,
         }
         return penalty_map.get(self, 0)
 
@@ -60,7 +66,16 @@ class Stage(Enum):
 
     def is_knockout_active(self) -> bool:
         """Returns True for stages where knockout matches are actively being played."""
-        return self in (Stage.ROUND32, Stage.ROUND16, Stage.QUARTER, Stage.SEMI, Stage.FINAL)
+        return self in (
+            Stage.ROUND32,
+            Stage.ROUND16,
+            Stage.QUARTER,
+            Stage.SEMI,
+            Stage.FINAL,
+            Stage.THIRD_PLACE,
+            Stage.PRE_FINAL,
+            Stage.TOURNAMENT_OVER,
+        )
 
     def is_between_knockout_stages(self) -> bool:
         """Returns True when not in active knockout stage."""
@@ -91,6 +106,7 @@ class Stage(Enum):
             Stage.QUARTER: 'quarter',
             Stage.SEMI: 'semi',
             Stage.FINAL: 'final',
+            Stage.THIRD_PLACE: 'third_place',
         }
         return mapping.get(self, None)
 
@@ -98,20 +114,31 @@ class Stage(Enum):
 class StageManager:
     """Tournament stage management and penalty system"""
 
-    # Match ID → (trigger_on_status, new_stage)
+    STAGE_TRANSITION_MAP_FINISHED: dict[int, Stage] = {
+        72: Stage.PRE_ROUND32,
+        88: Stage.PRE_ROUND16,
+        96: Stage.PRE_QUARTER,
+        100: Stage.PRE_SEMI,
+        102: Stage.THIRD_PLACE,
+        103: Stage.PRE_FINAL,
+        104: Stage.TOURNAMENT_OVER,
+    }
+
+    STAGE_TRANSITION_MAP_LIVE: dict[int, Stage] = {
+        1: Stage.GROUP_CYCLE_1,
+        25: Stage.GROUP_CYCLE_2,
+        49: Stage.GROUP_CYCLE_3,
+        73: Stage.ROUND32,
+        89: Stage.ROUND16,
+        97: Stage.QUARTER,
+        101: Stage.SEMI,
+        104: Stage.FINAL,
+    }
+
+    # Combined (live wins on duplicate match ids, e.g. 104 live vs 104 finished)
     STAGE_TRANSITION_MAP: dict[int, tuple[str, Stage]] = {
-        1: ("live", Stage.GROUP_CYCLE_1),
-        25: ("live", Stage.GROUP_CYCLE_2),
-        49: ("live", Stage.GROUP_CYCLE_3),
-        72: ("finished", Stage.PRE_ROUND32),
-        73: ("live", Stage.ROUND32),
-        88: ("finished", Stage.PRE_ROUND16),
-        89: ("live", Stage.ROUND16),
-        96: ("finished", Stage.PRE_QUARTER),
-        97: ("live", Stage.QUARTER),
-        100: ("finished", Stage.PRE_SEMI),
-        101: ("live", Stage.SEMI),
-        104: ("live", Stage.FINAL),
+        **{k: ("finished", v) for k, v in STAGE_TRANSITION_MAP_FINISHED.items()},
+        **{k: ("live", v) for k, v in STAGE_TRANSITION_MAP_LIVE.items()},
     }
 
     @staticmethod
@@ -121,17 +148,17 @@ class StageManager:
         Only transitions FORWARD (never downgrade the stage).
         Returns True if a stage transition occurred.
         """
-        transition = StageManager.STAGE_TRANSITION_MAP.get(match_id)
-        if not transition:
+        if new_status == "live":
+            target_stage = StageManager.STAGE_TRANSITION_MAP_LIVE.get(match_id)
+        elif new_status == "finished":
+            target_stage = StageManager.STAGE_TRANSITION_MAP_FINISHED.get(match_id)
+        else:
             return False
 
-        trigger_status, target_stage = transition
-        if new_status != trigger_status:
+        if target_stage is None:
             return False
 
         current_stage = StageManager.get_current_stage(db)
-
-        # Only advance forward — never downgrade
         if target_stage.value <= current_stage.value:
             return False
 
@@ -231,6 +258,20 @@ class StageManager:
         elif current_stage == Stage.PRE_ROUND32:
             pass
 
+        elif current_stage == Stage.THIRD_PLACE:
+            pass  # no editability changes
+
+        elif current_stage == Stage.PRE_FINAL:
+            pass  # no editability changes
+
+        elif current_stage == Stage.TOURNAMENT_OVER:
+            DBWriter.set_group_predictions_editable(db, False)
+            DBWriter.set_third_place_predictions_editable(db, False)
+            DBWriter.set_knockout_predictions_editable(db, False)
+            DBWriter.set_bonus_groups_editable(db, False)
+            DBWriter.set_bonus_knockout_editable(db, False)
+            DBWriter.set_bonus_tournament_editable(db, False)
+
         elif current_stage.is_knockout_active():
             # Active knockout stage: close everything
             DBWriter.set_group_predictions_editable(db, False)
@@ -300,6 +341,7 @@ class StageManager:
         m100 = get_date(100)
         m101 = get_date(101)
         m102 = get_date(102)
+        m103 = get_date(103)
         m104 = get_date(104)
 
         if m1 is None:
@@ -321,6 +363,9 @@ class StageManager:
             {"stage": "PRE_SEMI", "label": "Pre Semi-Final", "start": iso(m100 + THREE_HOURS) if m100 else None, "end": iso(m101)},
             {"stage": "SEMI", "label": "Semi-Final", "start": iso(m101), "end": iso(m102 + THREE_HOURS) if m102 else None},
             {"stage": "FINAL", "label": "Final", "start": iso(m104), "end": None},
+            {"stage": "THIRD_PLACE", "label": "3rd Place Match", "start": iso(m103) if m103 else None, "end": iso(m103 + THREE_HOURS) if m103 else None},
+            {"stage": "PRE_FINAL", "label": "Pre Final", "start": iso(m103 + THREE_HOURS) if m103 else None, "end": iso(m104)},
+            {"stage": "TOURNAMENT_OVER", "label": "Tournament Over", "start": iso(m104 + THREE_HOURS) if m104 else None, "end": None},
         ]
 
     @staticmethod
