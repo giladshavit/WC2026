@@ -4,7 +4,7 @@ Master script to reset the entire tournament database.
 This script runs all deletion scripts in the correct order for a complete full reset.
 
 Order of operations:
-1. Delete all predictions and drafts
+1. Delete all predictions (match, group, third, knockout, bonus, drafts)
 2. Delete all results
 3. Delete all matches
 4. Delete all groups
@@ -107,7 +107,7 @@ def reset_all():
     
     print("🚀 STARTING COMPLETE TOURNAMENT RESET")
     print("This will delete ALL tournament data in the following order:")
-    print("1. All predictions (match, group, third place, knockout, draft)")
+    print("1. All predictions (match, group, third place, knockout, bonus, draft)")
     print("2. All results (match, group, third place, knockout)")
     print("3. All matches")
     print("4. All groups")

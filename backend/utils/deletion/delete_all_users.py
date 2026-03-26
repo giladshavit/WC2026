@@ -2,7 +2,7 @@
 """
 Script to delete all users from the database.
 Deletes from all tables that reference users: league_memberships, leagues,
-predictions (match, group, third_place, knockout, knockout_draft), user_scores.
+predictions (match, group, third_place, knockout, knockout_draft, bonus), user_scores.
 """
 
 import sys
@@ -19,6 +19,7 @@ from models.user import User
 from models.user_scores import UserScores
 from models.league import League, LeagueMembership
 from models.predictions import (
+    BonusPrediction,
     MatchPrediction,
     GroupStagePrediction,
     ThirdPlacePrediction,
@@ -71,6 +72,9 @@ def delete_all_users():
         deleted_knockout = db.query(KnockoutStagePrediction).delete()
         print(f"  - Knockout stage predictions: {deleted_knockout}")
 
+        deleted_bonus = db.query(BonusPrediction).delete()
+        print(f"  - Bonus predictions: {deleted_bonus}")
+
         deleted_scores = db.query(UserScores).delete()
         print(f"  - User scores: {deleted_scores}")
 
@@ -80,9 +84,16 @@ def delete_all_users():
         db.commit()
 
         total = (
-            deleted_memberships + deleted_leagues + deleted_draft
-            + deleted_match + deleted_group + deleted_third + deleted_knockout
-            + deleted_scores + deleted_users
+            deleted_memberships
+            + deleted_leagues
+            + deleted_draft
+            + deleted_match
+            + deleted_group
+            + deleted_third
+            + deleted_knockout
+            + deleted_bonus
+            + deleted_scores
+            + deleted_users
         )
         print(f"\n✅ Successfully deleted {total} records ({deleted_users} users)")
 
