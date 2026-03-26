@@ -138,7 +138,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
           contentContainerStyle={{
             flexGrow: 1,
             paddingHorizontal: 24,
-            paddingTop: 24,
+            paddingTop: 8,
             paddingBottom: 300,
           }}
           keyboardShouldPersistTaps="handled"
@@ -147,11 +147,6 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
         >
           {step === 'email' ? (
             <View style={styles.form}>
-              <View style={styles.topBar}>
-                <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={12}>
-                  <Ionicons name="arrow-back" size={24} color="#f1f5f9" />
-                </TouchableOpacity>
-              </View>
               <Text style={styles.screenTitle}>Forgot Password</Text>
               <Text style={styles.screenSubtitle}>
                 {`Enter your email and we'll send you a reset code`}
@@ -188,18 +183,15 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                   {isLoading ? 'Sending...' : 'Send Reset Code'}
                 </Text>
               </TouchableOpacity>
+              <View style={styles.switchContainer}>
+                <Text style={styles.switchText}>Remember your password? </Text>
+                <TouchableOpacity onPress={onBack} disabled={isLoading}>
+                  <Text style={styles.switchLink}>Log in here</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
             <View style={styles.form}>
-              <View style={styles.topBar}>
-                <TouchableOpacity
-                  onPress={() => setStep('email')}
-                  style={styles.backBtn}
-                  hitSlop={12}
-                >
-                  <Ionicons name="arrow-back" size={24} color="#f1f5f9" />
-                </TouchableOpacity>
-              </View>
               <Text style={styles.screenTitle}>Enter Reset Code</Text>
               <Text style={styles.screenSubtitle}>
                 Check your email for the 6-digit code
@@ -212,6 +204,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                     styles.input,
                     styles.otpInput,
                     focusedInput === 'otp' && styles.inputFocused,
+                    otpCode.length > 0 && { letterSpacing: 8 },
                   ]}
                   value={otpCode}
                   onChangeText={(t) => setOtpCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
@@ -281,6 +274,12 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                   {isLoading ? 'Resetting...' : 'Reset Password'}
                 </Text>
               </TouchableOpacity>
+              <View style={styles.switchContainer}>
+                <Text style={styles.switchText}>Want to try again? </Text>
+                <TouchableOpacity onPress={() => setStep('email')} disabled={isLoading}>
+                  <Text style={styles.switchLink}>Go back</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </ScrollView>
@@ -335,15 +334,6 @@ const styles = StyleSheet.create({
   form: {
     width: '100%',
   },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  backBtn: {
-    paddingVertical: 4,
-    paddingRight: 12,
-  },
   screenTitle: {
     fontSize: 24,
     fontWeight: '700',
@@ -383,8 +373,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   otpInput: {
-    fontSize: 24,
-    letterSpacing: 8,
+    fontSize: 28,
     textAlign: 'center',
   },
   inputFocused: {
@@ -405,6 +394,21 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#ffffff',
     fontSize: 18,
+    fontWeight: '600',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  switchText: {
+    fontSize: 16,
+    color: '#94a3b8',
+  },
+  switchLink: {
+    fontSize: 16,
+    color: '#16a34a',
     fontWeight: '600',
   },
   modalOverlay: {
