@@ -52,11 +52,12 @@
     const CARD_H = Math.round(68 * scaleFactor);
     const COLUMN_WIDTH = Math.round(110 * scaleFactor);
     const FINAL_WRAPPER_ABOVE_CARD = Math.round(184 * scaleFactor);
-    const Y_OFFSET = 10;
     const rawSpacing = (AVAILABLE_HEIGHT - 40) / 8;
     const minSpacing = CARD_H + 8;
     const spacing = Math.max(rawSpacing, minSpacing);
-    const totalBracketHeight = spacing * 8 + CARD_H + 40;
+    const bracketContentHeight = 7 * spacing + CARD_H;
+    const Y_OFFSET = Math.max(10, Math.round((AVAILABLE_HEIGHT - bracketContentHeight) / 2));
+    const totalBracketHeight = spacing * 8 + CARD_H + Y_OFFSET + 40;
     const TOTAL_BRACKET_WIDTH = 60 + 9 * (COLUMN_WIDTH + 20) + 20;
     const [predictions, setPredictions] = useState<KnockoutPrediction[]>([]);
     const [organizedBracket, setOrganizedBracket] = useState<OrganizedBracket | null>(null);
@@ -1394,7 +1395,9 @@
         )}
 
         {/* Hidden bracket for screenshot - standalone view outside all containers */}
-        {organizedBracket && (
+        {organizedBracket && (() => {
+          const screenshotPaddingTop = 120;
+          return (
           <View
             ref={bracketRef}
             collapsable={false}
@@ -1404,19 +1407,22 @@
               top: screenHeight * 2,
               left: 0,
               width: TOTAL_BRACKET_WIDTH,
-              height: totalBracketHeight + Y_OFFSET + 60,
+              height: totalBracketHeight + Y_OFFSET + 60 + screenshotPaddingTop,
               backgroundColor: '#1e293b',
             }}
           >
             <Svg
-              style={[styles.bracketLines, { height: totalBracketHeight + Y_OFFSET + 60 }]}
+              style={[styles.bracketLines, {
+                height: totalBracketHeight + Y_OFFSET + 60 + screenshotPaddingTop,
+                top: screenshotPaddingTop,
+              }]}
               width={TOTAL_BRACKET_WIDTH}
-              height={totalBracketHeight + Y_OFFSET + 60}
+              height={totalBracketHeight + Y_OFFSET + 60 + screenshotPaddingTop}
               pointerEvents="none"
             >
               {drawBracketLines()}
             </Svg>
-            <View style={{ flexDirection: 'row', paddingLeft: 60, paddingTop: 20 }}>
+            <View style={{ flexDirection: 'row', paddingLeft: 60, paddingTop: 20 + screenshotPaddingTop }}>
               {renderColumn('Round of 32 (Left)', organizedBracket.round32_left, false, 0)}
               {renderColumn('Round of 16 (Left)', organizedBracket.round16_left, false, 1)}
               {renderColumn('Quarter (Left)', organizedBracket.quarter_left, false, 2)}
@@ -1428,7 +1434,8 @@
               {renderColumn('Round of 32 (Right)', organizedBracket.round32_right, false, 8)}
             </View>
           </View>
-        )}
+          );
+        })()}
       </>
     );
   }
