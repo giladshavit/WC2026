@@ -95,7 +95,7 @@ def update_team_flags():
         for team in teams:
             flag_code = flag_mapping.get(normalize_team_name(team.name))
             if flag_code:
-                flag_url = f"https://flagcdn.com/w80/{flag_code}.png"
+                flag_url = f"https://flagcdn.com/w160/{flag_code}.png"
                 team.flag_url = flag_url
                 print(f"✅ Updated {team.name} with flag: {flag_url}")
                 updated_count += 1
