@@ -183,6 +183,8 @@ export default function AdminMatchesScreen() {
         return 'Semi Final';
       case 'final':
         return 'Final';
+      case 'third_place':
+        return 'Third Place';
       default:
         return stage;
     }

@@ -380,6 +380,8 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
         return 'Semi Final';
       case 'final':
         return 'Final';
+      case 'third_place':
+        return 'Third Place';
       default:
         return stage;
     }
