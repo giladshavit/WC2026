@@ -47,6 +47,17 @@ NAME_OVERRIDES = {
     # Add more as needed after running the script
 }
 
+# ─────────────────────────────────────────────
+# Manual overrides: our match_id → external_api_id
+# For matches that couldn't be auto-mapped (name/date mismatches in API).
+# ─────────────────────────────────────────────
+MANUAL_OVERRIDES: dict[int, int] = {
+    8: 537346,  # Australia vs Turkey
+    18: 537392,  # Bolivia vs Norway
+    32: 537347,  # Turkey vs Paraguay
+    36: 537360,  # Japan vs Tunisia
+}
+
 
 def normalize(name: str | None) -> str:
     """Lowercase, strip, apply overrides."""
@@ -136,9 +147,22 @@ def map_and_save(
 ):
     """Match external fixtures to our DB records and save external_api_id."""
     count_exact = 0
+    count_manual = 0
     count_partial = 0
     count_knockout = 0
     not_found = []
+
+    # Apply manual overrides first
+    for our_match_id, ext_id in MANUAL_OVERRIDES.items():
+        match = session.query(Match).filter(Match.id == our_match_id).first()
+        if match:
+            if match.external_api_id and match.external_api_id != ext_id:
+                print(f"⚠️  Manual override: Match {our_match_id} had ext_id={match.external_api_id}, overwriting with {ext_id}")
+            match.external_api_id = ext_id
+            count_manual += 1
+            print(f"  🔧 manual: [{our_match_id}] → ext_id={ext_id}")
+        else:
+            print(f"  ❌ Manual override: match_id={our_match_id} not found in DB")
 
     for ext in external_matches:
         ext_id = ext.get("id")
@@ -231,6 +255,7 @@ def map_and_save(
 
     print(f"\n{'='*50}")
     print(f"✅ Exact:         {count_exact}")
+    print(f"🔧 Manual:        {count_manual}")
     print(f"🔶 Partial:       {count_partial}")
     print(f"🕐 Knockout time: {count_knockout}")
     print(f"❌ Not found:     {len(not_found)}")
