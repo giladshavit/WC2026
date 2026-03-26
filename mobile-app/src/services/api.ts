@@ -73,6 +73,7 @@ export interface User {
   user_id: number;
   username: string;
   name: string;
+  email?: string;
   total_points: number;
   created_at: string;
   last_login: string | null;

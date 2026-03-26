@@ -70,6 +70,7 @@ class UserResponse(BaseModel):
     user_id: int
     username: str
     name: str
+    email: Optional[str] = None
     total_points: int
     created_at: str
     last_login: Optional[str] = None
@@ -190,6 +191,7 @@ def get_current_user_info(
         user_id=current_user.id,
         username=current_user.username,
         name=current_user.name,
+        email=current_user.email,
         total_points=current_user.total_points,
         created_at=current_user.created_at.isoformat(),
         last_login=current_user.last_login.isoformat() if current_user.last_login else None

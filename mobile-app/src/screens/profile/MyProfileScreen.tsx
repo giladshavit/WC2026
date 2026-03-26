@@ -65,7 +65,6 @@ export default function MyProfileScreen() {
             </View>
           </View>
           <Text style={styles.name}>{user?.name ?? '—'}</Text>
-          <Text style={styles.username}>@{user?.username ?? '—'}</Text>
         </View>
 
         {/* Points card */}
@@ -80,6 +79,18 @@ export default function MyProfileScreen() {
 
         {/* Info rows */}
         <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <Ionicons name="person-outline" size={18} color="#16a34a" />
+            <Text style={styles.infoLabel}>Username</Text>
+            <Text style={styles.infoValue}>{user?.username ?? '—'}</Text>
+          </View>
+          <View style={styles.infoSeparator} />
+          <View style={styles.infoRow}>
+            <Ionicons name="mail-outline" size={18} color="#16a34a" />
+            <Text style={styles.infoLabel}>Email</Text>
+            <Text style={styles.infoValue}>{user?.email ?? '—'}</Text>
+          </View>
+          <View style={styles.infoSeparator} />
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={18} color="#16a34a" />
             <Text style={styles.infoLabel}>Member since</Text>
@@ -155,11 +166,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginBottom: 4,
   },
-  username: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.75)',
-    fontWeight: '500',
-  },
   pointsCard: {
     backgroundColor: '#ffffff',
     marginHorizontal: 20,
@@ -217,6 +223,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#1e293b',
     fontWeight: '600',
+  },
+  infoSeparator: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginLeft: 42,
   },
   logoutButton: {
     flexDirection: 'row',
