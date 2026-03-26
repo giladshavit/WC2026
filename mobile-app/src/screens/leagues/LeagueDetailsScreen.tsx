@@ -123,12 +123,14 @@ function PodiumSection({
   currentUserId,
   truncateName,
   scoreMode,
+  scoreModeLoading,
   onPressPlayer,
 }: {
   topThree: StandingWithFine[];
   currentUserId: number | null;
   truncateName: (name: string) => string;
   scoreMode: 'classic' | 'multi';
+  scoreModeLoading: boolean;
   onPressPlayer: (userId: number, username: string) => void;
 }) {
   // Podium order: 2nd (left), 1st (center), 3rd (right)
@@ -164,10 +166,10 @@ function PodiumSection({
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
-                {truncateName((item as any).username ?? item.name ?? 'Player')}
+                {scoreModeLoading ? '' : truncateName((item as any).username ?? item.name ?? 'Player')}
               </Text>
               <Text style={styles.podiumPts}>
-                {scoreMode === 'classic'
+                {scoreModeLoading ? '' : scoreMode === 'classic'
                   ? (item.matches_points ?? 0) + (item.bonus_points ?? 0)
                   : (item.total_points ?? 0)}
               </Text>
@@ -655,6 +657,7 @@ export default function LeagueDetailsScreen() {
   const scoreModeInitializedRef = useRef(false);
   const skipNextFetchRef = useRef(false);
   const [scoreMode, setScoreMode] = useState<'multi' | 'classic'>('classic');
+  const [scoreModeLoading, setScoreModeLoading] = useState(false);
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [userDismissedLive, setUserDismissedLive] = useState(false);
   const [infoModalVisible, setInfoModalVisible] = useState(false);
@@ -675,7 +678,6 @@ export default function LeagueDetailsScreen() {
     if (newSortBy === sortBy) return;
     skipNextFetchRef.current = true;
     setPage(1);
-    setAllStandings([]);
     setSortBy(newSortBy);
     setTimeout(() => {
       fetchStandings(false, 1, newSortBy);
@@ -792,6 +794,7 @@ export default function LeagueDetailsScreen() {
     } finally {
       setInitialLoading(false);
       setLoadingMore(false);
+      setScoreModeLoading(false);
     }
   };
 
@@ -1031,6 +1034,7 @@ export default function LeagueDetailsScreen() {
               setAllStandings([]);
               setSortBy('total');
               setScoreMode('multi');
+              setScoreModeLoading(true);
               setTimeout(() => fetchStandings(false, 1, 'total', 'multi'), 0);
             }}
           >
@@ -1059,6 +1063,7 @@ export default function LeagueDetailsScreen() {
               setAllStandings([]);
               setSortBy('total');
               setScoreMode('classic');
+              setScoreModeLoading(true);
               setTimeout(() => fetchStandings(false, 1, 'total', 'classic'), 0);
             }}
           >
@@ -1079,7 +1084,7 @@ export default function LeagueDetailsScreen() {
           <FlashList
             drawDistance={800}
             maintainVisibleContentPosition={{ disabled: true }}
-            key={sortBy + '-' + scoreMode + '-' + String(isLiveMode)}
+            key={String(leagueId) + '-' + scoreMode + '-' + String(isLiveMode)}
             ref={flashListRef}
             data={standingsListData}
             extraData={sortBy + scoreMode + String(page)}
@@ -1108,6 +1113,7 @@ export default function LeagueDetailsScreen() {
                     currentUserId={currentUserId}
                     truncateName={truncateName}
                     scoreMode={scoreMode}
+                    scoreModeLoading={scoreModeLoading}
                     onPressPlayer={(userId, username) =>
                       (navigation as any).navigate('PublicProfile', { userId, username })
                     }
