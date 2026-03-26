@@ -170,7 +170,7 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
 
     return (
       <View>
-        <Text style={styles.sectionTitle}>Weighted Consensus Ranking</Text>
+        <Text style={styles.sectionTitle}>Predicted Standings</Text>
         <View style={styles.consensusTableWrapper}>
         {stats.consensus_table.map((entry, idx) => {
           const team = teams.find(t => t.id === entry.team_id);
