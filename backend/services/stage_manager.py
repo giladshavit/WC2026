@@ -362,9 +362,9 @@ class StageManager:
             {"stage": "QUARTER", "label": "Quarter-Final", "start": iso(m97), "end": iso(m100 + THREE_HOURS) if m100 else None},
             {"stage": "PRE_SEMI", "label": "Pre Semi-Final", "start": iso(m100 + THREE_HOURS) if m100 else None, "end": iso(m101)},
             {"stage": "SEMI", "label": "Semi-Final", "start": iso(m101), "end": iso(m102 + THREE_HOURS) if m102 else None},
-            {"stage": "FINAL", "label": "Final", "start": iso(m104), "end": None},
-            {"stage": "THIRD_PLACE", "label": "3rd Place Match", "start": iso(m103) if m103 else None, "end": iso(m103 + THREE_HOURS) if m103 else None},
+            {"stage": "THIRD_PLACE", "label": "3rd Place Match", "start": iso(m102 + THREE_HOURS) if m102 else None, "end": iso(m103 + THREE_HOURS) if m103 else None},
             {"stage": "PRE_FINAL", "label": "Pre Final", "start": iso(m103 + THREE_HOURS) if m103 else None, "end": iso(m104)},
+            {"stage": "FINAL", "label": "Final", "start": iso(m104), "end": iso(m104 + THREE_HOURS) if m104 else None},
             {"stage": "TOURNAMENT_OVER", "label": "Tournament Over", "start": iso(m104 + THREE_HOURS) if m104 else None, "end": None},
         ]
 
