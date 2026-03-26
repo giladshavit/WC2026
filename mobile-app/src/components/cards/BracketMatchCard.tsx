@@ -25,8 +25,8 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified,
   const team2Invalid = matchHasResult ? false : (match.team2_is_valid === false);
 
   const getScoreBadge = () => {
-    if (!match.status || match.points === undefined || match.points === null) return null;
-    const s = match.status;
+    if (match.points === undefined || match.points === null) return null;
+    const s = (match.status || '').toLowerCase();
     if (s !== 'correct_full' && s !== 'correct_partial' && s !== 'incorrect') return null;
     const pointsStr = match.points > 0 ? `+${match.points}` : `${match.points}`;
     let bg = '#e2e8f0';
@@ -107,7 +107,7 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified,
               styles.teamName,
               { fontSize: Math.max(8, 11 * sf) },
               isInvalid && styles.teamNameInvalid,
-              isEliminated && styles.teamNameStrikethrough,
+              isEliminated && match.is_editable !== false && styles.teamNameStrikethrough,
             ]}
             numberOfLines={1}
             adjustsFontSizeToFit
@@ -130,7 +130,7 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified,
     const renderFinalTeam1 = () => (
       <View style={styles.finalTeamBlock}>
         <Text
-          style={[styles.finalTeamName, { fontSize: Math.max(12, 18 * sf) }, team1Eliminated && styles.finalTeamNameStrikethrough]}
+          style={[styles.finalTeamName, { fontSize: Math.max(12, 18 * sf) }, team1Eliminated && match.is_editable !== false && styles.finalTeamNameStrikethrough]}
           numberOfLines={2}
           adjustsFontSizeToFit
           minimumFontScale={0.7}
@@ -157,7 +157,7 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified,
           <View style={[styles.finalTbdPlaceholder, { width: 44 * sf, height: 30 * sf }]} />
         )}
         <Text
-          style={[styles.finalTeamName, { fontSize: Math.max(12, 18 * sf) }, team2Eliminated && styles.finalTeamNameStrikethrough]}
+          style={[styles.finalTeamName, { fontSize: Math.max(12, 18 * sf) }, team2Eliminated && match.is_editable !== false && styles.finalTeamNameStrikethrough]}
           numberOfLines={2}
           adjustsFontSizeToFit
           minimumFontScale={0.7}
@@ -403,6 +403,8 @@ const styles = StyleSheet.create({
   finalGlowOuter: {
     shadowOffset: { width: 0, height: 0 },
     borderRadius: 20,
+    zIndex: 20,
+    elevation: 20,
   },
   finalContainer: {
     alignItems: 'center',
@@ -489,6 +491,7 @@ const styles = StyleSheet.create({
   },
   finalWrapper: {
     alignItems: 'center',
+    
   },
   trophyWrapper: {
     height: 110,
