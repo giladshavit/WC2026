@@ -1,3 +1,9 @@
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -11,6 +17,7 @@ from api.user_view import router as user_view_router
 from database import engine
 from models import base, user, team, matches as match_models, predictions as prediction_models
 from models import groups as group_models
+from models import password_reset_token  # noqa: F401 — register PasswordResetToken with Base.metadata
 from scheduler import start_scheduler, stop_scheduler
 
 # Create database tables
@@ -25,6 +32,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="World Cup 2026 Predictions API", lifespan=lifespan)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Add CORS middleware
 app.add_middleware(

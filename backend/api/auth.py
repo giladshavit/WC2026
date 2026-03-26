@@ -3,8 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, validator
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from starlette.requests import Request
 import re
 
+from main import limiter
 from database import get_db
 from services.auth_service import AuthService
 from models.user import User
@@ -17,13 +21,15 @@ class UserRegisterRequest(BaseModel):
     username: str
     password: str
     name: str
+    email: str
     
     @validator('username')
     def validate_username(cls, v):
+        v = v.strip()
         if len(v) < 3:
             raise ValueError('Username must be at least 3 characters long')
-        if len(v) > 20:
-            raise ValueError('Username must be at most 20 characters long')
+        if len(v) > 14:
+            raise ValueError('Username must be at most 14 characters long')
         if not re.match(r'^[a-zA-Z0-9_]+$', v):
             raise ValueError('Username can only contain letters, numbers, and underscores')
         return v
@@ -38,10 +44,22 @@ class UserRegisterRequest(BaseModel):
     
     @validator('name')
     def validate_name(cls, v):
+        v = v.strip()
         if len(v) < 2:
             raise ValueError('Name must be at least 2 characters long')
-        if len(v) > 50:
-            raise ValueError('Name must be at most 50 characters long')
+        if len(v) > 14:
+            raise ValueError('Name must be at most 14 characters long')
+        if not re.match(r'^[\u0000-\u007F\u00C0-\u024F\u0590-\u05FF ]+$', v):
+            raise ValueError('Name contains invalid characters')
+        return v
+
+    @validator('email')
+    def validate_email(cls, v):
+        v = v.strip().lower()
+        if not re.match(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', v):
+            raise ValueError('Invalid email address')
+        if len(v) > 100:
+            raise ValueError('Email must be at most 100 characters')
         return v
 
 class UserLoginRequest(BaseModel):
@@ -62,6 +80,14 @@ class AuthResponse(BaseModel):
     name: str
     access_token: str
     token_type: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    otp_code: str
+    new_password: str
 
 # Dependency to get current user
 def get_current_user(
@@ -86,16 +112,18 @@ def register_user(
     """
     Register a new user.
     
-    - **username**: Unique username (3-20 characters, letters/numbers/underscores only)
+    - **username**: Unique username (3-14 characters, letters/numbers/underscores only)
     - **password**: Password (6-50 characters)
-    - **name**: Display name (2-50 characters)
+    - **name**: Display name (2-14 characters)
+    - **email**: Valid email (max 100 characters), unique
     """
     try:
         result = AuthService.register_user(
             db=db,
             username=user_data.username,
             password=user_data.password,
-            name=user_data.name
+            name=user_data.name,
+            email=user_data.email
         )
         return AuthResponse(**result)
     except HTTPException:
@@ -107,7 +135,9 @@ def register_user(
         )
 
 @router.post("/auth/login", response_model=AuthResponse)
+@limiter.limit("20/15minutes")
 def login_user(
+    request: Request,
     user_data: UserLoginRequest,
     db: Session = Depends(get_db)
 ):
@@ -131,6 +161,21 @@ def login_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Login failed: {str(e)}"
         )
+
+@router.post("/auth/forgot-password", status_code=200)
+def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    AuthService.request_password_reset(db, data.email.strip().lower())
+    return {"message": "If this email is registered, a reset code was sent."}
+
+@router.post("/auth/reset-password", status_code=200)
+def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
+    AuthService.reset_password_with_otp(
+        db,
+        data.email.strip().lower(),
+        data.otp_code.strip(),
+        data.new_password
+    )
+    return {"message": "Password reset successfully"}
 
 @router.get("/auth/me", response_model=UserResponse)
 def get_current_user_info(

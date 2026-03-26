@@ -39,6 +39,7 @@ requests==2.32.3
 requests-oauthlib==2.0.0
 rsa==4.9.1
 six==1.17.0
+slowapi
 SQLAlchemy==2.0.36
 starlette==0.41.3
 typing_extensions==4.15.0

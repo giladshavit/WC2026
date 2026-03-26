@@ -99,7 +99,9 @@ def _create_single_user(db: Session) -> int:
     username = _generate_username()
     password = "testpass123"
     name = f"Test User {username}"
-    result = AuthService.register_user(db, username, password, name)
+    result = AuthService.register_user(
+        db, username, password, name, f"{username}@example.com"
+    )
     return result["user_id"]
 
 

@@ -3,6 +3,7 @@ DBReader: All READ (SELECT) operations from database.
 This is the ONLY place where db.query() should appear for reads.
 No service should call db.query() directly — always go through DBReader.
 """
+from datetime import datetime
 from typing import List, Optional, Sequence, Dict, Tuple
 from sqlalchemy import and_, case, desc, func, text
 from sqlalchemy.orm import Session
@@ -82,6 +83,17 @@ class DBReader:
     @staticmethod
     def get_user_by_username(db: Session, username: str) -> Optional[User]:
         return db.query(User).filter(User.username == username).first()
+
+    @staticmethod
+    def get_password_reset_token(db: Session, user_id: int, otp_code: str):
+        """Get a valid (unused, non-expired) reset token."""
+        from models.password_reset_token import PasswordResetToken
+        return db.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user_id,
+            PasswordResetToken.otp_code == otp_code,
+            PasswordResetToken.is_used == False,
+            PasswordResetToken.expires_at > datetime.utcnow()
+        ).first()
 
     @staticmethod
     def get_all_users(db: Session) -> List[User]:

@@ -94,6 +94,29 @@ class DBWriter:
         return user
 
     @staticmethod
+    def create_password_reset_token(db: Session, user_id: int, otp_code: str, expires_at: datetime) -> Any:
+        from models.password_reset_token import PasswordResetToken
+        token = PasswordResetToken(user_id=user_id, otp_code=otp_code, expires_at=expires_at)
+        db.add(token)
+        db.flush()
+        return token
+
+    @staticmethod
+    def invalidate_password_reset_tokens(db: Session, user_id: int) -> None:
+        """Mark all tokens for this user as used."""
+        from models.password_reset_token import PasswordResetToken
+        db.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user_id
+        ).update({"is_used": True})
+        db.flush()
+
+    @staticmethod
+    def update_user_password(db: Session, user: User, new_password_hash: str) -> User:
+        user.password_hash = new_password_hash
+        db.flush()
+        return user
+
+    @staticmethod
     def create_user_scores(db: Session, user_id: int) -> UserScores:
         scores = UserScores(
             user_id=user_id,

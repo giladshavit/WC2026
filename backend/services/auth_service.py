@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 import os
 import jwt
 import bcrypt
+import random
+import string
 from fastapi import HTTPException, status
 from models.user import User
 from models.user_scores import UserScores
@@ -11,6 +13,7 @@ from models.matches_template import MatchTemplate
 from models.results import KnockoutStageResult
 from models.predictions import KnockoutStagePrediction
 from services.database import DBReader, DBWriter, DBUtils
+from services.email_service import EmailService
 
 class AuthService:
     """Service for handling user authentication and authorization."""
@@ -63,7 +66,9 @@ class AuthService:
             )
     
     @staticmethod
-    def register_user(db: Session, username: str, password: str, name: str) -> Dict[str, Any]:
+    def register_user(
+        db: Session, username: str, password: str, name: str, email: str
+    ) -> Dict[str, Any]:
         """Register a new user."""
         # Check if username already exists
         existing_user = DBReader.get_user_by_username(db, username)
@@ -71,6 +76,13 @@ class AuthService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Username already exists"
+            )
+
+        existing_email = DBReader.get_user_by_email(db, email)
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
             )
         
         # Hash password
@@ -82,7 +94,7 @@ class AuthService:
             username=username,
             password_hash=password_hash,
             name=name,
-            email=f"{username}@temp.com"
+            email=email
         )
         
         DBUtils.commit(db)
@@ -195,6 +207,50 @@ class AuthService:
             "access_token": access_token,
             "token_type": "bearer"
         }
+
+    @staticmethod
+    def request_password_reset(db: Session, email: str) -> None:
+        """Step 1: user submits email. Always return success (don't reveal if email exists)."""
+        user = DBReader.get_user_by_email(db, email)
+        if not user:
+            return  # Silent — don't reveal email existence
+
+        otp_code = ''.join(random.choices(string.digits, k=6))
+        expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+        DBWriter.invalidate_password_reset_tokens(db, user.id)
+        DBWriter.create_password_reset_token(db, user.id, otp_code, expires_at)
+        DBUtils.commit(db)
+
+        EmailService.send_otp_email(user.email, otp_code, user.username)
+
+    @staticmethod
+    def reset_password_with_otp(db: Session, email: str, otp_code: str, new_password: str) -> None:
+        """Step 2: user submits OTP + new password."""
+        if len(new_password) < 6 or len(new_password) > 50:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be 6–50 characters",
+            )
+
+        user = DBReader.get_user_by_email(db, email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid code or email",
+            )
+
+        token = DBReader.get_password_reset_token(db, user.id, otp_code)
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired code",
+            )
+
+        new_hash = AuthService.hash_password(new_password)
+        DBWriter.update_user_password(db, user, new_hash)
+        DBWriter.invalidate_password_reset_tokens(db, user.id)
+        DBUtils.commit(db)
     
     @staticmethod
     def get_current_user(db: Session, token: str) -> User:

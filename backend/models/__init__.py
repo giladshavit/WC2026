@@ -11,6 +11,7 @@ from .predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePredic
 from .tournament_config import TournamentConfig
 from .team import Team
 from .user import User
+from .password_reset_token import PasswordResetToken
 from .user_scores import UserScores
 from .league import League, LeagueMembership
 from .statistics import ThirdPlaceGroupCounts
@@ -33,6 +34,7 @@ __all__ = [
     'TournamentConfig',
     'Team',
     'User',
+    'PasswordResetToken',
     'UserScores',
     'BonusPrediction',
     'League',
