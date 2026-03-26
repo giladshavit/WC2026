@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,15 @@ interface RouteParams {
 // Extended standing with optional fine (point deduction; API returns as penalty)
 interface StandingWithFine extends LeagueStanding {
   penalty?: number; // API field
+}
+
+/** Sentinel for the column-header row; FlashList stickyHeaderIndices apply to `data` indices, not ListHeaderComponent. */
+type StandingsTableHeaderRow = { readonly _standingsTableHeader: true };
+const STANDINGS_TABLE_HEADER: StandingsTableHeaderRow = { _standingsTableHeader: true };
+type StandingsListEntry = StandingWithFine | StandingsTableHeaderRow;
+
+function isStandingsTableHeaderRow(item: StandingsListEntry): item is StandingsTableHeaderRow {
+  return '_standingsTableHeader' in item && (item as StandingsTableHeaderRow)._standingsTableHeader === true;
 }
 
 const PODIUM_MEDAL_CONFIG = [
@@ -872,6 +881,11 @@ export default function LeagueDetailsScreen() {
   const topThree = podiumStandings.length >= 3 ? podiumStandings : allStandings.slice(0, 3);
   const restStandings = allStandings;
 
+  const standingsListData = useMemo(
+    (): StandingsListEntry[] => [STANDINGS_TABLE_HEADER, ...allStandings],
+    [allStandings]
+  );
+
   if (initialLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -1061,167 +1075,16 @@ export default function LeagueDetailsScreen() {
       </View>
 
       <View style={styles.content}>
-        {topThree.length >= 3 && (
-          <PodiumSection
-            topThree={topThree}
-            currentUserId={currentUserId}
-            truncateName={truncateName}
-            scoreMode={scoreMode}
-            onPressPlayer={(userId, username) =>
-              (navigation as any).navigate('PublicProfile', { userId, username })
-            }
-          />
-        )}
-
-        {topThree.length < 3 && topThree.length > 0 && (
-          <View style={[styles.podiumSection, { maxWidth: 520, alignSelf: 'center', width: '100%' }]}>
-            {topThree.map((item, idx) => {
-              const isCurrentUser = currentUserId !== null && item.user_id === currentUserId;
-              const medalConfig = PODIUM_MEDAL_CONFIG[idx];
-              const stageColors = ['#D4AF37', '#A8A9AD', '#AD6F3B'];
-              const isCenter = idx === 0;
-              return (
-                <View key={item.user_id} style={styles.podiumCard}>
-                  <View style={[styles.podiumCardInner, isCenter && styles.podiumCardInnerGold]}>
-                    <Ionicons name="medal" size={medalConfig.size} color={medalConfig.color} style={styles.podiumMedalIcon} />
-                    <Text
-                      style={[styles.podiumName, isCurrentUser && styles.podiumNameBold]}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {truncateName((item as any).username ?? item.name ?? 'Player')}
-                    </Text>
-                    <Text style={styles.podiumPts}>{item.total_points ?? 0}</Text>
-                  </View>
-                  <View style={[styles.podiumStageBar, { backgroundColor: stageColors[idx] ?? '#A8A9AD' }]} />
-                </View>
-              );
-            })}
-          </View>
-        )}
-
         <View style={[styles.tableSection, { maxWidth: 520, alignSelf: 'center', width: '100%' }]}>
-
-          <View style={[styles.tableRowContainer, isLiveMode && styles.tableRowContainerLive]}>
-            <View style={[styles.tableFixedLeft, isLiveMode && styles.tableFixedLeftLive]}>
-              <View style={[styles.tableHeader, { height: 46, backgroundColor: '#334155' }]}>
-                <View style={styles.colPlayer}>
-                  <Text style={[styles.headerCell, styles.cellLeft]}>Rank</Text>
-                </View>
-              </View>
-            </View>
-            {!isLiveMode && (
-              <View style={[styles.tableScrollMiddle, styles.tableMiddleFixed, { width: middleWidth }]}>
-                <View style={[styles.tableHeader, styles.tableHeaderMiddle, { height: 46, backgroundColor: '#334155' }]}>
-                    {scoreMode === 'classic' ? (
-                      <>
-                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} activeOpacity={0.7} onPress={() => handleSortByChange('exact')}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'exact' ? 'checkmark-circle' : 'checkmark-circle-outline'} size={14} color={sortBy === 'exact' ? SORT_COLORS.exact : SORT_COLORS.exact + '55'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'exact' ? SORT_COLORS.exact : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} activeOpacity={0.7} onPress={() => handleSortByChange('correct')}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'correct' ? 'remove-circle' : 'remove-circle-outline'} size={14} color={sortBy === 'correct' ? SORT_COLORS.correct : SORT_COLORS.correct + '55'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'correct' ? SORT_COLORS.correct : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} activeOpacity={0.7} onPress={() => handleSortByChange('wrong')}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'wrong' ? 'close-circle' : 'close-circle-outline'} size={14} color={sortBy === 'wrong' ? SORT_COLORS.wrong : SORT_COLORS.wrong + '55'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'wrong' ? SORT_COLORS.wrong : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('matches')} activeOpacity={0.7}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'matches' ? 'football' : 'football-outline'} size={14} color={sortBy === 'matches' ? SORT_COLORS.matches : SORT_COLORS.matches + '55'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'matches' ? SORT_COLORS.matches : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('bonus')} activeOpacity={0.7}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? SORT_COLORS.bonus : SORT_COLORS.bonus + '55'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? SORT_COLORS.bonus : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                      </>
-                    ) : (
-                      <>
-                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('matches')} activeOpacity={0.7}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'matches' ? 'football' : 'football-outline'} size={14} color={sortBy === 'matches' ? SORT_COLORS.matches : SORT_COLORS.matches + '55'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'matches' ? SORT_COLORS.matches : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('groups')} activeOpacity={0.7}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'groups' ? 'home' : 'home-outline'} size={14} color={sortBy === 'groups' ? SORT_COLORS.groups : SORT_COLORS.groups + '55'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'groups' ? SORT_COLORS.groups : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('knockout')} activeOpacity={0.7}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'knockout' ? 'trophy' : 'trophy-outline'} size={14} color={sortBy === 'knockout' ? SORT_COLORS.knockout : SORT_COLORS.knockout + '55'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'knockout' ? SORT_COLORS.knockout : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('bonus')} activeOpacity={0.7}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? SORT_COLORS.bonus : SORT_COLORS.bonus + '55'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? SORT_COLORS.bonus : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.colFine, styles.headerIconCell]} onPress={() => handleSortByChange('fine')} activeOpacity={0.7}>
-                          <View style={styles.headerIconWrapper}>
-                            <Ionicons name={sortBy === 'fine' ? 'warning' : 'warning-outline'} size={14} color={sortBy === 'fine' ? SORT_COLORS.fine : SORT_COLORS.fine + '55'} />
-                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'fine' ? SORT_COLORS.fine : 'transparent' }]} />
-                          </View>
-                        </TouchableOpacity>
-                      </>
-                    )}
-                </View>
-              </View>
-            )}
-            <View
-              style={[
-                styles.tableFixedRight,
-                { flex: isLiveMode ? 1 : undefined, backgroundColor: '#0f172a' },
-                isLiveMode && styles.tableFixedRightLive,
-              ]}
-            >
-              <View style={[styles.tableHeader, styles.tableHeaderRight, { height: 46, backgroundColor: '#334155' }, showOnlyTotalColumn && { justifyContent: 'flex-end' }]}>
-                {effectiveLiveList.map((liveData) => (
-                  <View key={liveData.match_id} style={[styles.colLive, styles.headerIconCell]}>
-                    <LiveHeaderCell liveMatchPredictions={liveData} />
-                  </View>
-                ))}
-                <TouchableOpacity
-                  style={[styles.colTotal, styles.headerIconCell]}
-                  onPress={() => handleSortByChange('total')}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.headerIconWrapper}>
-                    <Ionicons
-                      name={sortBy === 'total' ? 'star' : 'star-outline'}
-                      size={14}
-                      color={sortBy === 'total' ? SORT_COLORS.total : SORT_COLORS.total + '55'}
-                    />
-                    <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'total' ? SORT_COLORS.total : 'transparent' }]} />
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-
           <FlashList
             drawDistance={800}
             maintainVisibleContentPosition={{ disabled: true }}
             key={sortBy + '-' + scoreMode + '-' + String(isLiveMode)}
             ref={flashListRef}
-            data={allStandings}
+            data={standingsListData}
             extraData={sortBy + scoreMode + String(page)}
-            keyExtractor={(item) => String(item.user_id)}
+            keyExtractor={(item) => (isStandingsTableHeaderRow(item) ? '__standings_header' : String(item.user_id))}
+            getItemType={(item) => (isStandingsTableHeaderRow(item) ? 'header' : 'row')}
             onEndReached={() => {
               if (!loadingMore && allStandings.length < totalCount) {
                 setPage((p) => p + 1);
@@ -1236,34 +1099,195 @@ export default function LeagueDetailsScreen() {
                 tintColor="#ffffff"
               />
             }
-            renderItem={({ item, index }) => (
+            stickyHeaderIndices={[0]}
+            ListHeaderComponent={
+              <>
+                {topThree.length >= 3 && (
+                  <PodiumSection
+                    topThree={topThree}
+                    currentUserId={currentUserId}
+                    truncateName={truncateName}
+                    scoreMode={scoreMode}
+                    onPressPlayer={(userId, username) =>
+                      (navigation as any).navigate('PublicProfile', { userId, username })
+                    }
+                  />
+                )}
+
+                {topThree.length < 3 && topThree.length > 0 && (
+                  <View style={[styles.podiumSection, { maxWidth: 520, alignSelf: 'center', width: '100%' }]}>
+                    {topThree.map((item, idx) => {
+                      const isCurrentUser = currentUserId !== null && item.user_id === currentUserId;
+                      const medalConfig = PODIUM_MEDAL_CONFIG[idx];
+                      const stageColors = ['#D4AF37', '#A8A9AD', '#AD6F3B'];
+                      const isCenter = idx === 0;
+                      return (
+                        <View key={item.user_id} style={styles.podiumCard}>
+                          <View style={[styles.podiumCardInner, isCenter && styles.podiumCardInnerGold]}>
+                            <Ionicons name="medal" size={medalConfig.size} color={medalConfig.color} style={styles.podiumMedalIcon} />
+                            <Text
+                              style={[styles.podiumName, isCurrentUser && styles.podiumNameBold]}
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                            >
+                              {truncateName((item as any).username ?? item.name ?? 'Player')}
+                            </Text>
+                            <Text style={styles.podiumPts}>{item.total_points ?? 0}</Text>
+                          </View>
+                          <View style={[styles.podiumStageBar, { backgroundColor: stageColors[idx] ?? '#A8A9AD' }]} />
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </>
+            }
+            renderItem={({ item, index }) => {
+              if (isStandingsTableHeaderRow(item)) {
+                return (
+                  <View style={[styles.tableRowContainer, isLiveMode && styles.tableRowContainerLive]}>
+                    <View style={[styles.tableFixedLeft, isLiveMode && styles.tableFixedLeftLive]}>
+                      <View style={[styles.tableHeader, { height: 46, backgroundColor: '#334155' }]}>
+                        <View style={styles.colPlayer}>
+                          <Text style={[styles.headerCell, styles.cellLeft]}>Rank</Text>
+                        </View>
+                      </View>
+                    </View>
+                    {!isLiveMode && (
+                      <View style={[styles.tableScrollMiddle, styles.tableMiddleFixed, { width: middleWidth }]}>
+                        <View style={[styles.tableHeader, styles.tableHeaderMiddle, { height: 46, backgroundColor: '#334155' }]}>
+                          {scoreMode === 'classic' ? (
+                            <>
+                              <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} activeOpacity={0.7} onPress={() => handleSortByChange('exact')}>
+                                <View style={styles.headerIconWrapper}>
+                                  <Ionicons name={sortBy === 'exact' ? 'checkmark-circle' : 'checkmark-circle-outline'} size={14} color={sortBy === 'exact' ? SORT_COLORS.exact : SORT_COLORS.exact + '55'} />
+                                  <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'exact' ? SORT_COLORS.exact : 'transparent' }]} />
+                                </View>
+                              </TouchableOpacity>
+                              <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} activeOpacity={0.7} onPress={() => handleSortByChange('correct')}>
+                                <View style={styles.headerIconWrapper}>
+                                  <Ionicons name={sortBy === 'correct' ? 'remove-circle' : 'remove-circle-outline'} size={14} color={sortBy === 'correct' ? SORT_COLORS.correct : SORT_COLORS.correct + '55'} />
+                                  <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'correct' ? SORT_COLORS.correct : 'transparent' }]} />
+                                </View>
+                              </TouchableOpacity>
+                              <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} activeOpacity={0.7} onPress={() => handleSortByChange('wrong')}>
+                                <View style={styles.headerIconWrapper}>
+                                  <Ionicons name={sortBy === 'wrong' ? 'close-circle' : 'close-circle-outline'} size={14} color={sortBy === 'wrong' ? SORT_COLORS.wrong : SORT_COLORS.wrong + '55'} />
+                                  <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'wrong' ? SORT_COLORS.wrong : 'transparent' }]} />
+                                </View>
+                              </TouchableOpacity>
+                              <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('matches')} activeOpacity={0.7}>
+                                <View style={styles.headerIconWrapper}>
+                                  <Ionicons name={sortBy === 'matches' ? 'football' : 'football-outline'} size={14} color={sortBy === 'matches' ? SORT_COLORS.matches : SORT_COLORS.matches + '55'} />
+                                  <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'matches' ? SORT_COLORS.matches : 'transparent' }]} />
+                                </View>
+                              </TouchableOpacity>
+                              <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('bonus')} activeOpacity={0.7}>
+                                <View style={styles.headerIconWrapper}>
+                                  <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? SORT_COLORS.bonus : SORT_COLORS.bonus + '55'} />
+                                  <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? SORT_COLORS.bonus : 'transparent' }]} />
+                                </View>
+                              </TouchableOpacity>
+                            </>
+                          ) : (
+                            <>
+                              <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('matches')} activeOpacity={0.7}>
+                                <View style={styles.headerIconWrapper}>
+                                  <Ionicons name={sortBy === 'matches' ? 'football' : 'football-outline'} size={14} color={sortBy === 'matches' ? SORT_COLORS.matches : SORT_COLORS.matches + '55'} />
+                                  <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'matches' ? SORT_COLORS.matches : 'transparent' }]} />
+                                </View>
+                              </TouchableOpacity>
+                              <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('groups')} activeOpacity={0.7}>
+                                <View style={styles.headerIconWrapper}>
+                                  <Ionicons name={sortBy === 'groups' ? 'home' : 'home-outline'} size={14} color={sortBy === 'groups' ? SORT_COLORS.groups : SORT_COLORS.groups + '55'} />
+                                  <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'groups' ? SORT_COLORS.groups : 'transparent' }]} />
+                                </View>
+                              </TouchableOpacity>
+                              <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('knockout')} activeOpacity={0.7}>
+                                <View style={styles.headerIconWrapper}>
+                                  <Ionicons name={sortBy === 'knockout' ? 'trophy' : 'trophy-outline'} size={14} color={sortBy === 'knockout' ? SORT_COLORS.knockout : SORT_COLORS.knockout + '55'} />
+                                  <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'knockout' ? SORT_COLORS.knockout : 'transparent' }]} />
+                                </View>
+                              </TouchableOpacity>
+                              <TouchableOpacity style={[styles.colNum, styles.headerIconCell]} onPress={() => handleSortByChange('bonus')} activeOpacity={0.7}>
+                                <View style={styles.headerIconWrapper}>
+                                  <Ionicons name={sortBy === 'bonus' ? 'gift' : 'gift-outline'} size={14} color={sortBy === 'bonus' ? SORT_COLORS.bonus : SORT_COLORS.bonus + '55'} />
+                                  <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'bonus' ? SORT_COLORS.bonus : 'transparent' }]} />
+                                </View>
+                              </TouchableOpacity>
+                              <TouchableOpacity style={[styles.colFine, styles.headerIconCell]} onPress={() => handleSortByChange('fine')} activeOpacity={0.7}>
+                                <View style={styles.headerIconWrapper}>
+                                  <Ionicons name={sortBy === 'fine' ? 'warning' : 'warning-outline'} size={14} color={sortBy === 'fine' ? SORT_COLORS.fine : SORT_COLORS.fine + '55'} />
+                                  <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'fine' ? SORT_COLORS.fine : 'transparent' }]} />
+                                </View>
+                              </TouchableOpacity>
+                            </>
+                          )}
+                        </View>
+                      </View>
+                    )}
+                    <View
+                      style={[
+                        styles.tableFixedRight,
+                        { flex: isLiveMode ? 1 : undefined, backgroundColor: '#0f172a' },
+                        isLiveMode && styles.tableFixedRightLive,
+                      ]}
+                    >
+                      <View style={[styles.tableHeader, styles.tableHeaderRight, { height: 46, backgroundColor: '#334155' }, showOnlyTotalColumn && { justifyContent: 'flex-end' }]}>
+                        {effectiveLiveList.map((liveData) => (
+                          <View key={liveData.match_id} style={[styles.colLive, styles.headerIconCell]}>
+                            <LiveHeaderCell liveMatchPredictions={liveData} />
+                          </View>
+                        ))}
+                        <TouchableOpacity
+                          style={[styles.colTotal, styles.headerIconCell]}
+                          onPress={() => handleSortByChange('total')}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.headerIconWrapper}>
+                            <Ionicons
+                              name={sortBy === 'total' ? 'star' : 'star-outline'}
+                              size={14}
+                              color={sortBy === 'total' ? SORT_COLORS.total : SORT_COLORS.total + '55'}
+                            />
+                            <View style={[styles.headerIconUnderline, { backgroundColor: sortBy === 'total' ? SORT_COLORS.total : 'transparent' }]} />
+                          </View>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                );
+              }
+              const row = item as StandingWithFine;
+              const rowIndex = index - 1;
+              return (
               <View style={[styles.tableRowContainer, isLiveMode && styles.tableRowContainerLive]}>
                 <View style={[styles.tableFixedLeft, isLiveMode && styles.tableFixedLeftLive]}>
                   <AnimatedPlayerRow
-                    item={item}
-                    index={index}
-                    rank={item.rank}
+                    item={row}
+                    index={rowIndex}
+                    rank={row.rank}
                     currentUserId={currentUserId}
                     truncateName={truncateName}
                     liveMatchPredictionsList={liveMatchPredictionsList}
                     side="left"
                     scoreMode={scoreMode}
                     liveNamesNoShrink={isLiveMode}
-                    onRowPress={() => (navigation as any).navigate('PublicProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` })}
+                    onRowPress={() => (navigation as any).navigate('PublicProfile', { userId: row.user_id, username: row.username || row.name || `User ${row.user_id}` })}
                   />
                 </View>
                 {!isLiveMode && (
                   <View style={[styles.tableMiddleFixed, { width: middleWidth, backgroundColor: '#0f172a' }]}>
                     <AnimatedPlayerRow
-                      item={item}
-                      index={index}
-                      rank={item.rank}
+                      item={row}
+                      index={rowIndex}
+                      rank={row.rank}
                       currentUserId={currentUserId}
                       truncateName={truncateName}
                       liveMatchPredictionsList={liveMatchPredictionsList}
                       side="middle"
                       scoreMode={scoreMode}
-                      onRowPress={() => (navigation as any).navigate('PublicProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` })}
+                      onRowPress={() => (navigation as any).navigate('PublicProfile', { userId: row.user_id, username: row.username || row.name || `User ${row.user_id}` })}
                     />
                   </View>
                 )}
@@ -1275,20 +1299,21 @@ export default function LeagueDetailsScreen() {
                   ]}
                 >
                   <AnimatedPlayerRow
-                    item={item}
-                    index={index}
-                    rank={item.rank}
+                    item={row}
+                    index={rowIndex}
+                    rank={row.rank}
                     currentUserId={currentUserId}
                     truncateName={truncateName}
                     liveMatchPredictionsList={effectiveLiveList}
                     side="right"
                     scoreMode={scoreMode}
                     showOnlyTotalColumn={showOnlyTotalColumn}
-                    onRowPress={() => (navigation as any).navigate('PublicProfile', { userId: item.user_id, username: item.username || item.name || `User ${item.user_id}` })}
+                    onRowPress={() => (navigation as any).navigate('PublicProfile', { userId: row.user_id, username: row.username || row.name || `User ${row.user_id}` })}
                   />
                 </View>
               </View>
-            )}
+            );
+            }}
             style={StyleSheet.flatten([styles.tableBody, { flex: 1 }])}
             contentContainerStyle={styles.tableBodyContent}
           />
