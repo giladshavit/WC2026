@@ -10,6 +10,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import KnockoutStatsModal from '../stats/KnockoutStatsModal';
 import { BracketMatch } from '../../utils/bracketCalculator';
 
 interface MatchEditModalProps {
@@ -34,6 +35,7 @@ const STAGE_STYLES: Record<string, { bg: string; text: string }> = {
 export default function MatchEditModal({ visible, match, onClose, onSave, errorMessage, onClearError }: MatchEditModalProps) {
   const [selectedWinner, setSelectedWinner] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showStats, setShowStats] = useState(false);
 
   const getTeamNameDisplayProps = (teamName: string) => {
     const nameLength = teamName.length;
@@ -101,6 +103,15 @@ export default function MatchEditModal({ visible, match, onClose, onSave, errorM
 
             {/* Content */}
             <View style={styles.content}>
+              <TouchableOpacity
+                onPress={() => setShowStats(true)}
+                style={styles.statsButton}
+                activeOpacity={0.8}
+              >
+                <View style={styles.statsButtonInner}>
+                  <Ionicons name="stats-chart" size={14} color="#0284c7" />
+                </View>
+              </TouchableOpacity>
               {/* Stage Badge */}
               <View style={styles.matchContainer}>
                 <View style={[styles.stageBadge, { backgroundColor: stageStyle.bg, borderColor: stageStyle.text }]}>
@@ -212,6 +223,11 @@ export default function MatchEditModal({ visible, match, onClose, onSave, errorM
           </View>
         </SafeAreaView>
       </View>
+      <KnockoutStatsModal
+        visible={showStats}
+        templateMatchId={match.id}
+        onClose={() => setShowStats(false)}
+      />
     </Modal>
   );
 }
@@ -268,6 +284,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  statsButton: {
+    position: 'absolute',
+    top: -8,
+    left: 12,
+    zIndex: 10,
+  },
+  statsButtonInner: {
+    backgroundColor: 'rgba(2,132,199,0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(2,132,199,0.4)',
+    borderRadius: 14,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     padding: 24,
