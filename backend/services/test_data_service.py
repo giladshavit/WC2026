@@ -10,58 +10,37 @@ from sqlalchemy.orm import Session
 from services.auth_service import AuthService
 from services.database import DBReader, DBWriter, DBUtils
 
-# ── Bonus Prediction Options ────────────────────────────────────
-
-BONUS_G1_OPTIONS = ['under_120', '120_139', '140_159', '160_179', '180_199', '200_plus']
-BONUS_G4_OPTIONS = ['0', '1', '2', '3', '4', '5_plus']
-BONUS_G5_OPTIONS = ['0', '1', '2', '3', '4', '5_plus']
-BONUS_K1_OPTIONS = ['under_30', '30_39', '40_49', '50_59', '60_69', '70_79', '80_plus']
-BONUS_K2_OPTIONS = ['0_3', '4_5', '6_7', '8_9', '10_11', '12_plus']
-BONUS_K3_OPTIONS = ['0', '1', '2', '3', '4', '5', '6', '7', '8']
-BONUS_T1_OPTIONS = ['under_160', '160_189', '190_219', '220_249', '250_280', '280_plus']
-BONUS_T2_OPTIONS = ['0_3', '4_5', '6_7', '8_9', '10_11', '12_plus']
-
 
 def _create_random_bonus_prediction(db: Session, user_id: int, groups: list) -> None:
     """Create or update a fully randomized bonus prediction for a user. Idempotent."""
     from models.predictions import BonusPrediction
 
+    all_teams = DBReader.get_all_teams(db)
     random_group = random.choice(groups) if groups else None
     random_group_id = random_group.id if random_group else None
-    random_team_id = None
-    if random_group:
-        team_ids = [t for t in [
-            random_group.team_1, random_group.team_2,
-            random_group.team_3, random_group.team_4
-        ] if t is not None]
-        random_team_id = random.choice(team_ids) if team_ids else None
+    random_team_id = random.choice([t.id for t in all_teams]) if all_teams else None
+
+    fields = {
+        "g1_total_goals_group": random.choice(['under_120', '120_139', '140_159', '160_179', '180_199', '200_plus']),
+        "g2_top_group_id": random_group_id,
+        "g3_top_team_id": random_team_id,
+        "g4_perfect_teams": random.choice(['0', '1', '2', '3', '4', '5_plus']),
+        "g5_clean_sheet_teams": random.choice(['0', '1', '2', '3', '4', '5_plus']),
+        "g6_scoreless_draws_group": random.choice(['0_2', '3_4', '5_6', '7_8', '9_10', '11_plus']),
+        "k1_total_goals_knockout": random.choice(['under_30', '30_39', '40_49', '50_59', '60_69', '70_79', '80_plus']),
+        "k2_penalty_shootouts": random.choice(['0_3', '4_5', '6_7', '8_9', '10_11', '12_plus']),
+        "k3_third_place_quarters": random.choice(['0', '1', '2', '3', '4', '5', '6', '7', '8']),
+        "t1_total_goals_tournament": random.choice(['under_160', '160_189', '190_219', '220_249', '250_280', '280_plus']),
+        "t2_champion_team_id": random.choice([t.id for t in all_teams]) if all_teams else None,
+        "t3_top_scorer": random.choice(['mbappe', 'kane', 'haaland', 'yamal', 'messi', 'ronaldo', 'lukaku', 'vinicius', 'lautaro', 'bellingham', 'alvarez', 'gakpo', 'saka', 'nunez', 'wirtz', 'dembele', 'bruno', 'memphis', 'salah', 'mane', 'other']),
+    }
 
     bonus = db.query(BonusPrediction).filter(BonusPrediction.user_id == user_id).first()
     if bonus:
-        bonus.g1_total_goals_group = random.choice(BONUS_G1_OPTIONS)
-        bonus.g2_top_group_id = random_group_id
-        bonus.g3_top_team_id = random_team_id
-        bonus.g4_perfect_teams = random.choice(BONUS_G4_OPTIONS)
-        bonus.g5_clean_sheet_teams = random.choice(BONUS_G5_OPTIONS)
-        bonus.k1_total_goals_knockout = random.choice(BONUS_K1_OPTIONS)
-        bonus.k2_penalty_shootouts = random.choice(BONUS_K2_OPTIONS)
-        bonus.k3_third_place_quarters = random.choice(BONUS_K3_OPTIONS)
-        bonus.t1_total_goals_tournament = random.choice(BONUS_T1_OPTIONS)
-        bonus.t2_scoreless_draws = random.choice(BONUS_T2_OPTIONS)
+        for k, v in fields.items():
+            setattr(bonus, k, v)
     else:
-        bonus = BonusPrediction(
-            user_id=user_id,
-            g1_total_goals_group=random.choice(BONUS_G1_OPTIONS),
-            g2_top_group_id=random_group_id,
-            g3_top_team_id=random_team_id,
-            g4_perfect_teams=random.choice(BONUS_G4_OPTIONS),
-            g5_clean_sheet_teams=random.choice(BONUS_G5_OPTIONS),
-            k1_total_goals_knockout=random.choice(BONUS_K1_OPTIONS),
-            k2_penalty_shootouts=random.choice(BONUS_K2_OPTIONS),
-            k3_third_place_quarters=random.choice(BONUS_K3_OPTIONS),
-            t1_total_goals_tournament=random.choice(BONUS_T1_OPTIONS),
-            t2_scoreless_draws=random.choice(BONUS_T2_OPTIONS),
-        )
+        bonus = BonusPrediction(user_id=user_id, **fields)
         db.add(bonus)
     db.flush()
 
