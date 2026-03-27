@@ -67,6 +67,7 @@ export interface AppConfig {
   current_stage: string;
   penalty_per_change: number;
   stage_timeline?: StageTimelineEntry[];
+  is_admin?: boolean;
 }
 
 export interface User {
@@ -1024,12 +1025,18 @@ export class ApiService {
   async getAppConfig(): Promise<AppConfig> {
     try {
       const timestamp = new Date().getTime();
-      const response = await fetch(`${this.baseUrl}/api/app/config?_t=${timestamp}`);
-      
+      const headers: Record<string, string> = {};
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
+      const response = await fetch(`${this.baseUrl}/api/app/config?_t=${timestamp}`, {
+        headers,
+      });
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       return data;
     } catch (error) {

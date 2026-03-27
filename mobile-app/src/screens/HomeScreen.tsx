@@ -121,18 +121,20 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [currentStage, setCurrentStage] = React.useState<string | null>(null);
+  const [isAdminFromConfig, setIsAdminFromConfig] = React.useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
       apiService.getAppConfig().then((config) => {
         if (config?.current_stage) setCurrentStage(config.current_stage);
+        setIsAdminFromConfig(config?.is_admin === true);
       }).catch(() => {});
     }, [])
   );
 
   const isAdmin =
-    (user?.user_id != null && user.user_id >= 1 && user.user_id <= 10) ||
-    user?.is_admin === true;
+    currentStage !== null &&
+    ((user?.is_admin === true) || isAdminFromConfig);
 
   const renderButton = (action: (typeof actions)[0]) => {
     const glowStyle =
