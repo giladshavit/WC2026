@@ -82,6 +82,28 @@ type FieldKey = (typeof ALL_FIELDS)[number];
 const PILL_FIELDS = ['g1', 'g4', 'g5', 'g6', 'k1', 'k2', 'k3', 't1', 't3'];
 const PICKER_FIELDS = ['g2', 'g3', 't2'];
 
+const FLAG_CODE_TO_EMOJI: Record<string, string> = {
+  'fr': '🇫🇷',
+  'gb-eng': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+  'no': '🇳🇴',
+  'es': '🇪🇸',
+  'ar': '🇦🇷',
+  'pt': '🇵🇹',
+  'be': '🇧🇪',
+  'br': '🇧🇷',
+  'nl': '🇳🇱',
+  'de': '🇩🇪',
+  'eg': '🇪🇬',
+  'sn': '🇸🇳',
+  'uy': '🇺🇾',
+  'gb-sct': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  'us': '🇺🇸',
+  'mx': '🇲🇽',
+  'ma': '🇲🇦',
+  'jp': '🇯🇵',
+  'hr': '🇭🇷',
+};
+
 const { width: screenWidth } = Dimensions.get('window');
 
 const SECTION_ICONS: Record<string, string> = {
@@ -151,29 +173,6 @@ const T1_OPTIONS = [
   { value: '220_249', label: '220–249' },
   { value: '250_280', label: '250–280' },
   { value: '280_plus', label: '280+' },
-];
-const T3_OPTIONS = [
-  { value: 'mbappe', label: 'Kylian Mbappé', flag: '🇫🇷' },
-  { value: 'kane', label: 'Harry Kane', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-  { value: 'haaland', label: 'Erling Haaland', flag: '🇳🇴' },
-  { value: 'yamal', label: 'Lamine Yamal', flag: '🇪🇸' },
-  { value: 'messi', label: 'Lionel Messi', flag: '🇦🇷' },
-  { value: 'ronaldo', label: 'Cristiano Ronaldo', flag: '🇵🇹' },
-  { value: 'lukaku', label: 'Romelu Lukaku', flag: '🇧🇪' },
-  { value: 'vinicius', label: 'Vinícius Jr.', flag: '🇧🇷' },
-  { value: 'lautaro', label: 'Lautaro Martínez', flag: '🇦🇷' },
-  { value: 'bellingham', label: 'Jude Bellingham', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-  { value: 'alvarez', label: 'Julián Álvarez', flag: '🇦🇷' },
-  { value: 'gakpo', label: 'Cody Gakpo', flag: '🇳🇱' },
-  { value: 'saka', label: 'Bukayo Saka', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-  { value: 'nunez', label: 'Darwin Núñez', flag: '🇺🇾' },
-  { value: 'wirtz', label: 'Florian Wirtz', flag: '🇩🇪' },
-  { value: 'dembele', label: 'Ousmane Dembélé', flag: '🇫🇷' },
-  { value: 'bruno', label: 'Bruno Fernandes', flag: '🇵🇹' },
-  { value: 'memphis', label: 'Memphis Depay', flag: '🇳🇱' },
-  { value: 'salah', label: 'Mohamed Salah', flag: '🇪🇬' },
-  { value: 'mane', label: 'Sadio Mané', flag: '🇸🇳' },
-  { value: 'other', label: 'Other', flag: undefined as any },
 ];
 
 const K3_OPTIONS = [
@@ -915,7 +914,6 @@ export default function BonusScreen() {
       k2: K2_OPTIONS,
       k3: K3_OPTIONS,
       t1: T1_OPTIONS,
-      t3: T3_OPTIONS,
     };
     const apiOpts = options?.[field as keyof BonusOptions];
     if (apiOpts && apiOpts.length > 0) return apiOpts;
@@ -934,7 +932,8 @@ export default function BonusScreen() {
       return t?.name ?? String(value);
     }
     if (field === 't3') {
-      return T3_OPTIONS.find((o) => o.value === String(value))?.label ?? String(value);
+      const t3Opts = options?.t3 ?? [];
+      return t3Opts.find((o: any) => o.value === String(value))?.label ?? String(value);
     }
     const optMap: Record<string, Array<{ value: string; label: string }>> = {
       g1: options?.g1 ?? [],
@@ -945,7 +944,7 @@ export default function BonusScreen() {
       k2: K2_OPTIONS,
       k3: K3_OPTIONS,
       t1: T1_OPTIONS,
-      t3: T3_OPTIONS,
+      t3: options?.t3 ?? [],
     };
     const opt = (optMap[field] ?? []).find((o) => o.value === String(value));
     return opt?.label ?? String(value);
@@ -1530,7 +1529,7 @@ export default function BonusScreen() {
             justifyContent: 'center',
           }}
         >
-          {T3_OPTIONS.map((opt) => {
+          {getOptionsForField('t3').map((opt) => {
             const selected = String(localAnswers[field] ?? '') === opt.value;
             const lockedStyle = !isEditable ? getLockedPillStyle(opt.value) : null;
             return (
@@ -1556,11 +1555,14 @@ export default function BonusScreen() {
                 onPress={isEditable ? () => handleSelect(field, opt.value) : undefined}
                 activeOpacity={isEditable ? 0.7 : 1}
               >
-                {opt.flag ? (
-                  <Text style={{ fontSize: 18, lineHeight: 22 }}>{opt.flag}</Text>
-                ) : (
-                  <View style={{ width: 22, height: 16, borderRadius: 2, backgroundColor: '#334155' }} />
-                )}
+                {(() => {
+                  const emoji = (opt as any).flag
+                    ? FLAG_CODE_TO_EMOJI[(opt as any).flag] ?? null
+                    : null;
+                  return emoji
+                    ? <Text style={{ fontSize: 18, lineHeight: 22 }}>{emoji}</Text>
+                    : <View style={{ width: 22, height: 16, borderRadius: 2, backgroundColor: '#334155' }} />;
+                })()}
                 <Text
                   style={[
                     { fontSize: 12, fontWeight: '600', color: '#94a3b8', flex: 1 },
