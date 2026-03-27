@@ -1039,7 +1039,6 @@ export default function LeagueDetailsScreen() {
               if (scoreMode === 'multi') return;
               skipNextFetchRef.current = true;
               setPage(1);
-              setAllStandings([]);
               setSortBy('total');
               setScoreMode('multi');
               setScoreModeLoading(true);
@@ -1068,7 +1067,6 @@ export default function LeagueDetailsScreen() {
               if (scoreMode === 'classic') return;
               skipNextFetchRef.current = true;
               setPage(1);
-              setAllStandings([]);
               setSortBy('total');
               setScoreMode('classic');
               setScoreModeLoading(true);
