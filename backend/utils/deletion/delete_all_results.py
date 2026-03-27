@@ -112,7 +112,10 @@ def delete_path_results():
         # Delete third place results
         deleted_third_place = db.query(ThirdPlaceResult).delete()
         print(f"Deleted {deleted_third_place} third place results")
-        
+
+        # Clear FK from matches_template so knockout_stage_results rows can be removed (PostgreSQL)
+        db.execute(text("UPDATE matches_template SET knockout_result_id = NULL"))
+
         # Delete knockout stage results
         deleted_knockout = db.query(KnockoutStageResult).delete()
         print(f"Deleted {deleted_knockout} knockout stage results")
