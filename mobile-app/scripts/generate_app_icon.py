@@ -14,30 +14,32 @@ from PIL import Image, ImageDraw, ImageFont
 SIZE = 1024
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 TROPHY_PATH = ASSETS / "trophy.png"
+FOOTBALL_PATH = ASSETS / "football_2026.png"
+
+TROPHY_TARGET = 260  # היה 220 — גביע קצת יותר גדול
+TROPHY_CENTER_Y = 720  # היה 760
+TEXT_BASELINE_Y = 490  # היה 530
+FONT_SIZE = 168  # היה 162 — קצת יותר גדול כי הטקסט עכשיו ה-hero
 
 # Navy radial gradient: lighter center, darker edges
 CENTER = (26, 42, 74)
 EDGE = (8, 12, 28)
 GOLD = (212, 175, 55)
-# Max bounding-box side for the "P" (slightly larger = bigger letter on the icon).
-P_MAX_SIDE = 835
-# How much of the counter the trophy fills horizontally vs vertically (lower = more margin around trophy).
-TROPHY_HOLE_FILL_X = 0.92
-TROPHY_HOLE_FILL_Y = 0.88
 
 
-def _find_p_font() -> str:
-    """Prefer a bold-but-not-heavy weight so the bowl is wider and the trophy can scale up."""
+def _find_predict_font() -> str:
+    """Prefer Arial Black / heaviest bold for the wordmark."""
     candidates = [
+        "/System/Library/Fonts/Supplemental/Arial Black.ttf",
+        "/Library/Fonts/Arial Black.ttf",
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
         "/Library/Fonts/Arial Bold.ttf",
-        "/System/Library/Fonts/Supplemental/Arial Black.ttf",
         "/System/Library/Fonts/Helvetica.ttc",
     ]
     for p in candidates:
         if Path(p).exists():
             return p
-    print("No suitable system font found; install Arial Bold.", file=sys.stderr)
+    print("No suitable system font found; install Arial Black or Arial Bold.", file=sys.stderr)
     sys.exit(1)
 
 
@@ -80,90 +82,58 @@ def _draw_squircle_border(img: Image.Image, inset: int = 8, radius: int = 200, w
         )
 
 
-def _pick_font_size(font_path: str, max_side: int = P_MAX_SIDE) -> tuple[ImageFont.FreeTypeFont, tuple[int, int, int, int]]:
-    """Return font and text bbox (0,0) anchored for 'P'."""
-    draw = ImageDraw.Draw(Image.new("RGB", (1, 1)))
-    for size in range(860, 280, -4):
-        try:
-            font = ImageFont.truetype(font_path, size)
-        except OSError:
-            continue
-        bb = draw.textbbox((0, 0), "P", font=font)
-        tw, th = bb[2] - bb[0], bb[3] - bb[1]
-        if tw <= max_side and th <= max_side:
-            return font, bb
-    font = ImageFont.truetype(font_path, 280)
-    bb = draw.textbbox((0, 0), "P", font=font)
-    return font, bb
+def _cap_height(font: ImageFont.FreeTypeFont) -> int:
+    """Cap height from font metrics (H bbox)."""
+    l, t, r, b = font.getbbox("H")
+    return max(1, b - t)
 
 
-def _render_p_mask_white_on_black(font: ImageFont.FreeTypeFont, bb: tuple[int, int, int, int]) -> Image.Image:
-    """White P on black; used for hole detection."""
-    img = Image.new("RGB", (SIZE, SIZE), (0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    tw = bb[2] - bb[0]
-    th = bb[3] - bb[1]
-    x = (SIZE - tw) // 2 - bb[0]
-    y = (SIZE - th) // 2 - bb[1]
-    draw.text((x, y), "P", font=font, fill=(255, 255, 255))
-    return img
+def _text_advance(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont) -> float:
+    if hasattr(draw, "textlength"):
+        return float(draw.textlength(text, font=font))
+    l, t, r, b = draw.textbbox((0, 0), text, font=font, anchor="ls")
+    return float(r - l)
 
 
-def _hole_centroid_and_span(mask_bw: Image.Image) -> tuple[tuple[float, float], tuple[int, int, int, int]]:
-    """Exterior flood-filled; remaining black is the counter (hole)."""
-    img = mask_bw.convert("RGB").copy()
-    ImageDraw.floodfill(img, (0, 0), (255, 0, 0))
-    px = img.load()
-    xs: list[int] = []
-    ys: list[int] = []
-    for y in range(SIZE):
-        for x in range(SIZE):
-            if px[x, y] == (0, 0, 0):
-                xs.append(x)
-                ys.append(y)
-    if not xs:
-        return ((SIZE / 2, SIZE / 2), (0, 0, SIZE, SIZE))
-    cx = sum(xs) / len(xs)
-    cy = sum(ys) / len(ys)
-    hl, hr = min(xs), max(xs)
-    ht, hb = min(ys), max(ys)
-    return (cx, cy), (hl, ht, hr, hb)
+def _compose_foreground_rgba(trophy: Image.Image, font: ImageFont.FreeTypeFont) -> Image.Image:
+    """Transparent background: trophy + PREDICT + ball as O (no border, no radial bg)."""
+    out = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
 
-
-def _compose_p_trophy_rgba(
-    font: ImageFont.FreeTypeFont,
-    bb: tuple[int, int, int, int],
-    trophy: Image.Image,
-    hole_cx: float,
-    hole_cy: float,
-    hole_box: tuple[int, int, int, int],
-) -> Image.Image:
-    """Transparent background; trophy behind white P."""
-    tw = bb[2] - bb[0]
-    th = bb[3] - bb[1]
-    tx = (SIZE - tw) // 2 - bb[0]
-    ty = (SIZE - th) // 2 - bb[1]
-
-    hl, ht, hr, hb = hole_box
-    hole_w = max(1, hr - hl)
-    hole_h = max(1, hb - ht)
-    scale = min(
-        hole_w * TROPHY_HOLE_FILL_X / trophy.width,
-        hole_h * TROPHY_HOLE_FILL_Y / trophy.height,
-    )
+    scale = TROPHY_TARGET / trophy.height
     tw_img = max(1, int(trophy.width * scale))
     th_img = max(1, int(trophy.height * scale))
     trophy_r = trophy.resize((tw_img, th_img), Image.Resampling.LANCZOS)
-
-    out = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    tlx = int(round(hole_cx - tw_img / 2))
-    tly = int(round(hole_cy - th_img / 2))
+    tlx = (SIZE - tw_img) // 2
+    tly = int(round(TROPHY_CENTER_Y - th_img / 2))
     out.alpha_composite(trophy_r, (tlx, tly))
 
-    p_layer = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    p_draw = ImageDraw.Draw(p_layer)
-    p_draw.text((tx, ty), "P", font=font, fill=(255, 255, 255, 255))
-    out = Image.alpha_composite(out, p_layer)
+    cap_h = _cap_height(font)
+    ball_d = float(cap_h) * 1.3
+    ball_r = ball_d / 2
+
+    layer = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    word = "PREDICT"
+    tw = _text_advance(draw, word, font)
+    total_w = tw + ball_d
+    text_start_x = (SIZE - total_w) / 2
+    ball_cx = text_start_x + tw + ball_r
+    ball_cy = TEXT_BASELINE_Y - cap_h / 2
+
+    draw.text(
+        (text_start_x, TEXT_BASELINE_Y),
+        word,
+        font=font,
+        fill=(255, 255, 255, 255),
+        anchor="ls",
+    )
+
+    ball_side = max(1, int(round(ball_d)))
+    football = Image.open(FOOTBALL_PATH).convert("RGBA")
+    football_r = football.resize((ball_side, ball_side), Image.Resampling.LANCZOS)
+    layer.alpha_composite(football_r, (int(ball_cx - ball_r), int(ball_cy - ball_r)))
+
+    out = Image.alpha_composite(out, layer)
     return out
 
 
@@ -171,19 +141,23 @@ def main() -> None:
     if not TROPHY_PATH.exists():
         print(f"Missing {TROPHY_PATH}", file=sys.stderr)
         sys.exit(1)
+    if not FOOTBALL_PATH.exists():
+        print(f"Missing {FOOTBALL_PATH}", file=sys.stderr)
+        sys.exit(1)
 
-    font_path = _find_p_font()
-    font, bb = _pick_font_size(font_path)
-    mask = _render_p_mask_white_on_black(font, bb)
-    (hole_cx, hole_cy), hole_box = _hole_centroid_and_span(mask)
+    font_path = _find_predict_font()
+    try:
+        font = ImageFont.truetype(font_path, FONT_SIZE)
+    except OSError:
+        print(f"Failed to load font: {font_path}", file=sys.stderr)
+        sys.exit(1)
 
     trophy = Image.open(TROPHY_PATH).convert("RGBA")
-    fg = _compose_p_trophy_rgba(font, bb, trophy, hole_cx, hole_cy, hole_box)
+    fg = _compose_foreground_rgba(trophy, font)
 
     bg = _make_radial_background()
     bg = bg.convert("RGBA")
     bg.alpha_composite(fg, (0, 0))
-    _draw_squircle_border(bg)
     out_main = ASSETS / "icon.png"
     bg.convert("RGB").save(out_main, "PNG", optimize=True)
     print(f"Wrote {out_main}")
