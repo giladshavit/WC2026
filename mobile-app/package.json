@@ -8,7 +8,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "make-trophy-transparent": "node scripts/make-trophy-transparent.js",
-    "generate-app-icon": ".venv-icon/bin/python scripts/generate_app_icon.py"
+    "generate-app-icon": ".venv-icon/bin/python scripts/generate_app_icon.py",
+    "generate-feature-graphic": ".venv-icon/bin/python scripts/create_feature_graphic.py"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
