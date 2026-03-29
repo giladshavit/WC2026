@@ -548,6 +548,18 @@ export class ApiService {
     }
   }
 
+  async deleteAccount(): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/auth/account`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete account');
+    }
+  }
+
   async refreshToken(): Promise<AuthResponse> {
     try {
       const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {

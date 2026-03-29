@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiService } from '../../services/api';
@@ -17,9 +17,12 @@ import { useToast } from '../../components/toast/Toast';
 import { ConfirmationModal } from '../../components/modals/CustomModals';
 
 export default function MyProfileScreen() {
+  const navigation = useNavigation();
   const { user, logout, getCurrentUserId } = useAuth();
   const { showToast } = useToast();
   const [signOutModal, setSignOutModal] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
   const [totalPoints, setTotalPoints] = useState<number>(user?.total_points ?? 0);
   const [pointsLoading, setPointsLoading] = useState(true);
 
@@ -46,8 +49,32 @@ export default function MyProfileScreen() {
     }, [getCurrentUserId])
   );
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setMenuVisible((v) => !v)}
+          style={{ paddingRight: 16, paddingVertical: 8 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Profile menu"
+        >
+          <Ionicons name="ellipsis-vertical" size={22} color="#94a3b8" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
+
   const handleLogout = () => {
     setSignOutModal(true);
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      await apiService.deleteAccount();
+      await logout();
+    } catch (e) {
+      showToast('Something went wrong. Please try again.', 'error');
+    }
   };
 
   return (
@@ -125,6 +152,40 @@ export default function MyProfileScreen() {
         }}
         onCancel={() => setSignOutModal(false)}
       />
+      {menuVisible && (
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          onPress={() => setMenuVisible(false)}
+          activeOpacity={1}
+        />
+      )}
+      {menuVisible && (
+        <View style={styles.menuDropdownFloating}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              setMenuVisible(false);
+              setDeleteModal(true);
+            }}
+          >
+            <Ionicons name="trash-outline" size={14} color="#ef4444" />
+            <Text style={styles.menuItemText}>Delete Account</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      <ConfirmationModal
+        visible={deleteModal}
+        title="Delete Account"
+        message="This will permanently delete your account and all your predictions. This cannot be undone."
+        confirmLabel="Delete My Account"
+        cancelLabel="Cancel"
+        destructive={true}
+        onConfirm={() => {
+          setDeleteModal(false);
+          handleDeleteAccount();
+        }}
+        onCancel={() => setDeleteModal(false)}
+      />
       </SafeAreaView>
     </>
   );
@@ -141,6 +202,43 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     paddingHorizontal: 24,
     alignItems: 'center',
+  },
+  menuOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 99,
+  },
+  menuDropdownFloating: {
+    position: 'absolute',
+    right: 16,
+    top: 8,
+    zIndex: 101,
+    backgroundColor: '#1e293b',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: 2,
+    minWidth: 140,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 11,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  menuItemText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#ef4444',
   },
   avatarContainer: {
     marginBottom: 12,

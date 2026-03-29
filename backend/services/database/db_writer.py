@@ -161,6 +161,34 @@ class DBWriter:
         db.flush()
         return scores
 
+    @staticmethod
+    def delete_user_account(db: Session, user_id: int) -> None:
+        """Delete all user data in FK-safe order, then the user record."""
+        from sqlalchemy import delete
+        from models.password_reset_token import PasswordResetToken
+
+        leagues_owned = db.query(League).filter(League.created_by == user_id).all()
+        for league in leagues_owned:
+            members = db.query(LeagueMembership).filter(LeagueMembership.league_id == league.id).all()
+            others = [m for m in members if m.user_id != user_id]
+            if not others:
+                DBWriter.delete_league(db, league.id)
+            else:
+                others.sort(key=lambda m: m.joined_at)
+                DBWriter.update_league_owner(db, league.id, others[0].user_id)
+
+        db.execute(delete(KnockoutStagePredictionDraft).where(KnockoutStagePredictionDraft.user_id == user_id))
+        db.execute(delete(KnockoutStagePrediction).where(KnockoutStagePrediction.user_id == user_id))
+        db.execute(delete(MatchPrediction).where(MatchPrediction.user_id == user_id))
+        db.execute(delete(GroupStagePrediction).where(GroupStagePrediction.user_id == user_id))
+        db.execute(delete(ThirdPlacePrediction).where(ThirdPlacePrediction.user_id == user_id))
+        db.execute(delete(BonusPrediction).where(BonusPrediction.user_id == user_id))
+        db.execute(delete(LeagueMembership).where(LeagueMembership.user_id == user_id))
+        db.execute(delete(UserScores).where(UserScores.user_id == user_id))
+        db.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user_id))
+        db.execute(delete(User).where(User.id == user_id))
+        db.flush()
+
     # ═══════════════════════════════════════════════════════
     # MATCHES
     # ═══════════════════════════════════════════════════════

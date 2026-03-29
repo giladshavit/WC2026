@@ -11,9 +11,10 @@ import re
 from main import limiter
 from database import get_db
 from services.auth_service import AuthService
+from services.database import DBWriter
 from models.user import User
 
-router = APIRouter()
+router = APIRouter(prefix="/auth")
 security = HTTPBearer()
 
 # Pydantic models for request/response
@@ -105,7 +106,7 @@ def get_current_user(
             detail="Invalid authentication credentials"
         )
 
-@router.post("/auth/register", response_model=AuthResponse)
+@router.post("/register", response_model=AuthResponse)
 def register_user(
     user_data: UserRegisterRequest,
     db: Session = Depends(get_db)
@@ -135,7 +136,7 @@ def register_user(
             detail=f"Registration failed: {str(e)}"
         )
 
-@router.post("/auth/login", response_model=AuthResponse)
+@router.post("/login", response_model=AuthResponse)
 @limiter.limit("20/15minutes")
 def login_user(
     request: Request,
@@ -163,12 +164,12 @@ def login_user(
             detail=f"Login failed: {str(e)}"
         )
 
-@router.post("/auth/forgot-password", status_code=200)
+@router.post("/forgot-password", status_code=200)
 def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
     AuthService.request_password_reset(db, data.email.strip().lower())
     return {"message": "If this email is registered, a reset code was sent."}
 
-@router.post("/auth/reset-password", status_code=200)
+@router.post("/reset-password", status_code=200)
 def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
     AuthService.reset_password_with_otp(
         db,
@@ -178,7 +179,16 @@ def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
     )
     return {"message": "Password reset successfully"}
 
-@router.get("/auth/me", response_model=UserResponse)
+@router.delete("/account", status_code=200)
+def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    DBWriter.delete_user_account(db, current_user.id)
+    return {"message": "Account deleted successfully"}
+
+
+@router.get("/me", response_model=UserResponse)
 def get_current_user_info(
     current_user: User = Depends(get_current_user)
 ):
@@ -197,7 +207,7 @@ def get_current_user_info(
         last_login=current_user.last_login.isoformat() if current_user.last_login else None
     )
 
-@router.post("/auth/refresh", response_model=AuthResponse)
+@router.post("/refresh", response_model=AuthResponse)
 def refresh_token(
     current_user: User = Depends(get_current_user)
 ):
