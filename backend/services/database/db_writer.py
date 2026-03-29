@@ -187,7 +187,7 @@ class DBWriter:
         db.execute(delete(UserScores).where(UserScores.user_id == user_id))
         db.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user_id))
         db.execute(delete(User).where(User.id == user_id))
-        db.flush()
+        db.commit()
 
     # ═══════════════════════════════════════════════════════
     # MATCHES
