@@ -9,27 +9,55 @@ import random
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 SIZE = 1024
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 TROPHY_PATH = ASSETS / "trophy.png"
 FOOTBALL_PATH = ASSETS / "football_2026.png"
 
-TROPHY_TARGET = 260  # היה 220 — גביע קצת יותר גדול
-TROPHY_CENTER_Y = 720  # היה 760
-TEXT_BASELINE_Y = 490  # היה 530
-FONT_SIZE = 168  # היה 162 — קצת יותר גדול כי הטקסט עכשיו ה-hero
+# Dimensions and positions for the perfect pyramidal composition (from image_13.png)
+TROPHY_TARGET = 260  # Scaled down to avoid clipping
+TROPHY_CENTER_Y = 698  # slightly up — balances with text toward canvas center
+TEXT_BASELINE_Y = 458  # closer to vertical middle (512)
+FONT_SIZE = 156  # slightly larger wordmark
 
-# Navy radial gradient: lighter center, darker edges
+# Navy radial gradient: lighter center, darker edges (starry field background)
 CENTER = (26, 42, 74)
 EDGE = (8, 12, 28)
-GOLD = (212, 175, 55)
+
+# Solid gold for glow mask (#FFD700) before Gaussian blur
+GLOW_GOLD_RGBA = (255, 215, 0, 255)
+GLOW_BLUR_RADIUS = 18
 
 
 def _find_predict_font() -> str:
-    """Prefer Arial Black / heaviest bold for the wordmark."""
+    """Prefer modern geometric sans (Montserrat, Avenir, Roboto) before Arial/Helvetica."""
     candidates = [
+        # Montserrat — macOS / user Library
+        "/Library/Fonts/Montserrat-Black.ttf",
+        "/Library/Fonts/Montserrat Black.ttf",
+        "/System/Library/Fonts/Supplemental/Montserrat-Black.ttf",
+        # Montserrat — Windows
+        "C:/Windows/Fonts/Montserrat-Black.ttf",
+        "C:/Windows/Fonts/Montserrat-Bold.ttf",
+        "C:/Windows/Fonts/montserrat_black.ttf",
+        "C:/Windows/Fonts/montserrat_bold.ttf",
+        # Avenir Next — macOS system
+        "/System/Library/Fonts/Supplemental/Avenir Next.ttc",
+        "/System/Library/Fonts/Supplemental/Avenir Next Condensed.ttc",
+        "/Library/Fonts/Avenir Next.ttc",
+        "/Library/Fonts/Avenir Next Condensed.ttc",
+        # Avenir — Windows (if installed)
+        "C:/Windows/Fonts/Avenir Next Heavy.ttf",
+        "C:/Windows/Fonts/AvenirNext-Heavy.ttf",
+        "C:/Windows/Fonts/Avenir Next Condensed Heavy.ttf",
+        # Roboto
+        "/Library/Fonts/Roboto-Black.ttf",
+        "/System/Library/Fonts/Supplemental/Roboto-Black.ttf",
+        "C:/Windows/Fonts/Roboto-Black.ttf",
+        "C:/Windows/Fonts/Roboto-Bold.ttf",
+        # Fallbacks — Arial / Helvetica (broad availability)
         "/System/Library/Fonts/Supplemental/Arial Black.ttf",
         "/Library/Fonts/Arial Black.ttf",
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
@@ -39,11 +67,15 @@ def _find_predict_font() -> str:
     for p in candidates:
         if Path(p).exists():
             return p
-    print("No suitable system font found; install Arial Black or Arial Bold.", file=sys.stderr)
+    print(
+        "No suitable font found. Install Montserrat Black, Roboto Black, or Arial Black.",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 
 def _make_radial_background() -> Image.Image:
+    """Create the dark navy blue starry field with radial gradient."""
     img = Image.new("RGB", (SIZE, SIZE))
     px = img.load()
     cx, cy = SIZE / 2, SIZE / 2
@@ -69,19 +101,6 @@ def _make_radial_background() -> Image.Image:
     return img
 
 
-def _draw_squircle_border(img: Image.Image, inset: int = 8, radius: int = 200, width: int = 3) -> None:
-    draw = ImageDraw.Draw(img)
-    r, g, b = GOLD
-    for w in range(width):
-        o = inset + w
-        draw.rounded_rectangle(
-            [o, o, SIZE - 1 - o, SIZE - 1 - o],
-            radius=radius,
-            outline=(r, g, b),
-            width=1,
-        )
-
-
 def _cap_height(font: ImageFont.FreeTypeFont) -> int:
     """Cap height from font metrics (H bbox)."""
     l, t, r, b = font.getbbox("H")
@@ -95,9 +114,21 @@ def _text_advance(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeType
     return float(r - l)
 
 
-def _compose_foreground_rgba(trophy: Image.Image, font: ImageFont.FreeTypeFont) -> Image.Image:
-    """Transparent background: trophy + PREDICT + ball as O (no border, no radial bg)."""
-    out = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+def _gold_silhouette(rgba: Image.Image) -> Image.Image:
+    """Solid #FFD700 with the source alpha channel (for glow mask)."""
+    gold = Image.new("RGBA", rgba.size, GLOW_GOLD_RGBA)
+    gold.putalpha(rgba.split()[3])
+    return gold
+
+
+def _build_foreground_layers(
+    trophy: Image.Image,
+    font: ImageFont.FreeTypeFont,
+    football_src: Image.Image,
+) -> tuple[Image.Image, Image.Image]:
+    """Return (gold glow mask pre-blur, sharp foreground with original colors)."""
+    glow_mask = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    sharp = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
 
     scale = TROPHY_TARGET / trophy.height
     tw_img = max(1, int(trophy.width * scale))
@@ -105,22 +136,34 @@ def _compose_foreground_rgba(trophy: Image.Image, font: ImageFont.FreeTypeFont) 
     trophy_r = trophy.resize((tw_img, th_img), Image.Resampling.LANCZOS)
     tlx = (SIZE - tw_img) // 2
     tly = int(round(TROPHY_CENTER_Y - th_img / 2))
-    out.alpha_composite(trophy_r, (tlx, tly))
 
+    glow_mask.alpha_composite(_gold_silhouette(trophy_r), (tlx, tly))
+    sharp.alpha_composite(trophy_r, (tlx, tly))
+
+    word = "PREDICTO"
     cap_h = _cap_height(font)
-    ball_d = float(cap_h) * 1.3
+    measure = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+    pre = "PREDICT"
+    pre_w = _text_advance(measure, pre, font)
+    ball_d = float(cap_h) * 1.5
     ball_r = ball_d / 2
-
-    layer = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(layer)
-    word = "PREDICT"
-    tw = _text_advance(draw, word, font)
-    total_w = tw + ball_d
-    text_start_x = (SIZE - total_w) / 2
-    ball_cx = text_start_x + tw + ball_r
+    ball_side = max(1, int(round(ball_d)))
+    l, t, r, b = font.getbbox("O")
+    o_char_w = float(r - l)
+    # Ball center on the O glyph (scales with FONT_SIZE); span = P through ball's right edge
+    visual_w = pre_w + o_char_w / 2 + ball_r
+    text_start_x = (SIZE - visual_w) / 2
+    ball_cx = text_start_x + pre_w + o_char_w / 2
     ball_cy = TEXT_BASELINE_Y - cap_h / 2
 
-    draw.text(
+    ImageDraw.Draw(glow_mask).text(
+        (text_start_x, TEXT_BASELINE_Y),
+        word,
+        font=font,
+        fill=GLOW_GOLD_RGBA,
+        anchor="ls",
+    )
+    ImageDraw.Draw(sharp).text(
         (text_start_x, TEXT_BASELINE_Y),
         word,
         font=font,
@@ -128,21 +171,23 @@ def _compose_foreground_rgba(trophy: Image.Image, font: ImageFont.FreeTypeFont) 
         anchor="ls",
     )
 
-    ball_side = max(1, int(round(ball_d)))
-    football = Image.open(FOOTBALL_PATH).convert("RGBA")
-    football_r = football.resize((ball_side, ball_side), Image.Resampling.LANCZOS)
-    layer.alpha_composite(football_r, (int(ball_cx - ball_r), int(ball_cy - ball_r)))
+    football_r = football_src.resize((ball_side, ball_side), Image.Resampling.LANCZOS)
+    bx, by = int(ball_cx - ball_r), int(ball_cy - ball_r)
 
-    out = Image.alpha_composite(out, layer)
-    return out
+    glow_mask.alpha_composite(_gold_silhouette(football_r), (bx, by))
+    sharp.alpha_composite(football_r, (bx, by))
+
+    return glow_mask, sharp
 
 
 def main() -> None:
     if not TROPHY_PATH.exists():
-        print(f"Missing {TROPHY_PATH}", file=sys.stderr)
+        print(f"Error: Missing trophy image at {TROPHY_PATH}", file=sys.stderr)
+        print("Please place the trophy.png from your asset bundle in the assets folder.", file=sys.stderr)
         sys.exit(1)
     if not FOOTBALL_PATH.exists():
-        print(f"Missing {FOOTBALL_PATH}", file=sys.stderr)
+        print(f"Error: Missing football image at {FOOTBALL_PATH}", file=sys.stderr)
+        print("Please place the football_2026.png from your asset bundle in the assets folder.", file=sys.stderr)
         sys.exit(1)
 
     font_path = _find_predict_font()
@@ -153,16 +198,24 @@ def main() -> None:
         sys.exit(1)
 
     trophy = Image.open(TROPHY_PATH).convert("RGBA")
-    fg = _compose_foreground_rgba(trophy, font)
+    football = Image.open(FOOTBALL_PATH).convert("RGBA")
+    glow_mask, sharp_fg = _build_foreground_layers(trophy, font, football)
+    glow_blurred = glow_mask.filter(ImageFilter.GaussianBlur(GLOW_BLUR_RADIUS))
 
     bg = _make_radial_background()
     bg = bg.convert("RGBA")
-    bg.alpha_composite(fg, (0, 0))
+    for _ in range(3):
+        bg.alpha_composite(glow_blurred, (0, 0))
+    bg.alpha_composite(sharp_fg, (0, 0))
     out_main = ASSETS / "icon.png"
     bg.convert("RGB").save(out_main, "PNG", optimize=True)
     print(f"Wrote {out_main}")
 
-    fg.save(ASSETS / "adaptive-icon.png", "PNG", optimize=True)
+    adaptive = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    for _ in range(3):
+        adaptive.alpha_composite(glow_blurred, (0, 0))
+    adaptive.alpha_composite(sharp_fg, (0, 0))
+    adaptive.save(ASSETS / "adaptive-icon.png", "PNG", optimize=True)
     print(f"Wrote {ASSETS / 'adaptive-icon.png'}")
 
 
