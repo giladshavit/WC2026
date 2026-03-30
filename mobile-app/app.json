@@ -14,11 +14,11 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.predicto.app",
+      "bundleIdentifier": "com.predictoapp.football",
       "buildNumber": "1"
     },
     "android": {
-      "package": "com.predicto.app",
+      "package": "com.predictoapp.football",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
