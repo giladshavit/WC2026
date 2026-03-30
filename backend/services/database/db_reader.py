@@ -215,6 +215,68 @@ class DBReader:
         return db.query(Match).all()
 
     @staticmethod
+    def get_all_matches_with_teams(db: Session) -> List[Match]:
+        """Load all matches with home_team and away_team eagerly. Prevents lazy-load N+1 on team access."""
+        from sqlalchemy.orm import joinedload
+        return (
+            db.query(Match)
+            .options(
+                joinedload(Match.home_team),
+                joinedload(Match.away_team),
+            )
+            .all()
+        )
+
+    @staticmethod
+    def get_matches_with_predictions_and_results(db: Session, user_id: int) -> List[dict]:
+        """
+        Single optimized query: matches + teams + user predictions + match results.
+        Returns rows sorted by date ASC, filtered to matches with both teams set.
+        Replaces 3 separate queries + Python loop.
+        """
+        rows = db.execute(
+            text("""
+            SELECT
+                m.id,
+                m.stage,
+                m.status,
+                m.date,
+                m."group",
+                m.match_number,
+                m.home_team_source,
+                m.away_team_source,
+                m.home_team_id,
+                ht.name        AS home_team_name,
+                ht.flag_url    AS home_team_flag,
+                m.away_team_id,
+                at.name        AS away_team_name,
+                at.flag_url    AS away_team_flag,
+                mp.home_score  AS pred_home_score,
+                mp.away_score  AS pred_away_score,
+                mp.predicted_winner,
+                mp.points      AS pred_points,
+                mp.is_editable AS pred_is_editable,
+                mp.is_tempted  AS pred_is_tempted,
+                mp.status      AS pred_status,
+                mr.home_team_score  AS result_home,
+                mr.away_team_score  AS result_away,
+                mr.winner_team_id   AS result_winner_team_id
+            FROM matches m
+            JOIN teams ht ON ht.id = m.home_team_id
+            JOIN teams at ON at.id = m.away_team_id
+            LEFT JOIN match_predictions mp
+                ON mp.match_id = m.id AND mp.user_id = :user_id
+            LEFT JOIN match_results mr
+                ON mr.match_id = m.id
+            WHERE m.home_team_id IS NOT NULL
+              AND m.away_team_id IS NOT NULL
+            ORDER BY m.date ASC
+        """),
+            {"user_id": user_id}
+        ).mappings().all()
+        return [dict(r) for r in rows]
+
+    @staticmethod
     def get_matches_with_teams(db: Session) -> List[Match]:
         return db.query(Match).filter(
             and_(

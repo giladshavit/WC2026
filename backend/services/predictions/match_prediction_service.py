@@ -60,26 +60,15 @@ class MatchPredictionService:
     @staticmethod
     def get_all_matches_with_predictions(db: Session, user_id: int) -> Dict[str, Any]:
         """
-        Get all matches with the user's predictions and user scores.
+        Get all matches with user predictions and results.
+        Single SQL query — no loop overhead, pre-sorted by date.
         """
-        matches = DBReader.get_all_matches(db)
+        rows = DBReader.get_matches_with_predictions_and_results(db, user_id)
 
-        # Single queries instead of N queries per match
-        predictions_by_match = DBReader.get_match_predictions_by_user_as_dict(db, user_id)
-        results_by_match = DBReader.get_all_match_results_as_dict(db)
-
-        all_matches: List[Dict[str, Any]] = []
-
-        for match in matches:
-            if not MatchPredictionService._are_both_teams_set(match):
-                continue
-
-            prediction = predictions_by_match.get(match.id)
-            actual_result = results_by_match.get(match.id)
-            match_data = MatchPredictionService._create_match_data(match, prediction, actual_result)
-            all_matches.append(match_data)
-
-        all_matches.sort(key=lambda x: x["date"])
+        all_matches = [
+            MatchPredictionService._row_to_match_data(row)
+            for row in rows
+        ]
 
         user_scores = DBReader.get_user_scores(db, user_id)
 
@@ -87,6 +76,74 @@ class MatchPredictionService:
             "matches": all_matches,
             "matches_score": user_scores.matches_score if user_scores else None,
         }
+
+    @staticmethod
+    def _row_to_match_data(row: dict) -> Dict[str, Any]:
+        """
+        Convert a flat SQL row (from get_matches_with_predictions_and_results) to
+        the same dict shape that _create_match_data produces.
+        No DB access — pure dict mapping.
+        """
+        stage = row["stage"]
+
+        # actual_result block
+        result_home = row["result_home"]
+        result_away = row["result_away"]
+        if result_home is not None and result_away is not None:
+            if result_home > result_away:
+                current_winner = "home"
+            elif result_away > result_home:
+                current_winner = "away"
+            else:
+                current_winner = "draw"
+            actual_result = {
+                "home_score": result_home,
+                "away_score": result_away,
+                "winner_team_id": row["result_winner_team_id"],
+                "current_winner": current_winner,
+            }
+        else:
+            actual_result = None
+
+        # is_editable mirrors Match.is_editable property (scheduled only)
+        is_editable = (row["status"] == "scheduled")
+
+        match_data: Dict[str, Any] = {
+            "id": row["id"],
+            "stage": stage,
+            "home_team": {
+                "id": row["home_team_id"],
+                "name": row["home_team_name"],
+                "flag_url": row["home_team_flag"],
+            },
+            "away_team": {
+                "id": row["away_team_id"],
+                "name": row["away_team_name"],
+                "flag_url": row["away_team_flag"],
+            },
+            "date": _to_utc_iso(row["date"]) if row["date"] else None,
+            "status": row["status"],
+            "user_prediction": {
+                "home_score": row["pred_home_score"],
+                "away_score": row["pred_away_score"],
+                "predicted_winner": row["predicted_winner"],
+                "points": row["pred_points"],
+                "is_editable": row["pred_is_editable"],
+                "is_tempted": bool(row["pred_is_tempted"]) if row["pred_is_tempted"] is not None else False,
+                "status": row["pred_status"],
+            },
+            "can_edit": is_editable,
+            "actual_result": actual_result,
+        }
+
+        if stage == "group":
+            match_data["group"] = row["group"]
+        elif stage in ("round32", "round16", "quarter", "semi", "final"):
+            match_data["match_number"] = row["match_number"]
+            match_data["home_team_source"] = row["home_team_source"]
+            match_data["away_team_source"] = row["away_team_source"]
+
+        return match_data
 
     @staticmethod
     def _create_match_data(match: Match, prediction: Optional[MatchPrediction] = None, actual_result: Optional[MatchResult] = None) -> Dict[str, Any]:
