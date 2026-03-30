@@ -129,6 +129,7 @@ class LeagueService:
             )
 
             leagues = []
+            print(f"[DEBUG] get_user_leagues called for user_id={user_id}, rows_count={len(rows)}")
             for league, joined_at, member_count in rows:
                 leagues.append({
                     "id": league.id,
@@ -141,6 +142,7 @@ class LeagueService:
                     "joined_at": joined_at.isoformat(),
                     "score_mode": league.score_mode.value if hasattr(league.score_mode, 'value') else league.score_mode,
                 })
+                print(f"[DEBUG] appended league id={league.id} name={league.name}")
 
             return leagues
 
