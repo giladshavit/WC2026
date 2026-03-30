@@ -111,42 +111,45 @@ class LeagueService:
     def get_user_leagues(db: Session, user_id: int) -> List[Dict[str, Any]]:
         """Get all leagues that a user is a member of."""
         try:
-            from models.league import League, LeagueMembership
+            from sqlalchemy import func
+            from models.league import League, LeagueMembership as LM2
 
-            # Step 1: get memberships for this user
-            memberships = (
-                db.query(LeagueMembership)
-                .filter(LeagueMembership.user_id == user_id)
+            # Single query: user memberships + league info + member counts
+            # Subquery for member counts per league
+            member_counts = (
+                db.query(
+                    LM2.league_id,
+                    func.count(LM2.id).label("member_count")
+                )
+                .group_by(LM2.league_id)
+                .subquery()
+            )
+
+            rows = (
+                db.query(League, LM2, member_counts.c.member_count)
+                .join(LM2, League.id == LM2.league_id)
+                .outerjoin(member_counts, League.id == member_counts.c.league_id)
+                .filter(
+                    LM2.user_id == user_id,
+                    League.is_active == True
+                )
                 .all()
             )
 
-            leagues = []
-            for membership in memberships:
-                league = db.query(League).filter(
-                    League.id == membership.league_id,
-                    League.is_active == True
-                ).first()
-                if not league:
-                    continue
-
-                # Step 2: count members separately
-                member_count = db.query(LeagueMembership).filter(
-                    LeagueMembership.league_id == league.id
-                ).count()
-
-                leagues.append({
+            return [
+                {
                     "id": league.id,
                     "name": league.name,
                     "description": league.description,
                     "invite_code": league.invite_code,
                     "created_by": league.created_by,
                     "created_at": league.created_at.isoformat(),
-                    "member_count": member_count,
+                    "member_count": member_count or 1,
                     "joined_at": membership.joined_at.isoformat(),
                     "score_mode": league.score_mode.value if hasattr(league.score_mode, 'value') else league.score_mode,
-                })
-
-            return leagues
+                }
+                for league, membership, member_count in rows
+            ]
 
         except Exception as e:
             raise HTTPException(
