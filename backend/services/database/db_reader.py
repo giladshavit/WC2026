@@ -383,6 +383,20 @@ class DBReader:
             GroupStagePrediction.group_id == group_id
         ).all()
 
+    @staticmethod
+    def get_group_predictions_by_user_as_dict(db: Session, user_id: int) -> Dict[int, GroupStagePrediction]:
+        """All group predictions for a user keyed by group_id. Single query."""
+        predictions = db.query(GroupStagePrediction).filter(
+            GroupStagePrediction.user_id == user_id
+        ).all()
+        return {p.group_id: p for p in predictions}
+
+    @staticmethod
+    def get_all_group_stage_results_as_dict(db: Session) -> Dict[int, GroupStageResult]:
+        """All group stage results keyed by group_id. Single query."""
+        results = db.query(GroupStageResult).all()
+        return {r.group_id: r for r in results}
+
     # ═══════════════════════════════════════════════════════
     # PREDICTIONS - Third Place
     # ═══════════════════════════════════════════════════════

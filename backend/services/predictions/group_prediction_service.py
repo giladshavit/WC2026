@@ -357,19 +357,27 @@ class GroupPredictionService:
     
     @staticmethod
     def get_group_predictions(db: Session, user_id: int) -> Dict[str, Any]:
-        """
-        Get all groups with their teams and user's predictions (if exist)
-        Always returns all 12 groups, with or without predictions
-        """
         groups = DBReader.get_groups_ordered(db)
-        
-        result = [
-            GroupPredictionService._build_group_data(db, user_id, group)
-            for group in groups
-        ]
-        
+        predictions_by_group = DBReader.get_group_predictions_by_user_as_dict(db, user_id)
+        results_by_group = DBReader.get_all_group_stage_results_as_dict(db)
+
+        result = []
+        for group in groups:
+            teams = GroupPredictionService._extract_teams_from_group(group)
+            pred = predictions_by_group.get(group.id)
+            group_result = results_by_group.get(group.id)
+
+            group_data = {
+                "group_id": group.id,
+                "group_name": group.name,
+                "teams": teams,
+                "result": GroupPredictionService._build_group_result_data(group_result)
+            }
+            group_data.update(GroupPredictionService._build_prediction_data(pred))
+            result.append(group_data)
+
         user_scores = DBReader.get_user_scores(db, user_id)
-        
+
         return {
             "groups": result,
             "groups_score": user_scores.groups_score if user_scores else None,
