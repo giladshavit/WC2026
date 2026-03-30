@@ -5,11 +5,25 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ThirdPlaceTeam, apiService } from '../../services/api';
+import { ThirdPlaceTeam, ThirdPlacePredictionData, apiService } from '../../services/api';
 import { useTournament } from '../../contexts/TournamentContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/toast/Toast';
 import { FineConfirmationModal, UnsavedChangesModal, MaximumReachedModal, ErrorModal, ValidationModal } from '../../components/modals/CustomModals';
+
+interface ThirdPlaceCache {
+  data: ThirdPlacePredictionData;
+  cachedAt: number;
+}
+let _thirdPlaceCache: ThirdPlaceCache | null = null;
+const THIRD_PLACE_CACHE_TTL_MS = 30_000; // 30 seconds
+
+function isThirdPlaceCacheValid(): boolean {
+  return !!_thirdPlaceCache && (Date.now() - _thirdPlaceCache.cachedAt < THIRD_PLACE_CACHE_TTL_MS);
+}
+export function clearThirdPlaceCache(): void {
+  _thirdPlaceCache = null;
+}
 
 interface ThirdPlaceScreenProps {}
 
@@ -26,7 +40,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const [freeChanges, setFreeChanges] = useState<number>(0);
   const [showNetScore, setShowNetScore] = useState(false);
   const [isEditable, setIsEditable] = useState(true);
-  const [headerHeight, setHeaderHeight] = useState(0);
+  const [headerHeight, setHeaderHeight] = useState(56); // matches actual header height
   const [showStats, setShowStats] = useState(false);
   const [fineModalVisible, setFineModalVisible] = useState(false);
   const [exitModalVisible, setExitModalVisible] = useState(false);
@@ -125,9 +139,15 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         return { selectedCount: 0 };
       }
       setLoadError(false);
-      
-      const data = await apiService.getThirdPlacePredictionsData(userId);
-      
+
+      let data: ThirdPlacePredictionData;
+      if (!hasStartedEditing.current && isThirdPlaceCacheValid() && _thirdPlaceCache) {
+        data = _thirdPlaceCache.data;
+      } else {
+        data = await apiService.getThirdPlacePredictionsData(userId);
+        _thirdPlaceCache = { data, cachedAt: Date.now() };
+      }
+
       // Check if API returned an error
       if (data.error) {
         console.log('Third place API error:', data.error);
@@ -227,21 +247,33 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     }, [hasUnsavedChanges])
   );
 
-  // Refresh data when screen comes into focus - only if we haven't started editing this session
   useFocusEffect(
     React.useCallback(() => {
-      if (!hasStartedEditing.current) {
+      if (hasStartedEditing.current) return;
+      const checkAndFetch = async () => {
+        try {
+          const raw = await AsyncStorage.getItem('earlyStageUpdated');
+          if (raw && _thirdPlaceCache) {
+            const { timestamp } = JSON.parse(raw);
+            if (timestamp > _thirdPlaceCache.cachedAt) {
+              // Data changed since last cache — force refresh
+              clearThirdPlaceCache();
+              fetchData();
+              return;
+            }
+          }
+        } catch (_) {}
+        // No recent changes — use cache if valid
         fetchData();
-      }
-      return () => {
-        // Reset the editing flag when leaving the screen entirely
-        // (not just tab switching — only when truly unmounting)
       };
+      checkAndFetch();
+      return () => {};
     }, [])
   );
 
   const handleRefresh = () => {
     setRefreshing(true);
+    clearThirdPlaceCache();
     fetchData();
   };
 
@@ -315,7 +347,9 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
       const advancingTeamIds = Array.from(selectedTeams);
       const result = await apiService.updateThirdPlacePrediction(userId, advancingTeamIds);
       console.log('Save result:', result);
-      
+
+      clearThirdPlaceCache();
+
       // Mark that third place stage was updated - this will trigger refresh in knockout screens
       await AsyncStorage.setItem('earlyStageUpdated', JSON.stringify({
         stage: 'third_place',
@@ -379,11 +413,14 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
     }
     
     const cardHeight = getCardHeight();
+    // listContainer has padding 8 on each side (16 total), each card has margin 4 on each side
+    // 3 columns × 8px total margin per card = 24px, plus 16px list padding = 40px total
+    const cardWidth = Math.floor((Dimensions.get('window').width - 40) / 3);
     const scale = getScaleForCard(cardHeight);
 
     return (
       <TouchableOpacity
-        style={[cardStyle, { height: cardHeight }]}
+        style={[cardStyle, { height: cardHeight, width: cardWidth }]}
         onPress={() => handleTeamPress(item.id)}
         activeOpacity={(isThirdPlaceLocked || !isEditable) ? 1 : 0.7}
         disabled={isThirdPlaceLocked || !isEditable}
@@ -589,6 +626,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         renderItem={renderTeam}
         keyExtractor={(item) => item.id.toString()}
         numColumns={3}
+        columnWrapperStyle={{ justifyContent: 'flex-start' }}
         onRefresh={handleRefresh}
         refreshing={refreshing}
         showsVerticalScrollIndicator={false}
@@ -927,7 +965,6 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   teamCard: {
-    flex: 1,
     margin: 4,
     padding: 8,
     paddingBottom: 8,
