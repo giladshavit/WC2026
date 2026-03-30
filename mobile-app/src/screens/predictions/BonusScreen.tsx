@@ -26,6 +26,36 @@ import { useToast } from '../../components/toast/Toast';
 import ConfirmExitModal from '../../components/modals/ConfirmExitModal';
 import { ErrorModal } from '../../components/modals/CustomModals';
 
+// ─── In-memory caches ───────────────────────────────────────────────
+interface BonusOptionsCache {
+  data: BonusOptions;
+  cachedAt: number;
+}
+interface GroupsCache {
+  data: GroupPrediction[];
+  cachedAt: number;
+}
+interface BonusPredictionCache {
+  data: BonusPrediction;
+  cachedAt: number;
+}
+
+let _bonusOptionsCache: BonusOptionsCache | null = null;
+let _groupsCache: GroupsCache | null = null;
+let _bonusPredictionCache: BonusPredictionCache | null = null;
+
+const OPTIONS_TTL_MS  = 6 * 60 * 60 * 1000;  // 6 hours — static data
+const GROUPS_TTL_MS   = 5 * 60 * 1000;        // 5 minutes
+const PREDICTION_TTL_MS = 30 * 1000;          // 30 seconds
+
+function isCacheValid(cachedAt: number, ttl: number): boolean {
+  return Date.now() - cachedAt < ttl;
+}
+
+export function clearBonusPredictionCache(): void {
+  _bonusPredictionCache = null;
+}
+
 const QUESTION_LABELS: Record<string, string> = {
   g1: 'Total goals scored in Group Stage',
   g2: 'Top scoring group',
@@ -699,11 +729,34 @@ export default function BonusScreen() {
     try {
       setLoading(true);
       const userId = getCurrentUserId() ?? 1;
+
+      // Fetch all three — use cache where valid
       const [pred, opts, groupsResult] = await Promise.all([
-        apiService.getBonusPrediction(),
-        apiService.getBonusOptions(),
-        apiService.getGroups(userId).catch(() => []),
+        // Prediction: 30s cache
+        (_bonusPredictionCache && isCacheValid(_bonusPredictionCache.cachedAt, PREDICTION_TTL_MS))
+          ? Promise.resolve(_bonusPredictionCache.data)
+          : apiService.getBonusPrediction().then(d => {
+              _bonusPredictionCache = { data: d, cachedAt: Date.now() };
+              return d;
+            }),
+
+        // Options: 6h cache (fully static)
+        (_bonusOptionsCache && isCacheValid(_bonusOptionsCache.cachedAt, OPTIONS_TTL_MS))
+          ? Promise.resolve(_bonusOptionsCache.data)
+          : apiService.getBonusOptions().then(d => {
+              _bonusOptionsCache = { data: d, cachedAt: Date.now() };
+              return d;
+            }),
+
+        // Groups: 5min cache
+        (_groupsCache && isCacheValid(_groupsCache.cachedAt, GROUPS_TTL_MS))
+          ? Promise.resolve(_groupsCache.data)
+          : apiService.getGroups(userId).catch(() => []).then(d => {
+              _groupsCache = { data: d, cachedAt: Date.now() };
+              return d;
+            }),
       ]);
+
       setPrediction(pred);
       setOptions(opts);
       setGroups(groupsResult);
@@ -797,6 +850,7 @@ export default function BonusScreen() {
     setSaving(true);
     try {
       await apiService.updateBonusPrediction(updates);
+      clearBonusPredictionCache();
       setSavedAnswers({ ...localAnswers });
       allowExitRef.current = true;
       setAllowExit(true);
