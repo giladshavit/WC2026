@@ -280,6 +280,20 @@ class DBReader:
         ).all()
 
     @staticmethod
+    def get_match_predictions_by_user_as_dict(db: Session, user_id: int) -> Dict[int, MatchPrediction]:
+        """Get all match predictions for a user as a dict keyed by match_id. Single query."""
+        predictions = db.query(MatchPrediction).filter(
+            MatchPrediction.user_id == user_id
+        ).all()
+        return {p.match_id: p for p in predictions}
+
+    @staticmethod
+    def get_all_match_results_as_dict(db: Session) -> Dict[int, MatchResult]:
+        """Get all match results as a dict keyed by match_id. Single query."""
+        results = db.query(MatchResult).all()
+        return {r.match_id: r for r in results}
+
+    @staticmethod
     def get_match_predictions_by_match(db: Session, match_id: int) -> List[MatchPrediction]:
         return db.query(MatchPrediction).filter(
             MatchPrediction.match_id == match_id

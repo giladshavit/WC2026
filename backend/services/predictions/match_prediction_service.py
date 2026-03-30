@@ -63,14 +63,19 @@ class MatchPredictionService:
         Get all matches with the user's predictions and user scores.
         """
         matches = DBReader.get_all_matches(db)
+
+        # Single queries instead of N queries per match
+        predictions_by_match = DBReader.get_match_predictions_by_user_as_dict(db, user_id)
+        results_by_match = DBReader.get_all_match_results_as_dict(db)
+
         all_matches: List[Dict[str, Any]] = []
 
         for match in matches:
             if not MatchPredictionService._are_both_teams_set(match):
                 continue
 
-            prediction = DBReader.get_match_prediction(db, user_id, match.id)
-            actual_result = DBReader.get_match_result(db, match.id)
+            prediction = predictions_by_match.get(match.id)
+            actual_result = results_by_match.get(match.id)
             match_data = MatchPredictionService._create_match_data(match, prediction, actual_result)
             all_matches.append(match_data)
 
