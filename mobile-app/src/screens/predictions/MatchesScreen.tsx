@@ -8,6 +8,28 @@ import { useNavigation } from '@react-navigation/native';
 import { useToast } from '../../components/toast/Toast';
 import { ErrorModal, LockedMatchModal } from '../../components/modals/CustomModals';
 
+// In-memory cache — lives as long as the app is open
+interface MatchesCache {
+  matches: Match[];
+  score: number | null;
+  cachedAt: number;
+}
+let _matchesCache: MatchesCache | null = null;
+const CACHE_TTL_MS = 30_000; // 30 seconds
+
+function isCacheValid(): boolean {
+  if (!_matchesCache) return false;
+  return Date.now() - _matchesCache.cachedAt < CACHE_TTL_MS;
+}
+
+function setMatchesCache(matches: Match[], score: number | null): void {
+  _matchesCache = { matches, score, cachedAt: Date.now() };
+}
+
+function clearMatchesCache(): void {
+  _matchesCache = null;
+}
+
 const DEBOUNCE_MS = 800;
 
 function MatchLegendModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -173,7 +195,7 @@ export default function MatchesScreen() {
     });
   }, [navigation]);
 
-  const fetchMatches = useCallback(async () => {
+  const fetchMatches = useCallback(async (forceRefresh = false) => {
     try {
       const userId = getCurrentUserId();
       if (!userId) {
@@ -182,7 +204,18 @@ export default function MatchesScreen() {
         return;
       }
 
+      // Serve from cache if valid and not a forced refresh
+      if (!forceRefresh && isCacheValid() && _matchesCache) {
+        setMatches(_matchesCache.matches);
+        setMatchesScore(_matchesCache.score);
+        setFetchCount(prev => prev + 1);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
       const data: MatchesResponse = await apiService.getMatches(userId);
+      setMatchesCache(data.matches, data.matches_score);
       setMatches(data.matches);
       setMatchesScore(data.matches_score);
       setFetchCount(prev => prev + 1);
@@ -292,15 +325,59 @@ export default function MatchesScreen() {
         return;
       }
 
+      // Optimistic update — update local state immediately, no GET needed
+      setMatches(prev =>
+        prev.map(m =>
+          m.id === matchId
+            ? {
+                ...m,
+                user_prediction: {
+                  ...m.user_prediction,
+                  home_score: homeScore,
+                  away_score: awayScore,
+                  is_tempted: isTempted,
+                  predicted_winner:
+                    homeScore > awayScore ? m.home_team.id
+                    : awayScore > homeScore ? m.away_team.id
+                    : 0,
+                },
+              }
+            : m
+        )
+      );
+
+      // Keep cache in sync with optimistic update
+      if (_matchesCache) {
+        _matchesCache.matches = _matchesCache.matches.map(m =>
+          m.id === matchId
+            ? {
+                ...m,
+                user_prediction: {
+                  ...m.user_prediction,
+                  home_score: homeScore,
+                  away_score: awayScore,
+                  is_tempted: isTempted,
+                  predicted_winner:
+                    homeScore > awayScore ? m.home_team.id
+                    : awayScore > homeScore ? m.away_team.id
+                    : 0,
+                },
+              }
+            : m
+        );
+      }
+
       try {
         await apiService.updateBatchMatchPredictions(userId, [
           { match_id: matchId, home_score: homeScore, away_score: awayScore, is_tempted: isTempted },
         ]);
-        await fetchMatches();
+        // No fetchMatches() — local state is already correct
       } catch (error) {
         console.error('Error saving prediction:', error);
         showToast('Could not save prediction. Please try again.', 'error');
+        // Rollback on error
         setResetCount(prev => prev + 1);
+        await fetchMatches();
       }
     },
     [matches, getCurrentUserId, fetchMatches]
@@ -327,7 +404,8 @@ export default function MatchesScreen() {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchMatches();
+    clearMatchesCache();
+    fetchMatches(true);
   };
 
   const handleMatchFocus = useCallback((matchId: number) => {
