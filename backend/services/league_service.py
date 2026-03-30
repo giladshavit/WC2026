@@ -111,32 +111,29 @@ class LeagueService:
     def get_user_leagues(db: Session, user_id: int) -> List[Dict[str, Any]]:
         """Get all leagues that a user is a member of."""
         try:
-            from sqlalchemy import func
             from models.league import League, LeagueMembership
 
-            print(f"[DEBUG] querying leagues for user_id={user_id}")
-            raw_count = db.query(LeagueMembership).filter(LeagueMembership.user_id == user_id).count()
-            print(f"[DEBUG] LeagueMembership rows for user: {raw_count}")
-            active_leagues = db.query(League).filter(League.is_active == True).count()
-            print(f"[DEBUG] Total active leagues in DB: {active_leagues}")
-
-            rows = (
-                db.query(
-                    League,
-                    LeagueMembership.joined_at,
-                    func.count(LeagueMembership.id).over(
-                        partition_by=LeagueMembership.league_id
-                    ).label("member_count"),
-                )
-                .join(LeagueMembership, League.id == LeagueMembership.league_id)
-                .filter(LeagueMembership.user_id == user_id, League.is_active == True)
+            # Step 1: get memberships for this user
+            memberships = (
+                db.query(LeagueMembership)
+                .filter(LeagueMembership.user_id == user_id)
                 .all()
             )
-            print(f"[DEBUG] rows returned from query: {len(rows)}")
 
             leagues = []
-            print(f"[DEBUG] get_user_leagues called for user_id={user_id}, rows_count={len(rows)}")
-            for league, joined_at, member_count in rows:
+            for membership in memberships:
+                league = db.query(League).filter(
+                    League.id == membership.league_id,
+                    League.is_active == True
+                ).first()
+                if not league:
+                    continue
+
+                # Step 2: count members separately
+                member_count = db.query(LeagueMembership).filter(
+                    LeagueMembership.league_id == league.id
+                ).count()
+
                 leagues.append({
                     "id": league.id,
                     "name": league.name,
@@ -145,10 +142,9 @@ class LeagueService:
                     "created_by": league.created_by,
                     "created_at": league.created_at.isoformat(),
                     "member_count": member_count,
-                    "joined_at": joined_at.isoformat(),
+                    "joined_at": membership.joined_at.isoformat(),
                     "score_mode": league.score_mode.value if hasattr(league.score_mode, 'value') else league.score_mode,
                 })
-                print(f"[DEBUG] appended league id={league.id} name={league.name}")
 
             return leagues
 
