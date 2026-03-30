@@ -791,7 +791,6 @@ export default function LeagueDetailsScreen() {
           setPodiumStandings(processedStandings.slice(0, 3));
         }
       }
-      await fetchAndSetupLiveMatches();
     } catch (error) {
       console.error('Error fetching standings:', error);
       setErrorModal({
@@ -840,7 +839,24 @@ export default function LeagueDetailsScreen() {
       return;
     }
     fetchStandings(page !== 1, page);
-  }, [leagueId, sortBy, page]);
+    // Only setup live matches on initial load or league change, not on sort/page changes
+    if (page === 1 && !skipNextFetchRef.current) {
+      fetchAndSetupLiveMatches();
+    }
+  }, [leagueId]);
+
+  useEffect(() => {
+    if (page === 1) return; // already handled above
+    fetchStandings(true, page);
+  }, [page]);
+
+  useEffect(() => {
+    if (skipNextFetchRef.current) {
+      skipNextFetchRef.current = false;
+      return;
+    }
+    fetchStandings(false, 1, sortBy);
+  }, [sortBy]);
 
   useEffect(() => {
     if (liveMatchPredictionsList.length > 0 && !userDismissedLive) {

@@ -877,7 +877,7 @@ class DBReader:
         page_size: int = 50,
         score_mode: str = "multi",
     ) -> Tuple[List, int]:
-        """Returns (rows, total_count). Each row: (User, UserScores, exact_count, correct_count, wrong_count)."""
+        """Returns (rows, total_count). Uses window function to get total in a single query."""
         match_counts = DBReader._match_prediction_counts_subquery(db)
         order = DBReader._standings_order(sort_by, is_league=False, score_mode=score_mode, match_counts=match_counts)
         q = (
@@ -888,10 +888,11 @@ class DBReader:
                 func.coalesce(match_counts.c.exact_count, 0).label('exact_count'),
                 func.coalesce(match_counts.c.correct_count, 0).label('correct_count'),
                 func.coalesce(match_counts.c.wrong_count, 0).label('wrong_count'),
+                func.count(User.id).over().label('total_count'),
             )
         )
-        total = q.count()
         rows = q.order_by(*order).offset((page - 1) * page_size).limit(page_size).all()
+        total = rows[0][-1] if rows else 0
         return rows, total
 
     @staticmethod
@@ -903,7 +904,7 @@ class DBReader:
         page_size: int = 50,
         score_mode: str = "multi",
     ) -> Tuple[List, int]:
-        """Returns (rows, total_count). Each row: (User, UserScores, LeagueMembership, exact_count, correct_count, wrong_count)."""
+        """Returns (rows, total_count). Uses window function to get total in a single query."""
         match_counts = DBReader._match_prediction_counts_subquery(db)
         order = DBReader._standings_order(sort_by, is_league=True, score_mode=score_mode, match_counts=match_counts)
         q = (
@@ -916,82 +917,67 @@ class DBReader:
                 func.coalesce(match_counts.c.exact_count, 0).label('exact_count'),
                 func.coalesce(match_counts.c.correct_count, 0).label('correct_count'),
                 func.coalesce(match_counts.c.wrong_count, 0).label('wrong_count'),
+                func.count(User.id).over().label('total_count'),
             )
         )
-        total = q.count()
         rows = q.order_by(*order).offset((page - 1) * page_size).limit(page_size).all()
+        total = rows[0][-1] if rows else 0
         return rows, total
 
     @staticmethod
     def get_user_global_rank(db: Session, user_id: int, sort_by: str = "total", score_mode: str = "multi") -> int:
-        """
-        Return 1-based rank of user in global standings using a COUNT query.
-        Counts how many users have a strictly better score, then adds 1.
-        """
-        user_scores = db.query(UserScores).filter(UserScores.user_id == user_id).first()
-        if not user_scores:
-            return -1
-
-        if score_mode == "classic":
-            user_val = func.coalesce(UserScores.classic_total_score, 0)
-            user_score_val = (user_scores.classic_total_score or 0)
-        else:
-            score_col_map = {
-                "total":    (UserScores.total_points, user_scores.total_points or 0),
-                "matches":  (UserScores.matches_score, user_scores.matches_score or 0),
-                "groups":   (UserScores.groups_score, user_scores.groups_score or 0),
-                "knockout": (UserScores.knockout_score, user_scores.knockout_score or 0),
-                "bonus":    (UserScores.bonus_score, user_scores.bonus_score or 0),
-                "fine":     (UserScores.penalty, user_scores.penalty or 0),
-            }
-            col, user_score_val = score_col_map.get(sort_by, (UserScores.total_points, user_scores.total_points or 0))
-            user_val = func.coalesce(col, 0)
-
-        # For "fine", lower is better (ascending sort), so count users with LOWER penalty
-        if sort_by == "fine":
-            better_count = db.query(func.count(UserScores.user_id)).filter(
-                func.coalesce(UserScores.penalty, 0) < user_score_val
-            ).scalar() or 0
-        else:
-            better_count = db.query(func.count(UserScores.user_id)).outerjoin(
-                User, User.id == UserScores.user_id
-            ).filter(
-                func.coalesce(
-                    UserScores.classic_total_score if score_mode == "classic" else UserScores.total_points
-                    if sort_by == "total" else
-                    UserScores.matches_score if sort_by == "matches" else
-                    UserScores.groups_score if sort_by == "groups" else
-                    UserScores.knockout_score if sort_by == "knockout" else
-                    UserScores.bonus_score if sort_by == "bonus" else
-                    UserScores.total_points,
-                    0
-                ) > user_score_val
-            ).scalar() or 0
-
-        return better_count + 1
-
-    @staticmethod
-    def get_user_league_rank(db: Session, user_id: int, league_id: int, sort_by: str = "total", score_mode: str = "multi") -> int:
-        """
-        Return 1-based rank of user in league standings using a COUNT query.
-        """
+        """Return 1-based rank using COUNT of users with strictly better score."""
         user_scores = db.query(UserScores).filter(UserScores.user_id == user_id).first()
         if not user_scores:
             return -1
 
         if score_mode == "classic":
             user_score_val = user_scores.classic_total_score or 0
-            score_col = UserScores.classic_total_score
+            score_col = func.coalesce(UserScores.classic_total_score, 0)
         else:
-            score_col_map = {
-                "total":    (UserScores.total_points, user_scores.total_points or 0),
-                "matches":  (UserScores.matches_score, user_scores.matches_score or 0),
-                "groups":   (UserScores.groups_score, user_scores.groups_score or 0),
-                "knockout": (UserScores.knockout_score, user_scores.knockout_score or 0),
-                "bonus":    (UserScores.bonus_score, user_scores.bonus_score or 0),
-                "fine":     (UserScores.penalty, user_scores.penalty or 0),
+            col_map = {
+                "total":    (UserScores.total_points,    user_scores.total_points or 0),
+                "matches":  (UserScores.matches_score,   user_scores.matches_score or 0),
+                "groups":   (UserScores.groups_score,    user_scores.groups_score or 0),
+                "knockout": (UserScores.knockout_score,  user_scores.knockout_score or 0),
+                "bonus":    (UserScores.bonus_score,     user_scores.bonus_score or 0),
+                "fine":     (UserScores.penalty,         user_scores.penalty or 0),
             }
-            score_col, user_score_val = score_col_map.get(sort_by, (UserScores.total_points, user_scores.total_points or 0))
+            col, user_score_val = col_map.get(sort_by, (UserScores.total_points, user_scores.total_points or 0))
+            score_col = func.coalesce(col, 0)
+
+        if sort_by == "fine":
+            better_count = db.query(func.count(UserScores.user_id)).filter(
+                func.coalesce(UserScores.penalty, 0) < user_score_val
+            ).scalar() or 0
+        else:
+            better_count = db.query(func.count(UserScores.user_id)).filter(
+                score_col > user_score_val
+            ).scalar() or 0
+
+        return better_count + 1
+
+    @staticmethod
+    def get_user_league_rank(db: Session, user_id: int, league_id: int, sort_by: str = "total", score_mode: str = "multi") -> int:
+        """Return 1-based rank in league using COUNT of members with strictly better score."""
+        user_scores = db.query(UserScores).filter(UserScores.user_id == user_id).first()
+        if not user_scores:
+            return -1
+
+        if score_mode == "classic":
+            user_score_val = user_scores.classic_total_score or 0
+            score_col = func.coalesce(UserScores.classic_total_score, 0)
+        else:
+            col_map = {
+                "total":    (UserScores.total_points,    user_scores.total_points or 0),
+                "matches":  (UserScores.matches_score,   user_scores.matches_score or 0),
+                "groups":   (UserScores.groups_score,    user_scores.groups_score or 0),
+                "knockout": (UserScores.knockout_score,  user_scores.knockout_score or 0),
+                "bonus":    (UserScores.bonus_score,     user_scores.bonus_score or 0),
+                "fine":     (UserScores.penalty,         user_scores.penalty or 0),
+            }
+            col, user_score_val = col_map.get(sort_by, (UserScores.total_points, user_scores.total_points or 0))
+            score_col = func.coalesce(col, 0)
 
         base_q = (
             db.query(func.count(UserScores.user_id))
@@ -1005,7 +991,7 @@ class DBReader:
             ).scalar() or 0
         else:
             better_count = base_q.filter(
-                func.coalesce(score_col, 0) > user_score_val
+                score_col > user_score_val
             ).scalar() or 0
 
         return better_count + 1
