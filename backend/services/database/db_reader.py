@@ -474,6 +474,28 @@ class DBReader:
         )
 
     @staticmethod
+    def count_knockout_predictions_by_status_for_user(
+        db: Session, user_id: int
+    ) -> Dict[str, int]:
+        """
+        Count knockout predictions grouped by status for a user.
+        Single aggregated query — no ORM object loading.
+        Returns dict like {'invalid': 12, 'unreachable': 5, ...}
+        """
+        from sqlalchemy import func
+
+        rows = (
+            db.query(
+                KnockoutStagePrediction.status,
+                func.count(KnockoutStagePrediction.id).label("cnt"),
+            )
+            .filter(KnockoutStagePrediction.user_id == user_id)
+            .group_by(KnockoutStagePrediction.status)
+            .all()
+        )
+        return {str(status or "invalid"): count for status, count in rows}
+
+    @staticmethod
     def get_knockout_predictions_by_user_all_stages(
         db: Session, user_id: int, is_draft: bool = False
     ):

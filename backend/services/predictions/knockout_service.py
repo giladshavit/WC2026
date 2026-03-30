@@ -132,16 +132,11 @@ class KnockoutService:
     def preview_bracket_reset(db: Session, user_id: int) -> Dict[str, Any]:
         """
         Calculate the penalty cost for a bracket reset WITHOUT applying it.
-        Counts all user's knockout predictions (non-draft) and returns:
-        - invalid_count: predictions with status == 'invalid'
-        - unreachable_count: predictions with status == 'unreachable'
-        - penalty: invalid_count + (unreachable_count // 2)
-        - has_used_reset: user_scores.has_used_bracket_reset
+        Uses a single aggregated COUNT query instead of loading all 63 prediction objects.
         """
-        predictions = DBReader.get_knockout_predictions_by_user(db, user_id, stage=None, is_draft=False)
-
-        invalid_count = sum(1 for p in predictions if p.status == KnockoutPredictionStatus.INVALID.value)
-        unreachable_count = sum(1 for p in predictions if p.status == KnockoutPredictionStatus.UNREACHABLE.value)
+        status_counts = DBReader.count_knockout_predictions_by_status_for_user(db, user_id)
+        invalid_count = status_counts.get(KnockoutPredictionStatus.INVALID.value, 0)
+        unreachable_count = status_counts.get(KnockoutPredictionStatus.UNREACHABLE.value, 0)
         penalty = invalid_count + (unreachable_count // 2)
 
         user_scores = DBReader.get_user_scores(db, user_id)
