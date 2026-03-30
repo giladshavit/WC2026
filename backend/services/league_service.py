@@ -114,7 +114,12 @@ class LeagueService:
             from sqlalchemy import func
             from models.league import League, LeagueMembership
 
-            # Single query: get leagues + member counts in one shot
+            print(f"[DEBUG] querying leagues for user_id={user_id}")
+            raw_count = db.query(LeagueMembership).filter(LeagueMembership.user_id == user_id).count()
+            print(f"[DEBUG] LeagueMembership rows for user: {raw_count}")
+            active_leagues = db.query(League).filter(League.is_active == True).count()
+            print(f"[DEBUG] Total active leagues in DB: {active_leagues}")
+
             rows = (
                 db.query(
                     League,
@@ -127,6 +132,7 @@ class LeagueService:
                 .filter(LeagueMembership.user_id == user_id, League.is_active == True)
                 .all()
             )
+            print(f"[DEBUG] rows returned from query: {len(rows)}")
 
             leagues = []
             print(f"[DEBUG] get_user_leagues called for user_id={user_id}, rows_count={len(rows)}")
