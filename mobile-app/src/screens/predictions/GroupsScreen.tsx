@@ -10,6 +10,41 @@ import { useAuth } from '../../contexts/AuthContext';
 import { FineConfirmationModal, UnsavedChangesModal, ErrorModal, ValidationModal } from '../../components/modals/CustomModals';
 import { useToast } from '../../components/toast/Toast';
 
+interface GroupsCache {
+  data: GroupsResponse;
+  cachedAt: number;
+}
+let _groupsCache: GroupsCache | null = null;
+const GROUPS_CACHE_TTL_MS = 30_000; // 30 seconds
+
+function isGroupsCacheValid(): boolean {
+  return !!_groupsCache && (Date.now() - _groupsCache.cachedAt < GROUPS_CACHE_TTL_MS);
+}
+export function clearGroupsCache(): void {
+  _groupsCache = null;
+}
+
+function applyGroupsSort(groups: GroupPrediction[]): GroupPrediction[] {
+  return groups.map(group => {
+    const allFilled = group.first_place !== null && group.second_place !== null &&
+      group.third_place !== null && group.fourth_place !== null;
+    if (!allFilled) return group;
+    const sortedTeams = [...group.teams].sort((a, b) => {
+      let posA = 5, posB = 5;
+      if (a.id === group.first_place) posA = 1;
+      else if (a.id === group.second_place) posA = 2;
+      else if (a.id === group.third_place) posA = 3;
+      else if (a.id === group.fourth_place) posA = 4;
+      if (b.id === group.first_place) posB = 1;
+      else if (b.id === group.second_place) posB = 2;
+      else if (b.id === group.third_place) posB = 3;
+      else if (b.id === group.fourth_place) posB = 4;
+      return posA - posB;
+    });
+    return { ...group, teams: sortedTeams };
+  });
+}
+
 interface GroupsScreenProps {
   onFirstTimeComplete?: () => void;
 }
@@ -109,7 +144,7 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
     return totalChanges;
   };
 
-  const fetchGroups = async () => {
+  const fetchGroups = async (forceRefresh = false) => {
     try {
       const userId = getCurrentUserId();
       if (!userId) {
@@ -117,45 +152,21 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
         setLoading(false);
         return;
       }
-      
+
+      if (!forceRefresh && isGroupsCacheValid() && _groupsCache) {
+        const data = _groupsCache.data;
+        setGroups(applyGroupsSort(data.groups));
+        setGroupsScore(data.groups_score);
+        setGroupsPenalty(data.groups_penalty ?? 0);
+        setFreeChanges(data.free_changes ?? 0);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
       const data: GroupsResponse = await apiService.getGroupPredictions(userId);
-      
-      // Sort teams for groups with all 4 positions filled
-      const sortedGroups = data.groups.map(group => {
-        const allPositionsFilled = 
-          group.first_place !== null && 
-          group.second_place !== null && 
-          group.third_place !== null && 
-          group.fourth_place !== null;
-        
-        // Sort teams ONLY if all 4 positions are filled
-        if (allPositionsFilled) {
-          const sortedTeams = [...group.teams].sort((a, b) => {
-            // Find position for each team
-            let posA = 5; // default (not predicted)
-            let posB = 5;
-            
-            if (a.id === group.first_place) posA = 1;
-            else if (a.id === group.second_place) posA = 2;
-            else if (a.id === group.third_place) posA = 3;
-            else if (a.id === group.fourth_place) posA = 4;
-            
-            if (b.id === group.first_place) posB = 1;
-            else if (b.id === group.second_place) posB = 2;
-            else if (b.id === group.third_place) posB = 3;
-            else if (b.id === group.fourth_place) posB = 4;
-            
-            return posA - posB;
-          });
-          
-          return { ...group, teams: sortedTeams };
-        }
-        
-        // Keep original order if not all filled
-        return group;
-      });
-      
-      setGroups(sortedGroups);
+      _groupsCache = { data, cachedAt: Date.now() };
+      setGroups(applyGroupsSort(data.groups));
       setGroupsScore(data.groups_score);
       setGroupsPenalty(data.groups_penalty ?? 0);
       setFreeChanges(data.free_changes ?? 0);
@@ -172,12 +183,34 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
     fetchGroups();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      const checkAndFetch = async () => {
+        try {
+          const raw = await AsyncStorage.getItem('earlyStageUpdated');
+          if (raw && _groupsCache) {
+            const { timestamp } = JSON.parse(raw);
+            if (timestamp > _groupsCache.cachedAt) {
+              // Data changed since last cache — force refresh
+              clearGroupsCache();
+              fetchGroups(true);
+              return;
+            }
+          }
+        } catch (_) {}
+        // No recent changes — use cache if valid
+        fetchGroups();
+      };
+      checkAndFetch();
+    }, [])
+  );
+
   const handleRefresh = () => {
     setRefreshing(true);
-    // Clear pending changes and incomplete highlights on manual refresh
+    clearGroupsCache();
     setPendingChanges(new Map());
     setIncompleteGroups([]);
-    fetchGroups();
+    fetchGroups(true);
   };
 
   const autoSaveGroup = async (
@@ -235,6 +268,7 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
         });
       });
 
+      clearGroupsCache();
       await AsyncStorage.setItem('earlyStageUpdated', JSON.stringify({
         stage: 'groups',
         timestamp: Date.now()
@@ -386,7 +420,8 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
       console.log('Save result:', result);
 
       // Refetch groups to get updated free_changes and scores
-      await fetchGroups();
+      clearGroupsCache();
+      await fetchGroups(true);
 
       // Clear pending changes ONLY for saved groups (not incomplete ones!)
       setPendingChanges(prevChanges => {
@@ -883,8 +918,8 @@ const styles = StyleSheet.create({
   netScoreToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
     gap: 4,
     backgroundColor: '#152a45',
@@ -902,7 +937,7 @@ const styles = StyleSheet.create({
     borderColor: '#16a34a',
   },
   netScoreToggleText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: '#94a3b8',
   },
