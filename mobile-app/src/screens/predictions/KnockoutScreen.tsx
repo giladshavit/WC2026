@@ -113,6 +113,9 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const [knockoutPenalty, setKnockoutPenalty] = useState<number>(0);
   const [showNetScore, setShowNetScore] = useState(false);
   const [unlockedStages, setUnlockedStages] = useState<Set<string>>(new Set(['round32']));
+  const unlockedStagesRef = useRef<Set<string>>(new Set(['round32']));
+  const predictionsByStageRef = useRef<Record<string, KnockoutPrediction[]>>({ round32: [], round16: [], quarter: [], semi: [], final: [] });
+  const originalWinnersRef = useRef<{ [predictionId: number]: number }>({});
   const [touchedPredictions, setTouchedPredictions] = useState<Set<number>>(new Set());
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -120,6 +123,10 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const pendingScrollYRef = useRef<number | null>(null);
   const stageSectionYRef = useRef<Record<string, number>>({});
   const hasAutoScrolledRef = useRef(false);
+  /** Full-screen fetch generation; invalidated when a partial refresh starts. */
+  const fetchAllGenRef = useRef(0);
+  /** Partial refresh (after PUT) generation; invalidated when a full fetch starts. */
+  const fetchStagesGenRef = useRef(0);
   const handleTeamPressRef = useRef<(prediction: KnockoutPrediction, teamId: number) => Promise<void>>(async () => {});
 
   const getRelevantStageKey = useCallback((): string => {
@@ -132,15 +139,19 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     return 'round32';
   }, [currentStage]);
 
+  // Snap scroll back immediately after commit (before paint) so re-layout doesn't flash a wrong offset
   useLayoutEffect(() => {
-    if (pendingScrollYRef.current !== null && pendingScrollYRef.current > 0) {
-      const y = pendingScrollYRef.current;
-      pendingScrollYRef.current = null;
-      scrollViewRef.current?.scrollTo({ y, animated: false });
-    }
+    if (pendingScrollYRef.current === null) return;
+    const y = pendingScrollYRef.current;
+    pendingScrollYRef.current = null;
+    scrollViewRef.current?.scrollTo({ y: Math.max(0, y), animated: false });
   });
 
   const fetchAllStages = useCallback(async (isRefresh = false) => {
+    const myAllGen = ++fetchAllGenRef.current;
+    // Invalidate in-flight fetchStagesFrom — full snapshot will replace partial updates
+    fetchStagesGenRef.current++;
+
     try {
       const earlyStageUpdateStr = await AsyncStorage.getItem('earlyStageUpdated');
       const shouldAutoRefresh = earlyStageUpdateStr !== null;
@@ -165,6 +176,9 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
       // Single request for all stages
       const data = await apiService.getAllKnockoutPredictions(userId);
 
+      // Discard stale responses — a newer full fetch or partial refresh has superseded this one
+      if (myAllGen !== fetchAllGenRef.current) return;
+
       const newPredictionsByStage: Record<string, KnockoutPrediction[]> = {
         round32: data.stages.round32 || [],
         round16: data.stages.round16 || [],
@@ -180,6 +194,20 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         });
       });
 
+      // Compute which stages are newly unlocked (to scroll to the first new one)
+      const prevUnlocked = new Set(unlockedStagesRef.current);
+      const nextUnlocked = new Set(prevUnlocked);
+      STAGES.forEach(({ key }) => {
+        if (computeIsStageVisible(key, newPredictionsByStage, originalMap)) {
+          nextUnlocked.add(key);
+        }
+      });
+      const newlyUnlockedStage = STAGES.find(
+        ({ key }) => nextUnlocked.has(key) && !prevUnlocked.has(key)
+      );
+
+      predictionsByStageRef.current = newPredictionsByStage;
+      originalWinnersRef.current = originalMap;
       setPredictionsByStage(newPredictionsByStage);
       setOriginalWinners(originalMap);
 
@@ -188,16 +216,6 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
       if (finalHasPrediction) {
         setHasEverPredictedFinal(prev => (prev ? prev : true));
       }
-
-      setUnlockedStages(prev => {
-        const next = new Set(prev);
-        STAGES.forEach(({ key }) => {
-          if (computeIsStageVisible(key, newPredictionsByStage, originalMap)) {
-            next.add(key);
-          }
-        });
-        return next;
-      });
 
       setKnockoutScore(data.knockout_score ?? null);
       setKnockoutPenalty(data.knockout_penalty ?? 0);
@@ -211,6 +229,15 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         );
         await AsyncStorage.setItem('bracketUpdatedMatches', JSON.stringify(remainingUpdates));
       }
+
+      if (newlyUnlockedStage) {
+        unlockedStagesRef.current = nextUnlocked;
+        setUnlockedStages(nextUnlocked);
+      } else {
+        unlockedStagesRef.current = nextUnlocked;
+        setUnlockedStages(nextUnlocked);
+      }
+
     } catch (error) {
       console.error('Error fetching knockout predictions:', error);
       setErrorModal({
@@ -219,16 +246,18 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         goBack: true,
       });
     } finally {
-      setLoading(false);
-      if (!hasAutoScrolledRef.current) {
-        hasAutoScrolledRef.current = true;
-        setTimeout(() => {
-          const targetKey = getRelevantStageKey();
-          const targetY = stageSectionYRef.current[targetKey];
-          if (targetY !== undefined && targetY > 0) {
-            scrollViewRef.current?.scrollTo({ y: targetY, animated: false });
-          }
-        }, 100);
+      if (myAllGen === fetchAllGenRef.current) {
+        setLoading(false);
+        if (!hasAutoScrolledRef.current) {
+          hasAutoScrolledRef.current = true;
+          setTimeout(() => {
+            const targetKey = getRelevantStageKey();
+            const targetY = stageSectionYRef.current[targetKey];
+            if (targetY !== undefined && targetY > 0) {
+              scrollViewRef.current?.scrollTo({ y: targetY, animated: false });
+            }
+          }, 100);
+        }
       }
     }
   }, [getCurrentUserId, getRelevantStageKey]);
@@ -237,6 +266,10 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const fetchStagesFrom = useCallback(async (fromStageKey: string) => {
     const userId = getCurrentUserId();
     if (!userId) return;
+
+    const myStagesGen = ++fetchStagesGenRef.current;
+    // Invalidate in-flight fetchAllStages — user action must win over background full load
+    fetchAllGenRef.current++;
 
     const fromIndex = STAGE_ORDER.indexOf(fromStageKey);
     if (fromIndex === -1) return;
@@ -248,48 +281,63 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         stagesToFetch.map(key => apiService.getKnockoutPredictions(userId, key))
       );
 
-      setPredictionsByStage(prev => {
-        const updated = { ...prev };
-        stagesToFetch.forEach((key, i) => {
-          updated[key] = results[i].predictions || [];
-        });
-        return updated;
-      });
+      // Discard stale responses (newer partial or full fetch started)
+      if (myStagesGen !== fetchStagesGenRef.current) return;
 
-      setOriginalWinners(prev => {
-        const updated = { ...prev };
-        stagesToFetch.forEach((key, i) => {
-          (results[i].predictions || []).forEach((p: KnockoutPrediction) => {
-            if (p.winner_team_id) {
-              updated[p.id] = p.winner_team_id;
-            } else {
-              delete updated[p.id];
-            }
-          });
-        });
-        return updated;
-      });
+      const freshPredictionsByStage: Record<string, KnockoutPrediction[]> = { ...predictionsByStageRef.current };
+      const freshOriginalWinners: { [predictionId: number]: number } = { ...originalWinnersRef.current };
 
-      setUnlockedStages(prev => {
-        const next = new Set(prev);
-        STAGES.forEach(({ key }) => {
-          if (computeIsStageVisible(key, predictionsByStage, originalWinners)) {
-            next.add(key);
+      stagesToFetch.forEach((key, i) => {
+        const preds = results[i].predictions || [];
+        freshPredictionsByStage[key] = preds;
+        preds.forEach((p: KnockoutPrediction) => {
+          if (p.winner_team_id) {
+            freshOriginalWinners[p.id] = p.winner_team_id;
+          } else {
+            delete freshOriginalWinners[p.id];
           }
         });
-        return next;
       });
 
-      // Update score from the last result (always includes knockout_score)
+      // Compute unlock BEFORE updating state
+      const prevUnlocked = new Set(unlockedStagesRef.current);
+      const nextUnlocked = new Set(prevUnlocked);
+      STAGES.forEach(({ key }) => {
+        if (computeIsStageVisible(key, freshPredictionsByStage, freshOriginalWinners)) {
+          nextUnlocked.add(key);
+        }
+      });
+      const newlyUnlockedStage = STAGES.find(
+        ({ key }) => nextUnlocked.has(key) && !prevUnlocked.has(key)
+      );
+
       const lastResult = results[results.length - 1];
       if (lastResult?.knockout_score !== undefined) {
         setKnockoutScore(lastResult.knockout_score ?? null);
         setKnockoutPenalty(lastResult.knockout_penalty ?? 0);
       }
+
+      if (newlyUnlockedStage) {
+        // Simply reveal the new stage in place — no scroll needed, user is already there
+        predictionsByStageRef.current = freshPredictionsByStage;
+        originalWinnersRef.current = freshOriginalWinners;
+        setPredictionsByStage(freshPredictionsByStage);
+        setOriginalWinners(freshOriginalWinners);
+        unlockedStagesRef.current = nextUnlocked;
+        setUnlockedStages(nextUnlocked);
+      } else {
+        predictionsByStageRef.current = freshPredictionsByStage;
+        originalWinnersRef.current = freshOriginalWinners;
+        setPredictionsByStage(freshPredictionsByStage);
+        setOriginalWinners(freshOriginalWinners);
+        unlockedStagesRef.current = nextUnlocked;
+        setUnlockedStages(nextUnlocked);
+      }
+
     } catch (error) {
       console.error('Error refreshing stages after update:', error);
     }
-  }, [getCurrentUserId, predictionsByStage, originalWinners]);
+  }, [getCurrentUserId]);
 
   useEffect(() => {
     fetchAllStages();
@@ -333,13 +381,16 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     return unlockedStages.has(stageKey);
   }, [unlockedStages, isPostGroupStage]);
 
-  const isNextLockedStage = useCallback((stageKey: string): boolean => {
+  // Returns true for the stage immediately after the last visible stage
+  // This stage is shown as an empty (no teams) preview section
+  const isNextPreviewStage = useCallback((stageKey: string): boolean => {
     if (isPostGroupStage) return false;
     const stageIndex = STAGES.findIndex(s => s.key === stageKey);
     if (stageIndex === 0) return false;
     const prevKey = STAGES[stageIndex - 1].key;
-    return unlockedStages.has(prevKey) && !isStageComplete(prevKey);
-  }, [unlockedStages, isStageComplete, isPostGroupStage]);
+    // Show as preview if previous stage is visible (regardless of completion)
+    return unlockedStages.has(prevKey) && !unlockedStages.has(stageKey);
+  }, [unlockedStages, isPostGroupStage]);
 
   const handleTeamPress = async (
     prediction: KnockoutPrediction,
@@ -357,6 +408,14 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         : (prediction.team2_name ?? '');
 
       try {
+        const winnerTeamId = winnerTeamNumber === 1 ? prediction.team1_id : prediction.team2_id;
+
+        // Optimistic UI: mark winner immediately (keep ref in sync so merges never drop it)
+        if (winnerTeamId) {
+          originalWinnersRef.current = { ...originalWinnersRef.current, [prediction.id]: winnerTeamId };
+          setOriginalWinners(prev => ({ ...prev, [prediction.id]: winnerTeamId }));
+        }
+
         await apiService.updateKnockoutPrediction(
           prediction.id,
           winnerTeamNumber,
@@ -364,14 +423,27 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
           false
         );
 
-        // Refetch only the changed stage and all later stages (cascade may clear future winners)
-        await fetchStagesFrom(prediction.stage);
+        // Fetch only LATER stages (cascade effects) — current stage already updated optimistically
+        const changedStageIndex = STAGE_ORDER.indexOf(prediction.stage);
+        if (changedStageIndex < STAGE_ORDER.length - 1) {
+          await fetchStagesFrom(STAGE_ORDER[changedStageIndex + 1]);
+        }
+        // If it's the final stage, no later stages exist — optimistic update is sufficient
 
         if (prediction.stage === 'final') {
           setShowBracketCompleteModal(true);
         }
 
       } catch (error) {
+        // Revert optimistic update on failure
+        setOriginalWinners(prev => {
+          const reverted = { ...prev };
+          delete reverted[prediction.id];
+          return reverted;
+        });
+        const ow = { ...originalWinnersRef.current };
+        delete ow[prediction.id];
+        originalWinnersRef.current = ow;
         console.error('Error updating knockout prediction:', error);
         setErrorModal({
           title: 'Could not save',
@@ -430,47 +502,40 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     </View>
   );
 
-  const renderLockedPlaceholder = (stageName: string, stageKey: string) => (
-    <View
-      key={`locked-${stageName}`}
-      onLayout={(e) => {
-        stageSectionYRef.current[stageKey] = e.nativeEvent.layout.y;
-      }}
-    >
-      {renderSectionHeader(stageName, false, true)}
-      <View style={styles.lockedPlaceholder}>
-        <View style={styles.lockedIconBadge}>
-          <Ionicons name="lock-closed" size={16} color="#64748b" />
-        </View>
-        <Text style={styles.lockedPlaceholderTitle}>Predict all matches above</Text>
-        <Text style={styles.lockedPlaceholderSubtitle}>
-          Complete the current round to unlock the next stage
-        </Text>
-      </View>
-    </View>
-  );
-
   const renderStageSection = (stageKey: string, stageName: string) => {
-    if (!isStageVisible(stageKey) && !isNextLockedStage(stageKey)) {
-      return null;
-    }
+    const visible = isStageVisible(stageKey);
+    const preview = isNextPreviewStage(stageKey);
 
-    if (!isStageVisible(stageKey) && isNextLockedStage(stageKey)) {
-      return renderLockedPlaceholder(stageName, stageKey);
+    if (!visible && !preview) {
+      return null;
     }
 
     const predictions = predictionsByStage[stageKey] || [];
     const isFirst = stageKey === 'round32';
+
     return (
       <View
-        style={styles.sectionWrapper}
         key={stageKey}
+        style={styles.sectionWrapper}
+        collapsable={false}
         onLayout={(e) => {
           stageSectionYRef.current[stageKey] = e.nativeEvent.layout.y;
         }}
       >
-        {renderSectionHeader(stageName, isFirst)}
-        {predictions.map(p => renderMatch(p, stageKey))}
+        {renderSectionHeader(stageName, isFirst, !visible)}
+        {!visible ? (
+          <View style={styles.lockedPlaceholder}>
+            <View style={styles.lockedIconBadge}>
+              <Ionicons name="lock-closed" size={16} color="#64748b" />
+            </View>
+            <Text style={styles.lockedPlaceholderTitle}>Predict all matches above</Text>
+            <Text style={styles.lockedPlaceholderSubtitle}>
+              Complete the current round to unlock the next stage
+            </Text>
+          </View>
+        ) : (
+          predictions.map(p => renderMatch(p, stageKey))
+        )}
       </View>
     );
   };
