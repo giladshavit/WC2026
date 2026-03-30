@@ -6,7 +6,7 @@ No service should call db.query() directly — always go through DBReader.
 from datetime import datetime
 from typing import List, Optional, Sequence, Dict, Tuple
 from sqlalchemy import and_, case, desc, func, text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from models.team import Team
 from models.user import User
@@ -55,6 +55,12 @@ class DBReader:
     @staticmethod
     def get_all_teams(db: Session) -> List[Team]:
         return db.query(Team).all()
+
+    @staticmethod
+    def get_all_teams_as_dict(db: Session) -> dict:
+        """Return all teams keyed by id."""
+        teams = db.query(Team).all()
+        return {t.id: t for t in teams}
 
     @staticmethod
     def get_teams_by_group(db: Session, group_id: int) -> List[Team]:
@@ -456,7 +462,39 @@ class DBReader:
         query = db.query(model).filter(model.user_id == user_id)
         if stage:
             query = query.filter(model.stage == stage)
-        return query.order_by(model.template_match_id).all()
+        return (
+            query.options(
+                joinedload(model.team1),
+                joinedload(model.team2),
+                joinedload(model.winner_team),
+                joinedload(model.knockout_result),
+            )
+            .order_by(model.template_match_id)
+            .all()
+        )
+
+    @staticmethod
+    def get_knockout_predictions_by_user_all_stages(
+        db: Session, user_id: int, is_draft: bool = False
+    ):
+        """
+        Fetch all knockout predictions for a user across all stages in a single query,
+        with eager loading of team1, team2, winner_team, and knockout_result relationships.
+        Returns list ordered by template_match_id.
+        """
+        model = KnockoutStagePredictionDraft if is_draft else KnockoutStagePrediction
+        return (
+            db.query(model)
+            .filter(model.user_id == user_id)
+            .options(
+                joinedload(model.team1),
+                joinedload(model.team2),
+                joinedload(model.winner_team),
+                joinedload(model.knockout_result),
+            )
+            .order_by(model.template_match_id)
+            .all()
+        )
 
     @staticmethod
     def get_unreachable_knockout_prediction_with_winner(

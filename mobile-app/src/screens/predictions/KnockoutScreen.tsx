@@ -46,6 +46,8 @@ const STAGE_KEY_TO_VALUE: Record<string, number> = {
   final: 11,
 };
 
+const STAGE_ORDER = ['round32', 'round16', 'quarter', 'semi', 'final'];
+
 const computeIsStageVisible = (
   stageKey: string,
   predsByStage: Record<string, KnockoutPrediction[]>,
@@ -160,16 +162,20 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         return;
       }
 
-      const results = await Promise.all(
-        STAGES.map(({ key }) => apiService.getKnockoutPredictions(userId, key))
-      );
+      // Single request for all stages
+      const data = await apiService.getAllKnockoutPredictions(userId);
 
-      const newPredictionsByStage: Record<string, KnockoutPrediction[]> = {};
+      const newPredictionsByStage: Record<string, KnockoutPrediction[]> = {
+        round32: data.stages.round32 || [],
+        round16: data.stages.round16 || [],
+        quarter: data.stages.quarter || [],
+        semi: data.stages.semi || [],
+        final: data.stages.final || [],
+      };
       const originalMap: { [predictionId: number]: number } = {};
 
-      STAGES.forEach(({ key }, index) => {
-        newPredictionsByStage[key] = results[index].predictions || [];
-        (results[index].predictions || []).forEach((p: KnockoutPrediction) => {
+      STAGES.forEach(({ key }) => {
+        (newPredictionsByStage[key] || []).forEach((p: KnockoutPrediction) => {
           if (p.winner_team_id) originalMap[p.id] = p.winner_team_id;
         });
       });
@@ -193,9 +199,8 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
         return next;
       });
 
-      const lastResult = results[results.length - 1];
-      setKnockoutScore(lastResult?.knockout_score ?? null);
-      setKnockoutPenalty(lastResult?.knockout_penalty ?? 0);
+      setKnockoutScore(data.knockout_score ?? null);
+      setKnockoutPenalty(data.knockout_penalty ?? 0);
 
       const bracketUpdatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';
       const bracketUpdatedMatches = JSON.parse(bracketUpdatedMatchesStr);
@@ -227,6 +232,64 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
       }
     }
   }, [getCurrentUserId, getRelevantStageKey]);
+
+  // After a PUT, refetch only the changed stage and all later stages (cascade may have cleared winners)
+  const fetchStagesFrom = useCallback(async (fromStageKey: string) => {
+    const userId = getCurrentUserId();
+    if (!userId) return;
+
+    const fromIndex = STAGE_ORDER.indexOf(fromStageKey);
+    if (fromIndex === -1) return;
+
+    const stagesToFetch = STAGE_ORDER.slice(fromIndex);
+
+    try {
+      const results = await Promise.all(
+        stagesToFetch.map(key => apiService.getKnockoutPredictions(userId, key))
+      );
+
+      setPredictionsByStage(prev => {
+        const updated = { ...prev };
+        stagesToFetch.forEach((key, i) => {
+          updated[key] = results[i].predictions || [];
+        });
+        return updated;
+      });
+
+      setOriginalWinners(prev => {
+        const updated = { ...prev };
+        stagesToFetch.forEach((key, i) => {
+          (results[i].predictions || []).forEach((p: KnockoutPrediction) => {
+            if (p.winner_team_id) {
+              updated[p.id] = p.winner_team_id;
+            } else {
+              delete updated[p.id];
+            }
+          });
+        });
+        return updated;
+      });
+
+      setUnlockedStages(prev => {
+        const next = new Set(prev);
+        STAGES.forEach(({ key }) => {
+          if (computeIsStageVisible(key, predictionsByStage, originalWinners)) {
+            next.add(key);
+          }
+        });
+        return next;
+      });
+
+      // Update score from the last result (always includes knockout_score)
+      const lastResult = results[results.length - 1];
+      if (lastResult?.knockout_score !== undefined) {
+        setKnockoutScore(lastResult.knockout_score ?? null);
+        setKnockoutPenalty(lastResult.knockout_penalty ?? 0);
+      }
+    } catch (error) {
+      console.error('Error refreshing stages after update:', error);
+    }
+  }, [getCurrentUserId, predictionsByStage, originalWinners]);
 
   useEffect(() => {
     fetchAllStages();
@@ -301,7 +364,8 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
           false
         );
 
-        await fetchAllStages(true);
+        // Refetch only the changed stage and all later stages (cascade may clear future winners)
+        await fetchStagesFrom(prediction.stage);
 
         if (prediction.stage === 'final') {
           setShowBracketCompleteModal(true);

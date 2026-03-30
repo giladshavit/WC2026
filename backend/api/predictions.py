@@ -234,6 +234,22 @@ def create_or_update_third_place_prediction(
 # Knockout Predictions Endpoints
 # ========================================
 
+@router.get("/predictions/knockout/all", response_model=Dict[str, Any])
+def get_all_knockout_predictions(
+    user_id: int = 1,
+    is_draft: bool = Query(False),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns all 5 knockout stages in a single request.
+    Response format: { stages: { round32: [...], round16: [...], ... }, knockout_score, knockout_penalty, free_changes, can_edit_drafts }
+    """
+    try:
+        result = PredictionService.get_all_knockout_predictions(db, user_id, is_draft=is_draft)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching knockout predictions: {str(e)}")
+
 @router.get("/predictions/knockout", response_model=Dict[str, Any])
 def get_knockout_predictions(
     user_id: int = 1,  # TODO: should come from authentication

@@ -84,6 +84,46 @@ class KnockoutService:
             "can_edit_drafts": stage.can_create_knockout_drafts(),
         }
 
+    @staticmethod
+    def get_all_knockout_predictions(
+        db: Session,
+        user_id: int,
+        is_draft: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Returns all knockout predictions grouped by stage in a single optimized query.
+        Uses eager loading to avoid N+1 team lookups.
+        """
+        STAGE_KEYS = ['round32', 'round16', 'quarter', 'semi', 'final']
+
+        predictions = DBReader.get_knockout_predictions_by_user_all_stages(db, user_id, is_draft=is_draft)
+
+        stages: Dict[str, list] = {k: [] for k in STAGE_KEYS}
+        for prediction in predictions:
+            stage_key = prediction.stage
+            if stage_key in stages:
+                item = KnockoutService._serialize_prediction(db, prediction, is_draft, user_id)
+                stages[stage_key].append(item)
+
+        knockout_score = None
+        knockout_penalty = 0
+        free_changes = 0
+        user_scores = DBReader.get_user_scores(db, user_id)
+        if user_scores:
+            if not is_draft:
+                knockout_score = user_scores.knockout_score
+                knockout_penalty = user_scores.knockout_penalty or 0
+            free_changes = getattr(user_scores, 'free_changes', 0) or 0
+
+        stage = StageManager.get_current_stage(db)
+        return {
+            "stages": stages,
+            "knockout_score": knockout_score,
+            "knockout_penalty": knockout_penalty,
+            "free_changes": free_changes,
+            "can_edit_drafts": stage.can_create_knockout_drafts(),
+        }
+
     # ═══════════════════════════════════════════════════════
     # BRACKET RESET
     # ═══════════════════════════════════════════════════════
@@ -1258,8 +1298,9 @@ class KnockoutService:
 
         # 3. Get knockout result
         knockout_result = (
-            DBReader.get_knockout_result_by_id(db, prediction.knockout_result_id)
-            if prediction.knockout_result_id else None
+            getattr(prediction, 'knockout_result', None)
+            or (DBReader.get_knockout_result_by_id(db, prediction.knockout_result_id)
+                if prediction.knockout_result_id else None)
         )
         
         # 4. Validity from DB

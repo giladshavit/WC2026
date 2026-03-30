@@ -829,6 +829,22 @@ export class ApiService {
     }
   }
 
+  async getAllKnockoutPredictions(
+    userId: number,
+    isDraft: boolean = false
+  ): Promise<{
+    stages: Record<string, KnockoutPrediction[]>;
+    knockout_score: number | null;
+    knockout_penalty: number;
+    free_changes: number;
+    can_edit_drafts: boolean;
+  }> {
+    const url = `${this.baseUrl}/api/predictions/knockout/all?user_id=${userId}&is_draft=${isDraft}&_t=${Date.now()}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  }
+
   async getDraftChangesCount(userId: number = 1): Promise<DraftChangesCountResponse> {
     try {
       const timestamp = new Date().getTime();

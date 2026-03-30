@@ -89,6 +89,10 @@ class PredictionService:
         return cls._load()[3].get_knockout_predictions(*args, **kwargs)
 
     @classmethod
+    def get_all_knockout_predictions(cls, *args, **kwargs):
+        return cls._load()[3].get_all_knockout_predictions(*args, **kwargs)
+
+    @classmethod
     def update_knockout_prediction_winner(cls, *args, **kwargs):
         return cls._load()[3].update_knockout_prediction_by_id(*args, **kwargs)
 
