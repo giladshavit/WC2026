@@ -2,8 +2,6 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { BracketMatch } from '../../utils/bracketCalculator';
 
-const TROPHY_IMAGE = require('../../../assets/trophy.png');
-
 interface BracketMatchCardProps {
   match: BracketMatch;
   onPress?: (match: BracketMatch) => void;
@@ -185,7 +183,7 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified,
       <View style={[styles.finalWrapper, isLocked && { opacity: 0.45 }]}>
         {/* Winner or placeholder ABOVE the card */}
         {match.winner_team_id ? (
-          <View style={[styles.winnerBanner, { height: 80 * sf }]}>
+          <View style={[styles.winnerBanner, { height: 110 * sf }]}>
             <Text style={[styles.winnerLabel, { fontSize: Math.max(10, 15 * sf) }]}>WINNER</Text>
             <View style={styles.winnerTeamRow}>
               {resolvedWinnerFlag ? (
@@ -200,13 +198,8 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified,
             </View>
           </View>
         ) : (
-          <View style={[styles.winnerPlaceholder, { height: 80 * sf }]} />
+          <View style={[styles.winnerPlaceholder, { height: 110 * sf }]} />
         )}
-
-        {/* Trophy image between winner and card */}
-        <View style={[styles.trophyWrapper, { height: 110 * sf, width: 80 * sf, marginBottom: 12 * sf, marginTop: 8 * sf }]}>
-          <Image source={TROPHY_IMAGE} style={[styles.trophyImage, { width: 72 * sf, height: 96 * sf }]} resizeMode="contain" />
-        </View>
 
         {/* The actual final match card - invalid = red+glow, else gold */}
         <View style={[
@@ -401,6 +394,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   finalGlowOuter: {
+    marginTop: 28,
     shadowOffset: { width: 0, height: 0 },
     borderRadius: 20,
     zIndex: 20,
@@ -493,24 +487,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     
   },
-  trophyWrapper: {
-    height: 110,
-    width: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  trophyImage: {
-    width: 72,
-    height: 96,
-  },
   winnerBanner: {
-    height: 80,
+    height: 110,
     alignItems: 'center',
     justifyContent: 'flex-end',
     marginBottom: 8,
+    marginTop: 4,
   },
   winnerLabel: {
     fontSize: 15,
@@ -540,7 +522,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#152a45',
   },
   winnerPlaceholder: {
-    height: 80,
-    marginBottom: 8,
+    height: 110,
+    marginBottom: 20,
   },
 });

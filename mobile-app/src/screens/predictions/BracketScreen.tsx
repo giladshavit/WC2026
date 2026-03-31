@@ -51,7 +51,7 @@
     const CARD_W = Math.round(100 * scaleFactor);
     const CARD_H = Math.round(68 * scaleFactor);
     const COLUMN_WIDTH = Math.round(110 * scaleFactor);
-    const FINAL_WRAPPER_ABOVE_CARD = Math.round(184 * scaleFactor);
+    const FINAL_WRAPPER_ABOVE_CARD = Math.round(156 * scaleFactor);
     const rawSpacing = (AVAILABLE_HEIGHT - 40) / 8;
     const minSpacing = CARD_H + 8;
     const spacing = Math.max(rawSpacing, minSpacing);
