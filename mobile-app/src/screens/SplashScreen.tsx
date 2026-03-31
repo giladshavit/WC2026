@@ -1,67 +1,8 @@
-import * as React from 'react';
 import { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, Image, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const TROPHY_IMAGE = require('../../assets/trophy.png');
 const FOOTBALL_IMAGE = require('../../assets/football_2026.png');
-
-function RadialGlowLayer() {
-  const layers = [
-    { size: 260, opacity: 0.001 },
-    { size: 255, opacity: 0.001 },
-    { size: 250, opacity: 0.001 },
-    { size: 245, opacity: 0.002 },
-    { size: 240, opacity: 0.002 },
-    { size: 235, opacity: 0.003 },
-    { size: 230, opacity: 0.003 },
-    { size: 225, opacity: 0.004 },
-    { size: 220, opacity: 0.004 },
-    { size: 215, opacity: 0.005 },
-    { size: 210, opacity: 0.005 },
-    { size: 205, opacity: 0.005 },
-    { size: 200, opacity: 0.006 },
-    { size: 195, opacity: 0.006 },
-    { size: 190, opacity: 0.006 },
-    { size: 185, opacity: 0.007 },
-    { size: 180, opacity: 0.007 },
-    { size: 175, opacity: 0.007 },
-    { size: 170, opacity: 0.008 },
-    { size: 165, opacity: 0.008 },
-    { size: 160, opacity: 0.008 },
-    { size: 155, opacity: 0.008 },
-    { size: 150, opacity: 0.009 },
-    { size: 145, opacity: 0.009 },
-    { size: 140, opacity: 0.009 },
-    { size: 135, opacity: 0.009 },
-    { size: 130, opacity: 0.009 },
-    { size: 125, opacity: 0.010 },
-    { size: 120, opacity: 0.010 },
-    { size: 115, opacity: 0.010 },
-    { size: 110, opacity: 0.010 },
-    { size: 105, opacity: 0.010 },
-    { size: 100, opacity: 0.010 },
-    { size: 96, opacity: 0.010 },
-    { size: 92, opacity: 0.010 },
-  ];
-
-  return (
-    <View style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center' }}>
-      {layers.map((layer, i) => (
-        <View
-          key={i}
-          style={{
-            position: 'absolute',
-            width: layer.size,
-            height: layer.size,
-            borderRadius: layer.size / 2,
-            backgroundColor: `rgba(212, 175, 55, ${layer.opacity})`,
-          }}
-        />
-      ))}
-    </View>
-  );
-}
 
 function StarField() {
   const stars = [
@@ -106,8 +47,8 @@ function StarField() {
           key={i}
           style={{
             position: 'absolute',
-            top: star.top as any,
-            left: star.left as any,
+            top: star.top as `${number}%`,
+            left: star.left as `${number}%`,
             width: star.size,
             height: star.size,
             borderRadius: star.size / 2,
@@ -125,30 +66,12 @@ interface SplashScreenProps {
 }
 
 export default function SplashScreen({ onAnimationComplete }: SplashScreenProps) {
-  const letterOPosition = useRef(new Animated.Value(-500)).current; // starts from top of screen
+  const letterOPosition = useRef(new Animated.Value(-500)).current;
   const letterOOpacity = useRef(new Animated.Value(0)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
   const textScale = useRef(new Animated.Value(0.85)).current;
-  const trophyOpacity = useRef(new Animated.Value(0)).current;
-  const trophyScale = useRef(new Animated.Value(0.6)).current;
 
   useEffect(() => {
-    // 1. t=0: Trophy pops in (scale 0.6→1, opacity 0→1, 700ms)
-    Animated.parallel([
-      Animated.timing(trophyOpacity, {
-        toValue: 1,
-        duration: 700,
-        useNativeDriver: true,
-      }),
-      Animated.timing(trophyScale, {
-        toValue: 1,
-        duration: 700,
-        easing: Easing.out(Easing.back(1.5)),
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // 2. t=300ms: Title + tagline fade in (opacity 0→1, scale 0.85→1, 600ms)
     Animated.sequence([
       Animated.delay(300),
       Animated.parallel([
@@ -165,7 +88,6 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
       ]),
     ]).start();
 
-    // 3. t=0: Football O drop (translateY -150→0, 1400ms, Easing.bounce)
     Animated.parallel([
       Animated.timing(letterOPosition, {
         toValue: 0,
@@ -179,7 +101,6 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
         useNativeDriver: true,
       }),
     ]).start(() => {
-      // After all animations complete: wait 1000ms then call onAnimationComplete
       setTimeout(() => {
         onAnimationComplete();
       }, 1000);
@@ -204,27 +125,6 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
       <View style={styles.decorativeCircle3} />
 
       <View style={styles.contentContainer}>
-        {/* Trophy with glow and pop-in animation */}
-        <View style={styles.trophyWrapper}>
-          <RadialGlowLayer />
-          <Animated.View
-            style={[
-              styles.trophyImageWrapper,
-              {
-                opacity: trophyOpacity,
-                transform: [{ scale: trophyScale }],
-              },
-            ]}
-          >
-            <Image
-              source={TROPHY_IMAGE}
-              style={[styles.trophyImage, { opacity: 0.82 }]}
-              resizeMode="contain"
-            />
-          </Animated.View>
-        </View>
-
-        {/* Title + football emoji + tagline */}
         <Animated.View
           style={[
             styles.titleTaglineWrapper,
@@ -241,17 +141,19 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
                 transform: [{ translateY: letterOTranslateY }],
                 opacity: letterOOpacity,
                 marginLeft: Platform.OS === 'android' ? -46 : -50,
-                marginTop: Platform.OS === 'ios' ? 0 : 0,
               }}
             >
-              <Image
-                source={FOOTBALL_IMAGE}
-                style={styles.footballImage}
-                resizeMode="contain"
-              />
+              <View style={styles.footballGlowWrapper}>
+                <View style={styles.footballGlow} />
+                <Image
+                  source={FOOTBALL_IMAGE}
+                  style={styles.footballImage}
+                  resizeMode="contain"
+                />
+              </View>
             </Animated.View>
           </View>
-          <Text style={styles.tagline}>World Cup 2026 Predictions</Text>
+          <Text style={styles.tagline}>Predict. Compete. Win.</Text>
         </Animated.View>
       </View>
     </LinearGradient>
@@ -297,28 +199,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    gap: 16,
     overflow: 'visible',
-  },
-  trophyWrapper: {
-    width: 280,
-    height: 280,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  trophyImageWrapper: {
-    width: 150,
-    height: 150,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  trophyImage: {
-    width: 150,
-    height: 150,
+    marginTop: -80,
   },
   titleTaglineWrapper: {
     alignItems: 'center',
@@ -340,6 +222,19 @@ const styles = StyleSheet.create({
   footballImage: {
     width: 57,
     height: 57,
+  },
+  footballGlowWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 57,
+    height: 57,
+  },
+  footballGlow: {
+    position: 'absolute',
+    width: 48,
+    height: 48,
+    borderRadius: 29,
+    backgroundColor: 'rgba(212, 175, 55, 0.12)',
   },
   tagline: {
     fontSize: 18,
