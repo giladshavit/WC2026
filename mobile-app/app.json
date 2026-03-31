@@ -20,6 +20,7 @@
     "android": {
       "package": "com.predictoapp.football",
       "versionCode": 1,
+      "enableProguardInReleaseBuilds": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#080c1c"
