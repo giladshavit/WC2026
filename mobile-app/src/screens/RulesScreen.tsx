@@ -61,7 +61,7 @@ const sections: Section[] = [
     content: [
       {
         type: 'paragraph',
-        text: 'Predicto is a prediction game for the 2026 FIFA World Cup. Predict match scores and bonus questions — or go all in with group standings, the full knockout bracket, and more. Then outscore your friends.',
+        text: 'Predicto is a prediction game for the 2026 Football Tournament. Predict match scores and bonus questions — or go all in with group standings, the full knockout bracket, and more. Then outscore your friends.',
       },
       {
         type: 'paragraph',

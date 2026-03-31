@@ -67,7 +67,7 @@ const QUESTION_LABELS: Record<string, string> = {
   k2: 'Matches decided by penalty shootout',
   k3: '3rd-place teams reaching Quarter Finals',
   t1: 'Total goals in the tournament',
-  t2: 'Who will win the World Cup?',
+  t2: 'Who will win the Tournament?',
   t3: 'Who will be the top scorer?',
 };
 

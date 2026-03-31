@@ -21,7 +21,7 @@ export default function AuthScreen() {
     >
       <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.logoTitle}>Predicto</Text>
-        <Text style={styles.logoSubtitle}>World Cup 2026 Predictions</Text>
+        <Text style={styles.logoSubtitle}>Football 2026 Predictions</Text>
       </View>
 
       {!isForgotPassword && (

@@ -113,7 +113,7 @@ const QUESTIONS: Question[] = [
   { id: 'k2', section: 'Knockout', label: 'Matches decided by penalty shootout', options: STATIC_OPTIONS.k2 },
   { id: 'k3', section: 'Knockout', label: '3rd-place teams reaching Quarter Finals', options: STATIC_OPTIONS.k3 },
   { id: 't1', section: 'Tournament', label: 'Total goals in the tournament', options: STATIC_OPTIONS.t1 },
-  { id: 't2', section: 'Tournament', label: 'Who will win the World Cup?', options: [] },
+  { id: 't2', section: 'Tournament', label: 'Who will win the Tournament?', options: [] },
   { id: 't3', section: 'Tournament', label: 'Who will be the top scorer?', options: STATIC_OPTIONS.t3 },
 ];
 
