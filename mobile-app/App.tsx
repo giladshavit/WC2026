@@ -34,7 +34,7 @@ function AppContent() {
     <ToastProvider>
       <NavigationContainer>
         {isAuthenticated ? <MainNavigator /> : <AuthScreen />}
-        <StatusBar style="auto" />
+        <StatusBar style="light" />
       </NavigationContainer>
     </ToastProvider>
   );
