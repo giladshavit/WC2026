@@ -21,9 +21,10 @@ interface Props {
   homeTeamFlagCode?: string;
   awayTeamFlagCode?: string;
   onClose: () => void;
+  onScoreSelect?: (home: number, away: number) => void;
 }
 
-export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTeamName, homeTeamFlagCode, awayTeamFlagCode, onClose }: Props) {
+export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTeamName, homeTeamFlagCode, awayTeamFlagCode, onClose, onScoreSelect }: Props) {
   const [stats, setStats] = useState<MatchStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,13 +105,25 @@ export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTe
             <Text style={styles.sectionLabel}>Top Scores</Text>
             <View style={styles.popularRow}>
               {stats.popular_scores.slice(0, 3).map((score, index) => (
-                <View key={index} style={styles.popularCard}>
+                <TouchableOpacity
+                  key={index}
+                  style={[styles.popularCard, onScoreSelect && !stats?.has_result ? styles.popularCardTappable : null]}
+                  onPress={() => {
+                    if (onScoreSelect && !stats?.has_result) {
+                      onClose();
+                      setTimeout(() => {
+                        onScoreSelect(score.home, score.away);
+                      }, 50);
+                    }
+                  }}
+                  activeOpacity={onScoreSelect && !stats?.has_result ? 0.7 : 1}
+                >
                   <View style={styles.scoreRow}>
                     <Text style={styles.scoreHome}>{score.home}</Text>
                     <Text style={styles.scoreSep}> – </Text>
                     <Text style={styles.scoreAway}>{score.away}</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           </View>
@@ -169,15 +182,17 @@ export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTe
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity style={styles.modalContent} activeOpacity={1} onPress={() => {}}>
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              {homeTeamName} vs {awayTeamName}
-            </Text>
+          {/* Close button row */}
+          <View style={styles.closeRow}>
             <TouchableOpacity onPress={onClose} style={styles.closeButtonTouch}>
               <Text style={styles.closeButton}>✕</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Title */}
+          <Text style={styles.modalTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+            {homeTeamName} vs {awayTeamName}
+          </Text>
 
           {/* Content */}
           {loading && <ActivityIndicator size="large" color="#16a34a" style={{ marginVertical: 20 }} />}
@@ -205,31 +220,30 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#1e293b',
     borderRadius: 16,
-    padding: 20,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     width: '85%',
     maxWidth: 350,
     borderWidth: 1,
     borderColor: '#2d4a6e',
   },
-  modalHeader: {
+  closeRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    position: 'relative',
+    justifyContent: 'flex-end',
+    marginBottom: 0,
+    marginTop: 0,
   },
   modalTitle: {
     fontSize: 17,
     fontWeight: '700',
     color: '#f1f5f9',
     textAlign: 'center',
-    flex: 1,
+    paddingHorizontal: 8,
+    marginBottom: 10,
   },
   closeButtonTouch: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    padding: 4,
+    padding: 2,
   },
   closeButton: {
     fontSize: 20,
@@ -325,6 +339,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  popularCardTappable: {
+    borderColor: '#3b82f6',
   },
   scoreRow: {
     flexDirection: 'row',

@@ -673,6 +673,11 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
         homeTeamFlagCode={match.home_team?.flag_url?.match(/\/([a-z]{2})\.png$/i)?.[1]}
         awayTeamFlagCode={match.away_team?.flag_url?.match(/\/([a-z]{2})\.png$/i)?.[1]}
         onClose={() => setShowStats(false)}
+        onScoreSelect={(home, away) => {
+          setHomeScore(home.toString());
+          setAwayScore(away.toString());
+          onScoreChange(match.id, home, away, false);
+        }}
       />
 
       {/* Points - bottom right (only when match finished) */}

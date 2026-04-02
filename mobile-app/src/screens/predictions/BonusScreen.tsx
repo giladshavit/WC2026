@@ -348,19 +348,15 @@ function BonusStatsModal({
 
   // ── g2: group cards — 4 rows × 3 columns ───────────────────────────────
   const renderG2Grid = () => {
-    const GAP = 6;
+    const GAP = 7;
     const containerWidth = screenWidth * 0.88 - 32;
-    const CARD_SIZE = Math.floor((containerWidth - 2 * GAP) / 3);
-    const FLAG_GAP = 5;
-    const FLAG_W = Math.floor((CARD_SIZE - 8 - FLAG_GAP) / 2);
-    const FLAG_H = Math.floor(FLAG_W * 0.65);
+    const CARD_SIZE = Math.floor(((containerWidth - 2 * GAP) / 3) * 0.92);
 
     return (
-      <View style={{ width: containerWidth, flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
+      <View style={{ width: containerWidth, flexDirection: 'row', flexWrap: 'wrap', gap: GAP, justifyContent: 'center' }}>
         {groups.map((g) => {
           const pct = pctMap[String(g.group_id)] ?? 0;
           const opacity = maxPct > 0 ? 0.12 + Math.pow(pct / maxPct, 1.6) * 0.88 : 0.12;
-          const teams = (g.teams || []).slice(0, 4);
           return (
             <View
               key={g.group_id}
@@ -372,37 +368,22 @@ function BonusStatsModal({
                 opacity,
                 justifyContent: 'center',
                 alignItems: 'center',
-                padding: 4,
+                padding: 3,
               }}
             >
-              <View style={{
-                flexDirection: 'row',
-                flexWrap: 'wrap',
-                width: FLAG_W * 2 + FLAG_GAP,
-                gap: FLAG_GAP,
-                justifyContent: 'center',
-              }}>
-                {teams.map((t) =>
-                  t.flag_url ? (
-                    <Image
-                      key={t.id}
-                      source={{ uri: t.flag_url }}
-                      style={{ width: FLAG_W, height: FLAG_H, borderRadius: 2 }}
-                    />
-                  ) : (
-                    <View
-                      key={t.id}
-                      style={{ width: FLAG_W, height: FLAG_H, borderRadius: 2, backgroundColor: '#475569' }}
-                    />
-                  )
-                )}
-              </View>
               <Text style={{
-                fontSize: 11,
-                fontWeight: '800',
+                fontSize: CARD_SIZE * 0.38,
+                fontWeight: '900',
                 color: '#fff',
-                marginTop: 3,
-                textAlign: 'center',
+                lineHeight: CARD_SIZE * 0.44,
+              }}>
+                {g.group_name}
+              </Text>
+              <Text style={{
+                fontSize: 10,
+                fontWeight: '700',
+                color: 'rgba(255,255,255,0.85)',
+                marginTop: 2,
               }}>
                 {pct}%
               </Text>
@@ -464,10 +445,13 @@ function BonusStatsModal({
 
   // ── Generic pill grid (all other fields) ───────────────────────────────
   const renderPillGrid = () => {
-    const isThreeCol = ['g4', 'g5', 'k3'].includes(fieldKey);
+    const isThreeCol = ['k3'].includes(fieldKey);
+    const isTwoCol = ['g4', 'g5'].includes(fieldKey);
     const pillW = isThreeCol
       ? Math.floor((screenWidth * 0.8 - 32 - 16) / 3)
-      : Math.floor((screenWidth * 0.8 - 32 - 10) / 2);
+      : isTwoCol
+        ? Math.floor((screenWidth * 0.8 - 32 - 10) / 2)
+        : Math.floor((screenWidth * 0.8 - 32 - 10) / 2);
     return (
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
         {opts.map((opt) => renderMiniPill(opt.value, opt.label, { width: pillW, height: 48 }))}
