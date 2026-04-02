@@ -92,8 +92,10 @@ export default function JoinLeagueScreen() {
           <TouchableOpacity
             style={styles.doneButton}
             onPress={() => {
-              showToast('Joined league successfully!', 'success');
-              navigation.goBack();
+              (navigation as any).navigate('LeaguesMain', {
+                showToast: 'Joined league successfully!',
+                refreshLeagues: true,
+              });
             }}
             activeOpacity={0.8}
           >

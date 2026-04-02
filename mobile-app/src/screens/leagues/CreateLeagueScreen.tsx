@@ -136,8 +136,10 @@ export default function CreateLeagueScreen() {
             <TouchableOpacity
               style={styles.doneButton}
               onPress={() => {
-                showToast('League created successfully!', 'success');
-                navigation.goBack();
+                (navigation as any).navigate('LeaguesMain', {
+                  showToast: 'League created successfully!',
+                  refreshLeagues: true,
+                });
               }}
               activeOpacity={0.8}
             >

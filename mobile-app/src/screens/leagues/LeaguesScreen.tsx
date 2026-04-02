@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   StatusBar,
+  Animated,
+  Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
@@ -33,6 +35,7 @@ export default function LeaguesScreen() {
     message: string;
     goBack?: boolean;
   } | null>(null);
+  const initialLoadDoneRef = React.useRef(false);
 
   const fetchLeagues = async () => {
     setLoading(true);
@@ -57,11 +60,21 @@ export default function LeaguesScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      fetchLeagues();
-      const params = (route.params as { showToast?: string }) || {};
+      const params = (route.params as { showToast?: string; refreshLeagues?: boolean }) || {};
+
+      const shouldRefresh = !initialLoadDoneRef.current || params.refreshLeagues === true;
+
+      if (shouldRefresh) {
+        initialLoadDoneRef.current = true;
+        fetchLeagues();
+      }
+
       if (params.showToast) {
         showToast(params.showToast, 'success');
         (navigation as any).setParams({ showToast: undefined });
+      }
+      if (params.refreshLeagues) {
+        (navigation as any).setParams({ refreshLeagues: undefined });
       }
     }, [route.params, showToast])
   );
@@ -201,13 +214,50 @@ export default function LeaguesScreen() {
     </View>
   );
 
+  const shimmerAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.timing(shimmerAnim, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, []);
+
+  const shimmerTranslate = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-300, 300],
+  });
+
+  const renderShimmerCard = (height: number, marginBottom: number, borderRadius: number = 14) => (
+    <View style={{
+      height,
+      marginBottom,
+      borderRadius,
+      backgroundColor: '#1e3a5f',
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: '#2d4a6e',
+    }}>
+      <Animated.View style={{
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        width: 200,
+        transform: [{ translateX: shimmerTranslate }],
+        backgroundColor: 'rgba(255,255,255,0.06)',
+      }} />
+    </View>
+  );
+
   const renderLoadingSkeletons = () => (
     <View style={styles.skeletonContainer}>
-      {/* Global league card skeleton */}
-      <View style={[styles.skeleton, styles.skeletonTall, { backgroundColor: '#1e3a8a', borderColor: '#2563eb' }]} />
-      {/* Private league skeletons */}
-      <View style={styles.skeleton} />
-      <View style={styles.skeleton} />
+      {renderShimmerCard(100, 16, 16)}
+      {renderShimmerCard(80, 12)}
+      {renderShimmerCard(80, 12)}
     </View>
   );
 

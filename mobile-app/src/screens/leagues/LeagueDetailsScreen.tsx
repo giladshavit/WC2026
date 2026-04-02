@@ -746,6 +746,8 @@ export default function LeagueDetailsScreen() {
   };
 
   const fetchStandings = async (append: boolean, pageOverride?: number, sortByOverride?: SortKey, scoreModeOverride?: 'multi' | 'classic') => {
+    // Prevent overlapping fetches
+    if (refreshing && append) return;
     if (append) {
       setLoadingMore(true);
     }
@@ -1113,7 +1115,7 @@ export default function LeagueDetailsScreen() {
             keyExtractor={(item) => (isStandingsTableHeaderRow(item) ? '__standings_header' : String(item.user_id))}
             getItemType={(item) => (isStandingsTableHeaderRow(item) ? 'header' : 'row')}
             onEndReached={() => {
-              if (!loadingMore && allStandings.length < totalCount) {
+              if (!loadingMore && !refreshing && allStandings.length < totalCount) {
                 setPage((p) => p + 1);
               }
             }}
@@ -1750,6 +1752,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 3,
     gap: 2,
+    marginBottom: 10,
   },
   scoreModeBtn: {
     paddingHorizontal: 12,
