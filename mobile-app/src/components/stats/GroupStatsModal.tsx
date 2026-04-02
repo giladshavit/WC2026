@@ -42,6 +42,22 @@ const DONUT_SEGMENTS = [
   { key: '4', label: '4', color: '#16a34a' },
 ];
 
+const HEATMAP_BASE = '#16a34a';
+
+/** Position column headers: 1st/2nd advance (green), 3rd uncertain (orange), 4th out (red). */
+const HEATMAP_POSITION_HEADER_COLORS = ['#16a34a', '#16a34a', '#f97316', '#ef4444'] as const;
+
+/** Same curve as BonusScreen renderMiniPill; maxPct is max across entire heatmap table. */
+const heatmapCellOpacity = (pct: number, maxPct: number) =>
+  maxPct > 0 ? 0.12 + Math.pow(pct / maxPct, 1.6) * 0.88 : 0.12;
+
+const hexToRgba = (hex: string, a: number) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${a})`;
+};
+
 function DonutChart({ distribution }: { distribution: Record<string, number> }) {
   const size = 160;
   const strokeWidth = 28;
@@ -161,12 +177,19 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
   };
 
   const getRankColor = (rank: number) => {
-    if (rank === 4) return '#ef4444'; // red for 4th
-    return '#16a34a'; // green for 1st, 2nd, 3rd
+    if (rank === 1 || rank === 2) return '#16a34a';
+    if (rank === 3) return '#f97316'; // orange — not guaranteed to advance
+    return '#ef4444';
   };
 
   const renderPreResult = () => {
     if (!stats || !stats.consensus_table || !stats.position_distribution) return null;
+
+    const pd = stats.position_distribution;
+    const maxHeatmapPct = Math.max(
+      0,
+      ...Object.values(pd).flatMap((d) => [d.first_pct, d.second_pct, d.third_pct, d.fourth_pct]),
+    );
 
     return (
       <View>
@@ -191,51 +214,77 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
 
         <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Position Distribution</Text>
         <View style={styles.consensusTableWrapper}>
-        <View style={styles.tableHeader}>
-          <Text style={[styles.tableCell, styles.tableHeaderText, { flex: 2 }]}>Team</Text>
-          <Text style={[styles.tableCell, styles.tableHeaderText, { color: '#16a34a' }]}>1st</Text>
-          <Text style={[styles.tableCell, styles.tableHeaderText, { color: '#16a34a' }]}>2nd</Text>
-          <Text style={[styles.tableCell, styles.tableHeaderText, { color: '#16a34a' }]}>3rd</Text>
-          <Text style={[styles.tableCell, styles.tableHeaderText, { color: '#ef4444' }]}>4th</Text>
+        <View style={styles.heatmapHeaderRow}>
+          <Text style={[styles.heatmapHeaderCell, styles.heatmapTeamHeader]}>Team</Text>
+          {(['1st', '2nd', '3rd', '4th'] as const).map((label, i) => (
+            <Text
+              key={label}
+              style={[
+                styles.heatmapHeaderCell,
+                styles.heatmapPositionHeader,
+                { color: HEATMAP_POSITION_HEADER_COLORS[i] },
+              ]}
+            >
+              {label}
+            </Text>
+          ))}
         </View>
-        {Object.entries(stats!.position_distribution!)
+        {Object.entries(pd)
           .sort((a, b) => {
-            const rankA = stats!.consensus_table?.find(e => String(e.team_id) === a[0])?.rank ?? 99;
-            const rankB = stats!.consensus_table?.find(e => String(e.team_id) === b[0])?.rank ?? 99;
+            const rankA = stats.consensus_table?.find(e => String(e.team_id) === a[0])?.rank ?? 99;
+            const rankB = stats.consensus_table?.find(e => String(e.team_id) === b[0])?.rank ?? 99;
             return rankA - rankB;
           })
-          .map(([teamIdStr, dist], idx, arr) => {
+          .map(([teamIdStr, dist]) => {
           const teamId = parseInt(teamIdStr);
           const team = teams.find(t => t.id === teamId) ?? teams.find(t => String(t.id) === teamIdStr);
           const displayName = team?.name ?? `Team ${teamId}`;
           const flagUrl = team?.flag_url;
-          const maxPct = Math.max(dist.first_pct, dist.second_pct, dist.third_pct, dist.fourth_pct);
           const pctCells = [
             { key: 'first', pct: dist.first_pct },
             { key: 'second', pct: dist.second_pct },
             { key: 'third', pct: dist.third_pct },
             { key: 'fourth', pct: dist.fourth_pct },
           ];
-          const isLastRow = idx === arr.length - 1;
           return (
-            <View key={teamIdStr} style={[styles.tableRow, isLastRow && styles.tableRowLast]}>
-              <View style={[styles.tableCell, { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+            <View key={teamIdStr} style={styles.heatmapRow}>
+              <View style={styles.heatmapTeamCell}>
                 {flagUrl ? (
-                  <Image source={{ uri: flagUrl }} style={{ width: 20, height: 14, borderRadius: 2 }} />
+                  <Image
+                    source={{ uri: flagUrl }}
+                    style={styles.heatmapTeamFlag}
+                  />
                 ) : null}
-                <Text numberOfLines={1} style={{ fontSize: 12, color: '#e2e8f0', flex: 1 }}>{displayName}</Text>
-              </View>
-              {pctCells.map(({ key, pct }) => (
                 <Text
-                  key={key}
-                  style={[
-                    styles.tableCellPct,
-                    (pct === maxPct && maxPct > 0) && styles.tableCellPctEmphasized,
-                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.45}
+                  style={styles.heatmapTeamText}
                 >
-                  {pct}%
+                  {displayName}
                 </Text>
-              ))}
+              </View>
+              {pctCells.map(({ key, pct }) => {
+                const alpha = heatmapCellOpacity(pct, maxHeatmapPct);
+                return (
+                  <View
+                    key={key}
+                    style={[
+                      styles.heatmapCell,
+                      { backgroundColor: hexToRgba(HEATMAP_BASE, alpha) },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.heatmapCellText,
+                        { color: pct < 15 ? 'rgba(255,255,255,0.5)' : '#ffffff' },
+                      ]}
+                    >
+                      {pct}%
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           );
         })}
@@ -261,7 +310,14 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
           const team = teams.find(t => t.name === data.team_name);
           return (
             <View key={pos} style={styles.accuracyRow}>
-              <Text style={styles.posLabel}>{positionLabels[pos] || pos}</Text>
+              <Text
+                style={[
+                  styles.posLabel,
+                  pos === 'third_place' && { color: '#f97316' },
+                ]}
+              >
+                {positionLabels[pos] || pos}
+              </Text>
               {team?.flag_url ? (
                 <Image source={{ uri: team.flag_url }} style={styles.teamFlag} />
               ) : null}
@@ -293,7 +349,7 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
 
           {stats && !loading && (
             <ScrollView
-              style={{ maxHeight: 400 }}
+              style={{ maxHeight: 520 }}
               contentContainerStyle={{ paddingBottom: 16 }}
               showsVerticalScrollIndicator={true}
             >
@@ -381,44 +437,72 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#e2e8f0',
   },
-  tableHeader: {
+  heatmapHeaderRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     borderBottomWidth: 2,
     borderBottomColor: '#2d4a6e',
-    paddingBottom: 4,
+    paddingBottom: 6,
     marginBottom: 4,
   },
-  tableHeaderText: {
+  heatmapHeaderCell: {
+    fontSize: 11,
     fontWeight: '600',
-    color: '#64748b',
-    fontSize: 12,
+    textAlign: 'center',
   },
-  tableRow: {
+  heatmapTeamHeader: {
+    flex: 2,
+    color: '#64748b',
+    textAlign: 'left',
+    paddingLeft: 4,
+  },
+  heatmapPositionHeader: {
+    flex: 1,
+  },
+  heatmapRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2d4a6e',
+    paddingHorizontal: 2,
+    borderRadius: 4,
   },
-  tableRowLast: {
-    borderBottomWidth: 0,
+  heatmapTeamCell: {
+    flex: 2,
+    flexShrink: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingRight: 6,
+    paddingLeft: 4,
+    minHeight: 36,
+    minWidth: 0,
+    overflow: 'hidden',
   },
-  tableCell: {
-    flex: 1,
-    fontSize: 13,
-    color: '#e2e8f0',
-    textAlign: 'center',
+  heatmapTeamFlag: {
+    width: 20,
+    height: 14,
+    borderRadius: 2,
+    flexShrink: 0,
   },
-  tableCellPct: {
-    flex: 1,
+  heatmapTeamText: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#64748b',
-    textAlign: 'center',
+    color: '#e2e8f0',
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    overflow: 'hidden',
   },
-  tableCellPctEmphasized: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#f1f5f9',
+  heatmapCell: {
+    flex: 1,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 2,
+    borderRadius: 4,
+  },
+  heatmapCellText: {
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   accuracyRow: {
     flexDirection: 'row',
