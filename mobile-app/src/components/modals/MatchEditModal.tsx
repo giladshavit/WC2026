@@ -25,11 +25,11 @@ interface MatchEditModalProps {
 const { width: screenWidth } = Dimensions.get('window');
 
 const STAGE_STYLES: Record<string, { bg: string; text: string }> = {
-  round32: { bg: '#eff6ff', text: '#3b82f6' },
-  round16: { bg: '#f5f3ff', text: '#7c3aed' },
-  quarter: { bg: '#fffbeb', text: '#d97706' },
-  semi: { bg: '#fff1f2', text: '#e11d48' },
-  final: { bg: '#fefce8', text: '#ca8a04' },
+  round32: { bg: '#1e3a5f', text: '#60a5fa' },
+  round16: { bg: '#2e1065', text: '#a78bfa' },
+  quarter: { bg: '#422006', text: '#fbbf24' },
+  semi: { bg: '#450a0a', text: '#f87171' },
+  final: { bg: '#3a3208', text: '#facc15' },
 };
 
 export default function MatchEditModal({ visible, match, onClose, onSave, errorMessage, onClearError }: MatchEditModalProps) {
@@ -108,8 +108,10 @@ export default function MatchEditModal({ visible, match, onClose, onSave, errorM
                 style={styles.statsButton}
                 activeOpacity={0.8}
               >
-                <View style={styles.statsButtonInner}>
-                  <Ionicons name="stats-chart" size={14} color="#0284c7" />
+                <View style={styles.statsButtonHalo}>
+                  <View style={styles.statsButtonInner}>
+                    <Ionicons name="stats-chart" size={14} color="#7dd3fc" />
+                  </View>
                 </View>
               </TouchableOpacity>
               {/* Stage Badge */}
@@ -157,7 +159,7 @@ export default function MatchEditModal({ visible, match, onClose, onSave, errorM
                   </View>
                   <View style={styles.checkPlaceholder}>
                     {isTeam1Selected && (
-                      <Ionicons name="checkmark-circle" size={22} color="#16a34a" />
+                      <Ionicons name="checkmark-circle" size={22} color="#4ade80" />
                     )}
                   </View>
                 </TouchableOpacity>
@@ -201,7 +203,7 @@ export default function MatchEditModal({ visible, match, onClose, onSave, errorM
                   </View>
                   <View style={styles.checkPlaceholder}>
                     {isTeam2Selected && (
-                      <Ionicons name="checkmark-circle" size={22} color="#16a34a" />
+                      <Ionicons name="checkmark-circle" size={22} color="#4ade80" />
                     )}
                   </View>
                 </TouchableOpacity>
@@ -246,15 +248,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   modal: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#1e293b',
     borderRadius: 20,
     width: screenWidth * 0.9,
     maxWidth: 400,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 12,
   },
   header: {
     flexDirection: 'row',
@@ -291,15 +293,31 @@ const styles = StyleSheet.create({
     left: 12,
     zIndex: 10,
   },
+  statsButtonHalo: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#ffffff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.22,
+    shadowRadius: 3,
+  },
   statsButtonInner: {
-    backgroundColor: 'rgba(2,132,199,0.12)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(2,132,199,0.4)',
-    borderRadius: 14,
+    backgroundColor: 'rgba(2,132,199,0.35)',
+    borderWidth: 2,
+    borderColor: 'rgba(14,165,233,0.85)',
+    borderRadius: 16,
     width: 32,
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#0ea5e9',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.48,
+    shadowRadius: 6,
+    elevation: 5,
   },
   content: {
     padding: 24,
@@ -327,29 +345,28 @@ const styles = StyleSheet.create({
   },
   teamCard: {
     flex: 1,
-    backgroundColor: '#f0f4f8',
+    backgroundColor: '#152a45',
     borderRadius: 12,
     padding: 12,
     marginHorizontal: 6,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
+    borderColor: '#2d4a6e',
     alignItems: 'center',
     minHeight: 140,
   },
   selectedCard: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: 'rgba(22,163,74,0.15)',
     borderColor: '#16a34a',
-    borderWidth: 2.5,
+    borderWidth: 2,
     shadowColor: '#16a34a',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
     elevation: 4,
   },
   disabledCard: {
-    backgroundColor: '#f3f4f6',
-    borderColor: '#d1d5db',
-    opacity: 0.6,
+    borderColor: '#2d4a6e',
+    opacity: 0.4,
   },
   teamContent: {
     alignItems: 'center',
@@ -362,17 +379,17 @@ const styles = StyleSheet.create({
   },
   teamName: {
     fontWeight: '600',
-    color: '#374151',
+    color: '#e2e8f0',
     textAlign: 'center',
     marginBottom: 4,
     lineHeight: 20,
   },
   selectedText: {
-    color: '#15803d',
+    color: '#4ade80',
     fontWeight: 'bold',
   },
   disabledText: {
-    color: '#9ca3af',
+    color: '#475569',
   },
   checkPlaceholder: {
     height: 26,
@@ -386,7 +403,7 @@ const styles = StyleSheet.create({
   vsText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#6b7280',
+    color: '#64748b',
   },
   errorBanner: {
     flexDirection: 'row',

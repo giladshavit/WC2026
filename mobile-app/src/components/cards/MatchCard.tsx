@@ -560,7 +560,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
           onPress={() => setShowStats(true)}
           activeOpacity={0.7}
         >
-          <Ionicons name="stats-chart" size={13} color="#38bdf8" />
+          <Ionicons name="stats-chart" size={14} color="#7dd3fc" />
         </TouchableOpacity>
       )}
 
@@ -918,14 +918,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: 'rgba(2,132,199,0.6)',
-    backgroundColor: 'rgba(2,132,199,0.3)',
+    borderWidth: 2,
+    borderColor: 'rgba(14,165,233,0.85)',
+    backgroundColor: 'rgba(2,132,199,0.35)',
+    shadowColor: '#0ea5e9',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.48,
+    shadowRadius: 6,
+    elevation: 5,
   },
   statsButtonText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#38bdf8',
+    color: '#7dd3fc',
   },
   // Points display styles - bottom right
   pointsContainer: {

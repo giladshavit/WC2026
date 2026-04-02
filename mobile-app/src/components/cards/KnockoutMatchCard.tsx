@@ -146,8 +146,10 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
         style={styles.statsButton}
         activeOpacity={0.8}
       >
-        <View style={styles.statsButtonInner}>
-          <Ionicons name="stats-chart" size={14} color="#38bdf8" />
+        <View style={styles.statsButtonHalo}>
+          <View style={styles.statsButtonInner}>
+            <Ionicons name="stats-chart" size={14} color="#7dd3fc" />
+          </View>
         </View>
       </TouchableOpacity>
 
@@ -316,20 +318,31 @@ const styles = StyleSheet.create({
     left: 8,
     zIndex: 10,
   },
+  statsButtonHalo: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#ffffff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.22,
+    shadowRadius: 3,
+  },
   statsButtonInner: {
-    backgroundColor: 'rgba(2,132,199,0.3)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(2,132,199,0.6)',
+    backgroundColor: 'rgba(2,132,199,0.35)',
+    borderWidth: 2,
+    borderColor: 'rgba(14,165,233,0.85)',
     borderRadius: 14,
     width: 28,
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowColor: '#0ea5e9',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.48,
+    shadowRadius: 6,
+    elevation: 5,
   },
 });
 

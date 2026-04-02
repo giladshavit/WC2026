@@ -557,13 +557,15 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         <View style={styles.headerTop}>
           {/* LEFT: Stats button (icon-only circle) */}
           <View style={styles.headerLeft}>
-            <TouchableOpacity
-              onPress={() => setShowStats(true)}
-              style={styles.statsButton}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="stats-chart" size={16} color="#38bdf8" />
-            </TouchableOpacity>
+            <View style={styles.statsButtonHalo}>
+              <TouchableOpacity
+                onPress={() => setShowStats(true)}
+                style={styles.statsButton}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="stats-chart" size={14} color="#7dd3fc" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* CENTER: Counter badge */}
@@ -911,20 +913,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
+  statsButtonHalo: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#ffffff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.22,
+    shadowRadius: 3,
+  },
   statsButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(2,132,199,0.3)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(2,132,199,0.6)',
+    backgroundColor: 'rgba(2,132,199,0.35)',
+    borderWidth: 2,
+    borderColor: 'rgba(14,165,233,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 3,
+    shadowColor: '#0ea5e9',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.48,
+    shadowRadius: 6,
+    elevation: 5,
   },
   headerRightSpacer: {
     minWidth: 90,

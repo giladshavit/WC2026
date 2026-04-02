@@ -70,7 +70,7 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
               style={styles.statsButton}
               activeOpacity={0.8}
             >
-              <Ionicons name="stats-chart" size={14} color="#38bdf8" />
+              <Ionicons name="stats-chart" size={14} color="#7dd3fc" />
               <Text style={styles.statsButtonText}>Stats</Text>
             </TouchableOpacity>
             {isLocked && (
@@ -246,16 +246,21 @@ const styles = StyleSheet.create({
   statsButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(2,132,199,0.3)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(2,132,199,0.6)',
+    backgroundColor: 'rgba(2,132,199,0.35)',
+    borderWidth: 2,
+    borderColor: 'rgba(14,165,233,0.85)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
     gap: 4,
+    shadowColor: '#0ea5e9',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.48,
+    shadowRadius: 6,
+    elevation: 5,
   },
   statsButtonText: {
-    color: '#38bdf8',
+    color: '#7dd3fc',
     fontSize: 12,
     fontWeight: '700',
   },

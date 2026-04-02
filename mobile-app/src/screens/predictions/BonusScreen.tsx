@@ -1878,14 +1878,15 @@ export default function BonusScreen() {
                         </View>
                       )}
                     </View>
-                    <TouchableOpacity
-                      onPress={handleShowStats}
-                      style={styles.statsPillBtn}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="stats-chart" size={14} color="#ffffff" />
-                      <Text style={styles.statsPillText}>Stats</Text>
-                    </TouchableOpacity>
+                    <View style={styles.statsButtonHalo}>
+                      <TouchableOpacity
+                        onPress={handleShowStats}
+                        style={styles.statsPillBtn}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="stats-chart" size={14} color="#7dd3fc" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                   <Text style={styles.questionTextDark}>{QUESTION_LABELS[currentField]}</Text>
                   {prediction && !(prediction as any)[FIELD_TO_EDITABLE[currentField]] && (
@@ -2397,19 +2398,31 @@ const styles = StyleSheet.create({
     width: 72,
     zIndex: 1,
   },
-  statsPillBtn: {
-    flexDirection: 'row',
+  statsButtonHalo: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0284c7',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    gap: 4,
+    shadowColor: '#ffffff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.22,
+    shadowRadius: 3,
   },
-  statsPillText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
+  statsPillBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(2,132,199,0.35)',
+    borderWidth: 2,
+    borderColor: 'rgba(14,165,233,0.85)',
+    shadowColor: '#0ea5e9',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.48,
+    shadowRadius: 6,
+    elevation: 5,
   },
   editPillBtn: {
     flexDirection: 'row',
