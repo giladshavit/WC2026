@@ -1,5 +1,7 @@
 """Bonus question statistics — answer distribution per question."""
 from typing import Any, Dict, List
+
+from sqlalchemy import cast, func, String
 from sqlalchemy.orm import Session
 
 from models.predictions import BonusPrediction
@@ -37,38 +39,29 @@ class BonusStatisticsService:
 
         column_name = FIELD_TO_COLUMN[field_key]
 
-        all_predictions = db.query(BonusPrediction).all()
+        col = getattr(BonusPrediction, column_name)
 
-        print(f"[BonusStats] field={field_key} column={column_name} total_rows={len(all_predictions)}")
+        rows = (
+            db.query(cast(col, String), func.count())
+            .filter(col.isnot(None))
+            .group_by(col)
+            .all()
+        )
 
-        answered = []
-        for pred in all_predictions:
-            raw_val = getattr(pred, column_name, "ATTR_MISSING")
-            print(f"  pred.id={pred.id} raw_val={repr(raw_val)} type={type(raw_val).__name__}")
-
-            if raw_val is None or raw_val == "ATTR_MISSING":
+        # Filter out zero/empty/null values (same logic as before)
+        counts: Dict[str, int] = {}
+        for val_str, cnt in rows:
+            if not val_str:
                 continue
-            # For integer columns (g2, g3): skip 0 which means unset
-            if isinstance(raw_val, int) and raw_val == 0:
+            s = val_str.strip()
+            if not s or s.lower() in ("none", "null", "0"):
                 continue
-            s = str(raw_val).strip()
-            if not s or s.lower() in ("none", "null"):
-                continue
+            counts[s] = counts.get(s, 0) + cnt
 
-            answered.append(s)
-
-        total_answered = len(answered)
-        print(f"[BonusStats] answered count: {total_answered}")
+        total_answered = sum(counts.values())
 
         if total_answered == 0:
             return {"field_key": field_key, "total_answered": 0, "distribution": []}
-
-        # Count occurrences
-        counts: Dict[str, int] = {}
-        for val in answered:
-            counts[val] = counts.get(val, 0) + 1
-
-        print(f"[BonusStats] counts: {counts}")
 
         # Build distribution — normalize to 100 regardless of how many answered
         # This handles any edge case where floats don't sum to 100
