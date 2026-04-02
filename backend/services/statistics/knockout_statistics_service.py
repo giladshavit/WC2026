@@ -2,6 +2,7 @@ from typing import Dict, Any, List
 from collections import Counter
 from sqlalchemy.orm import Session
 
+from models.team import Team
 from services.database import DBReader
 
 
@@ -120,8 +121,19 @@ class KnockoutStatisticsService:
         """Top N matchups (unordered) with winner distribution per matchup."""
         matchup_counts, matchup_winners = KnockoutStatisticsService._aggregate_matchups(predictions)
         top_pairs = matchup_counts.most_common(top_n)
+
+        # Collect all team IDs needed, fetch in a single query
+        all_team_ids = set()
+        for pair, _ in top_pairs:
+            all_team_ids.update(pair)
+        teams_dict = (
+            {t.id: t for t in db.query(Team).filter(Team.id.in_(all_team_ids)).all()}
+            if all_team_ids
+            else {}
+        )
+
         return [
-            KnockoutStatisticsService._build_matchup_entry(db, pair, count, matchup_winners, total)
+            KnockoutStatisticsService._build_matchup_entry(teams_dict, pair, count, matchup_winners, total)
             for pair, count in top_pairs
         ]
 
@@ -144,11 +156,11 @@ class KnockoutStatisticsService:
         return counts, winners
 
     @staticmethod
-    def _build_matchup_entry(db, pair, count, matchup_winners, total) -> Dict[str, Any]:
+    def _build_matchup_entry(teams_dict: dict, pair, count, matchup_winners, total) -> Dict[str, Any]:
         """Build a single matchup entry for the response."""
         team_ids = list(pair)
-        team_a = DBReader.get_team(db, team_ids[0])
-        team_b = DBReader.get_team(db, team_ids[1])
+        team_a = teams_dict.get(team_ids[0])
+        team_b = teams_dict.get(team_ids[1])
         winners = matchup_winners.get(pair, Counter())
         winner_a = winners.get(team_ids[0], 0)
         winner_b = winners.get(team_ids[1], 0)
