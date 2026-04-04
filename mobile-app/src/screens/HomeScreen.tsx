@@ -81,8 +81,8 @@ const actions: Array<{
 }> = [
   {
     title: 'My Predictions',
-    subtitle: 'Matches & bracket picks',
-    icon: 'help-circle-outline',
+    subtitle: 'All your picks',
+    icon: 'football-outline',
     navigateTo: 'PredictionsMenu',
     accent: '#162444',
     accentBorder: '#16a34a',
@@ -107,12 +107,12 @@ const actions: Array<{
   },
   {
     title: 'Profile',
-    subtitle: 'Account & preferences',
+    subtitle: 'Account details',
     icon: 'person-circle-outline',
     navigateTo: 'Profile',
     accent: null,
     accentBorder: null,
-    iconColor: '#94a3b8',
+    iconColor: '#cbd5e1',
   },
 ];
 
@@ -144,8 +144,8 @@ export default function HomeScreen() {
             borderWidth: 3,
             borderColor: '#4ade80' as const,
             shadowColor: '#16a34a' as const,
-            shadowOpacity: 0.7,
-            shadowRadius: 24,
+            shadowOpacity: 0.38,
+            shadowRadius: 18,
             shadowOffset: { width: 0 as const, height: 0 as const },
             elevation: 16,
           }
@@ -155,8 +155,8 @@ export default function HomeScreen() {
               borderWidth: 3,
               borderColor: '#fbbf24' as const,
               shadowColor: '#f59e0b' as const,
-              shadowOpacity: 0.65,
-              shadowRadius: 24,
+              shadowOpacity: 0.4,
+              shadowRadius: 18,
               shadowOffset: { width: 0 as const, height: 0 as const },
               elevation: 16,
             }
@@ -338,18 +338,18 @@ const styles = StyleSheet.create({
   },
   statsButton: {
     backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#3b82f6',
+    borderWidth: 2.5,
+    borderColor: '#38bdf8',
     shadowColor: '#3b82f6',
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 0 },
     elevation: 0,
   },
   profileButton: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#475569',
+    borderColor: '#cbd5e1',
     shadowColor: 'transparent',
     elevation: 0,
   },
