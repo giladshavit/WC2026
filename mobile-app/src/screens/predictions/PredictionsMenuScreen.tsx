@@ -16,28 +16,33 @@ import { MainStackParamList } from '../../navigation/MainNavigator';
 
 type NavigationProp = StackNavigationProp<MainStackParamList, 'PredictionsMenu'>;
 
-export default function PredictionsMenuScreen() {
-  const navigation = useNavigation<NavigationProp>();
+type GridCardProps = {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  iconBg: string;
+  onPress: () => void;
+  multi?: boolean;
+};
 
-  const renderRow = (
-    key: string,
-    title: string,
-    subtitle: string,
-    icon: React.ReactNode,
-    onPress: () => void,
-    iconBg: string,
-  ) => (
-    <TouchableOpacity key={key} style={styles.row} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
-        {icon}
+function GridCard({ title, subtitle, icon, iconBg, onPress, multi }: GridCardProps) {
+  return (
+    <TouchableOpacity
+      style={[styles.gridCard, multi && styles.gridCardMulti]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.gridCardInner}>
+        <View style={[styles.iconGrid, { backgroundColor: iconBg }]}>{icon}</View>
+        <Text style={styles.gridTitle}>{title}</Text>
+        <Text style={styles.gridSubtitle}>{subtitle}</Text>
       </View>
-      <View style={styles.rowText}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        <Text style={styles.rowSubtitle}>{subtitle}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={16} color="#475569" />
     </TouchableOpacity>
   );
+}
+
+export default function PredictionsMenuScreen() {
+  const navigation = useNavigation<NavigationProp>();
 
   return (
     <>
@@ -48,56 +53,49 @@ export default function PredictionsMenuScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.card}>
-            {/* Classic rows — no header, they're universal */}
-            {renderRow(
-              'match-predictions',
-              'Match Predictions',
-              'Predict scores for every match',
-              <Ionicons name="football-outline" size={26} color="#38bdf8" />,
-              () => navigation.navigate('MatchPredictions'),
-              'rgba(56,189,248,0.12)',
-            )}
-            <View style={styles.divider} />
-            {renderRow(
-              'bonus-predictions',
-              'Bonus Predictions',
-              'Special tournament questions',
-              <Ionicons name="gift-outline" size={26} color="#38bdf8" />,
-              () => navigation.navigate('BonusPredictions'),
-              'rgba(56,189,248,0.12)',
-            )}
+          <View style={styles.gridRow}>
+            <GridCard
+              title="Match"
+              subtitle="Predict every score"
+              icon={<Ionicons name="football-outline" size={26} color="#38bdf8" />}
+              onPress={() => navigation.navigate('MatchPredictions')}
+              iconBg="rgba(56,189,248,0.12)"
+            />
+            <GridCard
+              title="Bonus"
+              subtitle="Special questions"
+              icon={<Ionicons name="gift-outline" size={26} color="#38bdf8" />}
+              onPress={() => navigation.navigate('BonusPredictions')}
+              iconBg="rgba(56,189,248,0.12)"
+            />
+          </View>
 
-            {/* Multi-only separator — subtle, inline, not a hard break */}
-            <View style={styles.multiSeparator}>
-              <View style={styles.separatorLine} />
-              <View style={styles.separatorBadge}>
-                <Ionicons name="trophy-outline" size={11} color="#f59e0b" />
-                <Text style={styles.separatorText}>Multi Mode only</Text>
-              </View>
-              <View style={styles.separatorLine} />
+          <View style={styles.multiSeparator}>
+            <View style={styles.separatorLine} />
+            <View style={styles.separatorBadge}>
+              <Ionicons name="trophy-outline" size={11} color="#f59e0b" />
+              <Text style={styles.separatorText}>Multi Mode only</Text>
             </View>
+            <View style={styles.separatorLine} />
+          </View>
 
-            {/* Multi-only rows — same card, slightly tinted background */}
-            <View style={styles.multiBlock}>
-              {renderRow(
-                'route-predictions',
-                'Route Predictions',
-                'Groups, 3rd place & knockout bracket',
-                <Ionicons name="git-branch-outline" size={26} color="#f59e0b" />,
-                () => navigation.navigate('RoutePredictions'),
-                'rgba(245,158,11,0.12)',
-              )}
-              <View style={styles.divider} />
-              {renderRow(
-                'full-bracket',
-                'Full Bracket',
-                'View your complete tournament bracket',
-                <BracketIcon size={22} color="#f59e0b" />,
-                () => navigation.navigate('Bracket'),
-                'rgba(245,158,11,0.12)',
-              )}
-            </View>
+          <View style={styles.gridRow}>
+            <GridCard
+              title="Route"
+              subtitle="Groups & bracket"
+              icon={<Ionicons name="git-branch-outline" size={26} color="#f59e0b" />}
+              onPress={() => navigation.navigate('RoutePredictions')}
+              iconBg="rgba(245,158,11,0.12)"
+              multi
+            />
+            <GridCard
+              title="Full Bracket"
+              subtitle="Full tournament"
+              icon={<BracketIcon size={22} color="#f59e0b" />}
+              onPress={() => navigation.navigate('Bracket')}
+              iconBg="rgba(245,158,11,0.12)"
+              multi
+            />
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -110,39 +108,61 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingTop: 24 },
 
-  card: {
-    backgroundColor: '#1e3a5f',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2d4a6e',
-    overflow: 'hidden',
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 8,
   },
 
-  row: {
+  gridRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    gap: 14,
+    gap: 10,
   },
 
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 11,
+  gridCard: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 16,
+    minHeight: 140,
+    backgroundColor: '#1e3a5f',
+  },
+
+  gridCardMulti: {
+    backgroundColor: 'rgba(245,158,11,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.18)',
+  },
+
+  gridCardInner: {
+    flex: 1,
+    flexDirection: 'column',
+    gap: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  iconGrid: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    flexShrink: 0,
   },
 
-  rowText: { flex: 1 },
-  rowTitle: { fontSize: 15, fontWeight: '600', color: '#f1f5f9' },
-  rowSubtitle: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
+  gridTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#f1f5f9',
+    textAlign: 'center',
+  },
 
-  divider: {
-    height: 1,
-    backgroundColor: '#2d4a6e',
-    marginLeft: 74,
+  gridSubtitle: {
+    fontSize: 11,
+    color: '#94a3b8',
+    textAlign: 'center',
   },
 
   // Subtle separator between classic and multi rows
@@ -150,7 +170,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 16,
     gap: 8,
   },
   separatorLine: {
@@ -175,10 +195,5 @@ const styles = StyleSheet.create({
     color: '#f59e0b',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-  },
-
-  // Slight amber tint behind multi-only rows to hint they're different
-  multiBlock: {
-    backgroundColor: 'rgba(245,158,11,0.04)',
   },
 });
