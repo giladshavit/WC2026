@@ -227,6 +227,7 @@ export default function HomeScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={false}
       >
         <View style={styles.buttonsGrid}>
           {actions.map((action) => renderButton(action))}
@@ -243,7 +244,7 @@ export default function HomeScreen() {
           </View>
           <View style={styles.rulesTextWrap}>
             <Text style={styles.rulesTitle}>How to Play</Text>
-            <Text style={styles.rulesSubtitle}>Rules, scoring & penalties</Text>
+            <Text style={styles.rulesSubtitle}>Rules, scoring & fines</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#475569" />
         </TouchableOpacity>
@@ -268,7 +269,7 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 20,
     paddingBottom: 32,
   },
   header: {
@@ -317,7 +318,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
     maxWidth: 420,
-    marginTop: 32,
+    marginTop: 24,
     marginBottom: 8,
   },
   circleButton: {
@@ -382,7 +383,7 @@ const styles = StyleSheet.create({
   },
   rulesTextWrap: { flex: 1 },
   rulesTitle: { fontSize: 15, fontWeight: '700', color: '#e2e8f0' },
-  rulesSubtitle: { fontSize: 12, color: '#64748b', marginTop: 2 },
+  rulesSubtitle: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
 
   // Admin
   adminPill: {
