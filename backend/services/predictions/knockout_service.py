@@ -981,14 +981,41 @@ class KnockoutService:
     # ═══════════════════════════════════════════════════════
 
     @staticmethod
+    def _build_possible_teams_per_template(
+        templates_cache: Dict[int, MatchTemplate],
+        results_cache: Dict[int, KnockoutStageResult],
+        all_teams_cache: Dict[int, Team],
+    ) -> Dict[int, Set[int]]:
+        """
+        For each knockout template_match_id, compute the set of team_ids
+        that can possibly reach that match, using the existing recursive logic.
+        Returns: {template_match_id: set of possible team_ids}
+        """
+        knockout_template_ids = [
+            t.id for t in templates_cache.values()
+            if t.stage in ("round32", "round16", "quarter", "semi", "final")
+        ]
+        all_team_ids = list(all_teams_cache.keys())
+
+        result: Dict[int, Set[int]] = {}
+        for tmpl_id in knockout_template_ids:
+            possible: Set[int] = set()
+            for team_id in all_team_ids:
+                if KnockoutService._is_winner_reachable_recursive_cached(
+                    tmpl_id, team_id, templates_cache, results_cache
+                ):
+                    possible.add(team_id)
+            result[tmpl_id] = possible
+        return result
+
+    @staticmethod
     def initialize_all_knockout_statuses(db: Session) -> None:
         """
-        Initialize/recalculate status for all knockout predictions using reachable logic.
-        Iterates over all predictions per user, skips post-result statuses (CORRECT_FULL,
-        CORRECT_PARTIAL, INCORRECT), uses _compute_and_set_status_cached with check_reachable=True.
-        Called after admin operations that affect the bracket (entering results, rebuilding).
-        Uses check_reachable=True because this runs only after group results exist.
+        Bulk-update status for all pre-result knockout predictions.
+        Skips predictions already settled (correct_full / correct_partial / incorrect).
+        Called after admin operations that affect the bracket (rebuild_round32).
         """
+        # 1. Load caches (same as before)
         all_templates: Dict[int, MatchTemplate] = {
             t.id: t for t in db.query(MatchTemplate).all()
         }
@@ -996,16 +1023,37 @@ class KnockoutService:
             r.match_id: r for r in db.query(KnockoutStageResult).all()
         }
         all_teams: Dict[int, Team] = {t.id: t for t in db.query(Team).all()}
-        predictions = DBReader.get_all_knockout_predictions(db)
-        for prediction in predictions:
-            KnockoutService._compute_and_set_status_cached(
+
+        # 2. Compute possible teams per template (pure Python, no DB)
+        possible_by_template = KnockoutService._build_possible_teams_per_template(
+            all_templates, all_results, all_teams
+        )
+
+        # 3. Eliminated team ids
+        eliminated_ids = [
+            t.id for t in all_teams.values() if t.is_eliminated
+        ]
+
+        SETTLED = ('correct_full', 'correct_partial', 'incorrect')
+
+        # 4. Bulk UPDATEs per template
+        for tmpl_id, possible_ids in possible_by_template.items():
+            # Mirrors _compute_and_set_status_cached: do not touch pre-result status once the match has a winner
+            res = all_results.get(tmpl_id)
+            if res and res.winner_team_id:
+                continue
+
+            DBWriter.bulk_update_knockout_statuses_for_template(
                 db,
-                prediction,
-                check_reachable=True,
-                templates_cache=all_templates,
-                results_cache=all_results,
-                teams_cache=all_teams,
+                tmpl_id=tmpl_id,
+                possible_ids=list(possible_ids),
+                eliminated_ids=eliminated_ids,
+                invalid_status=KnockoutPredictionStatus.INVALID.value,
+                valid_status=KnockoutPredictionStatus.VALID.value,
+                unreachable_status=KnockoutPredictionStatus.UNREACHABLE.value,
+                settled=SETTLED,
             )
+
         DBUtils.flush(db)
 
     @staticmethod

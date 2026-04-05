@@ -858,6 +858,99 @@ class DBWriter:
     # PREDICTIONS - Knockout
     # ═══════════════════════════════════════════════════════
     @staticmethod
+    def bulk_update_knockout_statuses_for_template(
+        db: Session,
+        tmpl_id: int,
+        possible_ids: List[int],
+        eliminated_ids: List[int],
+        invalid_status: str,
+        valid_status: str,
+        unreachable_status: str,
+        settled: tuple,
+    ) -> None:
+        """
+        Bulk-update knockout_stage_predictions status for a single template_match_id.
+        Three UPDATE statements:
+          - INVALID:     winner IS NULL or winner is eliminated
+          - VALID:       winner in possible_ids and not eliminated
+          - UNREACHABLE: winner not in possible_ids and not eliminated
+        Skips predictions already settled (correct_full/correct_partial/incorrect).
+        Caller must flush/commit.
+        """
+        from sqlalchemy import text, bindparam
+
+        settled_bind = bindparam("settled", expanding=True)
+        elim_empty = len(eliminated_ids) == 0
+
+        # INVALID
+        db.execute(
+            text("""
+                UPDATE knockout_stage_predictions
+                SET status = :invalid
+                WHERE template_match_id = :tmpl_id
+                  AND status NOT IN :settled
+                  AND (
+                    winner_team_id IS NULL
+                    OR winner_team_id = ANY(CAST(:elim AS int[]))
+                  )
+            """).bindparams(settled_bind),
+            {
+                "invalid": invalid_status,
+                "tmpl_id": tmpl_id,
+                "settled": settled,
+                "elim": eliminated_ids,
+            },
+        )
+
+        # VALID
+        db.execute(
+            text("""
+                UPDATE knockout_stage_predictions
+                SET status = :valid
+                WHERE template_match_id = :tmpl_id
+                  AND status NOT IN :settled
+                  AND winner_team_id IS NOT NULL
+                  AND winner_team_id = ANY(CAST(:possible AS int[]))
+                  AND (
+                    :elim_empty = true
+                    OR winner_team_id != ALL(CAST(:elim AS int[]))
+                  )
+            """).bindparams(settled_bind),
+            {
+                "valid": valid_status,
+                "tmpl_id": tmpl_id,
+                "settled": settled,
+                "possible": possible_ids,
+                "elim": eliminated_ids,
+                "elim_empty": elim_empty,
+            },
+        )
+
+        # UNREACHABLE
+        db.execute(
+            text("""
+                UPDATE knockout_stage_predictions
+                SET status = :unreachable
+                WHERE template_match_id = :tmpl_id
+                  AND status NOT IN :settled
+                  AND winner_team_id IS NOT NULL
+                  AND winner_team_id != ALL(CAST(:possible AS int[]))
+                  AND (
+                    :elim_empty = true
+                    OR winner_team_id != ALL(CAST(:elim AS int[]))
+                  )
+            """).bindparams(settled_bind),
+            {
+                "unreachable": unreachable_status,
+                "tmpl_id": tmpl_id,
+                "settled": settled,
+                "possible": possible_ids,
+                "elim": eliminated_ids,
+                "elim_empty": elim_empty,
+            },
+        )
+
+    @staticmethod
     def create_knockout_prediction(db: Session, user_id: int, knockout_result_id: int,
                                    template_match_id: int, stage: str,
                                    is_draft: bool = False, **kwargs):
