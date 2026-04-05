@@ -726,6 +726,112 @@ def update_bonus_interim(
     return {"updated": True, "fields_updated": len(updates), "updates": updates}
 
 
+def _reset_knockout_results(db: Session) -> dict:
+    """
+    Reset knockout stage results and related match state to init state.
+    Mirrors the state created by utils/start_game/create_knockout_results.py and create_matches.py.
+    - KnockoutStageResult: reset team_1, team_2, winner_team_id to None (rows must NOT be deleted)
+    - All knockout matches (round32 through final): reset home_team_id, away_team_id to None, status to 'not_scheduled'
+    - Delete all MatchResult rows for knockout matches (IDs 73-104)
+    - Reset is_eliminated for all teams to False
+    """
+    from models.results import KnockoutStageResult, MatchResult
+    from models.matches import Match
+    from models.team import Team
+
+    KNOCKOUT_STAGES = ['round32', 'round16', 'quarter', 'semi', 'final', 'third_place']
+
+    # 1. Reset KnockoutStageResult rows
+    knockout_results = db.query(KnockoutStageResult).all()
+    for kr in knockout_results:
+        kr.team_1 = None
+        kr.team_2 = None
+        kr.winner_team_id = None
+
+    # 2. Reset knockout Match rows
+    knockout_matches = db.query(Match).filter(Match.stage.in_(KNOCKOUT_STAGES)).all()
+    knockout_match_ids = [m.id for m in knockout_matches]
+    for match in knockout_matches:
+        match.home_team_id = None
+        match.away_team_id = None
+        match.status = 'not_scheduled'
+
+    # 3. Delete MatchResult rows for knockout matches
+    deleted_match_results = db.query(MatchResult).filter(
+        MatchResult.match_id.in_(knockout_match_ids)
+    ).delete(synchronize_session=False)
+
+    # 4. Reset is_eliminated for all teams
+    eliminated_teams = db.query(Team).filter(Team.is_eliminated == True).all()
+    for team in eliminated_teams:
+        team.is_eliminated = False
+
+    db.flush()
+    return {
+        "knockout_results_reset": len(knockout_results),
+        "knockout_matches_reset": len(knockout_matches),
+        "match_results_deleted": deleted_match_results,
+    }
+
+
+def _reset_all_results(db: Session) -> dict:
+    """
+    Reset ALL tournament results to init state.
+    - GroupStageResult: delete all rows (not part of init state)
+    - ThirdPlaceResult: delete all rows (not part of init state)
+    - MatchResult: delete all rows (group + knockout)
+    - KnockoutStageResult: reset to None (rows must NOT be deleted)
+    - All knockout matches: reset home_team_id, away_team_id, status
+    - is_eliminated: reset to False for all teams
+    """
+    from models.results import KnockoutStageResult, MatchResult, GroupStageResult, ThirdPlaceResult
+    from models.matches import Match
+    from models.team import Team
+
+    KNOCKOUT_STAGES = ['round32', 'round16', 'quarter', 'semi', 'final', 'third_place']
+
+    # 0. Clear FK from matches_template to allow knockout_stage_results reset (PostgreSQL)
+    from sqlalchemy import text
+    db.execute(text("UPDATE matches_template SET knockout_result_id = NULL"))
+
+    # 1. Delete GroupStageResult rows
+    deleted_group = db.query(GroupStageResult).delete(synchronize_session=False)
+
+    # 2. Delete ThirdPlaceResult rows
+    deleted_third_place = db.query(ThirdPlaceResult).delete(synchronize_session=False)
+
+    # 3. Delete all MatchResult rows
+    deleted_match_results = db.query(MatchResult).delete(synchronize_session=False)
+
+    # 4. Reset KnockoutStageResult rows
+    knockout_results = db.query(KnockoutStageResult).all()
+    for kr in knockout_results:
+        kr.team_1 = None
+        kr.team_2 = None
+        kr.winner_team_id = None
+
+    # 5. Reset knockout Match rows
+    knockout_matches = db.query(Match).filter(Match.stage.in_(KNOCKOUT_STAGES)).all()
+    for match in knockout_matches:
+        match.home_team_id = None
+        match.away_team_id = None
+        match.status = 'not_scheduled'
+
+    # 6. Reset is_eliminated for all teams
+    eliminated_teams = db.query(Team).filter(Team.is_eliminated == True).all()
+    for team in eliminated_teams:
+        team.is_eliminated = False
+
+    db.flush()
+    return {
+        "group_results_deleted": deleted_group,
+        "third_place_results_deleted": deleted_third_place,
+        "match_results_deleted": deleted_match_results,
+        "knockout_results_reset": len(knockout_results),
+        "knockout_matches_reset": len(knockout_matches),
+    }
+
+
 @router.post("/admin/reset-all-results", response_model=Dict[str, Any])
 def reset_all_results_and_scores(db: Session = Depends(get_db)):
     """
@@ -807,98 +913,26 @@ def reset_all_results_and_scores(db: Session = Depends(get_db)):
 @router.post("/admin/delete-all-results", response_model=Dict[str, Any])
 def delete_all_results_only(db: Session = Depends(get_db)):
     """
-    Delete all results and reset scores (admin only)
-    This will:
-    1. Delete all match results
-    2. Delete all group stage results
-    3. Delete all third place results
-    4. Delete all knockout stage results
-    5. Reset validity for all knockout predictions (set to True)
-    6. Reset all user scores to zero
-    7. Reset all prediction points to zero
-    8. Reset all match statuses to scheduled
+    Reset all tournament results to init state and reset user scores (admin only).
+    See _reset_all_results for DB changes; then ResultsService.reset_all_user_scores.
     """
     try:
-        import subprocess
-        import os
-        
-        # Step 1: Delete all results using the existing script
-        script_path = os.path.join(os.path.dirname(__file__), "..", "utils", "deletion", "delete_all_results.py")
-        import sys
-        python_path = sys.executable
-        
-        print(f"🔧 Running delete_all_results script...")
-        print(f"Script path: {script_path}")
-        print(f"Python path: {python_path}")
-        
-        process_result = subprocess.run(
-            [python_path, script_path],
-            capture_output=True,
-            text=True,
-            cwd=os.path.dirname(os.path.dirname(__file__))
-        )
-        
-        print(f"Script return code: {process_result.returncode}")
-        if process_result.stdout:
-            print(f"Script stdout: {process_result.stdout}")
-        if process_result.stderr:
-            print(f"Script stderr: {process_result.stderr}")
-        
-        if process_result.returncode != 0:
-            raise Exception(f"Script failed with return code {process_result.returncode}: {process_result.stderr}")
-        
-        # Step 2: Reset is_eliminated for all teams (no results = no eliminations)
-        eliminated_teams = db.query(Team).filter(Team.is_eliminated == True).all()
-        teams_reset_count = len(eliminated_teams)
-        for team in eliminated_teams:
-            team.is_eliminated = False
-        print(f"✅ Reset is_eliminated for {teams_reset_count} teams")
-        
-        # Step 3: Reset validity for all knockout predictions (set to True since no results exist)
-        from models.predictions import KnockoutStagePrediction
-        knockout_predictions = db.query(KnockoutStagePrediction).all()
-        validity_reset_count = 0
-        for prediction in knockout_predictions:
-            if not prediction.is_team1_valid or not prediction.is_team2_valid:
-                prediction.is_team1_valid = True
-                prediction.is_team2_valid = True
-                validity_reset_count += 1
-        
-        print(f"✅ Reset validity for {validity_reset_count} knockout predictions")
-        
-        # Step 4: Reset all user scores and prediction points
+        reset_stats = _reset_all_results(db)
         scores_result = ResultsService.reset_all_user_scores(db)
-        
-        # Step 5: Reset match statuses to scheduled
-        matches = db.query(Match).all()
-        match_count = 0
-        for match in matches:
-            if match.status != "scheduled":
-                match.status = "scheduled"
-                match_count += 1
-        
-        # Step 6: Reset round32 match teams and delete their MatchResult rows
-        round32_matches = DBReader.get_matches_by_stage(db, 'round32')
-        round32_match_ids = [m.id for m in round32_matches]
-        round32_results_deleted = DBWriter.delete_match_results_by_match_ids(db, round32_match_ids)
-        round32_teams_reset = DBWriter.reset_round32_match_teams(db)
-        print(f"✅ Reset {round32_teams_reset} round32 match teams, deleted {round32_results_deleted} match results")
-        
         db.commit()
-        
         return {
             "message": "All results deleted and scores reset successfully",
             "results_deleted": True,
-            "teams_eliminated_reset": teams_reset_count,
-            "knockout_validity_reset": validity_reset_count,
+            "group_results_deleted": reset_stats["group_results_deleted"],
+            "third_place_results_deleted": reset_stats["third_place_results_deleted"],
+            "match_results_deleted": reset_stats["match_results_deleted"],
+            "knockout_results_reset": reset_stats["knockout_results_reset"],
+            "knockout_matches_reset": reset_stats["knockout_matches_reset"],
             "users_reset": scores_result["users_reset"],
             "match_predictions_reset": scores_result["match_predictions_reset"],
             "group_predictions_reset": scores_result["group_predictions_reset"],
             "third_place_predictions_reset": scores_result["third_place_predictions_reset"],
             "knockout_predictions_reset": scores_result["knockout_predictions_reset"],
-            "matches_reset": match_count,
-            "round32_teams_reset": round32_teams_reset,
-            "round32_results_deleted": round32_results_deleted
         }
         
     except Exception as e:
@@ -1069,71 +1103,24 @@ def delete_user_knockout_predictions(
 @router.delete("/admin/delete-all-knockout-results", response_model=Dict[str, Any])
 def delete_all_knockout_results(db: Session = Depends(get_db)):
     """
-    Delete all knockout stage results (admin only)
-    This will:
-    1. Delete all KnockoutStageResult records
-    2. Delete all MatchResult records for knockout matches
-    3. Reset home_team_id and away_team_id for knockout matches (except Round of 32)
-    4. Reset match statuses to scheduled for knockout matches
+    Reset knockout results and related match state to init state, then reset user scores (admin only).
+    See _reset_knockout_results for DB changes; then ResultsService.reset_all_user_scores.
     """
     try:
-        from models.results import KnockoutStageResult, MatchResult
-        
-        # Count records before deletion
-        knockout_result_count = db.query(KnockoutStageResult).count()
-        
-        # Get all knockout match IDs
-        knockout_matches = db.query(Match).filter(
-            Match.stage.in_(['round32', 'round16', 'quarter', 'semi', 'final'])
-        ).all()
-        
-        knockout_match_ids = [m.id for m in knockout_matches]
-        
-        # Count match results for knockout matches
-        match_result_count = db.query(MatchResult).filter(
-            MatchResult.match_id.in_(knockout_match_ids)
-        ).count()
-        
-        if knockout_result_count == 0 and match_result_count == 0:
-            return {
-                "message": "No knockout results found to delete",
-                "deleted": False,
-                "knockout_results_deleted": 0,
-                "match_results_deleted": 0,
-                "matches_reset": 0
-            }
-        
-        # Delete all knockout stage results
-        deleted_knockout_results = db.query(KnockoutStageResult).delete()
-        
-        # Delete all match results for knockout matches
-        deleted_match_results = db.query(MatchResult).filter(
-            MatchResult.match_id.in_(knockout_match_ids)
-        ).delete()
-        
-        # Reset teams and status for knockout matches (except Round of 32 which has teams from groups)
-        matches_reset = 0
-        for match in knockout_matches:
-            if match.stage != 'round32':
-                # Reset teams for Round of 16 and beyond (they come from previous knockout rounds)
-                if match.home_team_id is not None or match.away_team_id is not None:
-                    match.home_team_id = None
-                    match.away_team_id = None
-                    matches_reset += 1
-            # Reset status to scheduled
-            if match.status != "scheduled":
-                match.status = "scheduled"
-                matches_reset += 1
-        
-        # Commit the changes
+        reset_stats = _reset_knockout_results(db)
+        scores_result = ResultsService.reset_all_user_scores(db)
         db.commit()
-        
         return {
-            "message": "All knockout results deleted successfully",
+            "message": "All knockout results reset successfully",
             "deleted": True,
-            "knockout_results_deleted": deleted_knockout_results,
-            "match_results_deleted": deleted_match_results,
-            "matches_reset": matches_reset
+            "knockout_results_reset": reset_stats["knockout_results_reset"],
+            "knockout_matches_reset": reset_stats["knockout_matches_reset"],
+            "match_results_deleted": reset_stats["match_results_deleted"],
+            "users_reset": scores_result["users_reset"],
+            "match_predictions_reset": scores_result["match_predictions_reset"],
+            "group_predictions_reset": scores_result["group_predictions_reset"],
+            "third_place_predictions_reset": scores_result["third_place_predictions_reset"],
+            "knockout_predictions_reset": scores_result["knockout_predictions_reset"],
         }
         
     except Exception as e:
