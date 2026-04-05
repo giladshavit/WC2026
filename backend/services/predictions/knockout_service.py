@@ -13,6 +13,8 @@ from models.predictions import KnockoutStagePrediction
 from models.team import Team
 from models.matches_template import MatchTemplate
 
+KNOCKOUT_STAGE_ORDER = ['round32', 'round16', 'quarter', 'semi', 'final']
+
 
 @dataclass
 class DraftFields:
@@ -1027,50 +1029,37 @@ class KnockoutService:
         loser_team_id: int
     ) -> None:
         """
-        Called from ResultsService after updating result.
-        Handles status updates and scoring for all users' predictions of THIS match.
-
-        Logic:
-        1. Mark loser as eliminated
-        2. For each prediction of this match:
-           a. If INVALID/empty -> INCORRECT (but still process winner/loser for other predictions)
-           b. Handle winner (always)
-           c. Handle loser (always, even if winner was handled)
+        Called from ResultsService after a knockout result is entered.
+        All status+points updates via bulk SQL through DBWriter.
         """
-        predictions = DBReader.get_knockout_predictions_by_match(db, match_id)
         template = DBReader.get_match_template(db, match_id)
         if not template:
             return
         stage = template.stage
 
-        # Mark loser as eliminated (once, before processing predictions)
+        # 1. Mark loser as eliminated
         loser_team = DBReader.get_team(db, loser_team_id)
         if loser_team and not loser_team.is_eliminated:
             DBWriter.update_team_eliminated(db, loser_team, True)
             DBUtils.flush(db)
 
-        for prediction in predictions:
-            user_id = prediction.user_id
-            predicted_winner = KnockoutService._normalize_team_id(prediction.winner_team_id)
+        # 2. Bulk update same-stage predictions (status + points + user_scores)
+        DBWriter.bulk_update_knockout_stage_statuses(
+            db,
+            match_id=match_id,
+            stage=stage,
+            winner_team_id=winner_team_id,
+            loser_team_id=loser_team_id,
+            full_points=ScoringService.get_knockout_full_points(stage),
+            partial_points=ScoringService.get_knockout_partial_points(stage),
+        )
 
-            # Case 0: INVALID or empty -> INCORRECT
-            # BUT do NOT continue — still need to handle winner/loser for OTHER predictions in same stage!
-            if not predicted_winner or prediction.status == KnockoutPredictionStatus.INVALID.value:
-                KnockoutService._set_prediction_status_and_points(
-                    db, prediction, user_id,
-                    KnockoutPredictionStatus.INCORRECT.value, 0
-                )
-                # NO continue here! Fall through to handle winner/loser
-
-            # Part A: Handle winner (ALWAYS runs)
-            KnockoutService._handle_winner(
-                db, prediction, user_id, winner_team_id, stage
-            )
-
-            # Part B: Handle loser (ALWAYS runs, even if winner was handled!)
-            KnockoutService._handle_loser(
-                db, prediction, user_id, loser_team_id, stage
-            )
+        # 3. Bulk INVALID for loser appearances in later stages
+        idx = KNOCKOUT_STAGE_ORDER.index(stage)
+        later_stages = KNOCKOUT_STAGE_ORDER[idx + 1:]
+        DBWriter.bulk_invalidate_knockout_loser_later_stages(
+            db, later_stages, loser_team_id
+        )
 
         DBUtils.flush(db)
 

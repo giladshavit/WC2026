@@ -75,6 +75,14 @@ class ScoringService:
     }
 
     @staticmethod
+    def get_knockout_full_points(stage: str) -> int:
+        return ScoringService.KNOCKOUT_SCORING.get(stage, {}).get("full", 0)
+
+    @staticmethod
+    def get_knockout_partial_points(stage: str) -> int:
+        return ScoringService.KNOCKOUT_SCORING.get(stage, {}).get("partial", 0)
+
+    @staticmethod
     def _get_match_scoring_for_stage(stage: Optional[str]) -> Dict[str, int]:
         """Return scoring config for a given match stage. Falls back to default."""
         if stage is None:

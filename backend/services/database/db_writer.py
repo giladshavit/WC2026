@@ -458,6 +458,150 @@ class DBWriter:
         db.flush()
         return len(user_deltas)
 
+    @staticmethod
+    def bulk_update_knockout_stage_statuses(
+        db: Session,
+        match_id: int,
+        stage: str,
+        winner_team_id: int,
+        loser_team_id: int,
+        full_points: int,
+        partial_points: int,
+    ) -> int:
+        """
+        Bulk SQL: classify and update knockout_stage_predictions status+points
+        for all predictions in `stage`, then apply knockout_score deltas to user_scores.
+
+        Skips predictions already settled: correct_full / correct_partial / incorrect.
+
+        Classification rules:
+          winner_team_id IS NULL or = loser_team_id          -> incorrect,       0 pts
+          winner_team_id = winner AND template_match_id = match_id -> correct_full,  full_points
+          winner_team_id = winner AND template_match_id != match_id -> correct_partial, partial_points
+          anything else (other team, still alive)            -> no change (excluded by WHERE new_status IS NOT NULL)
+
+        Returns number of users whose knockout_score changed.
+        Caller must flush/commit.
+        """
+        rows = db.execute(text("""
+            WITH classified AS (
+                SELECT
+                    ksp.id                                AS pred_id,
+                    ksp.user_id,
+                    COALESCE(ksp.points, 0)               AS old_points,
+                    CASE
+                        WHEN ksp.winner_team_id IS NULL
+                          OR ksp.winner_team_id = :loser_team_id
+                                                          THEN 'incorrect'
+                        WHEN ksp.winner_team_id = :winner_team_id
+                         AND ksp.template_match_id = :match_id
+                                                          THEN 'correct_full'
+                        WHEN ksp.winner_team_id = :winner_team_id
+                         AND ksp.template_match_id != :match_id
+                                                          THEN 'correct_partial'
+                        ELSE NULL
+                    END AS new_status
+                FROM knockout_stage_predictions ksp
+                WHERE ksp.stage = :stage
+                  AND ksp.status NOT IN ('correct_full', 'correct_partial', 'incorrect')
+            )
+            SELECT
+                pred_id,
+                user_id,
+                old_points,
+                new_status,
+                CASE new_status
+                    WHEN 'correct_full'    THEN :full_points
+                    WHEN 'correct_partial' THEN :partial_points
+                    ELSE 0
+                END AS new_points
+            FROM classified
+            WHERE new_status IS NOT NULL
+        """), {
+            "stage": stage,
+            "match_id": match_id,
+            "winner_team_id": winner_team_id,
+            "loser_team_id": loser_team_id,
+            "full_points": full_points,
+            "partial_points": partial_points,
+        }).fetchall()
+
+        if not rows:
+            return 0
+
+        pred_ids = [r.pred_id for r in rows]
+        new_statuses = [r.new_status for r in rows]
+        new_pts = [r.new_points for r in rows]
+
+        # Bulk update status + points on predictions
+        db.execute(text("""
+            UPDATE knockout_stage_predictions ksp
+            SET status = c.new_status,
+                points = c.new_points
+            FROM unnest(
+                CAST(:pred_ids     AS int[]),
+                CAST(:new_statuses AS text[]),
+                CAST(:new_pts      AS int[])
+            ) AS c(pred_id, new_status, new_points)
+            WHERE ksp.id = c.pred_id
+        """), {
+            "pred_ids": pred_ids,
+            "new_statuses": new_statuses,
+            "new_pts": new_pts,
+        })
+
+        # Compute per-user delta (in Python — no DB round-trip)
+        user_deltas: dict[int, int] = defaultdict(int)
+        for r in rows:
+            delta = r.new_points - r.old_points
+            if delta != 0:
+                user_deltas[r.user_id] += delta
+
+        if user_deltas:
+            user_ids = list(user_deltas.keys())
+            deltas = list(user_deltas.values())
+            # Matches the column order of the existing INSERT in bulk_update_match_prediction_scoring.
+            # knockout_score gets the delta (d); matches_score = 0; classic_total_score untouched (not += knockout).
+            db.execute(text("""
+                INSERT INTO user_scores
+                    (user_id, matches_score, total_points, classic_total_score,
+                     groups_score, third_place_score, knockout_score, bonus_score,
+                     bonus_penalty, groups_penalty, third_place_penalty,
+                     knockout_penalty, free_changes, free_changes_used,
+                     penalty, has_used_bracket_reset)
+                SELECT u, 0, d, 0, 0, 0, d, 0, 0, 0, 0, 0, 0, 0, 0, false
+                FROM unnest(CAST(:user_ids AS int[]), CAST(:deltas AS int[])) AS t(u, d)
+                ON CONFLICT (user_id) DO UPDATE
+                    SET knockout_score = user_scores.knockout_score + EXCLUDED.knockout_score,
+                        total_points   = user_scores.total_points   + EXCLUDED.total_points
+            """), {"user_ids": user_ids, "deltas": deltas})
+
+        return len(user_deltas)
+
+    @staticmethod
+    def bulk_invalidate_knockout_loser_later_stages(
+        db: Session,
+        later_stages: List[str],
+        loser_team_id: int,
+    ) -> None:
+        """
+        Bulk SQL: set status=invalid, points=0 for all non-settled predictions
+        in later_stages where winner_team_id = loser_team_id.
+        No scoring delta needed (points -> 0 means delta handled separately if needed).
+        Caller must flush/commit.
+        """
+        if not later_stages:
+            return
+
+        db.execute(text("""
+            UPDATE knockout_stage_predictions
+            SET status = 'invalid',
+                points = 0
+            WHERE stage = ANY(CAST(:later_stages AS text[]))
+              AND status NOT IN ('correct_full', 'correct_partial', 'incorrect')
+              AND winner_team_id = :loser_team_id
+        """), {"later_stages": later_stages, "loser_team_id": loser_team_id})
+
     # ═══════════════════════════════════════════════════════
     # PREDICTIONS - Group
     # ═══════════════════════════════════════════════════════
