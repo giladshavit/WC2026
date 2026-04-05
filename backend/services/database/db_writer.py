@@ -671,6 +671,128 @@ class DBWriter:
         })
 
     @staticmethod
+    def bulk_update_group_prediction_scoring(
+        db: Session,
+        group_id: int,
+        first: int,
+        second: int,
+        third: int,
+        fourth: int,
+        pts_first: int,
+        pts_second: int,
+        pts_third: int,
+        pts_fourth: int,
+    ) -> int:
+        """
+        Bulk SQL: compute accuracy + points for all group_stage_predictions of a given group,
+        update predictions table, then upsert user_scores.groups_score + total_points.
+        Returns number of users with a non-zero delta.
+        Caller must commit.
+        """
+        rows = db.execute(text("""
+            WITH base AS (
+                SELECT
+                    gsp.id                              AS pred_id,
+                    gsp.user_id,
+                    COALESCE(gsp.points, 0)             AS old_points,
+                    (gsp.first_place  = :first)         AS first_correct,
+                    (gsp.second_place = :second)        AS second_correct,
+                    (gsp.third_place  = :third)         AS third_correct,
+                    (gsp.fourth_place = :fourth)        AS fourth_correct,
+                    (
+                        CASE WHEN gsp.first_place  = :first  THEN :pts_first  ELSE 0 END +
+                        CASE WHEN gsp.second_place = :second THEN :pts_second ELSE 0 END +
+                        CASE WHEN gsp.third_place  = :third  THEN :pts_third  ELSE 0 END +
+                        CASE WHEN gsp.fourth_place = :fourth THEN :pts_fourth ELSE 0 END
+                    )                                   AS new_points,
+                    (
+                        (gsp.first_place  = :first)::int +
+                        (gsp.second_place = :second)::int +
+                        (gsp.third_place  = :third)::int +
+                        (gsp.fourth_place = :fourth)::int
+                    )                                   AS correct_positions_count
+                FROM group_stage_predictions gsp
+                WHERE gsp.group_id = :group_id
+            )
+            SELECT * FROM base
+        """), {
+            "group_id": group_id,
+            "first": first, "second": second, "third": third, "fourth": fourth,
+            "pts_first": pts_first, "pts_second": pts_second,
+            "pts_third": pts_third, "pts_fourth": pts_fourth,
+        }).fetchall()
+
+        if not rows:
+            return 0
+
+        pred_ids         = [r.pred_id              for r in rows]
+        new_points_list  = [r.new_points           for r in rows]
+        first_correct    = [r.first_correct        for r in rows]
+        second_correct   = [r.second_correct       for r in rows]
+        third_correct    = [r.third_correct        for r in rows]
+        fourth_correct   = [r.fourth_correct       for r in rows]
+        correct_counts   = [r.correct_positions_count for r in rows]
+
+        # Bulk update predictions: points + accuracy fields
+        db.execute(text("""
+            UPDATE group_stage_predictions gsp
+            SET
+                points                  = c.new_points,
+                first_correct           = c.first_correct,
+                second_correct          = c.second_correct,
+                third_correct           = c.third_correct,
+                fourth_correct          = c.fourth_correct,
+                correct_positions_count = c.correct_count,
+                status                  = 'settled'
+            FROM unnest(
+                CAST(:pred_ids       AS int[]),
+                CAST(:new_points     AS int[]),
+                CAST(:first_correct  AS bool[]),
+                CAST(:second_correct AS bool[]),
+                CAST(:third_correct  AS bool[]),
+                CAST(:fourth_correct AS bool[]),
+                CAST(:correct_counts AS int[])
+            ) AS c(pred_id, new_points, first_correct, second_correct,
+                   third_correct, fourth_correct, correct_count)
+            WHERE gsp.id = c.pred_id
+        """), {
+            "pred_ids":       pred_ids,
+            "new_points":     new_points_list,
+            "first_correct":  first_correct,
+            "second_correct": second_correct,
+            "third_correct":  third_correct,
+            "fourth_correct": fourth_correct,
+            "correct_counts": correct_counts,
+        })
+
+        # Compute per-user delta in Python (no extra DB round-trip)
+        user_deltas: dict[int, int] = defaultdict(int)
+        for r in rows:
+            delta = r.new_points - r.old_points
+            if delta != 0:
+                user_deltas[r.user_id] += delta
+
+        if user_deltas:
+            user_ids = list(user_deltas.keys())
+            deltas   = list(user_deltas.values())
+            db.execute(text("""
+                INSERT INTO user_scores
+                    (user_id, matches_score, total_points, classic_total_score,
+                     groups_score, third_place_score, knockout_score, bonus_score,
+                     bonus_penalty, groups_penalty, third_place_penalty,
+                     knockout_penalty, free_changes, free_changes_used,
+                     penalty, has_used_bracket_reset)
+                SELECT u, 0, d, 0, d, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false
+                FROM unnest(CAST(:user_ids AS int[]), CAST(:deltas AS int[])) AS t(u, d)
+                ON CONFLICT (user_id) DO UPDATE
+                    SET groups_score  = user_scores.groups_score  + EXCLUDED.groups_score,
+                        total_points  = user_scores.total_points  + EXCLUDED.total_points
+            """), {"user_ids": user_ids, "deltas": deltas})
+
+        db.flush()
+        return len(user_deltas)
+
+    @staticmethod
     def set_group_predictions_editable(db: Session, is_editable: bool) -> int:
         return db.query(GroupStagePrediction).update({GroupStagePrediction.is_editable: is_editable})
 
@@ -822,6 +944,141 @@ class DBWriter:
             ThirdPlacePrediction.penalty_points: 0,
             ThirdPlacePrediction.changes_count: 0,
         })
+
+    @staticmethod
+    def bulk_update_third_place_prediction_scoring(
+        db: Session,
+        qualifying_team_ids: list[int],
+        minimum_groups: int,
+        bonus_per_extra: int,
+    ) -> int:
+        """
+        Bulk SQL: for every third_place_prediction, count how many of its 8 predicted teams
+        share a group_letter with any of the 8 qualifying_team_ids, then compute points,
+        update predictions, and upsert user_scores.third_place_score + total_points.
+
+        Scoring (matches Python logic exactly):
+          correct_count <= minimum_groups  → 0 pts
+          correct_count >  minimum_groups  → (correct_count - minimum_groups) * bonus_per_extra
+
+        Returns number of users with a non-zero delta.
+        Caller must commit.
+        """
+        # Resolve group letters for the qualifying teams — small fixed-size query (8 rows)
+        letter_rows = db.execute(text("""
+            SELECT DISTINCT group_letter
+            FROM teams
+            WHERE id = ANY(CAST(:ids AS int[]))
+              AND group_letter IS NOT NULL
+        """), {"ids": qualifying_team_ids}).fetchall()
+
+        qualifying_letters = [r.group_letter for r in letter_rows]
+
+        if not qualifying_letters:
+            return 0
+
+        rows = db.execute(text("""
+            WITH pred_letters AS (
+                -- Unnest the 8 team fields into rows, join to teams to get group_letter
+                SELECT
+                    tp.id       AS pred_id,
+                    tp.user_id,
+                    COALESCE(tp.points, 0) AS old_points,
+                    t.group_letter
+                FROM third_place_predictions tp
+                JOIN LATERAL (
+                    VALUES
+                        (tp.first_team_qualifying),
+                        (tp.second_team_qualifying),
+                        (tp.third_team_qualifying),
+                        (tp.fourth_team_qualifying),
+                        (tp.fifth_team_qualifying),
+                        (tp.sixth_team_qualifying),
+                        (tp.seventh_team_qualifying),
+                        (tp.eighth_team_qualifying)
+                ) AS slot(team_id) ON TRUE
+                JOIN teams t ON t.id = slot.team_id
+                WHERE t.group_letter IS NOT NULL
+            ),
+            pred_correct AS (
+                SELECT
+                    pred_id,
+                    user_id,
+                    old_points,
+                    COUNT(*) FILTER (
+                        WHERE group_letter = ANY(CAST(:qualifying_letters AS text[]))
+                    ) AS correct_count
+                FROM pred_letters
+                GROUP BY pred_id, user_id, old_points
+            )
+            SELECT
+                pred_id,
+                user_id,
+                old_points,
+                correct_count::int AS correct_count,
+                CASE
+                    WHEN correct_count <= :minimum_groups THEN 0
+                    ELSE (correct_count - :minimum_groups) * :bonus_per_extra
+                END AS new_points
+            FROM pred_correct
+        """), {
+            "qualifying_letters": qualifying_letters,
+            "minimum_groups":     minimum_groups,
+            "bonus_per_extra":    bonus_per_extra,
+        }).fetchall()
+
+        if not rows:
+            return 0
+
+        pred_ids        = [r.pred_id       for r in rows]
+        new_points_list = [r.new_points    for r in rows]
+        correct_counts  = [r.correct_count for r in rows]
+
+        # Bulk update predictions: points + correct_groups_count + status
+        db.execute(text("""
+            UPDATE third_place_predictions tp
+            SET
+                points               = c.new_points,
+                correct_groups_count = c.correct_count,
+                status               = 'settled'
+            FROM unnest(
+                CAST(:pred_ids      AS int[]),
+                CAST(:new_points    AS int[]),
+                CAST(:correct_counts AS int[])
+            ) AS c(pred_id, new_points, correct_count)
+            WHERE tp.id = c.pred_id
+        """), {
+            "pred_ids":       pred_ids,
+            "new_points":     new_points_list,
+            "correct_counts": correct_counts,
+        })
+
+        # Per-user delta
+        user_deltas: dict[int, int] = defaultdict(int)
+        for r in rows:
+            delta = r.new_points - r.old_points
+            if delta != 0:
+                user_deltas[r.user_id] += delta
+
+        if user_deltas:
+            user_ids = list(user_deltas.keys())
+            deltas   = list(user_deltas.values())
+            db.execute(text("""
+                INSERT INTO user_scores
+                    (user_id, matches_score, total_points, classic_total_score,
+                     groups_score, third_place_score, knockout_score, bonus_score,
+                     bonus_penalty, groups_penalty, third_place_penalty,
+                     knockout_penalty, free_changes, free_changes_used,
+                     penalty, has_used_bracket_reset)
+                SELECT u, 0, d, 0, 0, d, 0, 0, 0, 0, 0, 0, 0, 0, 0, false
+                FROM unnest(CAST(:user_ids AS int[]), CAST(:deltas AS int[])) AS t(u, d)
+                ON CONFLICT (user_id) DO UPDATE
+                    SET third_place_score = user_scores.third_place_score + EXCLUDED.third_place_score,
+                        total_points      = user_scores.total_points      + EXCLUDED.total_points
+            """), {"user_ids": user_ids, "deltas": deltas})
+
+        db.flush()
+        return len(user_deltas)
 
     @staticmethod
     def set_third_place_predictions_editable(db: Session, is_editable: bool) -> int:

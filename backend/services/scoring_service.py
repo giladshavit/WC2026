@@ -3,7 +3,13 @@ from typing import List, Dict, Any, Optional, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from services.predictions.enums import MatchPredictionStatus, KnockoutPredictionStatus, PredictionType
+from services.predictions.enums import (
+    MatchPredictionStatus,
+    KnockoutPredictionStatus,
+    PredictionType,
+    GroupPredictionStatus,
+    ThirdPlacePredictionStatus,
+)
 from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction
 from models.predictions import KnockoutStagePrediction
 from models.results import KnockoutStageResult
@@ -335,39 +341,48 @@ class ScoringService:
     
     @staticmethod
     def update_group_scoring_for_all_users(db: Session, result: GroupStageResult) -> Dict[str, Any]:
-        predictions = DBReader.get_group_predictions_by_group(db, result.group_id)
+        dialect = db.get_bind().dialect.name
 
-        updated_users = set()
-        for prediction in predictions:
-            old_points = prediction.points if prediction.points is not None else 0
-
-            # Step 1: Calculate points + accuracy
-            new_points, accuracy = ScoringService.calculate_group_prediction_points(prediction, result)
-
-            # Step 2: Save accuracy fields via DBWriter
-            if accuracy:
-                DBWriter.update_group_prediction_accuracy(
-                    db, prediction,
-                    first_correct=accuracy['first_correct'],
-                    second_correct=accuracy['second_correct'],
-                    third_correct=accuracy['third_correct'],
-                    fourth_correct=accuracy['fourth_correct'],
-                    correct_positions_count=accuracy['correct_positions_count'],
-                )
-
-            # Step 3: Save points
-            DBWriter.update_group_prediction(db, prediction, points=new_points)
-
-            # Step 4: Delta update on UserScores (single line!)
-            ScoringService._apply_score_delta(db, prediction.user_id, 'groups_score', new_points - old_points)
-
-            updated_users.add(prediction.user_id)
+        if dialect == "postgresql":
+            updated_users = DBWriter.bulk_update_group_prediction_scoring(
+                db,
+                group_id=result.group_id,
+                first=result.first_place,
+                second=result.second_place,
+                third=result.third_place,
+                fourth=result.fourth_place,
+                pts_first=ScoringService.GROUP_PREDICTION_RULES['first_place'],
+                pts_second=ScoringService.GROUP_PREDICTION_RULES['second_place'],
+                pts_third=ScoringService.GROUP_PREDICTION_RULES['third_place'],
+                pts_fourth=ScoringService.GROUP_PREDICTION_RULES['fourth_place'],
+            )
+        else:
+            # SQLite fallback — identical to original loop
+            predictions = DBReader.get_group_predictions_by_group(db, result.group_id)
+            updated_users_set = set()
+            for prediction in predictions:
+                old_points = prediction.points if prediction.points is not None else 0
+                new_points, accuracy = ScoringService.calculate_group_prediction_points(prediction, result)
+                if accuracy:
+                    DBWriter.update_group_prediction_accuracy(
+                        db, prediction,
+                        first_correct=accuracy['first_correct'],
+                        second_correct=accuracy['second_correct'],
+                        third_correct=accuracy['third_correct'],
+                        fourth_correct=accuracy['fourth_correct'],
+                        correct_positions_count=accuracy['correct_positions_count'],
+                    )
+                DBWriter.update_group_prediction(db, prediction, points=new_points)
+                DBWriter.set_group_prediction_status(db, prediction, GroupPredictionStatus.SETTLED)
+                ScoringService._apply_score_delta(db, prediction.user_id, 'groups_score', new_points - old_points)
+                updated_users_set.add(prediction.user_id)
+            updated_users = len(updated_users_set)
 
         DBUtils.commit(db)
         return {
-            "message": f"Updated group scoring for {len(updated_users)} users",
-            "updated_users": len(updated_users),
-            "group_id": result.group_id
+            "message": f"Updated group scoring for {updated_users} users",
+            "updated_users": updated_users,
+            "group_id": result.group_id,
         }
     
     @staticmethod
@@ -426,29 +441,45 @@ class ScoringService:
     
     @staticmethod
     def update_third_place_scoring_for_all_users(db: Session, result: ThirdPlaceResult) -> Dict[str, Any]:
-        predictions = DBReader.get_all_third_place_predictions(db)
+        dialect = db.get_bind().dialect.name
 
-        updated_users = set()
-        for prediction in predictions:
-            old_points = prediction.points if prediction.points is not None else 0
+        qualifying_team_ids = [
+            result.first_team_qualifying,
+            result.second_team_qualifying,
+            result.third_team_qualifying,
+            result.fourth_team_qualifying,
+            result.fifth_team_qualifying,
+            result.sixth_team_qualifying,
+            result.seventh_team_qualifying,
+            result.eighth_team_qualifying,
+        ]
 
-            # Step 1: Count correct groups and save to prediction
-            correct_count = ScoringService._count_correct_third_place_groups(prediction, result, db)
-            DBWriter.update_third_place_correct_groups(db, prediction, correct_count)
-
-            # Step 2: Points from count (pure)
-            new_points = ScoringService.calculate_third_place_prediction_points_from_count(correct_count)
-            DBWriter.update_third_place_prediction_fields(db, prediction, points=new_points)
-
-            # Step 3: Delta update on UserScores (single line!)
-            ScoringService._apply_score_delta(db, prediction.user_id, 'third_place_score', new_points - old_points)
-
-            updated_users.add(prediction.user_id)
+        if dialect == "postgresql":
+            updated_users = DBWriter.bulk_update_third_place_prediction_scoring(
+                db,
+                qualifying_team_ids=qualifying_team_ids,
+                minimum_groups=ScoringService.THIRD_PLACE_RULES['minimum_groups_for_points'],
+                bonus_per_extra=ScoringService.THIRD_PLACE_RULES['bonus_per_extra_group'],
+            )
+        else:
+            # SQLite fallback — identical to original loop
+            predictions = DBReader.get_all_third_place_predictions(db)
+            updated_users_set = set()
+            for prediction in predictions:
+                old_points = prediction.points if prediction.points is not None else 0
+                correct_count = ScoringService._count_correct_third_place_groups(prediction, result, db)
+                DBWriter.update_third_place_correct_groups(db, prediction, correct_count)
+                new_points = ScoringService.calculate_third_place_prediction_points_from_count(correct_count)
+                DBWriter.update_third_place_prediction_fields(db, prediction, points=new_points)
+                DBWriter.set_third_place_prediction_status(db, prediction, ThirdPlacePredictionStatus.SETTLED)
+                ScoringService._apply_score_delta(db, prediction.user_id, 'third_place_score', new_points - old_points)
+                updated_users_set.add(prediction.user_id)
+            updated_users = len(updated_users_set)
 
         DBUtils.commit(db)
         return {
-            "message": f"Updated third place scoring for {len(updated_users)} users",
-            "updated_users": len(updated_users)
+            "message": f"Updated third place scoring for {updated_users} users",
+            "updated_users": updated_users,
         }
     
     @staticmethod

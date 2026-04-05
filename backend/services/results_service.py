@@ -12,7 +12,6 @@ from models.predictions import KnockoutStagePrediction
 from models.groups import Group
 from .scoring_service import ScoringService
 from services.database import DBReader, DBWriter, DBUtils
-from services.predictions.enums import GroupPredictionStatus, ThirdPlacePredictionStatus
 
 
 class ResultsService:
@@ -258,12 +257,6 @@ class ResultsService:
         DBUtils.commit(db)
         DBUtils.refresh(db, result)
 
-        # Update status for all group predictions for this group
-        group_predictions = DBReader.get_group_predictions_by_group(db, group_id)
-        for pred in group_predictions:
-            DBWriter.set_group_prediction_status(db, pred, GroupPredictionStatus.SETTLED)
-        DBUtils.flush(db)
-        
         # Update scoring for all users who predicted this group
         ScoringService.update_group_scoring_for_all_users(db, result)
         
@@ -444,12 +437,6 @@ class ResultsService:
         
         DBUtils.commit(db)
 
-        # Update status for all third place predictions
-        third_place_predictions = DBReader.get_all_third_place_predictions(db)
-        for pred in third_place_predictions:
-            DBWriter.set_third_place_prediction_status(db, pred, ThirdPlacePredictionStatus.SETTLED)
-        DBUtils.flush(db)
-        
         # Update scoring for all users who predicted third place qualifying teams
         ScoringService.update_third_place_scoring_for_all_users(db, result)
         
