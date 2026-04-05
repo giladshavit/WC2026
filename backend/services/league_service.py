@@ -193,8 +193,10 @@ class LeagueService:
         sort_by: str = "total",
         page: int = 1,
         page_size: int = 50,
+        score_mode: str = "multi",
     ) -> Dict[str, Any]:
-        score_mode = "multi"  # Global has no league; default to multi
+        if score_mode not in ("multi", "classic"):
+            score_mode = "multi"
         rows, total = DBReader.get_global_standings_paginated(db, sort_by, page, page_size, score_mode=score_mode)
         offset = (page - 1) * page_size
         standings = [

@@ -1506,6 +1506,7 @@ export class ApiService {
     sort_by?: string;
     page?: number;
     page_size?: number;
+    score_mode?: 'multi' | 'classic';
   }): Promise<LeagueStandingsResponse> {
     try {
       const headers: HeadersInit = {};
@@ -1516,6 +1517,7 @@ export class ApiService {
       if (params?.sort_by) searchParams.set('sort_by', params.sort_by);
       if (params?.page != null) searchParams.set('page', String(params.page));
       if (params?.page_size != null) searchParams.set('page_size', String(params.page_size));
+      if (params?.score_mode) searchParams.set('score_mode', params.score_mode);
       const qs = searchParams.toString();
       const url = `${this.baseUrl}/api/leagues/global${qs ? `?${qs}` : ''}`;
       const response = await fetch(url, { headers });
@@ -1534,7 +1536,7 @@ export class ApiService {
 
   async getLeagueStandings(
     leagueId: number,
-    params?: { sort_by?: string; page?: number; page_size?: number }
+    params?: { sort_by?: string; page?: number; page_size?: number; score_mode?: 'multi' | 'classic' }
   ): Promise<LeagueStandingsResponse> {
     try {
       const headers: HeadersInit = {};
@@ -1545,6 +1547,7 @@ export class ApiService {
       if (params?.sort_by) searchParams.set('sort_by', params.sort_by);
       if (params?.page != null) searchParams.set('page', String(params.page));
       if (params?.page_size != null) searchParams.set('page_size', String(params.page_size));
+      if (params?.score_mode) searchParams.set('score_mode', params.score_mode);
       const qs = searchParams.toString();
       const url = `${this.baseUrl}/api/leagues/${leagueId}/standings${qs ? `?${qs}` : ''}`;
       const response = await fetch(url, { headers });

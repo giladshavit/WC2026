@@ -198,6 +198,7 @@ def get_global_standings(
     sort_by: str = Query("total", enum=["total", "matches", "groups", "knockout", "bonus", "fine", "exact", "correct", "wrong"]),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=10, le=100),
+    score_mode: str = Query("multi", enum=["multi", "classic"]),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -211,11 +212,21 @@ def get_global_standings(
             sort_by=sort_by,
             page=page,
             page_size=page_size,
+            score_mode=score_mode,
         )
         standings_data = [LeagueStanding(**s) for s in result["standings"]]
         current_entry = LeagueStanding(**result["current_user_entry"]) if result.get("current_user_entry") else None
         return LeagueStandingsResponse(
-            league_info=None,
+            league_info={
+                "id": 0,
+                "name": "Global",
+                "description": None,
+                "invite_code": "",
+                "created_by": 0,
+                "created_at": "",
+                "member_count": result["total_count"],
+                "score_mode": score_mode,
+            },
             standings=standings_data,
             total_count=result["total_count"],
             page=result["page"],

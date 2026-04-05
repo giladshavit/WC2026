@@ -38,7 +38,7 @@ interface StandingWithFine extends LeagueStanding {
   penalty?: number; // API field
 }
 
-/** Sentinel for the column-header row; FlashList stickyHeaderIndices apply to `data` indices, not ListHeaderComponent. */
+/** Sentinel for the column-header row; stickyHeaderIndices apply to `data` indices (not ListHeaderComponent). */
 type StandingsTableHeaderRow = { readonly _standingsTableHeader: true };
 const STANDINGS_TABLE_HEADER: StandingsTableHeaderRow = { _standingsTableHeader: true };
 type StandingsListEntry = StandingWithFine | StandingsTableHeaderRow;
@@ -213,16 +213,6 @@ function AnimatedPlayerRow({
   liveNamesNoShrink?: boolean;
   onRowPress?: () => void;
 }) {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      delay: index * 50,
-      useNativeDriver: true,
-    }).start();
-  }, []);
-
   const isCurrentUser = currentUserId !== null && item.user_id === currentUserId;
   const fineVal = item.penalty ?? 0; // API returns penalty
   const groupsPlusThird = (item.groups_points ?? 0) + (item.third_place_points ?? 0);
@@ -250,12 +240,11 @@ function AnimatedPlayerRow({
 
   if (side === 'left') {
     const leftContent = (
-      <Animated.View
+      <View
         style={[
           styles.playerRow,
           { backgroundColor: isCurrentUser ? '#1a2744' : rowBg },
           isCurrentUser && styles.playerRowCurrentUser,
-          { opacity: fadeAnim },
         ]}
       >
         <View style={styles.playerRowContent}>
@@ -280,7 +269,7 @@ function AnimatedPlayerRow({
             )}
           </View>
         </View>
-      </Animated.View>
+      </View>
     );
     if (onRowPress) {
       return (
@@ -294,12 +283,11 @@ function AnimatedPlayerRow({
 
   if (side === 'middle') {
     const middleContent = (
-      <Animated.View
+      <View
         style={[
           styles.playerRow,
           { backgroundColor: rowBg },
           isCurrentUser && { backgroundColor: '#1a2744' },
-          { opacity: fadeAnim },
         ]}
       >
         <View style={styles.playerRowContent}>
@@ -349,7 +337,7 @@ function AnimatedPlayerRow({
             </>
           )}
         </View>
-      </Animated.View>
+      </View>
     );
     if (onRowPress) {
       return (
@@ -362,13 +350,12 @@ function AnimatedPlayerRow({
   }
 
   const rightContent = (
-    <Animated.View
+    <View
       style={[
         styles.playerRow,
         styles.playerRowRight,
         { backgroundColor: rowBg },
         isCurrentUser && { backgroundColor: '#1a2744' },
-        { opacity: fadeAnim },
       ]}
     >
       <View style={[
@@ -425,7 +412,7 @@ function AnimatedPlayerRow({
           </View>
         </View>
       </View>
-    </Animated.View>
+    </View>
   );
   if (onRowPress) {
     return (
@@ -664,7 +651,10 @@ export default function LeagueDetailsScreen() {
   const flashListRef = useRef<any>(null);
   const scoreModeInitializedRef = useRef(false);
   const skipNextFetchRef = useRef(false);
-  const [scoreMode, setScoreMode] = useState<'multi' | 'classic'>('classic');
+  /** Monotonic id so only the latest standings fetch applies state (avoids mixed modes after rapid toggles). */
+  const standingsFetchGenRef = useRef(0);
+  const liveMatchesFetchedRef = useRef(false);
+  const [scoreMode, setScoreMode] = useState<'multi' | 'classic'>('multi');
   const [scoreModeLoading, setScoreModeLoading] = useState(false);
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [userDismissedLive, setUserDismissedLive] = useState(false);
@@ -696,7 +686,10 @@ export default function LeagueDetailsScreen() {
   const currentUserId = getCurrentUserId();
 
   const fetchAndSetupLiveMatches = async () => {
-    if (!currentUserId) return;
+    if (!currentUserId) {
+      liveMatchesFetchedRef.current = true;
+      return;
+    }
     try {
       const matchesData = await apiService.getMatches(currentUserId);
       const liveMatches = matchesData.matches.filter((m) => m.status === 'live');
@@ -721,6 +714,8 @@ export default function LeagueDetailsScreen() {
       }
     } catch (err) {
       console.warn('Failed to fetch live matches:', err);
+    } finally {
+      liveMatchesFetchedRef.current = true;
     }
   };
 
@@ -751,19 +746,27 @@ export default function LeagueDetailsScreen() {
     if (append) {
       setLoadingMore(true);
     }
+    const requestId = ++standingsFetchGenRef.current;
     const currentPage = pageOverride ?? page;
     const currentSortBy = sortByOverride ?? sortBy;
     try {
+      // Resolve score mode ONCE before API call, using league_info from previous fetch if available
+      const preCallScoreMode = scoreModeOverride ?? (scoreModeInitializedRef.current ? scoreMode : (standingsData?.league_info?.score_mode ?? 'multi'));
       const data = isGlobalLeague
-        ? await apiService.getGlobalStandings({ sort_by: currentSortBy, page: currentPage, page_size: PAGE_SIZE })
-        : await apiService.getLeagueStandings(Number(leagueId), { sort_by: currentSortBy, page: currentPage, page_size: PAGE_SIZE });
+        ? await apiService.getGlobalStandings({ sort_by: currentSortBy, page: currentPage, page_size: PAGE_SIZE, score_mode: preCallScoreMode })
+        : await apiService.getLeagueStandings(Number(leagueId), { sort_by: currentSortBy, page: currentPage, page_size: PAGE_SIZE, score_mode: preCallScoreMode });
+
+      if (requestId !== standingsFetchGenRef.current) return;
 
       setStandingsData(data);
       setTotalCount(data.total_count);
       setCurrentUserEntry((data.current_user_entry as StandingWithFine) ?? null);
-      const effectiveScoreMode = scoreModeOverride ?? (scoreModeInitializedRef.current ? scoreMode : (data.league_info?.score_mode ?? 'multi'));
+
+      // After receiving data, determine the true effective score mode
+      let effectiveScoreMode: 'multi' | 'classic';
       if (!scoreModeInitializedRef.current) {
-        const leagueMode = data.league_info?.score_mode;
+        const leagueMode = data.league_info?.score_mode ?? 'multi';
+        effectiveScoreMode = scoreModeOverride ?? leagueMode;
         if (leagueMode === 'classic') {
           setScoreMode('classic');
           setSortBy('total');
@@ -771,6 +774,8 @@ export default function LeagueDetailsScreen() {
           setScoreMode('multi');
         }
         scoreModeInitializedRef.current = true;
+      } else {
+        effectiveScoreMode = scoreModeOverride ?? scoreMode;
       }
       const activeSortKey = sortByOverride ?? sortBy;
       let processedStandings = data.standings as StandingWithFine[];
@@ -780,9 +785,24 @@ export default function LeagueDetailsScreen() {
           const scoreB = (b.matches_points ?? 0) + (b.bonus_points ?? 0);
           return scoreB - scoreA;
         });
+      } else if (!append && effectiveScoreMode === 'multi' && activeSortKey === 'total') {
+        processedStandings = [...processedStandings].sort((a, b) => {
+          const scoreA = a.total_points ?? 0;
+          const scoreB = b.total_points ?? 0;
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          const mA = a.matches_points ?? 0;
+          const mB = b.matches_points ?? 0;
+          if (mB !== mA) return mB - mA;
+          return (a.penalty ?? 0) - (b.penalty ?? 0);
+        });
       }
       if (!append) {
         processedStandings = processedStandings.map((s, i) => ({ ...s, rank: i + 1 }));
+        // Sync currentUserEntry rank to match the (possibly re-sorted) standings
+        const currentUserInList = processedStandings.find(s => s.user_id === currentUserId);
+        if (currentUserInList) {
+          setCurrentUserEntry(currentUserInList);
+        }
       }
       if (append) {
         setAllStandings((prev) => [...prev, ...processedStandings]);
@@ -794,6 +814,7 @@ export default function LeagueDetailsScreen() {
         }
       }
     } catch (error) {
+      if (requestId !== standingsFetchGenRef.current) return;
       console.error('Error fetching standings:', error);
       setErrorModal({
         title: 'Failed to Load',
@@ -801,9 +822,27 @@ export default function LeagueDetailsScreen() {
         goBack: true,
       });
     } finally {
-      setInitialLoading(false);
       setLoadingMore(false);
-      setScoreModeLoading(false);
+      if (requestId === standingsFetchGenRef.current) {
+        // Only hide the initial loading screen once live matches are also known
+        if (liveMatchesFetchedRef.current) {
+          setInitialLoading(false);
+        } else {
+          // Poll briefly — live fetch usually completes within ms of standings
+          const checkInterval = setInterval(() => {
+            if (liveMatchesFetchedRef.current) {
+              clearInterval(checkInterval);
+              setInitialLoading(false);
+            }
+          }, 50);
+          // Safety timeout — never hang more than 2s
+          setTimeout(() => {
+            clearInterval(checkInterval);
+            setInitialLoading(false);
+          }, 2000);
+        }
+        setScoreModeLoading(false);
+      }
     }
   };
 
@@ -832,7 +871,9 @@ export default function LeagueDetailsScreen() {
     setPodiumStandings([]);
     setSortBy('total');
     setStandingsData(null);
+    setScoreMode('multi');
     scoreModeInitializedRef.current = false;
+    liveMatchesFetchedRef.current = false;
   }, [leagueId]);
 
   useEffect(() => {
@@ -840,11 +881,11 @@ export default function LeagueDetailsScreen() {
       skipNextFetchRef.current = false;
       return;
     }
-    fetchStandings(page !== 1, page);
-    // Only setup live matches on initial load or league change, not on sort/page changes
-    if (page === 1 && !skipNextFetchRef.current) {
-      fetchAndSetupLiveMatches();
-    }
+    // Run both in parallel so live mode is known before standings render
+    Promise.all([
+      fetchStandings(page !== 1, page),
+      fetchAndSetupLiveMatches(),
+    ]);
   }, [leagueId]);
 
   useEffect(() => {
@@ -1105,8 +1146,11 @@ export default function LeagueDetailsScreen() {
 
       <View style={styles.content}>
         <View style={[styles.tableSection, { maxWidth: 520, alignSelf: 'center', width: '100%' }]}>
+          <View style={{ flex: 1, position: 'relative' }}>
           <FlashList
-            drawDistance={800}
+            drawDistance={1200}
+            // @ts-expect-error FlashList v2 typings omit estimatedItemSize; kept for layout hints / forward-compat
+            estimatedItemSize={56}
             maintainVisibleContentPosition={{ disabled: true }}
             key={String(leagueId) + '-' + scoreMode + '-' + String(isLiveMode)}
             ref={flashListRef}
@@ -1130,7 +1174,7 @@ export default function LeagueDetailsScreen() {
             }
             stickyHeaderIndices={[0]}
             ListHeaderComponent={
-              <>
+              <View>
                 {topThree.length >= 3 && (
                   <PodiumSection
                     topThree={topThree}
@@ -1170,7 +1214,7 @@ export default function LeagueDetailsScreen() {
                     })}
                   </View>
                 )}
-              </>
+              </View>
             }
             renderItem={({ item, index }) => {
               if (isStandingsTableHeaderRow(item)) {
@@ -1347,6 +1391,20 @@ export default function LeagueDetailsScreen() {
             style={StyleSheet.flatten([styles.tableBody, { flex: 1 }])}
             contentContainerStyle={styles.tableBodyContent}
           />
+
+          {scoreModeLoading && (
+            <View
+              style={[
+                StyleSheet.absoluteFillObject,
+                { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(15,23,42,0.92)', zIndex: 20, borderRadius: 12 },
+              ]}
+              pointerEvents="box-only"
+            >
+              <ActivityIndicator color="#ffffff" size="large" />
+            </View>
+          )}
+
+          </View>
 
           {currentUserEntry && currentUserEntry.rank != null && currentUserEntry.rank > 3 && (
             <View style={[styles.stickyUserRow, isLiveMode && styles.tableRowContainerLive]}>
