@@ -1133,3 +1133,117 @@ class DBReader:
             db.add(row)
             db.flush()
         return row
+
+    # ═══════════════════════════════════════════════════════
+    # STATISTICS — Read-only aggregation queries
+    # ═══════════════════════════════════════════════════════
+
+    @staticmethod
+    def count_bonus_outcome_stats(db: Session, status_col: str, answer_col: str) -> dict:
+        """Single SQL: count correct / incorrect / total_answered for one bonus question."""
+        from sqlalchemy import text
+        row = db.execute(text(f"""
+            SELECT
+                COUNT(*) FILTER (WHERE {status_col} = 'correct')               AS correct,
+                COUNT(*) FILTER (WHERE {status_col} IN ('incorrect', 'wrong'))  AS incorrect,
+                COUNT(*) FILTER (WHERE {answer_col} IS NOT NULL)                AS total_answered
+            FROM bonus_predictions
+        """)).fetchone()
+        return {
+            "correct":        row.correct        or 0,
+            "incorrect":      row.incorrect      or 0,
+            "total_answered": row.total_answered or 0,
+        }
+
+    @staticmethod
+    def count_third_place_predictions_with_any_team(db: Session) -> int:
+        """Count predictions where at least one qualifying slot is filled."""
+        from sqlalchemy import text
+        row = db.execute(text("""
+            SELECT COUNT(*) AS total
+            FROM third_place_predictions tp
+            WHERE (
+                tp.first_team_qualifying   IS NOT NULL OR tp.second_team_qualifying  IS NOT NULL OR
+                tp.third_team_qualifying   IS NOT NULL OR tp.fourth_team_qualifying  IS NOT NULL OR
+                tp.fifth_team_qualifying   IS NOT NULL OR tp.sixth_team_qualifying   IS NOT NULL OR
+                tp.seventh_team_qualifying IS NOT NULL OR tp.eighth_team_qualifying  IS NOT NULL
+            )
+        """)).fetchone()
+        return row.total or 0
+
+    @staticmethod
+    def count_third_place_group_picks(db: Session) -> list:
+        """Per group_letter: how many distinct predictions picked that group."""
+        from sqlalchemy import text
+        return db.execute(text("""
+            SELECT t.group_letter, COUNT(DISTINCT tp.id) AS cnt
+            FROM third_place_predictions tp
+            JOIN LATERAL (
+                VALUES
+                    (tp.first_team_qualifying),  (tp.second_team_qualifying),
+                    (tp.third_team_qualifying),  (tp.fourth_team_qualifying),
+                    (tp.fifth_team_qualifying),  (tp.sixth_team_qualifying),
+                    (tp.seventh_team_qualifying),(tp.eighth_team_qualifying)
+            ) AS slot(team_id) ON TRUE
+            JOIN teams t ON t.id = slot.team_id
+            WHERE t.group_letter IS NOT NULL
+            GROUP BY t.group_letter
+        """)).fetchall()
+
+    @staticmethod
+    def get_group_letters_for_team_ids(db: Session, team_ids: list) -> list:
+        """Return distinct group_letters for the given team IDs."""
+        from sqlalchemy import text
+        return db.execute(text("""
+            SELECT DISTINCT group_letter FROM teams
+            WHERE id = ANY(CAST(:ids AS int[])) AND group_letter IS NOT NULL
+        """), {"ids": team_ids}).fetchall()
+
+    @staticmethod
+    def count_third_place_group_accuracy(db: Session, qualifying_letters: list) -> list:
+        """Per qualifying group_letter: how many distinct predictions picked it."""
+        from sqlalchemy import text
+        return db.execute(text("""
+            SELECT t.group_letter, COUNT(DISTINCT tp.id) AS cnt
+            FROM third_place_predictions tp
+            JOIN LATERAL (
+                VALUES
+                    (tp.first_team_qualifying),  (tp.second_team_qualifying),
+                    (tp.third_team_qualifying),  (tp.fourth_team_qualifying),
+                    (tp.fifth_team_qualifying),  (tp.sixth_team_qualifying),
+                    (tp.seventh_team_qualifying),(tp.eighth_team_qualifying)
+            ) AS slot(team_id) ON TRUE
+            JOIN teams t ON t.id = slot.team_id
+            WHERE t.group_letter = ANY(CAST(:letters AS text[]))
+            GROUP BY t.group_letter
+        """), {"letters": qualifying_letters}).fetchall()
+
+    @staticmethod
+    def count_third_place_accuracy_distribution(db: Session, qualifying_letters: list) -> list:
+        """Per bucket (4-8): how many predictions got exactly that many groups right."""
+        from sqlalchemy import text
+        return db.execute(text("""
+            WITH per_pred AS (
+                SELECT
+                    tp.id,
+                    COUNT(DISTINCT t.group_letter) FILTER (
+                        WHERE t.group_letter = ANY(CAST(:letters AS text[]))
+                    ) AS correct_count
+                FROM third_place_predictions tp
+                JOIN LATERAL (
+                    VALUES
+                        (tp.first_team_qualifying),  (tp.second_team_qualifying),
+                        (tp.third_team_qualifying),  (tp.fourth_team_qualifying),
+                        (tp.fifth_team_qualifying),  (tp.sixth_team_qualifying),
+                        (tp.seventh_team_qualifying),(tp.eighth_team_qualifying)
+                ) AS slot(team_id) ON TRUE
+                JOIN teams t ON t.id = slot.team_id
+                WHERE t.group_letter IS NOT NULL
+                GROUP BY tp.id
+            )
+            SELECT
+                GREATEST(4, LEAST(8, correct_count)) AS bucket,
+                COUNT(*) AS cnt
+            FROM per_pred
+            GROUP BY bucket
+        """), {"letters": qualifying_letters}).fetchall()

@@ -21,156 +21,47 @@ class ThirdPlaceStatisticsService:
     @staticmethod
     def get_third_place_statistics(db: Session) -> Dict[str, Any]:
         """Server decides pre/post based on result existence."""
-        predictions = DBReader.get_all_third_place_predictions(db)
-        if not predictions:
-            return {"total_predictions": 0}
-
-        # Build team_id -> group_letter cache once (1 DB query instead of N*8)
-        team_group_cache = ThirdPlaceStatisticsService._build_team_group_cache(db)
-
         result = DBReader.get_third_place_result(db)
 
-        if result:
-            return ThirdPlaceStatisticsService._post_result_stats(predictions, result, team_group_cache)
-        else:
-            return ThirdPlaceStatisticsService._pre_result_stats(predictions, team_group_cache)
-
-    # ═══════════════════════════════════════════════════════
-    # PRIVATE - Pre-Result
-    # ═══════════════════════════════════════════════════════
-
-    @staticmethod
-    def _pre_result_stats(predictions, team_group_cache: Dict[int, str]) -> Dict[str, Any]:
-        """How many % picked each group to have a qualifier."""
-        # Only count predictions where at least one team was picked (exclude users who never made picks)
-        answered = [
-            p for p in predictions
-            if any(getattr(p, field, None) is not None for field in ThirdPlaceStatisticsService.TEAM_FIELDS)
-        ]
-        total = len(answered)
-
+        total = DBReader.count_third_place_predictions_with_any_team(db)
         if total == 0:
+            return {"total_predictions": 0}
+
+        group_pick_pct = {g: 0.0 for g in "ABCDEFGHIJKL"}
+        for row in DBReader.count_third_place_group_picks(db):
+            if row.group_letter in group_pick_pct:
+                group_pick_pct[row.group_letter] = round(row.cnt / total * 100, 1)
+
+        if not result:
             return {
                 "has_result": False,
-                "total_predictions": 0,
-                "group_pick_pct": {group: 0.0 for group in "ABCDEFGHIJKL"},
+                "total_predictions": total,
+                "group_pick_pct": dict(sorted(group_pick_pct.items())),
             }
 
-        # Initialize with ALL 12 groups at 0, then add counts from picks
-        group_counts = {group: 0 for group in "ABCDEFGHIJKL"}
-        picked_counts = ThirdPlaceStatisticsService._count_groups_picked(answered, team_group_cache)
-        for group, count in picked_counts.items():
-            group_counts[group] = count
-
-        return {
-            "has_result": False,
-            "total_predictions": total,
-            "group_pick_pct": {
-                group: round(count / total * 100, 1)
-                for group, count in sorted(group_counts.items())
-            },
-        }
-
-    # ═══════════════════════════════════════════════════════
-    # PRIVATE - Post-Result
-    # ═══════════════════════════════════════════════════════
-
-    @staticmethod
-    def _post_result_stats(predictions, result, team_group_cache: Dict[int, str]) -> Dict[str, Any]:
-        """Accuracy per group + distribution (4-8) as percentages."""
-        # Keep only predictions where at least one team was picked
-        answered = [
-            p for p in predictions
-            if any(getattr(p, field, None) is not None for field in ThirdPlaceStatisticsService.TEAM_FIELDS)
+        qualifying_team_ids = [
+            result.first_team_qualifying,  result.second_team_qualifying,
+            result.third_team_qualifying,  result.fourth_team_qualifying,
+            result.fifth_team_qualifying,  result.sixth_team_qualifying,
+            result.seventh_team_qualifying, result.eighth_team_qualifying,
         ]
-        total = len(answered)
+        qual_letter_rows = DBReader.get_group_letters_for_team_ids(db, qualifying_team_ids)
+        qualifying_letters = [r.group_letter for r in qual_letter_rows]
 
-        if total == 0:
-            return {"has_result": True, "total_predictions": 0}
+        if not qualifying_letters:
+            return {"has_result": True, "total_predictions": total}
 
-        actual_groups = ThirdPlaceStatisticsService._extract_groups(result, team_group_cache)
+        group_accuracy = {g: 0.0 for g in qualifying_letters}
+        for row in DBReader.count_third_place_group_accuracy(db, qualifying_letters):
+            group_accuracy[row.group_letter] = round(row.cnt / total * 100, 1)
+
+        accuracy_distribution = {str(k): 0.0 for k in range(4, 9)}
+        for row in DBReader.count_third_place_accuracy_distribution(db, qualifying_letters):
+            accuracy_distribution[str(row.bucket)] = round(row.cnt / total * 100, 1)
 
         return {
             "has_result": True,
             "total_predictions": total,
-            "group_accuracy": ThirdPlaceStatisticsService._calc_group_accuracy(
-                answered, actual_groups, team_group_cache, total
-            ),
-            "accuracy_distribution": ThirdPlaceStatisticsService._calc_accuracy_distribution(
-                answered, actual_groups, team_group_cache, total
-            ),
+            "group_accuracy": dict(sorted(group_accuracy.items())),
+            "accuracy_distribution": accuracy_distribution,
         }
-
-    # ═══════════════════════════════════════════════════════
-    # PRIVATE - Post Helpers
-    # ═══════════════════════════════════════════════════════
-
-    @staticmethod
-    def _calc_group_accuracy(
-        predictions, actual_groups: Set[str], team_group_cache: Dict[int, str], total: int
-    ) -> Dict[str, float]:
-        """For each qualifying group: what % of users picked it."""
-        counts: Dict[str, int] = {group: 0 for group in actual_groups}
-
-        for p in predictions:
-            user_groups = ThirdPlaceStatisticsService._extract_groups(p, team_group_cache)
-            for group in actual_groups:
-                if group in user_groups:
-                    counts[group] += 1
-
-        return {
-            group: round(count / total * 100, 1)
-            for group, count in sorted(counts.items())
-        }
-
-    @staticmethod
-    def _calc_accuracy_distribution(
-        predictions, actual_groups: Set[str], team_group_cache: Dict[int, str], total: int
-    ) -> Dict[str, float]:
-        """What % of users got exactly N groups right. Range: 4-8. Values are percentages."""
-        counts = {4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
-
-        for p in predictions:
-            user_groups = ThirdPlaceStatisticsService._extract_groups(p, team_group_cache)
-            correct = len(user_groups & actual_groups)
-            key = max(4, min(8, correct))
-            counts[key] += 1
-
-        return {
-            str(k): round(v / total * 100, 1) if total else 0
-            for k, v in counts.items()
-        }
-
-    # ═══════════════════════════════════════════════════════
-    # PRIVATE - Shared Helpers
-    # ═══════════════════════════════════════════════════════
-
-    @staticmethod
-    def _build_team_group_cache(db: Session) -> Dict[int, str]:
-        """Load all teams once and build team_id -> group_letter mapping."""
-        teams = DBReader.get_all_teams(db)
-        return {
-            team.id: team.group_letter
-            for team in teams
-            if team.group_letter
-        }
-
-    @staticmethod
-    def _extract_groups(prediction_or_result, team_group_cache: Dict[int, str]) -> Set[str]:
-        """Extract set of group letters from a prediction or result object."""
-        groups = set()
-        for field in ThirdPlaceStatisticsService.TEAM_FIELDS:
-            team_id = getattr(prediction_or_result, field, None)
-            if team_id and team_id in team_group_cache:
-                groups.add(team_group_cache[team_id])
-        return groups
-
-    @staticmethod
-    def _count_groups_picked(predictions, team_group_cache: Dict[int, str]) -> Dict[str, int]:
-        """Count how many users picked each group (pre-result)."""
-        counts: Dict[str, int] = {}
-        for p in predictions:
-            user_groups = ThirdPlaceStatisticsService._extract_groups(p, team_group_cache)
-            for group in user_groups:
-                counts[group] = counts.get(group, 0) + 1
-        return counts

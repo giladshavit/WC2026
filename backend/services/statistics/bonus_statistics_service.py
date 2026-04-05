@@ -114,33 +114,24 @@ class BonusStatisticsService:
     def get_question_outcome_stats(db: Session, field_key: str) -> dict:
         if field_key not in FIELD_TO_COLUMN:
             raise ValueError(f"Unknown field_key: {field_key}")
-        column_name = FIELD_TO_COLUMN[field_key]
+
         status_col = STATUS_COLUMN_MAP[field_key]
-        all_preds = db.query(BonusPrediction).all()
-        correct = incorrect = 0
-        settled = False
-        for pred in all_preds:
-            raw = getattr(pred, column_name, None)
-            if raw is None:
-                continue
-            s = str(raw).strip()
-            if not s or s.lower() in ("none", "null", "0"):
-                continue
-            status = getattr(pred, status_col, "pending")
-            if status == "correct":
-                correct += 1
-                settled = True
-            elif status in ("incorrect", "wrong"):
-                incorrect += 1
-                settled = True
-        total = correct + incorrect
-        correct_pct = round(correct / total * 100) if total > 0 else 0
+        answer_col = FIELD_TO_COLUMN[field_key]
+
+        from services.database import DBReader
+        data = DBReader.count_bonus_outcome_stats(db, status_col, answer_col)
+        correct  = data["correct"]
+        incorrect = data["incorrect"]
+        total    = data["total_answered"]
+        settled      = (correct + incorrect) > 0
+        correct_pct  = round(correct / total * 100) if total > 0 else 0
+
         return {
-            "field_key": field_key,
-            "settled": settled,
-            "correct": correct,
-            "incorrect": incorrect,
+            "field_key":      field_key,
+            "settled":        settled,
+            "correct":        correct,
+            "incorrect":      incorrect,
             "total_answered": total,
-            "correct_pct": correct_pct,
-            "incorrect_pct": 100 - correct_pct if total > 0 else 0,
+            "correct_pct":    correct_pct,
+            "incorrect_pct":  100 - correct_pct if total > 0 else 0,
         }
