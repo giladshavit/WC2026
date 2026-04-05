@@ -54,6 +54,14 @@ class MatchSyncService:
             db.close()
 
     @staticmethod
+    def _score_changed(db, match, home: int, away: int) -> bool:
+        """Returns True if the incoming score differs from what's stored in match_results."""
+        result = DBReader.get_match_result(db, match.id)
+        if result is None:
+            return True
+        return result.home_team_score != home or result.away_team_score != away
+
+    @staticmethod
     def sync_live_matches() -> None:
         if not MatchSyncService.is_within_active_window():
             logger.debug("Outside match windows — skipping sync")
@@ -88,6 +96,9 @@ class MatchSyncService:
 
                 if match.status == MatchStatus.FINISHED.value:
                     logger.debug(f"[SYNC] Match {match.id} already finished — skipping")
+                    continue
+
+                if not MatchSyncService._score_changed(db, match, home, away):
                     continue
 
                 try:
