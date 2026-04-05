@@ -766,11 +766,15 @@ def _reset_knockout_results(db: Session) -> dict:
     for team in eliminated_teams:
         team.is_eliminated = False
 
+    # 5. Reset knockout predictions to pre-result state (bulk, no loop)
+    predictions_reset = DBWriter.reset_knockout_predictions_to_pre_result_state(db)
+
     db.flush()
     return {
         "knockout_results_reset": len(knockout_results),
         "knockout_matches_reset": len(knockout_matches),
         "match_results_deleted": deleted_match_results,
+        "predictions_reset": predictions_reset,
     }
 
 

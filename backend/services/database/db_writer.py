@@ -791,6 +791,39 @@ class DBWriter:
         return db.query(KnockoutStagePrediction).update({KnockoutStagePrediction.points: 0})
 
     @staticmethod
+    def reset_knockout_predictions_to_pre_result_state(db: Session) -> int:
+        """
+        Bulk-reset all knockout predictions to pre-result state.
+        - points = 0, is_editable = True, is_team1_valid = True, is_team2_valid = True
+        - status = 'valid' where winner_team_id IS NOT NULL
+        - status = 'invalid' where winner_team_id IS NULL
+        Two bulk UPDATE queries, no Python loop.
+        Returns total count updated.
+        """
+        count_with_winner = db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.winner_team_id.isnot(None)
+        ).update({
+            KnockoutStagePrediction.points: 0,
+            KnockoutStagePrediction.is_editable: True,
+            KnockoutStagePrediction.is_team1_valid: True,
+            KnockoutStagePrediction.is_team2_valid: True,
+            KnockoutStagePrediction.status: 'valid',
+        }, synchronize_session=False)
+
+        count_without_winner = db.query(KnockoutStagePrediction).filter(
+            KnockoutStagePrediction.winner_team_id.is_(None)
+        ).update({
+            KnockoutStagePrediction.points: 0,
+            KnockoutStagePrediction.is_editable: True,
+            KnockoutStagePrediction.is_team1_valid: True,
+            KnockoutStagePrediction.is_team2_valid: True,
+            KnockoutStagePrediction.status: 'invalid',
+        }, synchronize_session=False)
+
+        db.flush()
+        return count_with_winner + count_without_winner
+
+    @staticmethod
     def reset_knockout_prediction_penalties(db: Session) -> int:
         return db.query(KnockoutStagePrediction).update({
             KnockoutStagePrediction.penalty_points: 0,
