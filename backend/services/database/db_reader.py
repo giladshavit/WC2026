@@ -928,7 +928,7 @@ class DBReader:
         multi_primary = {
             "total":    desc(UserScores.total_points),
             "matches":  desc(UserScores.matches_score),
-            "groups":   desc(UserScores.groups_score),
+            "groups":   desc(UserScores.groups_score + UserScores.third_place_score),
             "knockout": desc(UserScores.knockout_score),
             "bonus":    desc(UserScores.bonus_score),
             "fine":     UserScores.penalty,
