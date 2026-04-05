@@ -1,6 +1,5 @@
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
-from collections import Counter
 import math
 
 from services.predictions.enums import MatchPredictionStatus
@@ -25,16 +24,15 @@ class MatchStatisticsService:
         if not match:
             return {"error": "Match not found"}
 
-        predictions = DBReader.get_match_predictions_by_match(db, match_id)
-        if not predictions:
+        if DBReader.count_match_predictions_for_match(db, match_id) == 0:
             return {"match_id": match_id, "total_predictions": 0}
 
         match_result = DBReader.get_match_result(db, match_id)
 
         if match_result:
-            return MatchStatisticsService._post_result_stats(match, predictions)
+            return MatchStatisticsService._post_result_stats(db, match)
         else:
-            return MatchStatisticsService._pre_result_stats(match, predictions)
+            return MatchStatisticsService._pre_result_stats(db, match)
 
     @staticmethod
     def get_user_match_profile(db: Session, user_id: int) -> Optional[Dict[str, Any]]:
@@ -61,13 +59,15 @@ class MatchStatisticsService:
     # ═══════════════════════════════════════════════════════
 
     @staticmethod
-    def _pre_result_stats(match, predictions) -> Dict[str, Any]:
-        """Before result: who people think will win + popular predicted scores."""
-        home = sum(1 for p in predictions if p.predicted_winner == match.home_team_id)
-        draw = sum(1 for p in predictions if p.predicted_winner == 0)
-        away = sum(1 for p in predictions if p.predicted_winner == match.away_team_id)
+    def _pre_result_stats(db: Session, match) -> Dict[str, Any]:
+        counts = DBReader.get_match_winner_distribution(
+            db, match.id, match.home_team_id, match.away_team_id
+        )
+        total_all = counts["total"]
+        home = counts["home"]
+        draw = counts["draw"]
+        away = counts["away"]
         total_with_winner = home + draw + away
-        total_all = len(predictions)
 
         home_pct, draw_pct, away_pct = MatchStatisticsService._round_percentages_to_100(
             [home, draw, away], total_with_winner
@@ -76,25 +76,26 @@ class MatchStatisticsService:
         return {
             "match_id": match.id,
             "has_result": False,
-            "total_predictions": total_all,  # show real total in UI
+            "total_predictions": total_all,
             "winner_distribution": {
                 "home_pct": home_pct,
                 "draw_pct": draw_pct,
                 "away_pct": away_pct,
             },
-            "popular_scores": MatchStatisticsService._calc_popular_scores(predictions),
+            "popular_scores": DBReader.get_match_popular_scores(db, match.id),
         }
 
     @staticmethod
-    def _post_result_stats(match, predictions) -> Dict[str, Any]:
-        """After result: how many got it right."""
-        exact = sum(1 for p in predictions if p.status == MatchPredictionStatus.EXACT.value)
-        correct = sum(1 for p in predictions if p.status == MatchPredictionStatus.CORRECT_OUTCOME.value)
-        wrong = sum(1 for p in predictions if p.status == MatchPredictionStatus.WRONG.value)
+    def _post_result_stats(db: Session, match) -> Dict[str, Any]:
+        counts = DBReader.get_match_accuracy_counts(db, match.id)
+        exact = counts["exact"]
+        correct = counts["correct"]
+        wrong = counts["wrong"]
+        total = counts["total"]
         judged = exact + correct + wrong
 
         if judged == 0:
-            return {"match_id": match.id, "has_result": True, "total_predictions": len(predictions)}
+            return {"match_id": match.id, "has_result": True, "total_predictions": total}
 
         exact_pct, correct_pct, wrong_pct = MatchStatisticsService._round_percentages_to_100(
             [exact, correct, wrong], judged
@@ -103,7 +104,7 @@ class MatchStatisticsService:
         return {
             "match_id": match.id,
             "has_result": True,
-            "total_predictions": len(predictions),
+            "total_predictions": total,
             "accuracy": {
                 "exact_pct": exact_pct,
                 "correct_pct": correct_pct,
@@ -114,19 +115,6 @@ class MatchStatisticsService:
     # ═══════════════════════════════════════════════════════
     # PRIVATE - Helpers
     # ═══════════════════════════════════════════════════════
-
-    @staticmethod
-    def _calc_popular_scores(predictions) -> list:
-        """Top 3 most predicted exact scores."""
-        score_counts = Counter(
-            (p.home_score, p.away_score)
-            for p in predictions
-            if p.home_score is not None and p.away_score is not None
-        )
-        return [
-            {"home": s[0], "away": s[1], "count": c}
-            for s, c in score_counts.most_common(3)
-        ]
 
     @staticmethod
     def _round_percentages_to_100(counts: list, total: int) -> list:

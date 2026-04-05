@@ -20,35 +20,41 @@ class GroupStatisticsService:
         if not group:
             return {"error": "Group not found"}
 
-        predictions = DBReader.get_group_predictions_by_group(db, group_id)
-        if not predictions:
-            return {"group_id": group_id, "group_name": group.name, "total_predictions": 0}
-
         teams = GroupStatisticsService._get_group_teams(group)
         result = DBReader.get_group_stage_result(db, group_id)
 
         if result:
-            return GroupStatisticsService._post_result_stats(group, predictions, teams, result)
+            return GroupStatisticsService._post_result_stats(db, group, teams, result)
         else:
-            return GroupStatisticsService._pre_result_stats(group, predictions, teams)
+            return GroupStatisticsService._pre_result_stats(db, group, teams)
 
     # ═══════════════════════════════════════════════════════
     # PRIVATE - Pre/Post
     # ═══════════════════════════════════════════════════════
 
     @staticmethod
-    def _pre_result_stats(group, predictions, teams: Dict[int, str]) -> Dict[str, Any]:
-        # Keep only predictions where at least one position was filled
-        answered = [
-            p for p in predictions
-            if any(getattr(p, pos, None) is not None for pos in GroupStatisticsService.POSITIONS)
-        ]
-        total = len(answered)
+    def _pre_result_stats(db: Session, group, teams: Dict[int, str]) -> Dict[str, Any]:
+        team_ids = list(teams.keys())
+        if not team_ids:
+            return {"group_id": group.id, "group_name": group.name, "has_result": False, "total_predictions": 0}
 
+        data = DBReader.get_group_winner_distribution(db, group.id, team_ids)
+        if not data:
+            return {"group_id": group.id, "group_name": group.name, "has_result": False, "total_predictions": 0}
+
+        total = next(iter(data.values()))["total"]
         if total == 0:
             return {"group_id": group.id, "group_name": group.name, "has_result": False, "total_predictions": 0}
 
-        position_counts = GroupStatisticsService._count_positions(answered, teams)
+        position_counts = {
+            team_id: {
+                "first_place":  v["first"],
+                "second_place": v["second"],
+                "third_place":  v["third"],
+                "fourth_place": v["fourth"],
+            }
+            for team_id, v in data.items()
+        }
 
         return {
             "group_id": group.id,
@@ -56,67 +62,40 @@ class GroupStatisticsService:
             "has_result": False,
             "total_predictions": total,
             "consensus_table": GroupStatisticsService._calc_consensus_table(position_counts),
-            "position_distribution": GroupStatisticsService._calc_position_distribution(
-                position_counts, total
-            ),
+            "position_distribution": GroupStatisticsService._calc_position_distribution(position_counts, total),
         }
 
     @staticmethod
-    def _post_result_stats(group, predictions, teams: Dict[int, str], result) -> Dict[str, Any]:
-        # Keep only predictions where at least one position was filled
-        answered = [
-            p for p in predictions
-            if any(getattr(p, pos, None) is not None for pos in GroupStatisticsService.POSITIONS)
-        ]
-        total = len(answered)
-
+    def _post_result_stats(db: Session, group, teams: Dict[int, str], result) -> Dict[str, Any]:
+        counts = DBReader.get_group_accuracy_counts(
+            db, group.id,
+            result.first_place, result.second_place,
+            result.third_place, result.fourth_place,
+        )
+        total = counts["total"]
         if total == 0:
             return {"group_id": group.id, "group_name": group.name, "has_result": True, "total_predictions": 0}
+
+        position_accuracy = {
+            "first_place":  {"team_name": teams.get(result.first_place,  "Unknown"), "correct_pct": round(counts["first_correct"]  / total * 100, 1)},
+            "second_place": {"team_name": teams.get(result.second_place, "Unknown"), "correct_pct": round(counts["second_correct"] / total * 100, 1)},
+            "third_place":  {"team_name": teams.get(result.third_place,  "Unknown"), "correct_pct": round(counts["third_correct"]  / total * 100, 1)},
+            "fourth_place": {"team_name": teams.get(result.fourth_place, "Unknown"), "correct_pct": round(counts["fourth_correct"] / total * 100, 1)},
+        }
+
+        dist = counts["distribution"]
+        accuracy_distribution = {
+            k: round(v / total * 100, 1) if total else 0
+            for k, v in dist.items()
+        }
 
         return {
             "group_id": group.id,
             "group_name": group.name,
             "has_result": True,
             "total_predictions": total,
-            "position_accuracy": GroupStatisticsService._calc_position_accuracy(
-                answered, teams, result, total
-            ),
-            "accuracy_distribution": GroupStatisticsService._calc_accuracy_distribution(
-                answered, result, total
-            ),
-        }
-
-    # ═══════════════════════════════════════════════════════
-    # PRIVATE - Post Helpers
-    # ═══════════════════════════════════════════════════════
-
-    @staticmethod
-    def _calc_position_accuracy(predictions, teams, result, total) -> Dict[str, Any]:
-        """For each position: which team finished there and what % got it right."""
-        accuracy = {}
-        for pos in GroupStatisticsService.POSITIONS:
-            actual_team_id = getattr(result, pos)
-            correct = sum(1 for p in predictions if getattr(p, pos) == actual_team_id)
-            accuracy[pos] = {
-                "team_name": teams.get(actual_team_id, "Unknown"),
-                "correct_pct": round(correct / total * 100, 1) if total else 0,
-            }
-        return accuracy
-
-    @staticmethod
-    def _calc_accuracy_distribution(predictions, result, total) -> Dict[int, float]:
-        """What % of users got exactly 0, 1, 2, 3, or 4 positions right."""
-        counts = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
-        for p in predictions:
-            correct = sum(
-                1 for pos in GroupStatisticsService.POSITIONS
-                if getattr(p, pos) == getattr(result, pos)
-            )
-            counts[correct] += 1
-
-        return {
-            k: round(v / total * 100, 1) if total else 0
-            for k, v in counts.items()
+            "position_accuracy": position_accuracy,
+            "accuracy_distribution": accuracy_distribution,
         }
 
     # ═══════════════════════════════════════════════════════

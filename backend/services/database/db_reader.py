@@ -4,7 +4,7 @@ This is the ONLY place where db.query() should appear for reads.
 No service should call db.query() directly — always go through DBReader.
 """
 from datetime import datetime
-from typing import List, Optional, Sequence, Dict, Tuple
+from typing import Any, List, Optional, Sequence, Dict, Tuple
 from sqlalchemy import and_, case, desc, func, text
 from sqlalchemy.orm import Session, joinedload
 
@@ -366,6 +366,91 @@ class DBReader:
         return db.query(MatchPrediction).filter(
             MatchPrediction.match_id == match_id
         ).all()
+
+    @staticmethod
+    def count_match_predictions_for_match(db: Session, match_id: int) -> int:
+        n = (
+            db.query(func.count(MatchPrediction.id))
+            .filter(MatchPrediction.match_id == match_id)
+            .scalar()
+        )
+        return int(n or 0)
+
+    @staticmethod
+    def get_match_winner_distribution(
+        db: Session, match_id: int, home_team_id: int, away_team_id: int
+    ) -> Dict[str, int]:
+        """Counts for match_id: total, home win, draw (predicted_winner=0), away win."""
+        row = db.execute(
+            text("""
+                SELECT
+                    COUNT(*) AS total,
+                    COUNT(*) FILTER (WHERE predicted_winner = :home_id) AS home,
+                    COUNT(*) FILTER (WHERE predicted_winner = 0) AS draw,
+                    COUNT(*) FILTER (WHERE predicted_winner = :away_id) AS away
+                FROM match_predictions
+                WHERE match_id = :match_id
+            """),
+            {
+                "match_id": match_id,
+                "home_id": home_team_id,
+                "away_id": away_team_id,
+            },
+        ).fetchone()
+        return {
+            "total": int(row.total or 0),
+            "home": int(row.home or 0),
+            "draw": int(row.draw or 0),
+            "away": int(row.away or 0),
+        }
+
+    @staticmethod
+    def get_match_popular_scores(db: Session, match_id: int) -> List[Dict[str, Any]]:
+        """Top 3 most common predicted exact scores for a match."""
+        rows = db.execute(
+            text("""
+                SELECT home_score, away_score, COUNT(*) AS cnt
+                FROM match_predictions
+                WHERE match_id = :match_id
+                  AND home_score IS NOT NULL
+                  AND away_score IS NOT NULL
+                GROUP BY home_score, away_score
+                ORDER BY cnt DESC
+                LIMIT 3
+            """),
+            {"match_id": match_id},
+        ).fetchall()
+        return [
+            {"home": r.home_score, "away": r.away_score, "count": int(r.cnt or 0)}
+            for r in rows
+        ]
+
+    @staticmethod
+    def get_match_accuracy_counts(db: Session, match_id: int) -> Dict[str, int]:
+        """Total predictions and judged counts by status for a match."""
+        row = db.execute(
+            text("""
+                SELECT
+                    COUNT(*) AS total,
+                    COUNT(*) FILTER (WHERE status = :exact) AS exact,
+                    COUNT(*) FILTER (WHERE status = :correct) AS correct,
+                    COUNT(*) FILTER (WHERE status = :wrong) AS wrong
+                FROM match_predictions
+                WHERE match_id = :match_id
+            """),
+            {
+                "match_id": match_id,
+                "exact": MatchPredictionStatus.EXACT.value,
+                "correct": MatchPredictionStatus.CORRECT_OUTCOME.value,
+                "wrong": MatchPredictionStatus.WRONG.value,
+            },
+        ).fetchone()
+        return {
+            "total": int(row.total or 0),
+            "exact": int(row.exact or 0),
+            "correct": int(row.correct or 0),
+            "wrong": int(row.wrong or 0),
+        }
 
     # ═══════════════════════════════════════════════════════
     # PREDICTIONS - Group
@@ -1247,3 +1332,87 @@ class DBReader:
             FROM per_pred
             GROUP BY bucket
         """), {"letters": qualifying_letters}).fetchall()
+
+    @staticmethod
+    def get_group_winner_distribution(db: Session, group_id: int, team_ids: list) -> dict:
+        """Pre-result: for each team in a group, count how many predictions placed them at each position."""
+        from sqlalchemy import text
+        if not team_ids:
+            return {}
+        rows = db.execute(text("""
+            SELECT
+                t.id AS team_id,
+                COUNT(*) FILTER (WHERE gsp.first_place  = t.id) AS first,
+                COUNT(*) FILTER (WHERE gsp.second_place = t.id) AS second,
+                COUNT(*) FILTER (WHERE gsp.third_place  = t.id) AS third,
+                COUNT(*) FILTER (WHERE gsp.fourth_place = t.id) AS fourth,
+                COUNT(DISTINCT gsp.id) AS total
+            FROM unnest(CAST(:team_ids AS int[])) AS t(id)
+            LEFT JOIN group_stage_predictions gsp ON gsp.group_id = :group_id
+            GROUP BY t.id
+        """), {"group_id": group_id, "team_ids": team_ids}).fetchall()
+        return {
+            r.team_id: {
+                "first":  r.first  or 0,
+                "second": r.second or 0,
+                "third":  r.third  or 0,
+                "fourth": r.fourth or 0,
+                "total":  r.total  or 0,
+            }
+            for r in rows
+        }
+
+    @staticmethod
+    def get_group_accuracy_counts(db: Session, group_id: int, first: int, second: int, third: int, fourth: int) -> dict:
+        """Post-result: count how many predictions got each position right + accuracy distribution."""
+        from sqlalchemy import text
+        row = db.execute(text("""
+            SELECT
+                COUNT(*) FILTER (WHERE first_place  = :first)  AS first_correct,
+                COUNT(*) FILTER (WHERE second_place = :second) AS second_correct,
+                COUNT(*) FILTER (WHERE third_place  = :third)  AS third_correct,
+                COUNT(*) FILTER (WHERE fourth_place = :fourth) AS fourth_correct,
+                COUNT(*) FILTER (WHERE
+                    (first_place  = :first)::int +
+                    (second_place = :second)::int +
+                    (third_place  = :third)::int +
+                    (fourth_place = :fourth)::int = 0) AS got_0,
+                COUNT(*) FILTER (WHERE
+                    (first_place  = :first)::int +
+                    (second_place = :second)::int +
+                    (third_place  = :third)::int +
+                    (fourth_place = :fourth)::int = 1) AS got_1,
+                COUNT(*) FILTER (WHERE
+                    (first_place  = :first)::int +
+                    (second_place = :second)::int +
+                    (third_place  = :third)::int +
+                    (fourth_place = :fourth)::int = 2) AS got_2,
+                COUNT(*) FILTER (WHERE
+                    (first_place  = :first)::int +
+                    (second_place = :second)::int +
+                    (third_place  = :third)::int +
+                    (fourth_place = :fourth)::int = 3) AS got_3,
+                COUNT(*) FILTER (WHERE
+                    (first_place  = :first)::int +
+                    (second_place = :second)::int +
+                    (third_place  = :third)::int +
+                    (fourth_place = :fourth)::int = 4) AS got_4,
+                COUNT(*) AS total
+            FROM group_stage_predictions
+            WHERE group_id = :group_id
+              AND (first_place IS NOT NULL OR second_place IS NOT NULL
+                   OR third_place IS NOT NULL OR fourth_place IS NOT NULL)
+        """), {
+            "group_id": group_id,
+            "first": first, "second": second,
+            "third": third, "fourth": fourth,
+        }).fetchone()
+        return {
+            "first_correct":  row.first_correct  or 0,
+            "second_correct": row.second_correct or 0,
+            "third_correct":  row.third_correct  or 0,
+            "fourth_correct": row.fourth_correct or 0,
+            "distribution":   {0: row.got_0 or 0, 1: row.got_1 or 0, 2: row.got_2 or 0,
+                               3: row.got_3 or 0, 4: row.got_4 or 0},
+            "total":          row.total or 0,
+        }
