@@ -117,7 +117,7 @@ class DBWriter:
         return user
 
     @staticmethod
-    def create_user_scores(db: Session, user_id: int) -> UserScores:
+    def create_user_scores(db: Session, user_id: int, free_changes: int = 0) -> UserScores:
         scores = UserScores(
             user_id=user_id,
             matches_score=0,
@@ -128,7 +128,8 @@ class DBWriter:
             bonus_penalty=0,
             classic_total_score=0,
             penalty=0,
-            total_points=0
+            total_points=0,
+            free_changes=free_changes,
         )
         db.add(scores)
         db.flush()
@@ -142,6 +143,20 @@ class DBWriter:
                 setattr(scores, key, value)
         db.flush()
         return scores
+
+    @staticmethod
+    def bulk_grant_free_changes(db: Session, grant: int) -> int:
+        """
+        Add `grant` free changes to ALL users in a single UPDATE query.
+        Returns the number of rows updated.
+        """
+        from sqlalchemy import text
+        result = db.execute(
+            text("UPDATE user_scores SET free_changes = COALESCE(free_changes, 0) + :grant"),
+            {"grant": grant}
+        )
+        db.flush()
+        return result.rowcount
 
     @staticmethod
     def reset_user_scores(db: Session, scores: UserScores) -> UserScores:

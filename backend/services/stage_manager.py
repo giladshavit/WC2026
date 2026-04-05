@@ -64,6 +64,31 @@ class Stage(Enum):
         }
         return grant_map.get(self, 0)
 
+    def cumulative_free_changes(self) -> int:
+        """
+        Returns the total free changes a NEW user should receive
+        when registering at this stage (sum of all grants up to and including this stage).
+        """
+        cumulative_map = {
+            Stage.PRE_GROUP_STAGE: 0,
+            Stage.GROUP_CYCLE_1:   12,
+            Stage.GROUP_CYCLE_2:   12,
+            Stage.GROUP_CYCLE_3:   12,
+            Stage.PRE_ROUND32:     12,
+            Stage.ROUND32:         20,
+            Stage.PRE_ROUND16:     20,
+            Stage.ROUND16:         24,
+            Stage.PRE_QUARTER:     24,
+            Stage.QUARTER:         26,
+            Stage.PRE_SEMI:        26,
+            Stage.SEMI:            27,
+            Stage.THIRD_PLACE:     27,
+            Stage.PRE_FINAL:       27,
+            Stage.FINAL:           27,
+            Stage.TOURNAMENT_OVER: 27,
+        }
+        return cumulative_map.get(self, 0)
+
     def is_knockout_active(self) -> bool:
         """Returns True for stages where knockout matches are actively being played."""
         return self in (
@@ -188,10 +213,8 @@ class StageManager:
         # Grant free changes when entering stages that provide them
         grant = stage.free_changes_grant()
         if grant > 0:
-            all_scores = DBReader.get_all_user_scores(db)
-            for user_scores in all_scores:
-                new_free = (user_scores.free_changes or 0) + grant
-                DBWriter.update_user_scores(db, user_scores, free_changes=new_free)
+            updated = DBWriter.bulk_grant_free_changes(db, grant)
+            logger.info(f"[StageTransition] Granted {grant} free changes to {updated} users")
 
         # Update prediction editability based on new stage
         StageManager._update_prediction_editability(stage, db)

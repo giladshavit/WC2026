@@ -14,6 +14,7 @@ from models.results import KnockoutStageResult
 from models.predictions import KnockoutStagePrediction
 from services.database import DBReader, DBWriter, DBUtils
 from services.email_service import EmailService
+from services.stage_manager import StageManager
 
 class AuthService:
     """Service for handling user authentication and authorization."""
@@ -101,7 +102,8 @@ class AuthService:
         DBUtils.refresh(db, new_user)
         
         # Create user scores entry automatically
-        DBWriter.create_user_scores(db, new_user.id)
+        current_stage = StageManager.get_current_stage(db)
+        DBWriter.create_user_scores(db, new_user.id, free_changes=current_stage.cumulative_free_changes())
         DBUtils.commit(db)
         
         # Create empty knockout predictions for the new user
