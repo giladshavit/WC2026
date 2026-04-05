@@ -1416,3 +1416,79 @@ class DBReader:
                                3: row.got_3 or 0, 4: row.got_4 or 0},
             "total":          row.total or 0,
         }
+
+    @staticmethod
+    def count_knockout_predictions_for_match(db: Session, template_match_id: int) -> int:
+        """Count total predictions for a knockout match."""
+        from sqlalchemy import text
+        row = db.execute(text("""
+            SELECT COUNT(*) AS total
+            FROM knockout_stage_predictions
+            WHERE template_match_id = :match_id
+        """), {"match_id": template_match_id}).fetchone()
+        return row.total or 0
+
+    @staticmethod
+    def get_knockout_top_matchups(db: Session, template_match_id: int, top_n: int = 3) -> list:
+        """
+        Pre-result: top N (team1, team2) pairs by prediction count,
+        with winner distribution per pair. Returns at most top_n rows.
+        """
+        from sqlalchemy import text
+        rows = db.execute(text("""
+            WITH pairs AS (
+                SELECT
+                    LEAST(team1_id, team2_id)    AS team_a_id,
+                    GREATEST(team1_id, team2_id) AS team_b_id,
+                    winner_team_id
+                FROM knockout_stage_predictions
+                WHERE template_match_id = :match_id
+                  AND team1_id IS NOT NULL
+                  AND team2_id IS NOT NULL
+            ),
+            pair_counts AS (
+                SELECT
+                    team_a_id,
+                    team_b_id,
+                    COUNT(*)                                                   AS pair_count,
+                    COUNT(*) FILTER (WHERE winner_team_id = team_a_id)         AS winner_a,
+                    COUNT(*) FILTER (WHERE winner_team_id = team_b_id)         AS winner_b,
+                    COUNT(*) FILTER (WHERE winner_team_id IS NOT NULL)         AS decided
+                FROM pairs
+                GROUP BY team_a_id, team_b_id
+                ORDER BY pair_count DESC
+                LIMIT :top_n
+            )
+            SELECT
+                pc.team_a_id,
+                pc.team_b_id,
+                pc.pair_count,
+                pc.winner_a,
+                pc.winner_b,
+                pc.decided,
+                ta.name     AS team_a_name,
+                ta.flag_url AS team_a_flag,
+                tb.name     AS team_b_name,
+                tb.flag_url AS team_b_flag
+            FROM pair_counts pc
+            JOIN teams ta ON ta.id = pc.team_a_id
+            JOIN teams tb ON tb.id = pc.team_b_id
+        """), {"match_id": template_match_id, "top_n": top_n}).fetchall()
+        return rows
+
+    @staticmethod
+    def get_knockout_correct_matchup_count(db: Session, template_match_id: int, team_1: int, team_2: int) -> int:
+        """Post-result: count predictions where both actual teams were predicted (any order)."""
+        from sqlalchemy import text
+        row = db.execute(text("""
+            SELECT COUNT(*) AS cnt
+            FROM knockout_stage_predictions
+            WHERE template_match_id = :match_id
+              AND team1_id IS NOT NULL
+              AND team2_id IS NOT NULL
+              AND (
+                (team1_id = :t1 AND team2_id = :t2) OR
+                (team1_id = :t2 AND team2_id = :t1)
+              )
+        """), {"match_id": template_match_id, "t1": team_1, "t2": team_2}).fetchone()
+        return row.cnt or 0
