@@ -1,6 +1,5 @@
 """Bonus prediction service - handles get/create, update, settle, and answer checking."""
 import logging
-from dataclasses import dataclass
 from typing import Dict, Any, Optional, List
 
 from sqlalchemy.orm import Session
@@ -12,7 +11,6 @@ from services.database import DBReader, DBWriter, DBUtils
 from services.scoring_service import ScoringService
 from services.predictions.enums import (
     PredictionType,
-    BonusSectionStatus,
 )
 from models.predictions import BonusPrediction
 from models.user_scores import UserScores
@@ -20,29 +18,6 @@ from models.user_scores import UserScores
 POINTS_PER_CORRECT_ANSWER = 8
 
 BONUS_POINTS_PER_QUESTION = 8
-
-
-@dataclass
-class BonusGroupActual:
-    total_goals_group: int
-    top_group_id: int
-    top_team_id: int
-    perfect_teams_count: int
-    clean_sheet_teams_count: int
-    scoreless_draws_group: int | None = None
-
-
-@dataclass
-class BonusKnockoutActual:
-    total_goals_knockout: int
-    penalty_shootouts: int
-    third_place_quarters: int
-
-
-@dataclass
-class BonusTournamentActual:
-    total_goals_tournament: int
-    scoreless_draws: int
 
 
 def _parse_range(enum_val: str) -> tuple:
@@ -315,25 +290,13 @@ class BonusPredictionService:
         for pred in predictions:
             user_answer = getattr(pred, answer_field, None)
 
-            # No answer → set to pending, skip scoring
             if user_answer is None:
                 setattr(pred, status_field, PENDING)
                 continue
 
-            # Determine correct/wrong
             new_status = CORRECT if str(user_answer) in correct_set else WRONG
-
-            # Calculate delta vs current status (normalize legacy "incorrect" → "wrong")
-            raw_current = getattr(pred, status_field, None) or PENDING
-            current = WRONG if raw_current == "incorrect" else raw_current
-            old_points = POINTS if current == CORRECT else 0
-            new_points = POINTS if new_status == CORRECT else 0
-            delta = new_points - old_points
-
-            # Write new status
             setattr(pred, status_field, new_status)
 
-            # Recompute absolute bonus_score AFTER setting new status
             new_bonus_score = sum(
                 POINTS
                 for sf in ALL_STATUS_FIELDS
@@ -341,17 +304,14 @@ class BonusPredictionService:
             )
             pred.bonus_score = new_bonus_score
 
-            # Apply delta to UserScores only if changed
-            if delta != 0:
-                ScoringService._apply_score_delta(db, pred.user_id, "bonus_score", delta)
-
             if new_status == CORRECT:
                 correct_count += 1
             else:
                 wrong_count += 1
 
-        # Flush all status + bonus_score changes at once
         db.flush()
+
+        DBWriter.bulk_update_bonus_scores(db)
 
         # Save correct answer to BonusResults table
         BonusPredictionService.set_correct_value(db, field_key, correct_values)
@@ -365,103 +325,6 @@ class BonusPredictionService:
             "incorrect": wrong_count,
             "skipped_already_settled": 0,  # Always re-grades; kept for API compatibility
         }
-
-    @staticmethod
-    def settle_group_questions(db: Session, actual: BonusGroupActual) -> Dict[str, Any]:
-        predictions = DBReader.get_all_bonus_predictions(db)
-        updated = 0
-        for pred in predictions:
-            correct = 0
-            if BonusPredictionService._check_range_answer(
-                pred.g1_total_goals_group, actual.total_goals_group
-            ):
-                correct += 1
-            if pred.g2_top_group_id == actual.top_group_id:
-                correct += 1
-            if pred.g3_top_team_id == actual.top_group_id:
-                correct += 1
-            if BonusPredictionService._check_range_answer(
-                pred.g4_perfect_teams, actual.perfect_teams_count
-            ):
-                correct += 1
-            if BonusPredictionService._check_range_answer(
-                pred.g5_clean_sheet_teams, actual.clean_sheet_teams_count
-            ):
-                correct += 1
-            if actual.scoreless_draws_group is not None and BonusPredictionService._check_range_answer(
-                pred.g6_scoreless_draws_group, actual.scoreless_draws_group
-            ):
-                correct += 1
-            if correct > 0:
-                points = correct * POINTS_PER_CORRECT_ANSWER
-                ScoringService._apply_score_delta(db, pred.user_id, "bonus_score", points)
-                updated += 1
-            DBWriter.update_bonus_prediction(
-                db, pred,
-                points=(pred.points or 0) + correct * POINTS_PER_CORRECT_ANSWER,
-                groups_status=BonusSectionStatus.SETTLED.value,
-                groups_is_editable=False,
-            )
-        DBUtils.commit(db)
-        return {"updated_users": updated, "message": "Group bonus questions settled"}
-
-    @staticmethod
-    def settle_knockout_questions(db: Session, actual: BonusKnockoutActual) -> Dict[str, Any]:
-        predictions = DBReader.get_all_bonus_predictions(db)
-        updated = 0
-        for pred in predictions:
-            correct = 0
-            if BonusPredictionService._check_range_answer(
-                pred.k1_total_goals_knockout, actual.total_goals_knockout
-            ):
-                correct += 1
-            if BonusPredictionService._check_range_answer(
-                pred.k2_penalty_shootouts, actual.penalty_shootouts
-            ):
-                correct += 1
-            if BonusPredictionService._check_exact_answer(
-                pred.k3_third_place_quarters, actual.third_place_quarters
-            ):
-                correct += 1
-            if correct > 0:
-                points = correct * POINTS_PER_CORRECT_ANSWER
-                ScoringService._apply_score_delta(db, pred.user_id, "bonus_score", points)
-                updated += 1
-            DBWriter.update_bonus_prediction(
-                db, pred,
-                points=(pred.points or 0) + correct * POINTS_PER_CORRECT_ANSWER,
-                knockout_status=BonusSectionStatus.SETTLED.value,
-                knockout_is_editable=False,
-            )
-        DBUtils.commit(db)
-        return {"updated_users": updated, "message": "Knockout bonus questions settled"}
-
-    @staticmethod
-    def settle_tournament_questions(db: Session, actual: BonusTournamentActual) -> Dict[str, Any]:
-        predictions = DBReader.get_all_bonus_predictions(db)
-        updated = 0
-        for pred in predictions:
-            correct = 0
-            if BonusPredictionService._check_range_answer(
-                pred.t1_total_goals_tournament, actual.total_goals_tournament
-            ):
-                correct += 1
-            if BonusPredictionService._check_range_answer(
-                pred.t2_scoreless_draws, actual.scoreless_draws
-            ):
-                correct += 1
-            if correct > 0:
-                points = correct * POINTS_PER_CORRECT_ANSWER
-                ScoringService._apply_score_delta(db, pred.user_id, "bonus_score", points)
-                updated += 1
-            DBWriter.update_bonus_prediction(
-                db, pred,
-                points=(pred.points or 0) + correct * POINTS_PER_CORRECT_ANSWER,
-                tournament_status=BonusSectionStatus.SETTLED.value,
-                tournament_is_editable=False,
-            )
-        DBUtils.commit(db)
-        return {"updated_users": updated, "message": "Tournament bonus questions settled"}
 
     @staticmethod
     def get_options(db: Session) -> Dict[str, List[Dict[str, str]]]:

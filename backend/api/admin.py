@@ -508,25 +508,6 @@ def rebuild_round32_bracket(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 # Bonus prediction settle endpoints (admin only)
-class BonusSettleGroupsRequest(BaseModel):
-    total_goals_group: int
-    top_group_id: int
-    top_team_id: int
-    perfect_teams_count: int
-    clean_sheet_teams_count: int
-
-
-class BonusSettleKnockoutRequest(BaseModel):
-    total_goals_knockout: int
-    penalty_shootouts: int
-    third_place_quarters: int
-
-
-class BonusSettleTournamentRequest(BaseModel):
-    total_goals_tournament: int
-    scoreless_draws: int
-
-
 class BonusResultsRequest(BaseModel):
     g1_correct: Optional[str] = None
     g2_correct: Optional[str] = None
@@ -555,61 +536,6 @@ class BonusInterimRequest(BaseModel):
     t1_interim: Optional[str] = None
     t2_interim: Optional[str] = None
     t3_interim: Optional[str] = None
-
-
-@router.post("/admin/bonus/settle-groups", response_model=Dict[str, Any])
-def settle_bonus_groups(
-    body: BonusSettleGroupsRequest,
-    db: Session = Depends(get_db),
-):
-    """Settle group stage bonus questions (admin only)."""
-    from services.predictions.bonus_prediction_service import (
-        BonusPredictionService,
-        BonusGroupActual,
-    )
-    actual = BonusGroupActual(
-        total_goals_group=body.total_goals_group,
-        top_group_id=body.top_group_id,
-        top_team_id=body.top_team_id,
-        perfect_teams_count=body.perfect_teams_count,
-        clean_sheet_teams_count=body.clean_sheet_teams_count,
-    )
-    return BonusPredictionService.settle_group_questions(db, actual)
-
-
-@router.post("/admin/bonus/settle-knockout", response_model=Dict[str, Any])
-def settle_bonus_knockout(
-    body: BonusSettleKnockoutRequest,
-    db: Session = Depends(get_db),
-):
-    """Settle knockout bonus questions (admin only)."""
-    from services.predictions.bonus_prediction_service import (
-        BonusPredictionService,
-        BonusKnockoutActual,
-    )
-    actual = BonusKnockoutActual(
-        total_goals_knockout=body.total_goals_knockout,
-        penalty_shootouts=body.penalty_shootouts,
-        third_place_quarters=body.third_place_quarters,
-    )
-    return BonusPredictionService.settle_knockout_questions(db, actual)
-
-
-@router.post("/admin/bonus/settle-tournament", response_model=Dict[str, Any])
-def settle_bonus_tournament(
-    body: BonusSettleTournamentRequest,
-    db: Session = Depends(get_db),
-):
-    """Settle tournament bonus questions (admin only)."""
-    from services.predictions.bonus_prediction_service import (
-        BonusPredictionService,
-        BonusTournamentActual,
-    )
-    actual = BonusTournamentActual(
-        total_goals_tournament=body.total_goals_tournament,
-        scoreless_draws=body.scoreless_draws,
-    )
-    return BonusPredictionService.settle_tournament_questions(db, actual)
 
 
 @router.post("/admin/bonus/settle-question", response_model=Dict[str, Any])

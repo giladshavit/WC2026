@@ -1340,6 +1340,37 @@ class DBWriter:
     # BONUS PREDICTIONS
     # ═══════════════════════════════════════════════════════
     @staticmethod
+    def bulk_update_bonus_scores(db: Session) -> None:
+        """
+        Bulk-upsert user_scores.bonus_score from bonus_predictions.bonus_score.
+        Sets total_points and classic_total_score accordingly.
+        Call after updating bonus_predictions.bonus_score in Python loop + db.flush().
+        Caller must commit.
+        """
+        from sqlalchemy import text
+        db.execute(text("""
+            INSERT INTO user_scores
+                (user_id, matches_score, total_points, classic_total_score,
+                 groups_score, third_place_score, knockout_score, bonus_score,
+                 bonus_penalty, groups_penalty, third_place_penalty,
+                 knockout_penalty, free_changes, free_changes_used,
+                 penalty, has_used_bracket_reset)
+            SELECT
+                bp.user_id,
+                0,
+                COALESCE(bp.bonus_score, 0),
+                COALESCE(bp.bonus_score, 0),
+                0, 0, 0,
+                COALESCE(bp.bonus_score, 0),
+                0, 0, 0, 0, 0, 0, 0, false
+            FROM bonus_predictions bp
+            ON CONFLICT (user_id) DO UPDATE SET
+                bonus_score         = EXCLUDED.bonus_score,
+                total_points        = user_scores.total_points - user_scores.bonus_score + EXCLUDED.bonus_score,
+                classic_total_score = user_scores.matches_score + EXCLUDED.bonus_score
+        """))
+
+    @staticmethod
     def create_bonus_prediction(db: Session, user_id: int) -> BonusPrediction:
         """Create empty bonus prediction for a user, with correct editability for current stage."""
         from services.stage_manager import StageManager, Stage
