@@ -40,9 +40,7 @@ export default function LeaguesScreen() {
   const fetchLeagues = async () => {
     setLoading(true);
     try {
-      console.log('[DEBUG] accessToken:', apiService.getAccessToken());
       const userLeagues = await apiService.getUserLeagues();
-      console.log('[DEBUG] getUserLeagues response:', JSON.stringify(userLeagues));
       setLeagues(userLeagues);
     } catch (error) {
       console.error('Error fetching leagues:', error);

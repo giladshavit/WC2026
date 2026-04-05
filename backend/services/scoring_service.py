@@ -97,7 +97,6 @@ class ScoringService:
             scoring = ScoringService.MATCH_STAGE_SCORING.get(
                 stage, ScoringService._DEFAULT_MATCH_SCORING
             )
-        print(f"[DEBUG] _get_match_scoring_for_stage: stage={stage!r} → {scoring}")
         return scoring
 
     @staticmethod
@@ -608,10 +607,6 @@ class ScoringService:
         free = user_scores.free_changes or 0
         free_used = min(n_changes, free)
         paid = n_changes - free_used
-
-        print(f"[DEBUG consume] user_id={user_id}, n_changes={n_changes}, free_available={free}")
-        print(f"[DEBUG consume] free_used={free_used}, paid={paid}")
-        print(f"[DEBUG consume] updating free_changes to {max(0, free - free_used)}")
 
         DBWriter.update_user_scores(
             db,

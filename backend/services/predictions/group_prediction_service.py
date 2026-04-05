@@ -48,7 +48,6 @@ class GroupPredictionService:
     def _handle_place_changes(db: Session, user_id: int, group_id: int,
                              old_places: Dict[str, int], new_places: PlacesPredictions):
         """Handle changes in 1st and 2nd places (affects knockout predictions)"""
-        print(f"[DEBUG place_changes] user={user_id}, group={group_id}, old={old_places}, new=(1st={new_places.first_place}, 2nd={new_places.second_place}, 3rd={new_places.third_place})")
         if old_places["first_place"] != new_places.first_place:
             GroupPredictionService._handle_first_second_place_change(
                 db, user_id, group_id, 1, new_places.first_place
@@ -162,7 +161,6 @@ class GroupPredictionService:
         Handle a change in 1st or 2nd place - updates the correct slot in the knockout prediction.
         Uses GroupTemplate to determine exactly which match and team slot (1 or 2) to update.
         """
-        print(f"[DEBUG 1st2nd_change] user={user_id}, group={group_id}, position={position}, new_team={new_team}")
         result = DBReader.get_match_and_slot_from_group_template(db, group_id, position)
         if not result:
             return
@@ -186,7 +184,6 @@ class GroupPredictionService:
         
         Returns True if changed, False otherwise
         """
-        print(f"[DEBUG 3rd_change] user={user_id}, old_3rd={old_third_place}, new_3rd={new_third_place}, group={group_name}")
         third_place_changed = old_third_place != new_third_place
         
         if third_place_changed and group_name:
@@ -199,11 +196,9 @@ class GroupPredictionService:
     @staticmethod
     def _update_knockout_for_third_place_change(db: Session, user_id: int, old_team_id: int, new_team_id: int):
         """Update knockout prediction if the old third place team is in team2 position"""
-        print(f"[DEBUG knockout_3rd] user={user_id}, searching for old_team={old_team_id}, will replace with new_team={new_team_id}")
         knockout_prediction = DBReader.get_knockout_prediction_by_user_and_team2(
             db, user_id, old_team_id, is_draft=False
         )
-        print(f"[DEBUG knockout_3rd] found prediction: {knockout_prediction.id if knockout_prediction else 'NOT FOUND'}, match={knockout_prediction.template_match_id if knockout_prediction else 'N/A'}, team2={knockout_prediction.team2_id if knockout_prediction else 'N/A'}")
         if knockout_prediction:
             # Update team2 (since we're looking for team2 position)
             KnockoutService.update_knockout_prediction(
@@ -454,8 +449,6 @@ class GroupPredictionService:
 
             # Calculate total changes across all groups and apply penalty (with free changes)
             total_changes = sum(r.get("changes", 0) for r in saved_predictions)
-            user_scores_before = DBReader.get_user_scores(db, user_id)
-            print(f"[DEBUG] total_changes={total_changes}, free_changes in DB before consume: {getattr(user_scores_before, 'free_changes', None) if user_scores_before else 'None'}")
 
             if total_changes > 0:
                 paid_changes = ScoringService.consume_free_changes(db, user_id, total_changes)
