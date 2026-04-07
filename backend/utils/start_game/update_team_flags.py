@@ -26,10 +26,10 @@ flag_mapping = {
     "mexico": "mx",
     "south africa": "za",
     "south korea": "kr",
-    "denmark": "dk",
+    "czechia": "cz",
     # Group B
     "canada": "ca",
-    "italy": "it",
+    "bosnia-herzegovina": "ba",
     "qatar": "qa",
     "switzerland": "ch",
     # Group C
@@ -65,7 +65,7 @@ flag_mapping = {
     # Group I
     "france": "fr",
     "senegal": "sn",
-    "bolivia": "bo",
+    "iraq": "iq",
     "norway": "no",
     # Group J
     "argentina": "ar",
@@ -74,7 +74,7 @@ flag_mapping = {
     "jordan": "jo",
     # Group K
     "portugal": "pt",
-    "jamaica": "jm",
+    "congo dr": "cd",
     "uzbekistan": "uz",
     "colombia": "co",
     # Group L

@@ -34,10 +34,10 @@ SHORT_NAME_MAPPING = {
     "mexico": "MEX",
     "south africa": "RSA",
     "south korea": "KOR",
-    "denmark": "DEN",
+    "czechia": "CZE",
     # Group B
     "canada": "CAN",
-    "italy": "ITA",
+    "bosnia-herzegovina": "BIH",
     "qatar": "QAT",
     "switzerland": "SUI",
     # Group C
@@ -73,7 +73,7 @@ SHORT_NAME_MAPPING = {
     # Group I
     "france": "FRA",
     "senegal": "SEN",
-    "bolivia": "BOL",
+    "iraq": "IRQ",
     "norway": "NOR",
     # Group J
     "argentina": "ARG",
@@ -82,7 +82,7 @@ SHORT_NAME_MAPPING = {
     "jordan": "JOR",
     # Group K
     "portugal": "POR",
-    "jamaica": "JAM",
+    "congo dr": "COD",
     "uzbekistan": "UZB",
     "colombia": "COL",
     # Group L
