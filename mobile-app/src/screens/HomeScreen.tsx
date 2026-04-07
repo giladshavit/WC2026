@@ -39,7 +39,8 @@ const STAGE_LABELS: Record<string, { label: string; emoji: string; color: string
 type NavigationProp = StackNavigationProp<MainStackParamList, 'Home'>;
 
 const screenWidth = Dimensions.get('window').width;
-const MAX_BUTTON_SIZE = 200;
+const screenHeight = Dimensions.get('window').height;
+const MAX_BUTTON_SIZE = screenHeight < 700 ? 150 : 200;
 const buttonSize = Math.min((screenWidth - 24 * 2 - 16) / 2, MAX_BUTTON_SIZE);
 
 function StatsBarChartIcon({ size = 36 }: { size?: number }) {
@@ -233,21 +234,27 @@ export default function HomeScreen() {
           {actions.map((action) => renderButton(action))}
         </View>
 
-        {/* How to Play — styled as a secondary action row, consistent with the dark card feel */}
-        <TouchableOpacity
-          style={styles.rulesRow}
-          onPress={() => navigation.navigate('Rules' as any)}
-          activeOpacity={0.75}
-        >
-          <View style={styles.rulesIconWrap}>
-            <Ionicons name="book-outline" size={20} color="#94a3b8" />
-          </View>
-          <View style={styles.rulesTextWrap}>
-            <Text style={styles.rulesTitle}>How to Play</Text>
-            <Text style={styles.rulesSubtitle}>Rules, scoring & fines</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#475569" />
-        </TouchableOpacity>
+        <View style={styles.infoRow}>
+          <TouchableOpacity
+            style={styles.infoBtn}
+            onPress={() => navigation.navigate('Rules' as any)}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="book-outline" size={18} color="#cbd5e1" />
+            <Text style={styles.infoBtnTitle}>Rules</Text>
+            <Text style={styles.infoBtnSubtitle}>Scoring & fines</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.infoBtn, styles.infoBtnHighlight]}
+            onPress={() => navigation.navigate('Onboarding')}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="play-circle-outline" size={18} color="#38bdf8" />
+            <Text style={[styles.infoBtnTitle, styles.infoBtnTitleHighlight]}>How it works</Text>
+            <Text style={[styles.infoBtnSubtitle, styles.infoBtnSubtitleHighlight]}>Interactive guide</Text>
+          </TouchableOpacity>
+        </View>
 
         {isAdmin && (
           <TouchableOpacity
@@ -269,8 +276,10 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 32,
+    paddingTop: 32,
+    paddingBottom: 16,
+    flexGrow: 1,
+    justifyContent: 'space-between',
   },
   header: {
     backgroundColor: '#0f172a',
@@ -314,16 +323,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 16,
+    gap: 12,
     alignSelf: 'center',
     width: '100%',
     maxWidth: 420,
-    marginTop: 24,
-    marginBottom: 8,
+    marginTop: 12,
+    marginBottom: 4,
   },
   circleButton: {
-    padding: 16,
-    marginBottom: 18,
+    padding: 12,
+    marginBottom: 8,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -355,35 +364,48 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
 
-  // How to Play row
-  rulesRow: {
+  infoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
-    backgroundColor: '#1e293b',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: 12,
+    marginTop: 4,
+    marginBottom: 8,
     maxWidth: 420,
     alignSelf: 'center',
     width: '100%',
   },
-  rulesIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#0f172a',
-    justifyContent: 'center',
+  infoBtn: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: '#0f172a',
     borderWidth: 1,
     borderColor: '#334155',
   },
-  rulesTextWrap: { flex: 1 },
-  rulesTitle: { fontSize: 15, fontWeight: '700', color: '#e2e8f0' },
-  rulesSubtitle: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
+  infoBtnHighlight: {
+    borderColor: 'rgba(56,189,248,0.4)',
+    backgroundColor: 'rgba(56,189,248,0.08)',
+  },
+  infoBtnTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+    textAlign: 'center',
+  },
+  infoBtnTitleHighlight: {
+    color: '#38bdf8',
+  },
+  infoBtnSubtitle: {
+    fontSize: 11,
+    color: '#94a3b8',
+    textAlign: 'center',
+  },
+  infoBtnSubtitleHighlight: {
+    color: 'rgba(56,189,248,0.7)',
+  },
 
   // Admin
   adminPill: {
