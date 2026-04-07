@@ -2116,10 +2116,10 @@ export default function BonusScreen() {
 
             <TouchableOpacity
               onPress={() => setViewMode('wizard')}
-              style={styles.editPillBtn}
+              style={styles.headerEditPillBtn}
               hitSlop={8}
             >
-              <Text style={styles.editPillText}>Edit</Text>
+              <Text style={styles.headerEditPillText}>Edit</Text>
             </TouchableOpacity>
           </View>
 
@@ -2436,10 +2436,28 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.4)',
     minWidth: 60,
   },
+  headerEditPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(56,189,248,0.15)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#38bdf8',
+    minWidth: 60,
+  },
   editPillText: {
     fontSize: 13,
     color: '#fff',
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  headerEditPillText: {
+    fontSize: 14,
+    color: '#38bdf8',
+    fontWeight: '700',
     textAlign: 'center',
   },
   waveSvgContainer: {
