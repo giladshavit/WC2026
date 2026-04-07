@@ -12,6 +12,7 @@ import BonusScreen from '../screens/predictions/BonusScreen';
 import AdminNavigator from './AdminNavigator';
 import PublicProfileScreen from '../screens/PublicProfileScreen';
 import RulesScreen from '../screens/RulesScreen';
+import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 
 export type MainStackParamList = {
   Home: undefined;
@@ -24,6 +25,7 @@ export type MainStackParamList = {
   Leagues: undefined;
   Statistics: undefined;
   Rules: undefined;
+  Onboarding: undefined;
   Admin: undefined;
   PublicProfile: { userId: number; username: string };
 };
@@ -124,6 +126,11 @@ export default function MainNavigator() {
       <Stack.Screen
         name="Rules"
         component={RulesScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Onboarding"
+        component={OnboardingScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen
