@@ -25,6 +25,7 @@ interface GroupStats {
   }>;
   position_accuracy?: Record<string, { team_name: string; correct_pct: number }>;
   accuracy_distribution?: Record<string, number>;
+  teams_info?: Record<string, { name: string; short_name: string | null }>;
 }
 
 interface Props {
@@ -238,7 +239,8 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
           .map(([teamIdStr, dist]) => {
           const teamId = parseInt(teamIdStr);
           const team = teams.find(t => t.id === teamId) ?? teams.find(t => String(t.id) === teamIdStr);
-          const displayName = team?.name ?? `Team ${teamId}`;
+          const statsTeamInfo = stats.teams_info?.[teamIdStr];
+          const displayName = statsTeamInfo?.short_name ?? team?.name ?? `Team ${teamId}`;
           const flagUrl = team?.flag_url;
           const pctCells = [
             { key: 'first', pct: dist.first_pct },

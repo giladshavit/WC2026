@@ -33,7 +33,7 @@ class GroupStatisticsService:
     # ═══════════════════════════════════════════════════════
 
     @staticmethod
-    def _pre_result_stats(db: Session, group, teams: Dict[int, str]) -> Dict[str, Any]:
+    def _pre_result_stats(db: Session, group, teams: Dict[int, dict]) -> Dict[str, Any]:
         team_ids = list(teams.keys())
         if not team_ids:
             return {"group_id": group.id, "group_name": group.name, "has_result": False, "total_predictions": 0}
@@ -56,6 +56,8 @@ class GroupStatisticsService:
             for team_id, v in data.items()
         }
 
+        teams_info = {str(tid): info for tid, info in teams.items()}
+
         return {
             "group_id": group.id,
             "group_name": group.name,
@@ -63,24 +65,32 @@ class GroupStatisticsService:
             "total_predictions": total,
             "consensus_table": GroupStatisticsService._calc_consensus_table(position_counts),
             "position_distribution": GroupStatisticsService._calc_position_distribution(position_counts, total),
+            "teams_info": teams_info,
         }
 
     @staticmethod
-    def _post_result_stats(db: Session, group, teams: Dict[int, str], result) -> Dict[str, Any]:
+    def _post_result_stats(db: Session, group, teams: Dict[int, dict], result) -> Dict[str, Any]:
         counts = DBReader.get_group_accuracy_counts(
             db, group.id,
             result.first_place, result.second_place,
             result.third_place, result.fourth_place,
         )
         total = counts["total"]
+        teams_info = {str(tid): info for tid, info in teams.items()}
         if total == 0:
-            return {"group_id": group.id, "group_name": group.name, "has_result": True, "total_predictions": 0}
+            return {
+                "group_id": group.id,
+                "group_name": group.name,
+                "has_result": True,
+                "total_predictions": 0,
+                "teams_info": teams_info,
+            }
 
         position_accuracy = {
-            "first_place":  {"team_name": teams.get(result.first_place,  "Unknown"), "correct_pct": round(counts["first_correct"]  / total * 100, 1)},
-            "second_place": {"team_name": teams.get(result.second_place, "Unknown"), "correct_pct": round(counts["second_correct"] / total * 100, 1)},
-            "third_place":  {"team_name": teams.get(result.third_place,  "Unknown"), "correct_pct": round(counts["third_correct"]  / total * 100, 1)},
-            "fourth_place": {"team_name": teams.get(result.fourth_place, "Unknown"), "correct_pct": round(counts["fourth_correct"] / total * 100, 1)},
+            "first_place":  {"team_name": teams.get(result.first_place,  {}).get("name", "Unknown"), "correct_pct": round(counts["first_correct"]  / total * 100, 1)},
+            "second_place": {"team_name": teams.get(result.second_place, {}).get("name", "Unknown"), "correct_pct": round(counts["second_correct"] / total * 100, 1)},
+            "third_place":  {"team_name": teams.get(result.third_place,  {}).get("name", "Unknown"), "correct_pct": round(counts["third_correct"]  / total * 100, 1)},
+            "fourth_place": {"team_name": teams.get(result.fourth_place, {}).get("name", "Unknown"), "correct_pct": round(counts["fourth_correct"] / total * 100, 1)},
         }
 
         dist = counts["distribution"]
@@ -96,6 +106,7 @@ class GroupStatisticsService:
             "total_predictions": total,
             "position_accuracy": position_accuracy,
             "accuracy_distribution": accuracy_distribution,
+            "teams_info": teams_info,
         }
 
     # ═══════════════════════════════════════════════════════
@@ -141,16 +152,19 @@ class GroupStatisticsService:
     # ═══════════════════════════════════════════════════════
 
     @staticmethod
-    def _get_group_teams(group) -> Dict[int, str]:
+    def _get_group_teams(group) -> Dict[int, dict]:
         teams = {}
         for attr in ['team_1_obj', 'team_2_obj', 'team_3_obj', 'team_4_obj']:
             team = getattr(group, attr, None)
             if team:
-                teams[team.id] = team.name
+                teams[team.id] = {
+                    "name": team.name,
+                    "short_name": team.short_name or None,
+                }
         return teams
 
     @staticmethod
-    def _count_positions(predictions, teams: Dict[int, str]) -> Dict[int, Dict[str, int]]:
+    def _count_positions(predictions, teams: Dict[int, dict]) -> Dict[int, Dict[str, int]]:
         counts: Dict[int, Dict[str, int]] = {}
         for team_id in teams:
             counts[team_id] = {pos: 0 for pos in GroupStatisticsService.POSITIONS}
