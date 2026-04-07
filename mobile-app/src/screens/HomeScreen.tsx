@@ -279,7 +279,6 @@ const styles = StyleSheet.create({
     paddingTop: 32,
     paddingBottom: 16,
     flexGrow: 1,
-    justifyContent: 'space-between',
   },
   header: {
     backgroundColor: '#0f172a',
@@ -367,7 +366,7 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 4,
+    marginTop: 24,
     marginBottom: 8,
     maxWidth: 420,
     alignSelf: 'center',
