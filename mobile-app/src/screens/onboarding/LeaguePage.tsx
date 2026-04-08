@@ -630,11 +630,11 @@ function useClassicLeagueAnimations(
                 if (!mountedRef.current) return;
                 setSortKey('bonus');
               });
-            }, 1000);
+            }, 500);
           });
-        }, 1200);
+        }, 600);
       });
-    }, 500);
+    }, 250);
 
     return () => {
       clearTimeout(timeout);
@@ -718,11 +718,11 @@ function useMultiLeagueAnimations(
                 if (!mountedRef.current) return;
                 setSortKey('groups');
               });
-            }, 1000);
+            }, 500);
           });
-        }, 1200);
+        }, 600);
       });
-    }, 500);
+    }, 250);
 
     return () => {
       clearTimeout(timeout);

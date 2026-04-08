@@ -90,7 +90,7 @@ export default function ThirdPlacePage({ isActive }: ThirdPlacePageProps) {
       setSelectedIds(new Set(INITIAL_SELECTED_IDS));
       resetAnimatedValues();
 
-      await sleep(800);
+      await sleep(200);
       if (!mountedRef.current) return;
 
       const tapSelect = async (teamIndex: number, teamId: number) => {
@@ -117,13 +117,13 @@ export default function ThirdPlacePage({ isActive }: ThirdPlacePageProps) {
       // Egypt id 7 → index 6
       await tapSelect(6, 7);
       if (!mountedRef.current) return;
-      await sleep(700);
+      await sleep(400);
       if (!mountedRef.current) return;
 
       // Norway id 9 → index 8
       await tapSelect(8, 9);
       if (!mountedRef.current) return;
-      await sleep(700);
+      await sleep(400);
       if (!mountedRef.current) return;
 
       // England id 12 → index 11

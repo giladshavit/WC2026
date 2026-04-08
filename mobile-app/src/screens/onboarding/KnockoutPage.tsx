@@ -93,7 +93,7 @@ export default function KnockoutPage({ isActive }: KnockoutPageProps) {
       setWinners(emptyWinners());
       resetAnimatedValues();
 
-      await sleep(600);
+      await sleep(200);
       if (!mountedRef.current) return;
 
       const tapSelect = async (matchIndex: number, matchId: number, winner: Winner) => {
@@ -124,17 +124,17 @@ export default function KnockoutPage({ isActive }: KnockoutPageProps) {
 
         if (i === 2) {
           // After 3rd pick: scroll down to show matches 4-6
-          await sleep(400);
+          await sleep(200);
           if (!mountedRef.current) return;
           await new Promise<void>((resolve) => {
             scrollRef.current?.scrollTo({ y: 290, animated: true });
             setTimeout(resolve, 600);
           });
           if (!mountedRef.current) return;
-          await sleep(200);
+          await sleep(100);
           if (!mountedRef.current) return;
         } else if (i < PICK_SEQUENCE.length - 1) {
-          await sleep(650);
+          await sleep(350);
           if (!mountedRef.current) return;
         }
       }

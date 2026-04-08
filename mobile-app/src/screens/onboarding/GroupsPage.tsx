@@ -73,7 +73,7 @@ export default function GroupsPage({ isActive }: GroupsPageProps) {
       setTeams(GROUP_A_TEAMS.map((t) => ({ ...t })));
       resetAnimatedValues();
 
-      await sleep(1000);
+      await sleep(200);
       if (!mountedRef.current) return;
 
       const tapRank = async (teamIndex: number, rank: number) => {
@@ -101,17 +101,17 @@ export default function GroupsPage({ isActive }: GroupsPageProps) {
 
       await tapRank(2, 1);
       if (!mountedRef.current) return;
-      await sleep(700);
+      await sleep(400);
       if (!mountedRef.current) return;
 
       await tapRank(0, 2);
       if (!mountedRef.current) return;
-      await sleep(700);
+      await sleep(400);
       if (!mountedRef.current) return;
 
       await tapRank(3, 3);
       if (!mountedRef.current) return;
-      await sleep(700);
+      await sleep(400);
       if (!mountedRef.current) return;
 
       await tapRank(1, 4);

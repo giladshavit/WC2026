@@ -147,7 +147,7 @@ export default function BonusPage({ isActive }: BonusPageProps) {
       pillTapScale.setValue(1);
       groupCardScale.setValue(1);
 
-      await sleep(1800);
+      await sleep(200);
       if (!mountedRef.current) return;
 
       // —— Phase 1: EDIT TAP (0.4s) ——
@@ -189,7 +189,7 @@ export default function BonusPage({ isActive }: BonusPageProps) {
       if (!mountedRef.current) return;
 
       // Q1 visible: wait 1.2s then tap "50-69"
-      await sleep(1200);
+      await sleep(600);
       if (!mountedRef.current) return;
 
       await new Promise<void>((resolve) => {
@@ -225,7 +225,7 @@ export default function BonusPage({ isActive }: BonusPageProps) {
       if (!mountedRef.current) return;
 
       // —— Phase 4: WIZARD Q2 visible — animation ends here ——
-      await sleep(1400);
+      await sleep(700);
     };
 
     run();
