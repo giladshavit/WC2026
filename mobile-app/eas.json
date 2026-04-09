@@ -22,8 +22,8 @@
     "production": {
       "ios": {
         "appleId": "giladshavit1@gmail.com",
-        "ascAppId": "REPLACE_AFTER_APP_STORE_CONNECT",
-        "appleTeamId": "REPLACE_AFTER_APPLE_ACCOUNT"
+        "ascAppId": "6761910465",
+        "appleTeamId": "6K92H5SG5N"
       },
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
