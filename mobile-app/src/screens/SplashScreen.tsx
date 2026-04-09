@@ -135,7 +135,7 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
           ]}
         >
           <View style={styles.textContainer}>
-            <Text style={styles.text}>PREDICTO</Text>
+            <Text style={styles.text} maxFontSizeMultiplier={1} numberOfLines={1}>PREDICTO</Text>
             <Animated.View
               style={{
                 transform: [{ translateY: letterOTranslateY }],
@@ -153,7 +153,7 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
               </View>
             </Animated.View>
           </View>
-          <Text style={styles.tagline}>Predict. Compete. Win.</Text>
+          <Text style={styles.tagline} maxFontSizeMultiplier={1} numberOfLines={1}>Predict. Compete. Win.</Text>
         </Animated.View>
       </View>
     </LinearGradient>

@@ -131,9 +131,9 @@ export default function GroupsPage({ isActive }: GroupsPageProps) {
     <View style={styles.root}>
       <View style={styles.staticHeader}>
         <View style={styles.modeBadge}>
-          <Text style={styles.modeBadgeText}>MULTI MODE</Text>
+          <Text style={styles.modeBadgeText} allowFontScaling={false}>MULTI MODE</Text>
         </View>
-        <Text style={styles.pageSubtitle}>Rank all 4 teams in each group</Text>
+        <Text style={styles.pageSubtitle} maxFontSizeMultiplier={1.3}>Rank all 4 teams in each group</Text>
       </View>
 
       <View style={styles.body}>

@@ -159,10 +159,10 @@ export default function ThirdPlacePage({ isActive }: ThirdPlacePageProps) {
           />
         ) : null}
         <Image source={{ uri: flagUrl(item.flagCode) }} style={styles.flag} />
-        <Text style={styles.teamName} numberOfLines={1}>
+        <Text style={styles.teamName} numberOfLines={1} maxFontSizeMultiplier={1.2}>
           {item.name}
         </Text>
-        <Text style={styles.groupLabel}>Group {item.group}</Text>
+        <Text style={styles.groupLabel} maxFontSizeMultiplier={1.2}>Group {item.group}</Text>
       </Animated.View>
     );
   };
@@ -171,9 +171,9 @@ export default function ThirdPlacePage({ isActive }: ThirdPlacePageProps) {
     <View style={styles.root}>
       <View style={styles.staticHeader}>
         <View style={styles.modeBadge}>
-          <Text style={styles.modeBadgeText}>MULTI MODE</Text>
+          <Text style={styles.modeBadgeText} allowFontScaling={false} numberOfLines={1}>MULTI MODE</Text>
         </View>
-        <Text style={styles.pageSubtitle}>
+        <Text style={styles.pageSubtitle} maxFontSizeMultiplier={1.1} numberOfLines={2} ellipsizeMode="tail">
           Pick the 8 third-place groups that advance to the knockouts
         </Text>
       </View>
@@ -207,8 +207,8 @@ const styles = StyleSheet.create({
   },
   staticHeader: {
     alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
     zIndex: 10,
     backgroundColor: STATUS_BAR_BG,
   },
@@ -231,8 +231,8 @@ const styles = StyleSheet.create({
     color: '#cbd5e1',
     fontWeight: '500',
     textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 22,
+    marginTop: 6,
+    lineHeight: 20,
     paddingHorizontal: 20,
   },
   counterWrap: {

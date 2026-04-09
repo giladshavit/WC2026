@@ -554,7 +554,7 @@ function DualTiebreakerCard() {
         <View style={[tbStyles.card, { borderColor: '#38bdf855' }]}>
           <View style={tbStyles.cardHeader}>
             <Text style={tbStyles.cardEmoji}>⚽</Text>
-            <Text style={[tbStyles.cardTitle, { color: '#38bdf8' }]}>Classic Mode</Text>
+            <Text style={[tbStyles.cardTitle, { color: '#38bdf8' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>Classic Mode</Text>
           </View>
           <View style={[tbStyles.cardDivider, { backgroundColor: '#38bdf833' }]} />
           {classicItems.map((item, i) => (
@@ -572,7 +572,7 @@ function DualTiebreakerCard() {
         <View style={[tbStyles.card, { borderColor: '#f59e0b55' }]}>
           <View style={tbStyles.cardHeader}>
             <Text style={tbStyles.cardEmoji}>🏆</Text>
-            <Text style={[tbStyles.cardTitle, { color: '#f59e0b' }]}>Multi Mode</Text>
+            <Text style={[tbStyles.cardTitle, { color: '#f59e0b' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>Multi Mode</Text>
           </View>
           <View style={[tbStyles.cardDivider, { backgroundColor: '#f59e0b33' }]} />
           {multiItems.map((item, i) => (
@@ -728,12 +728,13 @@ const timelineStyles = StyleSheet.create({
   },
   col0: {
     flex: 1.6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 3,
   },
   col1: {
     flex: 1,
+    paddingLeft: 6,
   },
   stageLabel: {
     fontSize: 12,
@@ -959,14 +960,28 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
                   >
                     <View style={styles.modeCardHeader}>
                       <Text style={styles.modeCardEmoji}>{card.emoji}</Text>
-                      <Text style={[styles.modeCardName, { color: card.color }]}>{card.mode}</Text>
+                      <Text
+                        style={[styles.modeCardName, { color: card.color }]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.75}
+                        maxFontSizeMultiplier={1.2}
+                      >{card.mode}</Text>
                     </View>
-                    <Text style={styles.modeCardDesc}>{card.description}</Text>
+                    <Text
+                      style={styles.modeCardDesc}
+                      numberOfLines={2}
+                      maxFontSizeMultiplier={1.2}
+                    >{card.description}</Text>
                     <View style={styles.modeCardDivider} />
                     <View style={styles.modeCardPills}>
                       {card.includes.map((item, k) => (
                         <View key={k} style={styles.modeCardPill}>
-                          <Text style={styles.modeCardPillText}>{item}</Text>
+                          <Text
+                            style={styles.modeCardPillText}
+                            numberOfLines={2}
+                            maxFontSizeMultiplier={1.2}
+                          >{item}</Text>
                         </View>
                       ))}
                     </View>
@@ -1127,7 +1142,13 @@ export default function RulesScreen() {
           >
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionEmoji}>{section.emoji}</Text>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <Text
+                style={styles.sectionTitle}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+                maxFontSizeMultiplier={1.3}
+              >{section.title}</Text>
             </View>
             <View style={styles.sectionDivider} />
             <RenderBlocks blocks={section.content} />
@@ -1270,6 +1291,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: '#f1f5f9',
+    flexShrink: 1,
   },
   sectionDivider: {
     height: 2,

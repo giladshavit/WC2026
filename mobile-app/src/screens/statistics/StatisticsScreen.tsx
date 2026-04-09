@@ -278,7 +278,7 @@ export default function StatisticsScreen() {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Match Predictions</Text>
             <View style={styles.cardScoreCircle}>
-              <Text style={styles.cardScoreCircleText}>{matches.score}</Text>
+              <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit={true} numberOfLines={1} minimumFontScale={0.5}>{matches.score}</Text>
             </View>
           </View>
           {matches.total_judged > 0 ? (
@@ -307,7 +307,7 @@ export default function StatisticsScreen() {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Bonus Predictions</Text>
             <View style={styles.cardScoreCircle}>
-              <Text style={styles.cardScoreCircleText}>{profile.bonus?.score ?? 0}</Text>
+              <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit={true} numberOfLines={1} minimumFontScale={0.5}>{profile.bonus?.score ?? 0}</Text>
             </View>
           </View>
           {!profile.bonus?.has_any_judged ? (
@@ -335,7 +335,7 @@ export default function StatisticsScreen() {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Group Stage</Text>
             <View style={styles.cardScoreCircle}>
-              <Text style={styles.cardScoreCircleText}>{groups.score}</Text>
+              <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit={true} numberOfLines={1} minimumFontScale={0.5}>{groups.score}</Text>
             </View>
           </View>
           {groups.judged_groups > 0 ? (
@@ -409,7 +409,7 @@ export default function StatisticsScreen() {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>3rd Place Picks</Text>
             <View style={styles.cardScoreCircle}>
-              <Text style={styles.cardScoreCircleText}>{third_place.score}</Text>
+              <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit={true} numberOfLines={1} minimumFontScale={0.5}>{third_place.score}</Text>
             </View>
           </View>
           {!third_place.has_prediction ? (
@@ -494,7 +494,7 @@ export default function StatisticsScreen() {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Knockout</Text>
             <View style={styles.cardScoreCircle}>
-              <Text style={styles.cardScoreCircleText}>{knockout.score}</Text>
+              <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit={true} numberOfLines={1} minimumFontScale={0.5}>{knockout.score}</Text>
             </View>
           </View>
           {judgedKnockout === 0 ? (
@@ -528,7 +528,7 @@ export default function StatisticsScreen() {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Fines</Text>
             <View style={styles.cardScoreCircleRed}>
-              <Text style={styles.cardScoreCircleText}>
+              <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit={true} numberOfLines={1} minimumFontScale={0.5}>
                 {totalPenalty}
               </Text>
             </View>
@@ -715,14 +715,29 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#1f2937' },
   cardScoreCircle: {
-    width: 33, height: 33, borderRadius: 22,
-    backgroundColor: '#15803d', justifyContent: 'center', alignItems: 'center',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#15803d',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   cardScoreCircleRed: {
-    width: 33, height: 33, borderRadius: 22,
-    backgroundColor: '#dc2626', justifyContent: 'center', alignItems: 'center',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#dc2626',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
-  cardScoreCircleText: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
+  cardScoreCircleText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#fff',
+    includeFontPadding: false,
+  },
 
   barContainer: {
     flexDirection: 'row', height: 32, borderRadius: 10, overflow: 'hidden', marginBottom: 8,

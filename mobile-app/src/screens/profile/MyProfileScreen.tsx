@@ -86,12 +86,12 @@ export default function MyProfileScreen() {
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
+              <Text style={styles.avatarText} maxFontSizeMultiplier={1.3}>
                 {user?.name?.charAt(0).toUpperCase() ?? '?'}
               </Text>
             </View>
           </View>
-          <Text style={styles.name}>{user?.name ?? '—'}</Text>
+          <Text style={styles.name} maxFontSizeMultiplier={1.3}>{user?.name ?? '—'}</Text>
         </View>
 
         {/* Points card */}
@@ -99,29 +99,29 @@ export default function MyProfileScreen() {
           {pointsLoading ? (
             <ActivityIndicator size="small" color="#16a34a" style={styles.pointsLoader} />
           ) : (
-            <Text style={styles.pointsValue}>{totalPoints}</Text>
+            <Text style={styles.pointsValue} maxFontSizeMultiplier={1.3}>{totalPoints}</Text>
           )}
-          <Text style={styles.pointsLabel}>Total Points</Text>
+          <Text style={styles.pointsLabel} maxFontSizeMultiplier={1.3}>Total Points</Text>
         </View>
 
         {/* Info rows */}
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <Ionicons name="person-outline" size={18} color="#16a34a" />
-            <Text style={styles.infoLabel}>Username</Text>
-            <Text style={styles.infoValue}>{user?.username ?? '—'}</Text>
+            <Text style={styles.infoLabel} maxFontSizeMultiplier={1.3}>Username</Text>
+            <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>{user?.username ?? '—'}</Text>
           </View>
           <View style={styles.infoSeparator} />
           <View style={styles.infoRow}>
             <Ionicons name="mail-outline" size={18} color="#16a34a" />
-            <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>{user?.email ?? '—'}</Text>
+            <Text style={styles.infoLabel} maxFontSizeMultiplier={1.3}>Email</Text>
+            <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>{user?.email ?? '—'}</Text>
           </View>
           <View style={styles.infoSeparator} />
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={18} color="#16a34a" />
-            <Text style={styles.infoLabel}>Member since</Text>
-            <Text style={styles.infoValue}>
+            <Text style={styles.infoLabel} maxFontSizeMultiplier={1.3}>Member since</Text>
+            <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
               {user?.created_at
                 ? new Date(user.created_at).toLocaleDateString('en-GB', {
                     day: 'numeric',
@@ -136,7 +136,7 @@ export default function MyProfileScreen() {
         {/* Logout button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={18} color="#ef4444" />
-          <Text style={styles.logoutText}>Sign Out</Text>
+          <Text style={styles.logoutText} maxFontSizeMultiplier={1.3}>Sign Out</Text>
         </TouchableOpacity>
         </ScrollView>
       <ConfirmationModal
@@ -321,6 +321,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#1e293b',
     fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'right',
   },
   infoSeparator: {
     height: 1,

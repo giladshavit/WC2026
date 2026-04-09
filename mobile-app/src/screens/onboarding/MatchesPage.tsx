@@ -152,7 +152,9 @@ const cardStyles = StyleSheet.create({
   sideTeam: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'flex-start',
     minWidth: 0,
+    paddingTop: 4,
   },
   flag: {
     width: 52,
@@ -270,9 +272,9 @@ export default function MatchesPage() {
   return (
     <View style={styles.classicPage}>
       <View style={styles.classicBadge}>
-        <Text style={styles.classicBadgeText}>CLASSIC MODE</Text>
+        <Text style={styles.classicBadgeText} allowFontScaling={false}>CLASSIC MODE</Text>
       </View>
-      <Text style={styles.classicSubtitle}>
+      <Text style={styles.classicSubtitle} maxFontSizeMultiplier={1.3}>
         Predict the exact score of every match
       </Text>
 

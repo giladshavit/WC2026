@@ -7,6 +7,7 @@ import {
   Dimensions,
   ScrollView,
   StatusBar,
+  PixelRatio,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -123,6 +124,8 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [currentStage, setCurrentStage] = React.useState<string | null>(null);
   const [isAdminFromConfig, setIsAdminFromConfig] = React.useState(false);
+  const fontScale = PixelRatio.getFontScale();
+  const scrollEnabled = fontScale > 1.2;
 
   useFocusEffect(
     React.useCallback(() => {
@@ -187,10 +190,21 @@ export default function HomeScreen() {
             style={styles.icon}
           />
         )}
-        <Text style={[styles.buttonTitle, action.accent && styles.accentButtonTitle]}>
+        <Text
+          style={[styles.buttonTitle, action.accent && styles.accentButtonTitle]}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+          textBreakStrategy="balanced"
+        >
           {action.title}
         </Text>
-        <Text style={[styles.buttonSubtitle, action.accent && styles.accentButtonSubtitle]}>
+        <Text
+          style={[styles.buttonSubtitle, action.accent && styles.accentButtonSubtitle]}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.65}
+        >
           {action.subtitle}
         </Text>
       </TouchableOpacity>
@@ -205,13 +219,13 @@ export default function HomeScreen() {
           <PredictOLogo size="small" variant="light" />
         </View>
         <View style={styles.logoSeparator} />
-        <Text style={styles.greeting}>
+        <Text style={styles.greeting} maxFontSizeMultiplier={1.3} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>
           Welcome back, {user?.username ?? 'Champ'}!
         </Text>
         {currentStage && STAGE_LABELS[currentStage] && (
           <View style={styles.stageRow}>
             <Text style={styles.stageLabel}>Stage:</Text>
-            <Text style={[styles.stageValue, { color: STAGE_LABELS[currentStage].color }]}>
+            <Text style={[styles.stageValue, { color: STAGE_LABELS[currentStage].color }]} maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
               {STAGE_LABELS[currentStage].label}
             </Text>
           </View>
@@ -228,7 +242,7 @@ export default function HomeScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        scrollEnabled={false}
+        scrollEnabled={scrollEnabled}
       >
         <View style={styles.buttonsGrid}>
           {actions.map((action) => renderButton(action))}
@@ -423,7 +437,7 @@ const styles = StyleSheet.create({
   adminPillText: { fontSize: 13, color: '#64748b', fontWeight: '500' },
 
   icon: { marginBottom: 8 },
-  buttonTitle: { fontSize: 15, fontWeight: '600', color: '#f1f5f9' },
+  buttonTitle: { fontSize: 15, fontWeight: '600', color: '#f1f5f9', textAlign: 'center' },
   accentButtonTitle: { color: '#ffffff' },
   buttonSubtitle: { fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 4 },
   accentButtonSubtitle: { color: 'rgba(255,255,255,0.8)' },

@@ -165,6 +165,7 @@ function PodiumSection({
                 style={[styles.podiumName, isCurrentUser && styles.podiumNameBold]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
+                maxFontSizeMultiplier={1.2}
               >
                 {scoreModeLoading ? '' : truncateName((item as any).username ?? item.name ?? 'Player')}
               </Text>
@@ -173,7 +174,7 @@ function PodiumSection({
                   {item.name}
                 </Text>
               )}
-              <Text style={styles.podiumPts}>
+              <Text style={styles.podiumPts} maxFontSizeMultiplier={1.2}>
                 {scoreModeLoading ? '' : scoreMode === 'classic'
                   ? (item.matches_points ?? 0) + (item.bonus_points ?? 0)
                   : (item.total_points ?? 0)}
@@ -245,6 +246,7 @@ function AnimatedPlayerRow({
           styles.playerRow,
           { backgroundColor: isCurrentUser ? '#1a2744' : rowBg },
           isCurrentUser && styles.playerRowCurrentUser,
+          onRowPress ? { flex: 1 } : null,
         ]}
       >
         <View style={styles.playerRowContent}>
@@ -255,6 +257,7 @@ function AnimatedPlayerRow({
                 style={[styles.cellName, styles.cellLeft, isCurrentUser && styles.cellBold]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
+                maxFontSizeMultiplier={1}
                 {...(liveNamesNoShrink
                   ? { adjustsFontSizeToFit: true, minimumFontScale: 0.75 }
                   : {})}
@@ -263,7 +266,7 @@ function AnimatedPlayerRow({
               </Text>
             </View>
             {item.name && item.name !== (item as any).username && (
-              <Text style={styles.cellSubName} numberOfLines={1} ellipsizeMode="tail">
+              <Text style={styles.cellSubName} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1}>
                 {item.name}
               </Text>
             )}
@@ -273,7 +276,11 @@ function AnimatedPlayerRow({
     );
     if (onRowPress) {
       return (
-        <TouchableOpacity onPress={onRowPress} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={{ alignSelf: 'stretch', width: '100%' }}
+          onPress={onRowPress}
+          activeOpacity={0.8}
+        >
           {leftContent}
         </TouchableOpacity>
       );
@@ -288,49 +295,122 @@ function AnimatedPlayerRow({
           styles.playerRow,
           { backgroundColor: rowBg },
           isCurrentUser && { backgroundColor: '#1a2744' },
+          onRowPress ? { flex: 1 } : null,
         ]}
       >
         <View style={styles.playerRowContent}>
           {scoreMode === 'classic' ? (
             <>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#4b7c5e' }]}>
+                <Text
+                  style={[styles.cellText, styles.cellCenter, { color: '#4b7c5e' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.6}
+                  maxFontSizeMultiplier={1}
+                >
                   {item.matches_exact_count ?? 0}
                 </Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#7a6230' }]}>
+                <Text
+                  style={[styles.cellText, styles.cellCenter, { color: '#7a6230' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.6}
+                  maxFontSizeMultiplier={1}
+                >
                   {item.matches_correct_count ?? 0}
                 </Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#7a3535' }]}>
+                <Text
+                  style={[styles.cellText, styles.cellCenter, { color: '#7a3535' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.6}
+                  maxFontSizeMultiplier={1}
+                >
                   {item.matches_wrong_count ?? 0}
                 </Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#93c5fd' }]}>{item.matches_points ?? 0}</Text>
+                <Text
+                  style={[styles.cellText, styles.cellCenter, { color: '#93c5fd' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.6}
+                  maxFontSizeMultiplier={1}
+                >
+                  {item.matches_points ?? 0}
+                </Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#86efac' }]}>{item.bonus_points ?? 0}</Text>
+                <Text
+                  style={[styles.cellText, styles.cellCenter, { color: '#86efac' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.6}
+                  maxFontSizeMultiplier={1}
+                >
+                  {item.bonus_points ?? 0}
+                </Text>
               </View>
             </>
           ) : (
             <>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#60a5fa' }]}>{item.matches_points ?? 0}</Text>
+                <Text
+                  style={[styles.cellText, styles.cellCenter, { color: '#60a5fa' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.6}
+                  maxFontSizeMultiplier={1}
+                >
+                  {item.matches_points ?? 0}
+                </Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#c084fc' }]}>{groupsPlusThird}</Text>
+                <Text
+                  style={[styles.cellText, styles.cellCenter, { color: '#c084fc' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.6}
+                  maxFontSizeMultiplier={1}
+                >
+                  {groupsPlusThird}
+                </Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#d4a017' }]}>{item.knockout_points ?? 0}</Text>
+                <Text
+                  style={[styles.cellText, styles.cellCenter, { color: '#d4a017' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.6}
+                  maxFontSizeMultiplier={1}
+                >
+                  {item.knockout_points ?? 0}
+                </Text>
               </View>
               <View style={styles.colNum}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#4ade80' }]}>{item.bonus_points ?? 0}</Text>
+                <Text
+                  style={[styles.cellText, styles.cellCenter, { color: '#4ade80' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.6}
+                  maxFontSizeMultiplier={1}
+                >
+                  {item.bonus_points ?? 0}
+                </Text>
               </View>
               <View style={styles.colFine}>
-                <Text style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}>
+                <Text
+                  style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.6}
+                  maxFontSizeMultiplier={1}
+                >
                   {fineVal > 0 ? fineVal : 0}
                 </Text>
               </View>
@@ -341,7 +421,11 @@ function AnimatedPlayerRow({
     );
     if (onRowPress) {
       return (
-        <TouchableOpacity onPress={onRowPress} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={{ alignSelf: 'stretch', width: '100%' }}
+          onPress={onRowPress}
+          activeOpacity={0.8}
+        >
           {middleContent}
         </TouchableOpacity>
       );
@@ -356,6 +440,7 @@ function AnimatedPlayerRow({
         styles.playerRowRight,
         { backgroundColor: rowBg },
         isCurrentUser && { backgroundColor: '#1a2744' },
+        onRowPress ? { flex: 1 } : null,
       ]}
     >
       <View style={[
@@ -404,6 +489,7 @@ function AnimatedPlayerRow({
               numberOfLines={1}
               adjustsFontSizeToFit={true}
               minimumFontScale={0.5}
+              maxFontSizeMultiplier={1}
             >
               {scoreMode === 'classic'
                 ? (item.matches_points ?? 0) + (item.bonus_points ?? 0)
@@ -416,7 +502,11 @@ function AnimatedPlayerRow({
   );
   if (onRowPress) {
     return (
-      <TouchableOpacity onPress={onRowPress} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={{ alignSelf: 'stretch', width: '100%' }}
+        onPress={onRowPress}
+        activeOpacity={0.8}
+      >
         {rightContent}
       </TouchableOpacity>
     );
@@ -1407,7 +1497,7 @@ export default function LeagueDetailsScreen() {
           </View>
 
           {currentUserEntry && currentUserEntry.rank != null && currentUserEntry.rank > 3 && (
-            <View style={[styles.stickyUserRow, isLiveMode && styles.tableRowContainerLive]}>
+            <View style={[styles.stickyUserRow, isLiveMode && styles.tableRowContainerLive, { alignItems: 'stretch' }]}>
               <View
                 style={[
                   styles.tableFixedLeft,
@@ -1422,6 +1512,7 @@ export default function LeagueDetailsScreen() {
                         <Text
                           style={styles.stickyRankNumber}
                           numberOfLines={1}
+                          maxFontSizeMultiplier={1}
                           {...(isLiveMode
                             ? {}
                             : { adjustsFontSizeToFit: true, minimumFontScale: 0.7 })}
@@ -1433,12 +1524,13 @@ export default function LeagueDetailsScreen() {
                         style={[styles.cellName, styles.cellLeft, styles.cellBold]}
                         numberOfLines={1}
                         ellipsizeMode="tail"
+                        maxFontSizeMultiplier={1}
                       >
                         {truncateName((currentUserEntry as any).username ?? currentUserEntry.name ?? 'You')}
                       </Text>
                     </View>
                     {currentUserEntry.name && currentUserEntry.name !== (currentUserEntry as any).username && (
-                      <Text style={styles.cellSubName} numberOfLines={1} ellipsizeMode="tail">
+                      <Text style={styles.cellSubName} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1}>
                         {currentUserEntry.name}
                       </Text>
                     )}
@@ -1447,31 +1539,61 @@ export default function LeagueDetailsScreen() {
               </View>
               {!isLiveMode && (
               <View style={[styles.tableScrollMiddle, styles.tableMiddleFixed, { width: middleWidth }]}>
-                <View style={[styles.playerRow, styles.playerRowContent, { minHeight: 52, borderBottomWidth: 0, paddingHorizontal: 0, backgroundColor: '#1a2744' }]}>
+                <View style={[styles.playerRow, styles.playerRowContent, { borderBottomWidth: 0, paddingHorizontal: 0, backgroundColor: '#1a2744' }]}>
                   {scoreMode === 'classic' ? (
                     <>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#4b7c5e' }]}>
+                        <Text
+                          style={[styles.cellText, styles.cellCenter, { color: '#4b7c5e' }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.6}
+                          maxFontSizeMultiplier={1}
+                        >
                           {currentUserEntry.matches_exact_count ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#7a6230' }]}>
+                        <Text
+                          style={[styles.cellText, styles.cellCenter, { color: '#7a6230' }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.6}
+                          maxFontSizeMultiplier={1}
+                        >
                           {currentUserEntry.matches_correct_count ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#7a3535' }]}>
+                        <Text
+                          style={[styles.cellText, styles.cellCenter, { color: '#7a3535' }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.6}
+                          maxFontSizeMultiplier={1}
+                        >
                           {currentUserEntry.matches_wrong_count ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#93c5fd' }]}>
+                        <Text
+                          style={[styles.cellText, styles.cellCenter, { color: '#93c5fd' }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.6}
+                          maxFontSizeMultiplier={1}
+                        >
                           {currentUserEntry.matches_points ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#86efac' }]}>
+                        <Text
+                          style={[styles.cellText, styles.cellCenter, { color: '#86efac' }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.6}
+                          maxFontSizeMultiplier={1}
+                        >
                           {currentUserEntry.bonus_points ?? 0}
                         </Text>
                       </View>
@@ -1479,27 +1601,57 @@ export default function LeagueDetailsScreen() {
                   ) : (
                     <>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#60a5fa' }]}>
+                        <Text
+                          style={[styles.cellText, styles.cellCenter, { color: '#60a5fa' }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.6}
+                          maxFontSizeMultiplier={1}
+                        >
                           {currentUserEntry.matches_points ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#c084fc' }]}>
+                        <Text
+                          style={[styles.cellText, styles.cellCenter, { color: '#c084fc' }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.6}
+                          maxFontSizeMultiplier={1}
+                        >
                           {(currentUserEntry.groups_points ?? 0) + (currentUserEntry.third_place_points ?? 0)}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#d4a017' }]}>
+                        <Text
+                          style={[styles.cellText, styles.cellCenter, { color: '#d4a017' }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.6}
+                          maxFontSizeMultiplier={1}
+                        >
                           {currentUserEntry.knockout_points ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colNum}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#4ade80' }]}>
+                        <Text
+                          style={[styles.cellText, styles.cellCenter, { color: '#4ade80' }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.6}
+                          maxFontSizeMultiplier={1}
+                        >
                           {currentUserEntry.bonus_points ?? 0}
                         </Text>
                       </View>
                       <View style={styles.colFine}>
-                        <Text style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}>
+                        <Text
+                          style={[styles.cellText, styles.cellCenter, { color: '#ef4444' }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.6}
+                          maxFontSizeMultiplier={1}
+                        >
                           {(currentUserEntry.penalty ?? 0) > 0 ? (currentUserEntry.penalty ?? 0) : 0}
                         </Text>
                       </View>
@@ -1519,7 +1671,7 @@ export default function LeagueDetailsScreen() {
                 <View style={[
                   styles.playerRow,
                   styles.playerRowRight,
-                  { minHeight: 52, borderBottomWidth: 0, backgroundColor: '#1a2744' },
+                  { borderBottomWidth: 0, backgroundColor: '#1a2744' },
                   showOnlyTotalColumn && { flex: 1, justifyContent: 'flex-end' },
                 ]}>
                   <View style={[
@@ -1975,7 +2127,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   colNum: {
-    width: 30,
+    width: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1995,7 +2147,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   colTotal: {
-    width: 74,
+    width: 80,
     alignItems: 'center',
     justifyContent: 'center',
     paddingRight: 4,
@@ -2029,6 +2181,7 @@ const styles = StyleSheet.create({
   },
   tableRowContainer: {
     flexDirection: 'row',
+    alignItems: 'stretch',
     alignSelf: 'stretch',
     width: '100%',
   },
@@ -2079,7 +2232,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 0,
   },
   tableFixedRight: {
-    width: 74,
+    width: 80,
     overflow: 'hidden',
     flexShrink: 0,
   },
@@ -2116,7 +2269,7 @@ const styles = StyleSheet.create({
   },
   ptsBadge: {
     backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    width: 46,
+    width: 54,
     height: 30,
     borderRadius: 10,
     paddingHorizontal: 2,

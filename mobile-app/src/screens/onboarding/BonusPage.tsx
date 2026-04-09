@@ -237,7 +237,8 @@ export default function BonusPage({ isActive }: BonusPageProps) {
   const summaryCard = (
     <Animated.View style={[styles.summaryLayer, { top: headerHeight }, { opacity: fadeSummary }]}>
       <View style={styles.summaryHeader}>
-        <Text style={styles.summaryTitle}>Bonus Predictions</Text>
+        <View style={styles.summaryHeaderSpacer} />
+        <Text style={styles.summaryTitle} maxFontSizeMultiplier={1}>Bonus Predictions</Text>
         <View style={styles.summaryHeaderEditWrap}>
           <AnimatedGlowEditButton editScale={editScale} editGlow={editGlow} />
         </View>
@@ -312,10 +313,14 @@ export default function BonusPage({ isActive }: BonusPageProps) {
       ]}
     >
       <View style={styles.wizardTopBar}>
-        <Ionicons name="chevron-back" size={22} color="#94a3b8" style={styles.wizardTopBarSide} />
-        <Text style={styles.wizardSectionTitle}>GROUP STAGE</Text>
-        <View style={[styles.viewAllPill, styles.wizardTopBarSide]}>
-          <Text style={styles.viewAllText}>View All</Text>
+        <View style={[styles.wizardTopBarSide, { alignItems: 'flex-start' }]}>
+          <Ionicons name="chevron-back" size={22} color="#94a3b8" />
+        </View>
+        <Text style={styles.wizardSectionTitle} maxFontSizeMultiplier={1}>GROUP STAGE</Text>
+        <View style={[styles.wizardTopBarSide, { alignItems: 'flex-end' }]}>
+          <View style={styles.viewAllPill}>
+            <Text style={styles.viewAllText} allowFontScaling={false} numberOfLines={1}>View All</Text>
+          </View>
         </View>
       </View>
 
@@ -347,7 +352,7 @@ export default function BonusPage({ isActive }: BonusPageProps) {
             <View style={styles.qChip}>
               <Text style={styles.qChipText}>Q1</Text>
             </View>
-            <Text style={styles.questionTitle}>Total goals in Group Stage</Text>
+            <Text style={styles.questionTitle} maxFontSizeMultiplier={1}>Total goals in Group Stage</Text>
             <View style={styles.pillGrid}>
               {PILL_LABELS.map((label) => {
                 const selected = selectedPill === label;
@@ -357,7 +362,7 @@ export default function BonusPage({ isActive }: BonusPageProps) {
                     style={label === '50-69' ? { transform: [{ scale: pillTapScale }] } : undefined}
                   >
                     <View style={[styles.pill, selected && styles.pillSelected]}>
-                      <Text style={[styles.pillText, selected && styles.pillTextSelected]}>{label}</Text>
+                      <Text style={[styles.pillText, selected && styles.pillTextSelected]} maxFontSizeMultiplier={1}>{label}</Text>
                     </View>
                   </Animated.View>
                 );
@@ -369,7 +374,7 @@ export default function BonusPage({ isActive }: BonusPageProps) {
             <View style={styles.qChip}>
               <Text style={styles.qChipText}>Q4</Text>
             </View>
-            <Text style={styles.questionTitle}>Teams finishing with 9/9 points</Text>
+            <Text style={styles.questionTitle} maxFontSizeMultiplier={1}>Teams finishing with 9/9 points</Text>
             <View style={styles.pillGrid}>
               {Q2_PILL_LABELS.map((label) => {
                 const selected = selectedGroup === label;
@@ -379,9 +384,7 @@ export default function BonusPage({ isActive }: BonusPageProps) {
                     style={label === '2' ? { transform: [{ scale: groupCardScale }] } : undefined}
                   >
                     <View style={[styles.pill, selected && styles.pillSelected]}>
-                      <Text style={[styles.pillText, selected && styles.pillTextSelected]}>
-                        {label}
-                      </Text>
+                      <Text style={[styles.pillText, selected && styles.pillTextSelected]} maxFontSizeMultiplier={1}>{label}</Text>
                     </View>
                   </Animated.View>
                 );
@@ -400,9 +403,9 @@ export default function BonusPage({ isActive }: BonusPageProps) {
         onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
       >
         <View style={styles.bonusBadge}>
-          <Text style={styles.bonusBadgeText}>CLASSIC MODE</Text>
+          <Text style={styles.bonusBadgeText} allowFontScaling={false}>CLASSIC MODE</Text>
         </View>
-        <Text style={styles.pageSubtitle}>
+        <Text style={styles.pageSubtitle} maxFontSizeMultiplier={1.15}>
           Answer 12 special questions about the tournament
         </Text>
       </View>
@@ -434,7 +437,7 @@ function AnimatedGlowEditButton({
     >
       <Animated.View style={{ transform: [{ scale: editScale }] }}>
         <View style={styles.editPill}>
-          <Text style={styles.editPillText}>Edit</Text>
+          <Text style={styles.editPillText} allowFontScaling={false}>Edit</Text>
         </View>
       </Animated.View>
     </Animated.View>
@@ -488,19 +491,19 @@ const styles = StyleSheet.create({
   summaryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     marginBottom: 12,
-    position: 'relative',
     minHeight: 40,
   },
   summaryHeaderEditWrap: {
     zIndex: 1,
-    marginLeft: 'auto',
+    width: 72,
+    alignItems: 'flex-end',
+  },
+  summaryHeaderSpacer: {
+    width: 72,
   },
   summaryTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
+    flex: 1,
     textAlign: 'center',
     fontSize: 20,
     fontWeight: '800',
@@ -594,18 +597,15 @@ const styles = StyleSheet.create({
   wizardTopBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     marginBottom: 14,
-    position: 'relative',
     minHeight: 40,
   },
   wizardTopBarSide: {
     zIndex: 1,
+    minWidth: 72,
   },
   wizardSectionTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
+    flex: 1,
     textAlign: 'center',
     fontSize: 20,
     fontWeight: '800',

@@ -98,6 +98,7 @@ export default function LoginScreen({ onSwitchToRegister, onForgotPassword }: Lo
                 autoCorrect={false}
                 editable={!isLoading}
                 maxLength={14}
+                maxFontSizeMultiplier={1.2}
               />
             </View>
 
@@ -123,6 +124,7 @@ export default function LoginScreen({ onSwitchToRegister, onForgotPassword }: Lo
                 autoCorrect={false}
                 editable={!isLoading}
                 maxLength={20}
+                maxFontSizeMultiplier={1.2}
               />
             </View>
 
@@ -147,9 +149,9 @@ export default function LoginScreen({ onSwitchToRegister, onForgotPassword }: Lo
             </TouchableOpacity>
 
             <View style={styles.switchContainer}>
-              <Text style={styles.switchText}>Don't have an account? </Text>
+              <Text style={styles.switchText} maxFontSizeMultiplier={1.2}>Don't have an account? </Text>
               <TouchableOpacity onPress={onSwitchToRegister} disabled={isLoading}>
-                <Text style={styles.switchLink}>Sign up here</Text>
+                <Text style={styles.switchLink} maxFontSizeMultiplier={1.2}>Sign up here</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -222,8 +224,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   forgotLinkText: {
-    color: '#94a3b8',
+    color: '#16a34a',
     fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   errorText: {
     color: '#ef4444',
@@ -251,7 +255,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    flexWrap: 'wrap',
     marginTop: 24,
+    gap: 4,
   },
   switchText: {
     fontSize: 16,

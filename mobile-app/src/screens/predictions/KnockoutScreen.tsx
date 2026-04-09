@@ -595,8 +595,8 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
                     size={14}
                     color={showNetScore ? '#16a34a' : '#64748b'}
                   />
-                  <Text style={[styles.netScoreToggleText, showNetScore && styles.netScoreToggleTextActive]}>
-                    Net Score
+                  <Text style={[styles.netScoreToggleText, showNetScore && styles.netScoreToggleTextActive]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                    Net
                   </Text>
                 </TouchableOpacity>
                 <View style={[styles.pointsContainer, getPointsPillStyle()]}>

@@ -111,6 +111,7 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified,
             adjustsFontSizeToFit
             minimumFontScale={0.6}
             ellipsizeMode="clip"
+            maxFontSizeMultiplier={1}
           >
             {displayName}
           </Text>

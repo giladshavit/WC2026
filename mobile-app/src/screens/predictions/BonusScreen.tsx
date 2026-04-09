@@ -1603,7 +1603,7 @@ export default function BonusScreen() {
                 })()}
                 <Text
                   style={[
-                    { fontSize: 12, fontWeight: '600', color: '#94a3b8', flex: 1 },
+                    { fontSize: 13, fontWeight: '600', color: '#94a3b8', flex: 1 },
                     isEditable && selected && { color: '#fff', fontWeight: '700' },
                     !isEditable &&
                       (lockedStyle?.textColor
@@ -1612,7 +1612,7 @@ export default function BonusScreen() {
                   ]}
                   numberOfLines={1}
                   adjustsFontSizeToFit
-                  minimumFontScale={0.75}
+                  minimumFontScale={0.7}
                 >
                   {opt.label}
                 </Text>
@@ -1805,7 +1805,13 @@ export default function BonusScreen() {
               <Ionicons name="chevron-back" size={24} color="#fff" />
             </TouchableOpacity>
             <View style={styles.wizardHeaderCenter}>
-              <Text style={styles.wizardSectionTitle}>
+              <Text
+                style={styles.wizardSectionTitle}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.6}
+                maxFontSizeMultiplier={1.2}
+              >
                 {SECTION_NAMES[currentField].toUpperCase()}
               </Text>
               <Ionicons
@@ -2063,7 +2069,7 @@ export default function BonusScreen() {
             >
               <View style={styles.summaryRowLeft}>
                 <Text style={styles.summaryQNew}>Q{globalIdx + 1}</Text>
-                <Text style={styles.summaryQuestionLabelNew} numberOfLines={2}>
+                <Text style={styles.summaryQuestionLabelNew} numberOfLines={3}>
                   {QUESTION_LABELS[field]}
                 </Text>
               </View>
@@ -2198,8 +2204,9 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     color: '#fff',
-    letterSpacing: 2,
+    letterSpacing: 1,
     marginBottom: 4,
+    textAlign: 'center',
   },
   headerBtn: { width: 60, alignItems: 'flex-end' },
   headerBtnLeft: { width: 60, alignItems: 'flex-start' },

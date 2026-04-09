@@ -132,6 +132,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 autoCorrect={false}
                 editable={!isLoading}
                 maxLength={14}
+                maxFontSizeMultiplier={1.2}
               />
             </View>
 
@@ -146,13 +147,14 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 onChangeText={(t) => setUsername(t)}
                 onFocus={() => { setFocusedInput('username'); scrollToInput(80); }}
                 onBlur={() => setFocusedInput(null)}
-                placeholder="Enter username (at least 3 characters)"
+                placeholder="Enter username (min 3 chars)"
                 placeholderTextColor="#64748b"
                 textContentType="oneTimeCode"
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
                 maxLength={14}
+                maxFontSizeMultiplier={1.2}
               />
             </View>
 
@@ -174,6 +176,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 autoCorrect={false}
                 editable={!isLoading}
                 maxLength={100}
+                maxFontSizeMultiplier={1.2}
               />
             </View>
 
@@ -188,7 +191,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 onChangeText={(t) => setPassword(t)}
                 onFocus={() => { setFocusedInput('password'); scrollToInput(240); }}
                 onBlur={() => setFocusedInput(null)}
-                placeholder="Enter password (at least 6 characters)"
+                placeholder="Enter password (min 6 chars)"
                 placeholderTextColor="#64748b"
                 textContentType="oneTimeCode"
                 secureTextEntry
@@ -196,6 +199,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 autoCorrect={false}
                 editable={!isLoading}
                 maxLength={20}
+                maxFontSizeMultiplier={1.2}
               />
             </View>
 
@@ -218,6 +222,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
                 autoCorrect={false}
                 editable={!isLoading}
                 maxLength={20}
+                maxFontSizeMultiplier={1.2}
               />
             </View>
 
@@ -232,9 +237,9 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
             </TouchableOpacity>
 
             <View style={styles.switchContainer}>
-              <Text style={styles.switchText}>Already have an account? </Text>
+              <Text style={styles.switchText} maxFontSizeMultiplier={1.2}>Already have an account? </Text>
               <TouchableOpacity onPress={onSwitchToLogin} disabled={isLoading}>
-                <Text style={styles.switchLink}>Login here</Text>
+                <Text style={styles.switchLink} maxFontSizeMultiplier={1.2}>Login here</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -323,7 +328,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    flexWrap: 'wrap',
     marginTop: 24,
+    gap: 4,
   },
   switchText: {
     fontSize: 16,

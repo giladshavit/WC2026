@@ -1168,71 +1168,59 @@
           <Pressable style={styles.modalOverlay} onPress={() => setShowBracketResetModal(false)}>
             <Pressable style={styles.bracketResetModalCard} onPress={e => e.stopPropagation()}>
 
-              {/* Icon */}
-              <View style={styles.bracketResetIconCircle}>
-                <Ionicons name="refresh-circle" size={34} color="#7c3aed" />
-              </View>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                centerContent={false}
+                style={styles.bracketResetScroll}
+                contentContainerStyle={styles.bracketResetScrollContent}
+              >
+                <View style={styles.bracketResetIconCircle}>
+                  <Ionicons name="refresh-circle" size={34} color="#7c3aed" />
+                </View>
 
-              {/* Title */}
-              <Text style={styles.bracketResetModalTitle}>Reset Bracket</Text>
+                <Text style={styles.bracketResetModalTitle} maxFontSizeMultiplier={1}>Reset Bracket</Text>
 
-              {/* Description */}
-              <Text style={styles.bracketResetModalSubtitle}>
-                Resets ALL knockout predictions using the actual Round of 32 teams. Winners will be cleared so you can start fresh.{'\n'}
-                <Text style={{ color: '#dc2626', fontWeight: '700' }}>This can only be done once.</Text>
-                {'\n\n'}
-                <Text style={{ color: '#16a34a', fontWeight: '600' }}>✓ All edits after the reset are free — no fines.</Text>
-              </Text>
-
-              <View style={styles.bracketResetDivider} />
-
-              {/* === PENALTY HERO === */}
-              <Text style={styles.bracketResetCostTitle}>RESET COST</Text>
-
-              <View style={styles.bracketResetPenaltyHero}>
-                <Text style={styles.bracketResetPenaltyNum}>
-                  -{bracketResetPreview?.penalty ?? 0}
+                <Text style={styles.bracketResetModalSubtitle} maxFontSizeMultiplier={1.2}>
+                  Resets ALL knockout predictions using the actual Round of 32 teams. Winners will be cleared so you can start fresh.{'\n'}
+                  <Text style={{ color: '#dc2626', fontWeight: '700' }} maxFontSizeMultiplier={1.2}>This can only be done once.</Text>
+                  {'\n\n'}
+                  <Text style={{ color: '#16a34a', fontWeight: '600' }} maxFontSizeMultiplier={1.1}>✓ All edits after the reset are free — no fines.</Text>
                 </Text>
-                <Text style={styles.bracketResetPenaltyLabel}>points deducted</Text>
-              </View>
 
-              {/* === BREAKDOWN ROW === */}
-              <View style={styles.bracketResetBreakdownRow}>
-                <View style={styles.bracketResetBreakdownBox}>
-                  <Text style={styles.bracketResetBreakdownNum_red}>
-                    {bracketResetPreview?.invalid_count ?? 0}
+                <View style={styles.bracketResetDivider} />
+
+                <Text style={styles.bracketResetCostTitle} maxFontSizeMultiplier={1}>RESET COST</Text>
+
+                <View style={styles.bracketResetPenaltyHero}>
+                  <Text style={styles.bracketResetPenaltyNum} maxFontSizeMultiplier={1}>
+                    -{bracketResetPreview?.penalty ?? 0}
                   </Text>
-                  <Text style={styles.bracketResetBreakdownLabel}>Invalid</Text>
-                  <Text style={styles.bracketResetBreakdownMult}>× 1 pt each</Text>
+                  <Text style={styles.bracketResetPenaltyLabel} maxFontSizeMultiplier={1}>points deducted</Text>
                 </View>
 
-                <View style={styles.bracketResetBreakdownDivider} />
-
-                <View style={styles.bracketResetBreakdownBox}>
-                  <Text style={styles.bracketResetBreakdownNum_yellow}>
-                    {bracketResetPreview?.unreachable_count ?? 0}
-                  </Text>
-                  <Text style={styles.bracketResetBreakdownLabel}>Unreachable</Text>
-                  <Text style={styles.bracketResetBreakdownMult}>× 0.5 pt each</Text>
+                <View style={styles.bracketResetBreakdownRow}>
+                  <View style={styles.bracketResetBreakdownBox}>
+                    <Text style={styles.bracketResetBreakdownNum_red} maxFontSizeMultiplier={1}>{bracketResetPreview?.invalid_count ?? 0}</Text>
+                    <Text style={styles.bracketResetBreakdownLabel} maxFontSizeMultiplier={1}>Invalid</Text>
+                    <Text style={styles.bracketResetBreakdownMult} maxFontSizeMultiplier={1}>× 1 pt each</Text>
+                  </View>
+                  <View style={styles.bracketResetBreakdownDivider} />
+                  <View style={styles.bracketResetBreakdownBox}>
+                    <Text style={styles.bracketResetBreakdownNum_yellow} maxFontSizeMultiplier={1}>{bracketResetPreview?.unreachable_count ?? 0}</Text>
+                    <Text style={styles.bracketResetBreakdownLabel} maxFontSizeMultiplier={1}>Unreachable</Text>
+                    <Text style={styles.bracketResetBreakdownMult} maxFontSizeMultiplier={1}>× 0.5 pt each</Text>
+                  </View>
                 </View>
-              </View>
 
-              <View style={styles.bracketResetDivider} />
+              </ScrollView>
 
-              {/* Buttons */}
               <View style={styles.bracketResetButtonsRow}>
-                <TouchableOpacity
-                  style={styles.bracketResetCancelBtn}
-                  onPress={() => setShowBracketResetModal(false)}
-                >
-                  <Text style={styles.bracketResetCancelText}>Cancel</Text>
+                <TouchableOpacity style={styles.bracketResetCancelBtn} onPress={() => setShowBracketResetModal(false)}>
+                  <Text style={styles.bracketResetCancelText} maxFontSizeMultiplier={1}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.bracketResetConfirmBtn}
-                  onPress={handleConfirmBracketReset}
-                >
+                <TouchableOpacity style={styles.bracketResetConfirmBtn} onPress={handleConfirmBracketReset}>
                   <Ionicons name="checkmark" size={16} color="#fff" style={{ marginRight: 6 }} />
-                  <Text style={styles.bracketResetConfirmText}>Confirm Reset</Text>
+                  <Text style={styles.bracketResetConfirmText} maxFontSizeMultiplier={1}>Confirm Reset</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1659,44 +1647,37 @@
       fontSize: 13,
       fontWeight: '700',
     },
-    bracketResetButton: {
-      backgroundColor: '#7c3aed',
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      elevation: 4,
-    },
-    bracketResetButtonText: {
-      color: '#fff',
-      fontSize: 13,
-      fontWeight: '700',
-    },
     bracketResetModalCard: {
       backgroundColor: '#ffffff',
       borderRadius: 24,
       padding: 24,
       alignItems: 'center',
       width: '100%',
+      maxHeight: '92%',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.18,
       shadowRadius: 20,
       elevation: 12,
     },
+    bracketResetScroll: {
+      width: '100%',
+      flexShrink: 1,
+    },
+    bracketResetScrollContent: {
+      flexGrow: 0,
+      justifyContent: 'flex-start',
+      alignItems: 'center',
+      paddingBottom: 8,
+    },
     bracketResetIconCircle: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
+      width: 52,
+      height: 52,
+      borderRadius: 26,
       backgroundColor: '#f3f0ff',
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 12,
+      marginBottom: 10,
       borderWidth: 2,
       borderColor: '#ddd6fe',
     },
@@ -1706,43 +1687,47 @@
       color: '#1e293b',
       marginBottom: 8,
       letterSpacing: -0.3,
+      textAlign: 'center',
     },
     bracketResetModalSubtitle: {
       fontSize: 13,
       color: '#64748b',
       textAlign: 'center',
-      lineHeight: 20,
+      width: '100%',
       marginBottom: 0,
     },
     bracketResetDivider: {
       width: '100%',
       height: 1,
       backgroundColor: '#f1f5f9',
-      marginVertical: 16,
+      marginTop: 10,
+      marginBottom: 10,
     },
     bracketResetCostTitle: {
       fontSize: 10,
       fontWeight: '700',
       color: '#94a3b8',
       letterSpacing: 1.5,
-      marginBottom: 10,
+      marginBottom: 8,
+      textAlign: 'center',
     },
     bracketResetPenaltyHero: {
       alignItems: 'center',
+      justifyContent: 'center',
       backgroundColor: '#fef2f2',
       borderRadius: 16,
-      paddingVertical: 14,
-      paddingHorizontal: 40,
-      marginBottom: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 32,
+      marginBottom: 12,
       borderWidth: 1.5,
       borderColor: '#fca5a5',
+      width: '100%',
     },
     bracketResetPenaltyNum: {
-      fontSize: 48,
+      fontSize: 40,
       fontWeight: '900',
       color: '#dc2626',
       letterSpacing: -1,
-      lineHeight: 54,
     },
     bracketResetPenaltyLabel: {
       fontSize: 12,
@@ -1757,9 +1742,8 @@
       width: '100%',
       backgroundColor: '#f8fafc',
       borderRadius: 14,
-      paddingVertical: 12,
+      paddingVertical: 14,
       paddingHorizontal: 8,
-      gap: 0,
     },
     bracketResetBreakdownBox: {
       flex: 1,
@@ -1795,6 +1779,8 @@
       flexDirection: 'row',
       gap: 10,
       width: '100%',
+      paddingTop: 16,
+      flexShrink: 0,
     },
     bracketResetCancelBtn: {
       flex: 1,
@@ -1802,6 +1788,7 @@
       paddingVertical: 14,
       borderRadius: 14,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     bracketResetCancelText: {
       color: '#64748b',
@@ -1814,13 +1801,26 @@
       paddingVertical: 14,
       borderRadius: 14,
       alignItems: 'center',
-      flexDirection: 'row',
       justifyContent: 'center',
+      flexDirection: 'row',
     },
     bracketResetConfirmText: {
       color: '#ffffff',
       fontWeight: '700',
       fontSize: 15,
+    },
+    bracketResetButton: {
+      backgroundColor: '#7c3aed',
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 4,
     },
     fineChip: {
       flexDirection: 'row',

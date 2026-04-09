@@ -687,7 +687,7 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
             {numberOfChanges > 0 && (
               <View style={styles.changesCounter}>
                 <Ionicons name="create-outline" size={13} color="#f97316" />
-                <Text style={styles.changesCounterText}>{numberOfChanges} total changes</Text>
+                <Text style={styles.changesCounterText} numberOfLines={1} maxFontSizeMultiplier={1.2}>{numberOfChanges} changes</Text>
               </View>
             )}
           </View>
@@ -696,7 +696,7 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
               {showSaveButton && freeChanges > 0 && (
                 <View style={styles.freePill}>
                   <Ionicons name="gift-outline" size={12} color="#4ade80" />
-                  <Text style={styles.freePillText}>{freeRemaining} free</Text>
+                  <Text style={styles.freePillText} numberOfLines={1} maxFontSizeMultiplier={1.2}>{freeRemaining} free</Text>
                 </View>
               )}
               {showSaveButton && (
@@ -706,7 +706,7 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
                   disabled={!hasChanges || saving || autoSaving}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.saveButtonText}>
+                  <Text style={styles.saveButtonText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
                     {(saving || autoSaving) ? 'Saving...' : 'Save'}
                   </Text>
                 </TouchableOpacity>
@@ -722,8 +722,8 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
                     size={14}
                     color={showNetScore ? '#16a34a' : '#64748b'}
                   />
-                  <Text style={[styles.netScoreToggleText, showNetScore && styles.netScoreToggleTextActive]}>
-                    Net Score
+                  <Text style={[styles.netScoreToggleText, showNetScore && styles.netScoreToggleTextActive]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                    Net
                   </Text>
                 </TouchableOpacity>
               )}
@@ -877,8 +877,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    flexShrink: 1,
-    minWidth: 0,
+    flexShrink: 0,
+    minWidth: 70,
   },
   freePillText: {
     fontSize: 12,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import ThirdPlaceStatsModal from '../../components/stats/ThirdPlaceStatsModal';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image, Dimensions, BackHandler, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image, Dimensions, BackHandler, Modal, Pressable, PixelRatio } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useFocusEffect, useIsFocused } from '@react-navigation/native';
@@ -105,24 +105,23 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   // Calculate dynamic height based on actual measured heights
   const getCardHeight = () => {
     const screenHeight = Dimensions.get('window').height;
+    const fontScale = PixelRatio.getFontScale();
     
-    // Calculate reserved space from actual measurements
-    const tabBarHeight = 60; // Approximate tab bar height
+    const tabBarHeight = 60;
     const reservedSpace = 
-      insets.top + // Safe area top
-      headerHeight + // Header with "Predictions" title
-      tabBarHeight + // Bottom tab bar
-      150; // Additional padding
+      insets.top +
+      headerHeight +
+      tabBarHeight +
+      150;
     
     const availableHeight = screenHeight - reservedSpace;
+    const marginsBetweenRows = 3 * 8;
+    const baseCardHeight = (availableHeight - marginsBetweenRows) / 4;
     
-    // Account for margins between rows (3 gaps between 4 rows)
-    const marginsBetweenRows = 3 * 8; // 3 gaps * 8px each = 24px
+    // Expand cards when font is enlarged so text fits
+    const fontBonus = fontScale > 1.2 ? (fontScale - 1.2) * 40 : 0;
     
-    // Calculate height per card
-    const cardHeight = (availableHeight - marginsBetweenRows) / 4;
-    
-    return Math.max(cardHeight, 110); // Minimum height of 110px for iPhone mini
+    return Math.max(baseCardHeight + fontBonus, 110);
   };
 
   // Scale factor for small cards: 0.8 when height=110, 1 when height>=120
@@ -445,12 +444,17 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
           numberOfLines={2}
           adjustsFontSizeToFit={true}
           minimumFontScale={0.7}
+          maxFontSizeMultiplier={1}
         >
           {item.name}
         </Text>
         
         {/* Group name at bottom */}
-        <Text style={[styles.groupName, { fontSize: Math.round(12 * scale) }]}>Group {item.group_name}</Text>
+        <Text
+          style={[styles.groupName, { fontSize: Math.round(12 * scale) }]}
+          maxFontSizeMultiplier={1}
+          numberOfLines={1}
+        >Group {item.group_name}</Text>
         
         {/* Selection indicators - only show if no result */}
         {isSelected && !hasResult && (
@@ -571,8 +575,8 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
           {/* CENTER: Counter badge */}
           <View style={styles.headerCenter}>
             <View style={styles.counterBadge}>
-              <Text style={styles.counterBadgeText}>
-                {hasResult ? `Correct: ${correctCount}/8` : `Selected: ${selectedTeams.size}/8`}
+              <Text style={styles.counterBadgeText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                {hasResult ? `✓ ${correctCount}/8` : `${selectedTeams.size}/8`}
               </Text>
             </View>
           </View>
@@ -582,7 +586,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
             {showSaveButton && freeChanges > 0 && (
               <View style={styles.freePill}>
                 <Ionicons name="gift-outline" size={12} color="#4ade80" />
-                <Text style={styles.freePillText}>{freeRemaining} free</Text>
+                <Text style={styles.freePillText} numberOfLines={1} maxFontSizeMultiplier={1.2}>{freeRemaining} free</Text>
               </View>
             )}
             {showPoints ? (
@@ -597,12 +601,12 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
                     size={14}
                     color={showNetScore ? '#16a34a' : '#64748b'}
                   />
-                  <Text style={[styles.netScoreToggleText, showNetScore && styles.netScoreToggleTextActive]}>
-                    Net Score
+                  <Text style={[styles.netScoreToggleText, showNetScore && styles.netScoreToggleTextActive]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                    Net
                   </Text>
                 </TouchableOpacity>
                 <View style={[styles.pointsContainer, getPointsPillStyle()]}>
-                  <Text style={styles.totalPoints}>{displayPoints} pts</Text>
+                  <Text style={styles.totalPoints} numberOfLines={1} maxFontSizeMultiplier={1.2}>{displayPoints} pts</Text>
                 </View>
               </>
             ) : showSaveButton ? (
@@ -612,9 +616,9 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
                 disabled={saving || selectedTeams.size !== 8 || !hasChanges}
                 activeOpacity={0.85}
               >
-                <Text style={styles.saveButtonText}>
-                  {saving ? 'Saving...' : 'Save'}
-                </Text>
+                  <Text style={styles.saveButtonText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                    {saving ? 'Saving...' : 'Save'}
+                  </Text>
               </TouchableOpacity>
             ) : (
               <View style={{ minWidth: 36 }} />

@@ -76,13 +76,21 @@ export default function ThirdPlaceStatsModal({ visible, onClose }: Props) {
           const color = getRowColor(group);
           return (
             <View key={group} style={styles.groupRow}>
-              <Text style={[styles.groupLabel, { color, fontWeight: '700' }]}>
+              <Text
+                style={[styles.groupLabel, { color, fontWeight: '700' }]}
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.2}
+              >
                 Group {group}
               </Text>
               <View style={styles.barWrapper}>
                 <View style={[styles.bar, { width: `${Math.max(pct, 2)}%`, backgroundColor: color }]} />
               </View>
-              <Text style={[styles.pctText, { color, fontWeight: '600' }]}>{pct}%</Text>
+              <Text
+                style={[styles.pctText, { color, fontWeight: '600' }]}
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.2}
+              >{pct}%</Text>
             </View>
           );
         })}
@@ -120,8 +128,8 @@ export default function ThirdPlaceStatsModal({ visible, onClose }: Props) {
             const pct = stats.accuracy_distribution![String(n)] || 0;
             return (
               <View key={n} style={[styles.distItem, { backgroundColor: color }]}>
-                <Text style={[styles.distPct, { color: textColor }]}>{pct}%</Text>
-                <Text style={[styles.distLabel, { color: textColor }]}>{n}/8</Text>
+                <Text style={[styles.distPct, { color: textColor }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} maxFontSizeMultiplier={1}>{pct}%</Text>
+                <Text style={[styles.distLabel, { color: textColor }]} numberOfLines={1} maxFontSizeMultiplier={1}>{n}/8</Text>
               </View>
             );
           })}
@@ -135,7 +143,13 @@ export default function ThirdPlaceStatsModal({ visible, onClose }: Props) {
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity style={styles.modalContent} activeOpacity={1} onPress={() => {}}>
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { flex: 1, textAlign: 'center' }]}>3rd Place Statistics</Text>
+            <Text
+              style={[styles.modalTitle, { flex: 1, textAlign: 'center' }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+              maxFontSizeMultiplier={1.2}
+            >3rd Place Statistics</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButtonWrapper}>
               <Ionicons name="close" size={22} color="#64748b" />
             </TouchableOpacity>
@@ -225,7 +239,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a',
   },
   groupLabel: {
-    width: 60,
+    width: 72,
     fontSize: 13,
     color: '#374151',
     fontWeight: '500',
@@ -247,7 +261,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
   },
   pctText: {
-    width: 42,
+    width: 52,
     fontSize: 12,
     color: '#94a3b8',
     textAlign: 'right',

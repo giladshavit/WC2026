@@ -174,7 +174,7 @@ export default function CreateLeagueScreen() {
         >
           <View style={styles.formCard}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>League Name *</Text>
+              <Text style={styles.label} maxFontSizeMultiplier={1.2}>League Name *</Text>
               <TextInput
                 style={[styles.input, nameFocused && styles.inputFocused]}
                 value={name}
@@ -196,7 +196,7 @@ export default function CreateLeagueScreen() {
             </View>
 
             <View style={[styles.inputGroup, { marginBottom: 0 }]}>
-              <Text style={styles.label}>Description (optional)</Text>
+              <Text style={styles.label} maxFontSizeMultiplier={1.2}>Description (optional)</Text>
               <TextInput
                 style={[styles.input, styles.textArea, descFocused && styles.inputFocused]}
                 value={description}
@@ -214,7 +214,7 @@ export default function CreateLeagueScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Default View Mode</Text>
+              <Text style={styles.label} maxFontSizeMultiplier={1.2}>Default View Mode</Text>
               <View style={styles.modeToggleRow}>
                 <TouchableOpacity
                   style={[
@@ -227,7 +227,13 @@ export default function CreateLeagueScreen() {
                   activeOpacity={0.8}
                 >
                   <Ionicons name="trophy-outline" size={14} color={scoreMode === 'multi' ? '#f59e0b' : '#64748b'} />
-                  <Text style={[styles.modeBtnText, scoreMode === 'multi' ? { color: '#f59e0b', fontWeight: '700' } : {}]}>
+                  <Text
+                    style={[styles.modeBtnText, scoreMode === 'multi' ? { color: '#f59e0b', fontWeight: '700' } : {}]}
+                    maxFontSizeMultiplier={1.2}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.7}
+                  >
                     Multi Mode
                   </Text>
                 </TouchableOpacity>
@@ -242,7 +248,13 @@ export default function CreateLeagueScreen() {
                   activeOpacity={0.8}
                 >
                   <Ionicons name="football-outline" size={14} color={scoreMode === 'classic' ? '#38bdf8' : '#64748b'} />
-                  <Text style={[styles.modeBtnText, scoreMode === 'classic' ? { color: '#38bdf8', fontWeight: '700' } : {}]}>
+                  <Text
+                    style={[styles.modeBtnText, scoreMode === 'classic' ? { color: '#38bdf8', fontWeight: '700' } : {}]}
+                    maxFontSizeMultiplier={1.2}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.7}
+                  >
                     Classic Mode
                   </Text>
                 </TouchableOpacity>
@@ -250,16 +262,16 @@ export default function CreateLeagueScreen() {
               <View style={{ marginTop: 8, marginHorizontal: 4, gap: 4 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#38bdf8', flexShrink: 0, marginTop: 1 }} />
-                  <Text style={{ fontSize: 12, color: '#94a3b8', flexShrink: 1 }} numberOfLines={1}>
+                  <Text style={{ fontSize: 12, color: '#94a3b8', flexShrink: 1 }} maxFontSizeMultiplier={1.2} numberOfLines={1}>
                     <Text style={{ color: '#38bdf8', fontWeight: '700' }}>Classic</Text>
-                    {' — Match predictions + Bonus'}
+                    {' — Matches + Bonus'}
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
-                  <Text style={{ fontSize: 12, color: '#94a3b8', flexShrink: 1 }} numberOfLines={1}>
+                  <Text style={{ fontSize: 12, color: '#94a3b8', flexShrink: 1 }} maxFontSizeMultiplier={1.2} numberOfLines={1}>
                     <Text style={{ color: '#f59e0b', fontWeight: '700' }}>Multi</Text>
-                    {' — Full prediction suite'}
+                    {' — All predictions'}
                   </Text>
                 </View>
               </View>
@@ -271,7 +283,7 @@ export default function CreateLeagueScreen() {
               disabled={loading}
               activeOpacity={0.8}
             >
-              <Text style={styles.createButtonText}>
+              <Text style={styles.createButtonText} maxFontSizeMultiplier={1.2}>
                 {loading ? 'Creating...' : 'Create League'}
               </Text>
             </TouchableOpacity>

@@ -85,11 +85,11 @@ export default function ConfirmSaveModal({
               <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginBottom: 20 }}>
                 <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 12, paddingVertical: 12, borderWidth: 1.5, borderColor: '#fca5a5' }}>
                   <Text style={{ fontSize: 22, fontWeight: '700', color: '#dc2626' }}>{freeUsed}</Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>changes made</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>changes made</Text>
                 </View>
                 <View style={{ flex: 1, alignItems: 'center', backgroundColor: 'rgba(74,222,128,0.12)', borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: '#4ade80' }}>
                   <Text style={{ fontSize: 22, fontWeight: '700', color: '#16a34a' }}>{freeRemaining}</Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>free remaining</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>free remaining</Text>
                 </View>
               </View>
               <Pressable style={[styles.primaryButton, { backgroundColor: '#15803d' }]} onPress={onConfirm}>
@@ -117,11 +117,11 @@ export default function ConfirmSaveModal({
               <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginBottom: 20 }}>
                 <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 12, paddingVertical: 12, borderWidth: 1.5, borderColor: '#fca5a5' }}>
                   <Text style={{ fontSize: 22, fontWeight: '700', color: '#dc2626' }}>{changesCount}</Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>changes made</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>changes made</Text>
                 </View>
                 <View style={{ flex: 1, alignItems: 'center', backgroundColor: 'rgba(74,222,128,0.12)', borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: '#4ade80' }}>
                   <Text style={{ fontSize: 22, fontWeight: '700', color: '#16a34a' }}>{freeRemaining}</Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>free remaining</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>free remaining</Text>
                 </View>
               </View>
               <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>FINE</Text>
@@ -152,11 +152,11 @@ export default function ConfirmSaveModal({
               <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginBottom: 16 }}>
                 <View style={{ flex: 1, alignItems: 'center', backgroundColor: 'rgba(74,222,128,0.12)', borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: '#4ade80' }}>
                   <Text style={{ fontSize: 22, fontWeight: '700', color: '#16a34a' }}>{freeUsed}</Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>free used</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>free used</Text>
                 </View>
                 <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 12, paddingVertical: 12, borderWidth: 1.5, borderColor: '#fca5a5' }}>
                   <Text style={{ fontSize: 28, fontWeight: '900', color: '#dc2626' }}>{paidChanges}</Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>paid changes</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>paid changes</Text>
                 </View>
               </View>
               <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>FINE</Text>

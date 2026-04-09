@@ -55,7 +55,7 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
         {stats.top_matchups.map((matchup, index) => (
           <View key={index} style={styles.matchupCard}>
             <Text style={styles.matchupSubtitle}>
-              <Text style={styles.matchupPctHighlight}>{matchup.matchup_pct}%</Text>
+              <Text style={styles.matchupPctHighlight} maxFontSizeMultiplier={1.2}>{matchup.matchup_pct}%</Text>
               {' of predictions'}
             </Text>
             <View style={styles.teamsRow}>
@@ -67,7 +67,7 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
                 )}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#3b82f6' }} />
-                  <Text style={styles.teamNameInCard} numberOfLines={2}>{matchup.team_a.name}</Text>
+                  <Text style={styles.teamNameInCard} numberOfLines={2} maxFontSizeMultiplier={1.2}>{matchup.team_a.name}</Text>
                 </View>
               </View>
               <Text style={styles.vsLabel}>vs</Text>
@@ -79,19 +79,19 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
                 )}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#f97316' }} />
-                  <Text style={styles.teamNameInCard} numberOfLines={2}>{matchup.team_b.name}</Text>
+                  <Text style={styles.teamNameInCard} numberOfLines={2} maxFontSizeMultiplier={1.2}>{matchup.team_b.name}</Text>
                 </View>
               </View>
             </View>
             <View style={styles.winnerBar}>
               {(matchup.team_a_winner_pct ?? 0) > 0 && (
                 <View style={[styles.winnerSegmentA, { flex: matchup.team_a_winner_pct }]}>
-                  <Text style={styles.winnerBarText}>{matchup.team_a_winner_pct}%</Text>
+                  <Text style={styles.winnerBarText} maxFontSizeMultiplier={1}>{matchup.team_a_winner_pct}%</Text>
                 </View>
               )}
               {(matchup.team_b_winner_pct ?? 0) > 0 && (
                 <View style={[styles.winnerSegmentB, { flex: matchup.team_b_winner_pct }]}>
-                  <Text style={styles.winnerBarText}>{matchup.team_b_winner_pct}%</Text>
+                  <Text style={styles.winnerBarText} maxFontSizeMultiplier={1}>{matchup.team_b_winner_pct}%</Text>
                 </View>
               )}
             </View>
@@ -185,7 +185,11 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity style={styles.modalContent} activeOpacity={1} onPress={() => {}}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Knockout Match Statistics</Text>
+            <Text
+              style={[styles.modalTitle, { paddingRight: 28 }]}
+              numberOfLines={2}
+              maxFontSizeMultiplier={1.2}
+            >Knockout Match Statistics</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButtonWrapper}>
               <Text style={styles.closeButton}>✕</Text>
             </TouchableOpacity>
@@ -195,7 +199,7 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
           {error && <Text style={styles.errorText}>{error}</Text>}
 
           {stats && !loading && (
-            <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ maxHeight: 520 }} showsVerticalScrollIndicator={true}>
               {stats.has_result ? renderPostResult() : renderPreResult()}
             </ScrollView>
           )}

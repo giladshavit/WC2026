@@ -173,6 +173,7 @@ export default function KnockoutPage({ isActive }: KnockoutPageProps) {
               <Text
                 style={[styles.teamName, team1Win ? styles.teamNameWinner : styles.teamNameDefault]}
                 numberOfLines={2}
+                maxFontSizeMultiplier={1.1}
               >
                 {match.team1.name}
               </Text>
@@ -184,6 +185,7 @@ export default function KnockoutPage({ isActive }: KnockoutPageProps) {
               <Text
                 style={[styles.teamName, team2Win ? styles.teamNameWinner : styles.teamNameDefault]}
                 numberOfLines={2}
+                maxFontSizeMultiplier={1.1}
               >
                 {match.team2.name}
               </Text>
@@ -198,15 +200,15 @@ export default function KnockoutPage({ isActive }: KnockoutPageProps) {
     <View style={styles.root}>
       <View style={styles.staticHeader}>
         <View style={styles.modeBadge}>
-          <Text style={styles.modeBadgeText}>MULTI MODE</Text>
+          <Text style={styles.modeBadgeText} allowFontScaling={false}>MULTI MODE</Text>
         </View>
-        <Text style={styles.pageSubtitle}>
+        <Text style={styles.pageSubtitle} maxFontSizeMultiplier={1.15} numberOfLines={2} ellipsizeMode="tail">
           Pick the winning team in every knockout match round by round
         </Text>
       </View>
 
       <View style={styles.sectionPillWrap}>
-        <Text style={styles.sectionPill}>ROUND OF 32</Text>
+        <Text style={styles.sectionPill} allowFontScaling={false}>ROUND OF 32</Text>
       </View>
 
       <ScrollView
@@ -230,8 +232,8 @@ const styles = StyleSheet.create({
   },
   staticHeader: {
     alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
     zIndex: 10,
     backgroundColor: STATUS_BAR_BG,
   },
@@ -254,14 +256,14 @@ const styles = StyleSheet.create({
     color: '#cbd5e1',
     fontWeight: '500',
     textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 22,
+    marginTop: 6,
+    lineHeight: 20,
     paddingHorizontal: 20,
   },
   sectionPillWrap: {
     alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 12,
+    marginTop: 8,
+    marginBottom: 8,
   },
   sectionPill: {
     backgroundColor: '#0f172a',

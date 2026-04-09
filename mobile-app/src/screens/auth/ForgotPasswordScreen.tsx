@@ -147,8 +147,8 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
         >
           {step === 'email' ? (
             <View style={styles.form}>
-              <Text style={styles.screenTitle}>Forgot Password</Text>
-              <Text style={styles.screenSubtitle}>
+              <Text style={styles.screenTitle} maxFontSizeMultiplier={1.2}>Forgot Password</Text>
+              <Text style={styles.screenSubtitle} maxFontSizeMultiplier={1.2}>
                 {`Enter your email and we'll send you a reset code`}
               </Text>
               <View style={styles.inputContainer}>
@@ -172,6 +172,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                   autoCorrect={false}
                   editable={!isLoading}
                   maxLength={100}
+                  maxFontSizeMultiplier={1.2}
                 />
               </View>
               <TouchableOpacity
@@ -184,16 +185,16 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                 </Text>
               </TouchableOpacity>
               <View style={styles.switchContainer}>
-                <Text style={styles.switchText}>Remember your password? </Text>
+                <Text style={styles.switchText} maxFontSizeMultiplier={1.2}>Remember your password? </Text>
                 <TouchableOpacity onPress={onBack} disabled={isLoading}>
-                  <Text style={styles.switchLink}>Log in here</Text>
+                  <Text style={styles.switchLink} maxFontSizeMultiplier={1.2}>Log in here</Text>
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
             <View style={styles.form}>
-              <Text style={styles.screenTitle}>Enter Reset Code</Text>
-              <Text style={styles.screenSubtitle}>
+              <Text style={styles.screenTitle} maxFontSizeMultiplier={1.2}>Enter Reset Code</Text>
+              <Text style={styles.screenSubtitle} maxFontSizeMultiplier={1.2}>
                 Check your email for the 6-digit code
               </Text>
               <Text style={styles.emailHint}>{email.trim().toLowerCase()}</Text>
@@ -217,6 +218,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                   placeholderTextColor="#64748b"
                   keyboardType="numeric"
                   maxLength={6}
+                  maxFontSizeMultiplier={1.2}
                 />
               </View>
               <View style={styles.inputContainer}>
@@ -240,6 +242,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                   autoCorrect={false}
                   editable={!isLoading}
                   maxLength={20}
+                  maxFontSizeMultiplier={1.2}
                 />
               </View>
               <View style={styles.inputContainer}>
@@ -263,6 +266,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                   autoCorrect={false}
                   editable={!isLoading}
                   maxLength={20}
+                  maxFontSizeMultiplier={1.2}
                 />
               </View>
               <TouchableOpacity
@@ -275,9 +279,9 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                 </Text>
               </TouchableOpacity>
               <View style={styles.switchContainer}>
-                <Text style={styles.switchText}>Want to try again? </Text>
+                <Text style={styles.switchText} maxFontSizeMultiplier={1.2}>Want to try again? </Text>
                 <TouchableOpacity onPress={() => setStep('email')} disabled={isLoading}>
-                  <Text style={styles.switchLink}>Go back</Text>
+                  <Text style={styles.switchLink} maxFontSizeMultiplier={1.2}>Go back</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -400,7 +404,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    flexWrap: 'wrap',
     marginTop: 24,
+    gap: 4,
   },
   switchText: {
     fontSize: 16,

@@ -281,6 +281,10 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
                         styles.heatmapCellText,
                         { color: pct < 15 ? 'rgba(255,255,255,0.5)' : '#ffffff' },
                       ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.5}
+                      maxFontSizeMultiplier={1}
                     >
                       {pct}%
                     </Text>
@@ -298,33 +302,29 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
   const renderPostResult = () => {
     if (!stats || !stats.position_accuracy || !stats.accuracy_distribution) return null;
 
-    const positionLabels: Record<string, string> = {
-      first_place: '1st',
-      second_place: '2nd',
-      third_place: '3rd',
-      fourth_place: '4th',
+    const positionNumbers: Record<string, number> = {
+      first_place: 1,
+      second_place: 2,
+      third_place: 3,
+      fourth_place: 4,
     };
-
     return (
       <View>
         <Text style={styles.sectionTitle}>Who Got It Right?</Text>
         {Object.entries(stats.position_accuracy).map(([pos, data]) => {
           const team = teams.find(t => t.name === data.team_name);
+          const n = positionNumbers[pos] ?? 0;
+          const badgeBg = '#6b7280';
           return (
             <View key={pos} style={styles.accuracyRow}>
-              <Text
-                style={[
-                  styles.posLabel,
-                  pos === 'third_place' && { color: '#f97316' },
-                ]}
-              >
-                {positionLabels[pos] || pos}
-              </Text>
+              <View style={[styles.accuracyPositionBadge, { backgroundColor: badgeBg }]}>
+                <Text style={styles.accuracyPositionText}>{n}</Text>
+              </View>
               {team?.flag_url ? (
                 <Image source={{ uri: team.flag_url }} style={styles.teamFlag} />
               ) : null}
               <Text style={styles.accuracyTeam}>{data.team_name}</Text>
-              <Text style={styles.accuracyPct}>{data.correct_pct}%</Text>
+              <Text style={styles.accuracyPct} numberOfLines={1} maxFontSizeMultiplier={1.2}>{data.correct_pct}%</Text>
             </View>
           );
         })}
@@ -499,12 +499,15 @@ const styles = StyleSheet.create({
     height: 36,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 2,
+    marginHorizontal: 1,
     borderRadius: 4,
+    paddingHorizontal: 2,
+    overflow: 'hidden',
   },
   heatmapCellText: {
     fontSize: 12,
     fontWeight: 'bold',
+    textAlign: 'center',
   },
   accuracyRow: {
     flexDirection: 'row',
@@ -513,11 +516,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#2d4a6e',
   },
-  posLabel: {
-    width: 32,
+  accuracyPositionBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  accuracyPositionText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#64748b',
+    fontWeight: 'bold',
+    color: '#fff',
   },
   accuracyTeam: {
     flex: 1,

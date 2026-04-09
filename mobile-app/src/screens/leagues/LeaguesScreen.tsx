@@ -115,16 +115,16 @@ export default function LeaguesScreen() {
           <Text style={styles.avatarLetter}>{item.name.charAt(0).toUpperCase()}</Text>
         </View>
         <View style={styles.leagueCardCenter}>
-          <Text style={styles.leagueName}>{item.name}</Text>
+          <Text style={styles.leagueName} maxFontSizeMultiplier={1.2}>{item.name}</Text>
           <View style={styles.memberRow}>
             <Ionicons name="people-outline" size={14} color="#94a3b8" />
-            <Text style={styles.memberCount}>{item.member_count} members</Text>
+            <Text style={styles.memberCount} maxFontSizeMultiplier={1.2}>{item.member_count} members</Text>
           </View>
         </View>
         <View style={styles.leagueCardRight}>
           {leagueWithRank.user_rank != null && (
             <View style={styles.rankPill}>
-              <Text style={styles.rankPillText}>#{leagueWithRank.user_rank}</Text>
+              <Text style={styles.rankPillText} maxFontSizeMultiplier={1.2}>#{leagueWithRank.user_rank}</Text>
             </View>
           )}
           <Ionicons name="chevron-forward" size={20} color="#64748b" />
@@ -137,15 +137,15 @@ export default function LeaguesScreen() {
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Ionicons name="lock-closed-outline" size={12} color="#64748b" />
-          <Text style={styles.inviteCodeLabel}>Code:</Text>
-          <Text style={styles.inviteCode}>{item.invite_code}</Text>
+          <Text style={styles.inviteCodeLabel} maxFontSizeMultiplier={1.2}>Code:</Text>
+          <Text style={styles.inviteCode} maxFontSizeMultiplier={1.2}>{item.invite_code}</Text>
           {copiedLeagueId === item.id ? (
             <Text style={styles.copiedText}>Copied!</Text>
           ) : null}
         </TouchableOpacity>
         <View style={styles.dateRow}>
           <Ionicons name="calendar-outline" size={14} color="#94a3b8" />
-          <Text style={styles.joinedDate}>
+          <Text style={styles.joinedDate} maxFontSizeMultiplier={1.2}>
             {new Date(item.joined_at || item.created_at).toLocaleDateString()}
           </Text>
         </View>
@@ -168,7 +168,7 @@ export default function LeaguesScreen() {
       >
         <Ionicons name="globe-outline" size={32} color="#ffffff" style={styles.globalTrophy} />
         <View style={styles.globalLeagueContent}>
-          <Text style={styles.globalLeagueTitle}>Global League</Text>
+          <Text style={styles.globalLeagueTitle} maxFontSizeMultiplier={1.2}>Global League</Text>
         </View>
         <Ionicons name="chevron-forward" size={24} color="#ffffff" />
       </LinearGradient>
@@ -194,14 +194,30 @@ export default function LeaguesScreen() {
         onPress={handleCreateLeague}
         activeOpacity={0.7}
       >
-        <Text style={[styles.emptyButtonText, styles.emptyButtonCreateText]}>+ Create League</Text>
+        <Text
+          style={[styles.emptyButtonText, styles.emptyButtonCreateText]}
+          maxFontSizeMultiplier={1.3}
+          numberOfLines={1}
+          adjustsFontSizeToFit={true}
+          minimumFontScale={0.75}
+        >
+          + Create League
+        </Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.emptyButton}
         onPress={handleJoinLeague}
         activeOpacity={0.7}
       >
-        <Text style={styles.emptyButtonText}>Enter Code</Text>
+        <Text
+          style={styles.emptyButtonText}
+          maxFontSizeMultiplier={1.2}
+          numberOfLines={1}
+          adjustsFontSizeToFit={true}
+          minimumFontScale={0.75}
+        >
+          Enter Code
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -597,12 +613,14 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderRadius: 10,
     borderWidth: 2,
     borderColor: '#2563eb',
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
   },
   emptyButtonCreate: {
     backgroundColor: '#2563eb',
@@ -612,6 +630,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#93c5fd',
+    textAlign: 'center',
   },
   emptyButtonCreateText: {
     color: '#ffffff',

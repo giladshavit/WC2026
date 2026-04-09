@@ -9,6 +9,13 @@ import SplashScreen from './src/screens/SplashScreen';
 import { TournamentProvider } from './src/contexts/TournamentContext';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ToastProvider } from './src/components/toast/Toast';
+import { Text, TextInput } from 'react-native';
+
+// Global font scaling cap — allows up to 30% enlargement, prevents layout breakage
+if ((Text as any).defaultProps == null) (Text as any).defaultProps = {};
+(Text as any).defaultProps.maxFontSizeMultiplier = 1.3;
+if ((TextInput as any).defaultProps == null) (TextInput as any).defaultProps = {};
+(TextInput as any).defaultProps.maxFontSizeMultiplier = 1.3;
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();

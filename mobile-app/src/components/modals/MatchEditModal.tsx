@@ -40,12 +40,12 @@ export default function MatchEditModal({ visible, match, onClose, onSave, errorM
   const getTeamNameDisplayProps = (teamName: string) => {
     const nameLength = teamName.length;
     if (nameLength <= 12) {
-      return { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.9, fontSize: 16 };
+      return { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.85, fontSize: 16 };
     }
     if (nameLength <= 20) {
-      return { numberOfLines: 2, adjustsFontSizeToFit: false, fontSize: 15 };
+      return { numberOfLines: 2, adjustsFontSizeToFit: true, minimumFontScale: 0.75, fontSize: 15 };
     }
-    return { numberOfLines: 2, adjustsFontSizeToFit: false, fontSize: 13 };
+    return { numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7, fontSize: 13 };
   };
 
   useEffect(() => {
@@ -276,6 +276,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     letterSpacing: 0.3,
     textAlign: 'center',
+    paddingHorizontal: 44,
   },
   closeButton: {
     position: 'absolute',
@@ -348,11 +349,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#152a45',
     borderRadius: 12,
     padding: 12,
+    paddingBottom: 48,
     marginHorizontal: 6,
     borderWidth: 2,
     borderColor: '#2d4a6e',
     alignItems: 'center',
-    minHeight: 140,
+    minHeight: 150,
   },
   selectedCard: {
     backgroundColor: 'rgba(22,163,74,0.15)',
@@ -392,6 +394,9 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   checkPlaceholder: {
+    position: 'absolute',
+    bottom: 8,
+    alignSelf: 'center',
     height: 26,
     justifyContent: 'center',
     alignItems: 'center',

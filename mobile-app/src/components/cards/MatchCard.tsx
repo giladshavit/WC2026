@@ -406,9 +406,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
       <View style={styles.teamNameWrapper}>
         <Text
           style={[styles.teamName, field === 'home' && styles.teamNameHome]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.75}
+          numberOfLines={2}
           ellipsizeMode="tail"
         >
           {name}
@@ -612,12 +610,12 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
             >
               <Ionicons name="close" size={22} color="#a78bfa" />
             </TouchableOpacity>
-            <Text style={styles.temptationModalTitle}>Temptation Offer</Text>
+            <Text style={styles.temptationModalTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} maxFontSizeMultiplier={1.2}>Temptation Offer</Text>
             <View style={styles.temptationModalSubtitleWrap}>
-              <Text style={styles.temptationModalSubtitle}>Pick one of the rare predictions below.</Text>
+              <Text style={styles.temptationModalSubtitle} numberOfLines={2} maxFontSizeMultiplier={1.2}>Pick one of the rare predictions below.</Text>
               <Text style={styles.temptationModalSubtitleLine2}>
-                <Text style={styles.temptationModalSubtitleGray}>If correct, you earn </Text>
-                <Text style={styles.temptationModalSubtitlePurple}>×2 points!</Text>
+                  <Text style={styles.temptationModalSubtitleGray} maxFontSizeMultiplier={1.2}>If correct, you earn </Text>
+                  <Text style={styles.temptationModalSubtitlePurple} maxFontSizeMultiplier={1.2}>×2 points!</Text>
               </Text>
             </View>
             <View style={styles.temptationModalDivider} />
@@ -775,6 +773,8 @@ const styles = StyleSheet.create({
   teamNameWrapper: {
     width: 90,
     alignItems: 'center',
+    minHeight: 36,
+    justifyContent: 'center',
   },
   teamName: {
     fontSize: 13,

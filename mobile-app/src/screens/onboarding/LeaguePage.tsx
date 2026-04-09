@@ -779,9 +779,9 @@ export function ClassicLeaguePage({ isActive }: { isActive: boolean }) {
     <View style={styles.root}>
       <View style={styles.staticHeader}>
         <View style={styles.modeBadgeClassic}>
-          <Text style={styles.modeBadgeTextClassic}>CLASSIC MODE</Text>
+          <Text style={styles.modeBadgeTextClassic} allowFontScaling={false}>CLASSIC MODE</Text>
         </View>
-        <Text style={styles.pageSubtitle}>
+        <Text style={styles.pageSubtitle} maxFontSizeMultiplier={1.15} numberOfLines={2} ellipsizeMode="tail">
           Your league standings - sorted by total points from matches + bonus questions
         </Text>
       </View>
@@ -830,9 +830,9 @@ export function MultiLeaguePage({ isActive }: { isActive: boolean }) {
     <View style={styles.root}>
       <View style={styles.staticHeader}>
         <View style={styles.modeBadgeMulti}>
-          <Text style={styles.modeBadgeTextMulti}>MULTI MODE</Text>
+          <Text style={styles.modeBadgeTextMulti} allowFontScaling={false}>MULTI MODE</Text>
         </View>
-        <Text style={styles.pageSubtitle}>
+        <Text style={styles.pageSubtitle} maxFontSizeMultiplier={1.15} numberOfLines={2} ellipsizeMode="tail">
           Total = Matches + Groups & 3rd Place + Knockout + Bonus − Fines
         </Text>
       </View>
@@ -865,8 +865,8 @@ const styles = StyleSheet.create({
   },
   staticHeader: {
     alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
     zIndex: 10,
     backgroundColor: STATUS_BAR_BG,
   },
@@ -903,8 +903,8 @@ const styles = StyleSheet.create({
     color: '#cbd5e1',
     fontWeight: '500',
     textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 22,
+    marginTop: 6,
+    lineHeight: 20,
     paddingHorizontal: 20,
   },
   body: {
