@@ -20,7 +20,6 @@
     "@shopify/flash-list": "2.0.2",
     "expo": "~54.0.0",
     "expo-clipboard": "^8.0.7",
-    "expo-dev-client": "~6.0.20",
     "expo-device": "~8.0.10",
     "expo-linear-gradient": "~15.0.8",
     "expo-media-library": "~18.2.1",
@@ -37,6 +36,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "expo-dev-client": "~6.0.20",
     "jimp": "^1.6.0",
     "typescript": "~5.9.2"
   },
