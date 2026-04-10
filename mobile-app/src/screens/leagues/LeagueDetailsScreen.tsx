@@ -9,8 +9,8 @@ import {
   Animated,
   ActivityIndicator,
   Modal,
+  FlatList,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -1085,13 +1085,13 @@ export default function LeagueDetailsScreen() {
   const showOnlyTotalColumn = isLiveMode;
 
   // Fixed widths
-  const COL_NUM_W = 30;
+  const COL_NUM_W = 28;
   const COL_FINE_W = 30;
   const COL_TOTAL_W = 50;
 
   const middleWidth = scoreMode === 'classic'
-    ? COL_NUM_W * 5           // exact, correct, wrong, matches, bonus
-    : COL_NUM_W * 4 + COL_FINE_W; // matches, groups, knockout, bonus, fine
+    ? COL_NUM_W * 5 + 16           // exact, correct, wrong, matches, bonus
+    : COL_NUM_W * 4 + COL_FINE_W + 16; // matches, groups, knockout, bonus, fine
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1237,17 +1237,12 @@ export default function LeagueDetailsScreen() {
       <View style={styles.content}>
         <View style={[styles.tableSection, { maxWidth: 520, alignSelf: 'center', width: '100%' }]}>
           <View style={{ flex: 1, position: 'relative' }}>
-          <FlashList
-            drawDistance={1200}
-            // @ts-expect-error FlashList v2 typings omit estimatedItemSize; kept for layout hints / forward-compat
-            estimatedItemSize={56}
-            maintainVisibleContentPosition={{ disabled: true }}
+          <FlatList
             key={String(leagueId) + '-' + scoreMode + '-' + String(isLiveMode)}
             ref={flashListRef}
             data={standingsListData}
             extraData={sortBy + scoreMode + String(page)}
             keyExtractor={(item) => (isStandingsTableHeaderRow(item) ? '__standings_header' : String(item.user_id))}
-            getItemType={(item) => (isStandingsTableHeaderRow(item) ? 'header' : 'row')}
             onEndReached={() => {
               if (!loadingMore && !refreshing && allStandings.length < totalCount) {
                 setPage((p) => p + 1);
