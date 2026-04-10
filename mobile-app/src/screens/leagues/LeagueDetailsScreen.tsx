@@ -1257,7 +1257,7 @@ export default function LeagueDetailsScreen() {
                 tintColor="#ffffff"
               />
             }
-            stickyHeaderIndices={[0]}
+            stickyHeaderIndices={[1]}
             ListHeaderComponent={
               <View>
                 {topThree.length >= 3 && (
