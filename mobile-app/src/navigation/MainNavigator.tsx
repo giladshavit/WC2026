@@ -13,22 +13,12 @@ import AdminNavigator from './AdminNavigator';
 import PublicProfileScreen from '../screens/PublicProfileScreen';
 import RulesScreen from '../screens/RulesScreen';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
+import QuickPicksScreen from '../screens/onboarding/QuickPicksScreen';
+import QuickPicksT3Screen from '../screens/onboarding/QuickPicksT3Screen';
+import QuickPicksDoneScreen from '../screens/onboarding/QuickPicksDoneScreen';
+import type { MainStackParamList } from './MainStackParamList';
 
-export type MainStackParamList = {
-  Home: undefined;
-  Profile: undefined;
-  PredictionsMenu: undefined;
-  MatchPredictions: undefined;
-  RoutePredictions: undefined;
-  Bracket: undefined;
-  BonusPredictions: undefined;
-  Leagues: undefined;
-  Statistics: undefined;
-  Rules: undefined;
-  Onboarding: undefined;
-  Admin: undefined;
-  PublicProfile: { userId: number; username: string };
-};
+export type { MainStackParamList };
 
 const Stack = createStackNavigator<MainStackParamList>();
 
@@ -131,6 +121,21 @@ export default function MainNavigator() {
       <Stack.Screen
         name="Onboarding"
         component={OnboardingScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="QuickPicks"
+        component={QuickPicksScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="QuickPicksT3"
+        component={QuickPicksT3Screen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="QuickPicksDone"
+        component={QuickPicksDoneScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen

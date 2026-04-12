@@ -9,6 +9,7 @@ import {
   StatusBar,
   PixelRatio,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -124,16 +125,48 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [currentStage, setCurrentStage] = React.useState<string | null>(null);
   const [isAdminFromConfig, setIsAdminFromConfig] = React.useState(false);
+  const [isFirstSession, setIsFirstSession] = React.useState(false);
   const fontScale = PixelRatio.getFontScale();
   const scrollEnabled = fontScale > 1.2;
+  const didCheckRef = React.useRef(false);
 
   useFocusEffect(
     React.useCallback(() => {
-      apiService.getAppConfig().then((config) => {
-        if (config?.current_stage) setCurrentStage(config.current_stage);
-        setIsAdminFromConfig(config?.is_admin === true);
-      }).catch(() => {});
-    }, [])
+      let cancelled = false;
+      (async () => {
+        // Onboarding check: only run once per component mount
+        if (!didCheckRef.current) {
+          didCheckRef.current = true;
+
+          const completed = await AsyncStorage.getItem('onboarding_completed');
+
+          if (!completed) {
+            if (!cancelled) {
+              setIsFirstSession(true);
+              await AsyncStorage.setItem('is_first_session', 'true');
+              navigation.replace('Onboarding', { mode: 'first-session' });
+            }
+            return;
+          }
+
+          // Check if we're returning to Home still within the first session flow
+          const firstSession = await AsyncStorage.getItem('is_first_session');
+          if (firstSession === 'true' && !cancelled) {
+            setIsFirstSession(true);
+            await AsyncStorage.removeItem('is_first_session');
+          }
+        }
+
+        apiService.getAppConfig().then((config) => {
+          if (cancelled) return;
+          if (config?.current_stage) setCurrentStage(config.current_stage);
+          setIsAdminFromConfig(config?.is_admin === true);
+        }).catch(() => {});
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [navigation])
   );
 
   const isAdmin =
@@ -175,7 +208,7 @@ export default function HomeScreen() {
           action.navigateTo === 'Statistics' && styles.statsButton,
           action.navigateTo === 'Profile' && styles.profileButton,
         ]}
-        onPress={() => navigation.navigate(action.navigateTo)}
+        onPress={() => navigation.navigate(action.navigateTo as never)}
         activeOpacity={0.8}
       >
         {action.navigateTo === 'Statistics' ? (
@@ -220,7 +253,7 @@ export default function HomeScreen() {
         </View>
         <View style={styles.logoSeparator} />
         <Text style={styles.greeting} maxFontSizeMultiplier={1.3} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>
-          Welcome back, {user?.username ?? 'Champ'}!
+          {isFirstSession ? 'Welcome' : 'Welcome back'}, {user?.username ?? 'Champ'}!
         </Text>
         {currentStage && STAGE_LABELS[currentStage] && (
           <View style={styles.stageRow}>
@@ -261,7 +294,7 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={[styles.infoBtn, styles.infoBtnHighlight]}
-            onPress={() => navigation.navigate('Onboarding')}
+            onPress={() => navigation.navigate('Onboarding' as never)}
             activeOpacity={0.75}
           >
             <Ionicons name="play-circle-outline" size={18} color="#38bdf8" />

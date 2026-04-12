@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { MainStackParamList } from '../../navigation/MainNavigator';
 import WelcomePage from './WelcomePage';
@@ -36,6 +36,8 @@ type OnboardingSlide = {
 
 export default function OnboardingScreen({ onDone: onDoneProp }: OnboardingScreenProps) {
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
+  const route = useRoute<RouteProp<MainStackParamList, 'Onboarding'>>();
+  const mode = route.params?.mode ?? 'replay';
   const insets = useSafeAreaInsets();
   const [page, setPage] = React.useState(0);
   const listRef = React.useRef<FlatList>(null);
@@ -43,10 +45,12 @@ export default function OnboardingScreen({ onDone: onDoneProp }: OnboardingScree
   const onDone = React.useCallback(() => {
     if (onDoneProp) {
       onDoneProp();
+    } else if (mode === 'first-session') {
+      navigation.replace('QuickPicks');
     } else {
       navigation.goBack();
     }
-  }, [navigation, onDoneProp]);
+  }, [navigation, onDoneProp, mode]);
 
   const pages = React.useMemo<OnboardingSlide[]>(
     () => [
