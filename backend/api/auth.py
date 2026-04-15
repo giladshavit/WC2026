@@ -91,6 +91,30 @@ class ResetPasswordRequest(BaseModel):
     otp_code: str
     new_password: str
 
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+    username: Optional[str] = None
+    name: Optional[str] = None
+
+class AppleAuthRequest(BaseModel):
+    identity_token: str
+    username: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+
+class SocialAuthResponse(BaseModel):
+    needs_registration: bool
+    # When needs_registration=True:
+    google_id: Optional[str] = None
+    apple_id: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None  # prefill from Google/Apple
+    # When needs_registration=False (same as AuthResponse):
+    user_id: Optional[int] = None
+    username: Optional[str] = None
+    access_token: Optional[str] = None
+    token_type: Optional[str] = None
+
 # Dependency to get current user
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -163,6 +187,16 @@ def login_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Login failed: {str(e)}"
         )
+
+@router.post("/google", response_model=SocialAuthResponse)
+def google_auth(data: GoogleAuthRequest, db: Session = Depends(get_db)):
+    result = AuthService.social_auth_google(db, data.id_token, data.username, data.name)
+    return SocialAuthResponse(**result)
+
+@router.post("/apple", response_model=SocialAuthResponse)
+def apple_auth(data: AppleAuthRequest, db: Session = Depends(get_db)):
+    result = AuthService.social_auth_apple(db, data.identity_token, data.username, data.name, data.email)
+    return SocialAuthResponse(**result)
 
 @router.post("/forgot-password", status_code=200)
 def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
