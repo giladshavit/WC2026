@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ScrollView as RNScrollView } from 'react-native';
-import { useAuth } from '../../contexts/AuthContext';
+import * as SecureStore from 'expo-secure-store';
 import { apiService } from '../../services/api';
 
 export interface SocialUsernameScreenProps {
@@ -28,6 +28,11 @@ export interface SocialUsernameScreenProps {
 }
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
+
+async function storeAuthData(token: string, userData: any) {
+  await SecureStore.setItemAsync('auth_token', token);
+  await SecureStore.setItemAsync('auth_user', JSON.stringify(userData));
+}
 
 export default function SocialUsernameScreen({
   provider,
@@ -47,7 +52,6 @@ export default function SocialUsernameScreen({
   } | null>(null);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const scrollViewRef = useRef<RNScrollView>(null);
-  const { loginWithGoogle, loginWithApple } = useAuth();
 
   const scrollToInput = (yPosition: number) => {
     scrollViewRef.current?.scrollTo({ y: yPosition, animated: true });
@@ -109,7 +113,9 @@ export default function SocialUsernameScreen({
           name: trimmedName,
         });
         if (!result.needs_registration && result.access_token && result.user_id) {
-          await loginWithGoogle(id_token!);
+          apiService.setAccessToken(result.access_token);
+          const userData = await apiService.getCurrentUser();
+          await storeAuthData(result.access_token, userData);
           onSuccess();
         } else {
           setErrorModal({
@@ -125,7 +131,9 @@ export default function SocialUsernameScreen({
           email,
         });
         if (!result.needs_registration && result.access_token && result.user_id) {
-          await loginWithApple(identity_token!, email);
+          apiService.setAccessToken(result.access_token);
+          const userData = await apiService.getCurrentUser();
+          await storeAuthData(result.access_token, userData);
           onSuccess();
         } else {
           setErrorModal({
