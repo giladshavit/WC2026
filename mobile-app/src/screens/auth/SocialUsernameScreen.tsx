@@ -12,8 +12,11 @@ import {
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ScrollView as RNScrollView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { apiService } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 export interface SocialUsernameScreenProps {
   provider: 'google' | 'apple';
@@ -28,11 +31,6 @@ export interface SocialUsernameScreenProps {
 }
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
-
-async function storeAuthData(token: string, userData: any) {
-  await SecureStore.setItemAsync('auth_token', token);
-  await SecureStore.setItemAsync('auth_user', JSON.stringify(userData));
-}
 
 export default function SocialUsernameScreen({
   provider,
@@ -52,6 +50,7 @@ export default function SocialUsernameScreen({
   } | null>(null);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const scrollViewRef = useRef<RNScrollView>(null);
+  const { setUser } = useAuth();
 
   const scrollToInput = (yPosition: number) => {
     scrollViewRef.current?.scrollTo({ y: yPosition, animated: true });
@@ -115,7 +114,9 @@ export default function SocialUsernameScreen({
         if (!result.needs_registration && result.access_token && result.user_id) {
           apiService.setAccessToken(result.access_token);
           const userData = await apiService.getCurrentUser();
-          await storeAuthData(result.access_token, userData);
+          await SecureStore.setItemAsync('auth_token', result.access_token);
+          await SecureStore.setItemAsync('auth_user', JSON.stringify(userData));
+          setUser(userData);
           onSuccess();
         } else {
           setErrorModal({
@@ -133,7 +134,9 @@ export default function SocialUsernameScreen({
         if (!result.needs_registration && result.access_token && result.user_id) {
           apiService.setAccessToken(result.access_token);
           const userData = await apiService.getCurrentUser();
-          await storeAuthData(result.access_token, userData);
+          await SecureStore.setItemAsync('auth_token', result.access_token);
+          await SecureStore.setItemAsync('auth_user', JSON.stringify(userData));
+          setUser(userData);
           onSuccess();
         } else {
           setErrorModal({
@@ -177,96 +180,100 @@ export default function SocialUsernameScreen({
 
   return (
     <>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-        <ScrollView
-          ref={scrollViewRef}
-          contentContainerStyle={styles.scrollContainer}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-        >
-          <View style={styles.headerRow}>
-            <TouchableOpacity
-              onPress={onBack}
-              disabled={isLoading}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
+      <LinearGradient colors={['#0f172a', '#1e3a2f']} style={{ flex: 1 }}>
+        <SafeAreaView style={{ flex: 1 }}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+            <ScrollView
+              ref={scrollViewRef}
+              contentContainerStyle={styles.scrollContainer}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
             >
-              <Ionicons name="arrow-back" size={24} color="#16a34a" />
-            </TouchableOpacity>
-          </View>
+              <View style={styles.headerRow}>
+                <TouchableOpacity
+                  onPress={onBack}
+                  disabled={isLoading}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Go back"
+                >
+                  <Ionicons name="arrow-back" size={24} color="#16a34a" />
+                </TouchableOpacity>
+              </View>
 
-          <Text style={styles.screenTitle} maxFontSizeMultiplier={1.2}>
-            Almost there!
-          </Text>
-          <Text style={styles.screenSubtitle} maxFontSizeMultiplier={1.2}>
-            Choose a username to complete your sign-up
-          </Text>
-
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  focusedInput === 'name' && styles.inputFocused,
-                ]}
-                value={name}
-                onChangeText={setName}
-                onFocus={() => {
-                  setFocusedInput('name');
-                  scrollToInput(0);
-                }}
-                onBlur={() => setFocusedInput(null)}
-                placeholder="Enter full name"
-                placeholderTextColor="#64748b"
-                textContentType="name"
-                autoCapitalize="words"
-                autoCorrect={false}
-                editable={!isLoading}
-                maxLength={14}
-                maxFontSizeMultiplier={1.2}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Username</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  focusedInput === 'username' && styles.inputFocused,
-                ]}
-                value={username}
-                onChangeText={setUsername}
-                onFocus={() => {
-                  setFocusedInput('username');
-                  scrollToInput(80);
-                }}
-                onBlur={() => setFocusedInput(null)}
-                placeholder="Enter username (3–14 chars)"
-                placeholderTextColor="#64748b"
-                textContentType="username"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-                maxLength={14}
-                maxFontSizeMultiplier={1.2}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleContinue}
-              disabled={isLoading}
-            >
-              <Text style={styles.buttonText}>
-                {isLoading ? 'Please wait...' : 'Continue'}
+              <Text style={styles.screenTitle} maxFontSizeMultiplier={1.2}>
+                One last step! 🎉
               </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              <Text style={styles.screenSubtitle} maxFontSizeMultiplier={1.2}>
+                You're signed in. Just choose a display name and username.
+              </Text>
+
+              <View style={styles.form}>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Full Name</Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedInput === 'name' && styles.inputFocused,
+                    ]}
+                    value={name}
+                    onChangeText={setName}
+                    onFocus={() => {
+                      setFocusedInput('name');
+                      scrollToInput(0);
+                    }}
+                    onBlur={() => setFocusedInput(null)}
+                    placeholder="Enter full name"
+                    placeholderTextColor="#64748b"
+                    textContentType="name"
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                    maxLength={14}
+                    maxFontSizeMultiplier={1.2}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Username</Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedInput === 'username' && styles.inputFocused,
+                    ]}
+                    value={username}
+                    onChangeText={setUsername}
+                    onFocus={() => {
+                      setFocusedInput('username');
+                      scrollToInput(80);
+                    }}
+                    onBlur={() => setFocusedInput(null)}
+                    placeholder="Enter username (3–14 chars)"
+                    placeholderTextColor="#64748b"
+                    textContentType="username"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                    maxLength={14}
+                    maxFontSizeMultiplier={1.2}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.button, isLoading && styles.buttonDisabled]}
+                  onPress={handleContinue}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.buttonText}>
+                    {isLoading ? 'Please wait...' : 'Continue'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </LinearGradient>
 
       <Modal visible={!!errorModal} transparent animationType="fade">
         <Pressable

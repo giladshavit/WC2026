@@ -111,12 +111,16 @@ export default function MyProfileScreen() {
             <Text style={styles.infoLabel} maxFontSizeMultiplier={1.3}>Username</Text>
             <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>{user?.username ?? '—'}</Text>
           </View>
-          <View style={styles.infoSeparator} />
-          <View style={styles.infoRow}>
-            <Ionicons name="mail-outline" size={18} color="#16a34a" />
-            <Text style={styles.infoLabel} maxFontSizeMultiplier={1.3}>Email</Text>
-            <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>{user?.email ?? '—'}</Text>
-          </View>
+          {user?.email && !user.email.endsWith('@privaterelay.appleid.com') ? (
+            <>
+              <View style={styles.infoSeparator} />
+              <View style={styles.infoRow}>
+                <Ionicons name="mail-outline" size={18} color="#16a34a" />
+                <Text style={styles.infoLabel} maxFontSizeMultiplier={1.0}>Email</Text>
+                <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit maxFontSizeMultiplier={1.0}>{user.email}</Text>
+              </View>
+            </>
+          ) : null}
           <View style={styles.infoSeparator} />
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={18} color="#16a34a" />
@@ -312,12 +316,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   infoLabel: {
-    flex: 1,
+    flexShrink: 0,
     fontSize: 15,
     color: '#64748b',
     fontWeight: '500',
   },
   infoValue: {
+    flex: 1,
     fontSize: 15,
     color: '#1e293b',
     fontWeight: '600',
