@@ -24,6 +24,12 @@ def datetime_to_utc_iso(dt: datetime | None) -> str | None:
     Serialize datetime to ISO string with Z suffix (UTC).
     Assumes naive datetime is already in UTC.
     """
+    if isinstance(dt, str):
+        from datetime import datetime
+        try:
+            dt = datetime.fromisoformat(dt)
+        except ValueError:
+            return dt  # return as-is if unparseable
     if dt is None:
         return None
     iso = dt.isoformat()
