@@ -203,10 +203,10 @@ export default function SocialUsernameScreen({
               </View>
 
               <Text style={styles.screenTitle} maxFontSizeMultiplier={1.2}>
-                One last step! 🎉
+                You're signed in!
               </Text>
               <Text style={styles.screenSubtitle} maxFontSizeMultiplier={1.2}>
-                You're signed in. Just choose a display name and username.
+                Choose a display name and username to continue.
               </Text>
 
               <View style={styles.form}>
