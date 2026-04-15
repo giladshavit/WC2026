@@ -5,14 +5,28 @@ import { LinearGradient } from 'expo-linear-gradient';
 import LoginScreen from './LoginScreen';
 import RegisterScreen from './RegisterScreen';
 import ForgotPasswordScreen from './ForgotPasswordScreen';
+import SocialUsernameScreen from './SocialUsernameScreen';
 
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [socialRegData, setSocialRegData] = useState<{
+    provider: 'google' | 'apple';
+    google_id?: string;
+    apple_id?: string;
+    email?: string;
+    name?: string;
+    id_token?: string;
+    identity_token?: string;
+  } | null>(null);
   const insets = useSafeAreaInsets();
 
   const switchToRegister = () => setIsLogin(false);
   const switchToLogin = () => setIsLogin(true);
+
+  const handleSocialRegistration = (data: typeof socialRegData) => {
+    setSocialRegData(data);
+  };
 
   return (
     <LinearGradient
@@ -50,15 +64,31 @@ export default function AuthScreen() {
       )}
 
       <View style={styles.content}>
-        {isForgotPassword ? (
+        {socialRegData !== null ? (
+          <SocialUsernameScreen
+            provider={socialRegData.provider}
+            google_id={socialRegData.google_id}
+            apple_id={socialRegData.apple_id}
+            email={socialRegData.email}
+            prefillName={socialRegData.name}
+            id_token={socialRegData.id_token}
+            identity_token={socialRegData.identity_token}
+            onSuccess={() => setSocialRegData(null)}
+            onBack={() => setSocialRegData(null)}
+          />
+        ) : isForgotPassword ? (
           <ForgotPasswordScreen onBack={() => setIsForgotPassword(false)} />
         ) : isLogin ? (
           <LoginScreen
             onSwitchToRegister={switchToRegister}
             onForgotPassword={() => setIsForgotPassword(true)}
+            onSocialRegistration={handleSocialRegistration}
           />
         ) : (
-          <RegisterScreen onSwitchToLogin={switchToLogin} />
+          <RegisterScreen
+            onSwitchToLogin={switchToLogin}
+            onSocialRegistration={handleSocialRegistration}
+          />
         )}
       </View>
     </LinearGradient>

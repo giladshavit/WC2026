@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,36 @@ import {
   ScrollView,
   Modal,
   Pressable,
+  Platform,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ScrollView as RNScrollView } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuth } from '../../contexts/AuthContext';
+
+WebBrowser.maybeCompleteAuthSession();
 
 interface RegisterScreenProps {
   onSwitchToLogin: () => void;
+  onSocialRegistration?: (data: {
+    provider: 'google' | 'apple';
+    google_id?: string;
+    apple_id?: string;
+    email?: string;
+    name?: string;
+    id_token?: string;
+    identity_token?: string;
+  }) => void;
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps) {
+export default function RegisterScreen({
+  onSwitchToLogin,
+  onSocialRegistration,
+}: RegisterScreenProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -33,7 +51,100 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
   } | null>(null);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const scrollViewRef = useRef<RNScrollView>(null);
-  const { register } = useAuth();
+  const { register, loginWithGoogle, loginWithApple } = useAuth();
+
+  const [_request, response, promptAsync] = Google.useAuthRequest({
+    iosClientId: '3581541137-s8l6a0emn5cm6nor6rd65lp67b69enc1.apps.googleusercontent.com',
+    androidClientId: '3581541137-0oeqbcv9rrbmth9oo8h3o7777evi9afq.apps.googleusercontent.com',
+  });
+
+  const handleGoogleToken = useCallback(
+    async (idToken: string) => {
+      if (!idToken) {
+        return;
+      }
+      try {
+        setIsLoading(true);
+        const result = await loginWithGoogle(idToken);
+        if (result.needs_registration) {
+          onSocialRegistration?.({
+            provider: 'google',
+            ...result,
+            id_token: idToken,
+          });
+        }
+      } catch (err) {
+        if (err instanceof Error && (err as Error & { httpStatus?: number }).httpStatus === 409) {
+          setErrorModal({
+            title: 'Account Exists',
+            message:
+              'This email is already registered. Please login with username and password.',
+          });
+        } else {
+          setErrorModal({
+            title: 'Error',
+            message: 'Google sign-in failed. Please try again.',
+          });
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [loginWithGoogle, onSocialRegistration]
+  );
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      handleGoogleToken(response.authentication?.idToken ?? '');
+    }
+  }, [response, handleGoogleToken]);
+
+  const handleAppleSignIn = async () => {
+    try {
+      setIsLoading(true);
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      const result = await loginWithApple(
+        credential.identityToken ?? '',
+        credential.email ?? undefined
+      );
+      if (result.needs_registration) {
+        const name =
+          credential.fullName?.givenName && credential.fullName?.familyName
+            ? `${credential.fullName.givenName} ${credential.fullName.familyName}`
+            : undefined;
+        onSocialRegistration?.({
+          provider: 'apple',
+          ...result,
+          identity_token: credential.identityToken ?? '',
+          name: name ?? result.name,
+        });
+      }
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === 'ERR_CANCELED') {
+        return;
+      }
+      if (err instanceof Error && (err as Error & { httpStatus?: number }).httpStatus === 409) {
+        setErrorModal({
+          title: 'Account Exists',
+          message:
+            'This email is already registered. Please login with username and password.',
+        });
+      } else {
+        setErrorModal({
+          title: 'Error',
+          message: 'Apple sign-in failed. Please try again.',
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const scrollToInput = (yPosition: number) => {
     scrollViewRef.current?.scrollTo({ y: yPosition, animated: true });
@@ -236,6 +347,32 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
               </Text>
             </TouchableOpacity>
 
+            <Text style={styles.socialDivider}>───── or ─────</Text>
+
+            <TouchableOpacity
+              style={[styles.socialButtonBase, styles.socialButtonGoogle]}
+              onPress={() => {
+                void promptAsync();
+              }}
+              disabled={isLoading}
+            >
+              <Ionicons name="logo-google" size={20} color="#1f2937" />
+              <Text style={styles.socialButtonTextDark}>Continue with Google</Text>
+            </TouchableOpacity>
+
+            {Platform.OS === 'ios' ? (
+              <TouchableOpacity
+                style={[styles.socialButtonBase, styles.socialButtonApple]}
+                onPress={() => {
+                  void handleAppleSignIn();
+                }}
+                disabled={isLoading}
+              >
+                <Ionicons name="logo-apple" size={20} color="#ffffff" />
+                <Text style={styles.socialButtonTextLight}>Continue with Apple</Text>
+              </TouchableOpacity>
+            ) : null}
+
             <View style={styles.switchContainer}>
               <Text style={styles.switchText} maxFontSizeMultiplier={1.2}>Already have an account? </Text>
               <TouchableOpacity onPress={onSwitchToLogin} disabled={isLoading}>
@@ -322,6 +459,39 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#ffffff',
     fontSize: 18,
+    fontWeight: '600',
+  },
+  socialDivider: {
+    textAlign: 'center',
+    color: '#64748b',
+    marginTop: 20,
+    marginBottom: 20,
+    fontSize: 14,
+  },
+  socialButtonBase: {
+    height: 48,
+    borderRadius: 12,
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  socialButtonGoogle: {
+    backgroundColor: '#ffffff',
+  },
+  socialButtonApple: {
+    backgroundColor: '#000000',
+    marginTop: 12,
+  },
+  socialButtonTextDark: {
+    color: '#1f2937',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  socialButtonTextLight: {
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: '600',
   },
   switchContainer: {

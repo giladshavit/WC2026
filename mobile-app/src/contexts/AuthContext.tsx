@@ -10,6 +10,8 @@ interface AuthContextType {
   register: (username: string, password: string, name: string, email: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<{ needs_registration: boolean; google_id?: string; apple_id?: string; email?: string; name?: string }>;
+  loginWithApple: (identityToken: string, email?: string) => Promise<{ needs_registration: boolean; google_id?: string; apple_id?: string; email?: string; name?: string }>;
   getCurrentUserId: () => number | null;
 }
 
@@ -133,6 +135,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return user?.user_id || null;
   };
 
+  const loginWithGoogle = async (idToken: string) => {
+    const result = await apiService.loginWithGoogle({ id_token: idToken });
+    if (!result.needs_registration && result.access_token && result.user_id) {
+      apiService.setAccessToken(result.access_token);
+      const userData = await apiService.getCurrentUser();
+      await storeAuth({ access_token: result.access_token, token_type: 'bearer', user_id: result.user_id, username: result.username ?? '', name: result.name ?? '' }, userData);
+      setUser(userData);
+    }
+    return result;
+  };
+
+  const loginWithApple = async (identityToken: string, email?: string) => {
+    const result = await apiService.loginWithApple({ identity_token: identityToken, email });
+    if (!result.needs_registration && result.access_token && result.user_id) {
+      apiService.setAccessToken(result.access_token);
+      const userData = await apiService.getCurrentUser();
+      await storeAuth({ access_token: result.access_token, token_type: 'bearer', user_id: result.user_id, username: result.username ?? '', name: result.name ?? '' }, userData);
+      setUser(userData);
+    }
+    return result;
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -141,6 +165,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     refreshUser,
+    loginWithGoogle,
+    loginWithApple,
     getCurrentUserId,
   };
 

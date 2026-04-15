@@ -89,6 +89,33 @@ export interface AuthResponse {
   token_type: string;
 }
 
+interface SocialAuthResponse {
+  needs_registration: boolean;
+  // needs_registration=true:
+  google_id?: string;
+  apple_id?: string;
+  email?: string;
+  name?: string;
+  // needs_registration=false:
+  user_id?: number;
+  username?: string;
+  access_token?: string;
+  token_type?: string;
+}
+
+interface GoogleAuthRequest {
+  id_token: string;
+  username?: string;
+  name?: string;
+}
+
+interface AppleAuthRequest {
+  identity_token: string;
+  username?: string;
+  name?: string;
+  email?: string;
+}
+
 export interface LoginRequest {
   username: string;
   password: string;
@@ -503,6 +530,44 @@ export class ApiService {
       err.httpStatus = response.status;
       throw err;
     }
+  }
+
+  async loginWithGoogle(data: GoogleAuthRequest): Promise<SocialAuthResponse> {
+    const response = await fetch(`${this.baseUrl}/api/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const err = new Error(errorData.detail || 'Google sign-in failed') as Error & { httpStatus?: number };
+      err.httpStatus = response.status;
+      throw err;
+    }
+    const result = await response.json();
+    if (!result.needs_registration && result.access_token) {
+      this.accessToken = result.access_token;
+    }
+    return result;
+  }
+
+  async loginWithApple(data: AppleAuthRequest): Promise<SocialAuthResponse> {
+    const response = await fetch(`${this.baseUrl}/api/auth/apple`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const err = new Error(errorData.detail || 'Apple sign-in failed') as Error & { httpStatus?: number };
+      err.httpStatus = response.status;
+      throw err;
+    }
+    const result = await response.json();
+    if (!result.needs_registration && result.access_token) {
+      this.accessToken = result.access_token;
+    }
+    return result;
   }
 
   async login(credentials: LoginRequest): Promise<AuthResponse> {
