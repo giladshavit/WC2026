@@ -52,10 +52,9 @@ export default function LoginScreen({
   const scrollViewRef = useRef<RNScrollView>(null);
   const { login, loginWithGoogle, loginWithApple } = useAuth();
 
-  const [_request, response, promptAsync] = Google.useAuthRequest({
+  const [_request, response, promptAsync] = Google.useIdTokenAuthRequest({
     iosClientId: '3581541137-s8l6a0emn5cm6nor6rd65lp67b69enc1.apps.googleusercontent.com',
     androidClientId: '3581541137-0oeqbcv9rrbmth9oo8h3o7777evi9afq.apps.googleusercontent.com',
-    scopes: ['openid', 'profile', 'email'],
   });
 
   const handleGoogleToken = useCallback(
