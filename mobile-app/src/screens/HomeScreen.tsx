@@ -304,14 +304,28 @@ export default function HomeScreen() {
         </View>
 
         {isAdmin && (
-          <TouchableOpacity
-            style={styles.adminPill}
-            onPress={() => navigation.navigate('Admin' as any)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="settings-outline" size={14} color="#9ca3af" />
-            <Text style={styles.adminPillText}>Admin</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={styles.adminPill}
+              onPress={() => navigation.navigate('Admin' as any)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="settings-outline" size={14} color="#9ca3af" />
+              <Text style={styles.adminPillText}>Admin</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.debugPill}
+              onPress={async () => {
+                await AsyncStorage.multiRemove(['onboarding_completed', 'quick_picks_done', 'is_first_session']);
+                didCheckRef.current = false;
+                navigation.replace('Onboarding', { mode: 'first-session' });
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="refresh-outline" size={14} color="#f59e0b" />
+              <Text style={styles.debugPillText}>Replay Onboarding</Text>
+            </TouchableOpacity>
+          </>
         )}
       </ScrollView>
     </View>
@@ -474,4 +488,18 @@ const styles = StyleSheet.create({
   accentButtonTitle: { color: '#ffffff' },
   buttonSubtitle: { fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 4 },
   accentButtonSubtitle: { color: 'rgba(255,255,255,0.8)' },
+  debugPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#78350f',
+    marginTop: 6,
+  },
+  debugPillText: { fontSize: 13, color: '#f59e0b', fontWeight: '500' },
 });

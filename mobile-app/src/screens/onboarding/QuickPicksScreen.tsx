@@ -161,14 +161,6 @@ export default function QuickPicksScreen() {
                   )}
                 </View>
               </View>
-              <Text
-                style={[styles.teamName, { width: teamCellWidth - 2 }, selected && styles.teamNameSelected]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-              >
-                {t.name}
-              </Text>
             </TouchableOpacity>
           );
         })}
@@ -204,7 +196,7 @@ export default function QuickPicksScreen() {
       </View>
 
       <View style={styles.dots}>
-        {[0, 1].map((i) => (
+        {[0, 1, 2].map((i) => (
           <View key={i} style={[styles.dot, i === 0 && styles.dotActive]} />
         ))}
       </View>
@@ -295,15 +287,6 @@ const styles = StyleSheet.create({
   },
   flagPlaceholder: {
     backgroundColor: '#475569',
-  },
-  teamName: {
-    fontSize: 7,
-    marginTop: 2,
-    color: '#64748b',
-    textAlign: 'center',
-  },
-  teamNameSelected: {
-    color: '#ffffff',
   },
   footer: {
     paddingHorizontal: 24,

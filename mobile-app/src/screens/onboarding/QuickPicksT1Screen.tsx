@@ -16,50 +16,29 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import type { MainStackParamList } from '../../navigation/MainStackParamList';
-import { apiService, BonusOptions, BonusPrediction } from '../../services/api';
+import { apiService, BonusPrediction } from '../../services/api';
 
 type NavProp = StackNavigationProp<MainStackParamList>;
 
 const BG = '#0f172a';
 const { width: screenWidth } = Dimensions.get('window');
 
-const FLAG_CODE_TO_EMOJI: Record<string, string> = {
-  fr: '🇫🇷',
-  'gb-eng': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-  no: '🇳🇴',
-  es: '🇪🇸',
-  ar: '🇦🇷',
-  pt: '🇵🇹',
-  be: '🇧🇪',
-  br: '🇧🇷',
-  nl: '🇳🇱',
-  de: '🇩🇪',
-  eg: '🇪🇬',
-  sn: '🇸🇳',
-  uy: '🇺🇾',
-  'gb-sct': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
-  us: '🇺🇸',
-  mx: '🇲🇽',
-  ma: '🇲🇦',
-  jp: '🇯🇵',
-  hr: '🇭🇷',
-};
-
 const markDone = async () => {
   await AsyncStorage.setItem('onboarding_completed', 'true');
   await AsyncStorage.setItem('quick_picks_done', 'true');
 };
 
-export default function QuickPicksT3Screen() {
+export default function QuickPicksT1Screen() {
   const navigation = useNavigation<NavProp>();
-  const route = useRoute<RouteProp<MainStackParamList, 'QuickPicksT3'>>();
+  const route = useRoute<RouteProp<MainStackParamList, 'QuickPicksT1'>>();
   const insets = useSafeAreaInsets();
 
   const selectedT2 = route.params?.selectedT2 ?? null;
+  const selectedT3 = route.params?.selectedT3 ?? null;
 
   const [loading, setLoading] = React.useState(true);
-  const [options, setOptions] = React.useState<BonusOptions | null>(null);
-  const [selectedT3, setSelectedT3] = React.useState<string | null>(null);
+  const [t1Options, setT1Options] = React.useState<Array<{ value: string; label: string }>>([]);
+  const [selectedT1, setSelectedT1] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -70,8 +49,8 @@ export default function QuickPicksT3Screen() {
           apiService.getBonusPrediction(),
         ]);
         if (cancelled) return;
-        setOptions(opts);
-        if (pred.t3_top_scorer) setSelectedT3(pred.t3_top_scorer);
+        setT1Options(opts.t1 ?? []);
+        if (pred.t1_total_goals_tournament) setSelectedT1(pred.t1_total_goals_tournament);
       } catch {
         // ignore
       } finally {
@@ -83,37 +62,21 @@ export default function QuickPicksT3Screen() {
     };
   }, []);
 
-  const saveAndGo = React.useCallback(
-    async (dest: 'MatchPredictions' | 'Home') => {
-      const payload: Partial<BonusPrediction> = {};
-      if (selectedT2 != null) payload.t2_champion_team_id = selectedT2;
-      if (selectedT3) payload.t3_top_scorer = selectedT3;
-      if (Object.keys(payload).length > 0) {
-        try {
-          await apiService.updateBonusPrediction(payload);
-        } catch {
-          // ignore
-        }
-      }
-      await markDone();
-      navigation.replace(dest);
-    },
-    [navigation, selectedT2, selectedT3]
-  );
-
   const onSkip = React.useCallback(async () => {
-    if (selectedT2 != null) {
+    const payload: Partial<BonusPrediction> = {};
+    if (selectedT2 != null) payload.t2_champion_team_id = selectedT2;
+    if (selectedT3) payload.t3_top_scorer = selectedT3;
+    if (Object.keys(payload).length > 0) {
       try {
-        await apiService.updateBonusPrediction({ t2_champion_team_id: selectedT2 });
+        await apiService.updateBonusPrediction(payload);
       } catch {
         // ignore
       }
     }
     await markDone();
     navigation.replace('Home');
-  }, [navigation, selectedT2]);
+  }, [navigation, selectedT2, selectedT3]);
 
-  const t3Opts = options?.t3 ?? [];
   const GAP = 10;
   const pillW = (screenWidth - 80 - GAP) / 2;
 
@@ -141,12 +104,12 @@ export default function QuickPicksT3Screen() {
       </View>
 
       <View style={styles.questionBlock}>
-        <Text style={styles.questionTitle}>Who will be the top scorer?</Text>
+        <Text style={styles.questionTitle}>How many goals in the tournament?</Text>
       </View>
 
       <View style={styles.dots}>
         {[0, 1, 2].map((i) => (
-          <View key={i} style={[styles.dot, i === 1 && styles.dotActive]} />
+          <View key={i} style={[styles.dot, i === 2 && styles.dotActive]} />
         ))}
       </View>
 
@@ -156,26 +119,30 @@ export default function QuickPicksT3Screen() {
           style={{ flex: 1 }}
           contentContainerStyle={[styles.t3ScrollContent, { gap: GAP }]}
         >
-          {t3Opts.map((opt) => {
-            const selected = selectedT3 === opt.value;
-            const flag = (opt as { flag?: string }).flag;
-            const emoji = flag ? FLAG_CODE_TO_EMOJI[flag] ?? null : null;
+          {t1Options.map((opt) => {
+            const selected = selectedT1 === opt.value;
             return (
               <TouchableOpacity
                 key={opt.value}
                 style={[styles.t3Pill, { width: pillW }, selected && styles.t3PillSelected]}
-                onPress={() => {
-                  navigation.navigate('QuickPicksT1', { selectedT2: selectedT2, selectedT3: opt.value });
+                onPress={async () => {
+                  setSelectedT1(opt.value);
+                  const payload: Partial<BonusPrediction> = {};
+                  if (selectedT2 != null) payload.t2_champion_team_id = selectedT2;
+                  if (selectedT3) payload.t3_top_scorer = selectedT3;
+                  payload.t1_total_goals_tournament = opt.value;
+                  try {
+                    await apiService.updateBonusPrediction(payload);
+                  } catch {
+                    // ignore
+                  }
+                  await markDone();
+                  navigation.replace('QuickPicksDone');
                 }}
                 activeOpacity={0.7}
               >
-                {emoji ? (
-                  <Text style={styles.t3Emoji}>{emoji}</Text>
-                ) : (
-                  <View style={styles.t3EmojiPlaceholder} />
-                )}
                 <Text
-                  style={[styles.t3PillText, selected && styles.t3PillTextSelected]}
+                  style={[styles.t3PillText, styles.t1PillTextCenter, selected && styles.t3PillTextSelected]}
                   numberOfLines={1}
                   adjustsFontSizeToFit
                   minimumFontScale={0.7}
@@ -222,8 +189,8 @@ const styles = StyleSheet.create({
     borderColor: '#2d4a6e',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 10,
-    gap: 8,
   },
   t3PillSelected: {
     backgroundColor: '#16a34a',
@@ -233,22 +200,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  t3Emoji: { fontSize: 18, lineHeight: 22 },
-  t3EmojiPlaceholder: { width: 22, height: 16, borderRadius: 2, backgroundColor: '#334155' },
-  t3PillText: { fontSize: 13, fontWeight: '600', color: '#94a3b8', flex: 1 },
+  t3PillText: { fontSize: 13, fontWeight: '600', color: '#94a3b8' },
+  t1PillTextCenter: { textAlign: 'center' },
   t3PillTextSelected: { color: '#fff', fontWeight: '700' },
   footer: { paddingHorizontal: 24, paddingTop: 8, gap: 12, backgroundColor: BG },
   skipBtn: { alignSelf: 'center', paddingVertical: 4 },
   skipText: { fontSize: 15, fontWeight: '600', color: '#94a3b8' },
-  primaryBtn: { backgroundColor: '#16a34a', borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
-  primaryBtnText: { fontSize: 17, fontWeight: '700', color: '#ffffff' },
-  ghostBtn: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#334155',
-    backgroundColor: 'transparent',
-  },
-  ghostBtnText: { fontSize: 16, fontWeight: '600', color: '#94a3b8' },
 });

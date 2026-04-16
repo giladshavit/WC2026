@@ -12,6 +12,7 @@ export type MainStackParamList = {
   Onboarding: { mode?: 'first-session' | 'replay' };
   QuickPicks: undefined;
   QuickPicksT3: { selectedT2: number | null };
+  QuickPicksT1: { selectedT2: number | null; selectedT3: string | null };
   QuickPicksDone: undefined;
   Admin: undefined;
   PublicProfile: { userId: number; username: string };

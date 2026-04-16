@@ -1438,23 +1438,6 @@ export default function BonusScreen() {
                     </View>
                   )}
                 </View>
-                <Text
-                  style={[
-                    {
-                      fontSize: 7,
-                      marginTop: 2,
-                      color: selected ? '#ffffff' : '#64748b',
-                      width: teamCellWidth - 2,
-                      textAlign: 'center',
-                    },
-                    !isEditable && styles.optionTextLocked,
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.7}
-                >
-                  {t.name}
-                </Text>
               </TouchableOpacity>
             );
           })}

@@ -15,6 +15,7 @@ import RulesScreen from '../screens/RulesScreen';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import QuickPicksScreen from '../screens/onboarding/QuickPicksScreen';
 import QuickPicksT3Screen from '../screens/onboarding/QuickPicksT3Screen';
+import QuickPicksT1Screen from '../screens/onboarding/QuickPicksT1Screen';
 import QuickPicksDoneScreen from '../screens/onboarding/QuickPicksDoneScreen';
 import type { MainStackParamList } from './MainStackParamList';
 
@@ -131,6 +132,11 @@ export default function MainNavigator() {
       <Stack.Screen
         name="QuickPicksT3"
         component={QuickPicksT3Screen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="QuickPicksT1"
+        component={QuickPicksT1Screen}
         options={{ headerShown: false }}
       />
       <Stack.Screen

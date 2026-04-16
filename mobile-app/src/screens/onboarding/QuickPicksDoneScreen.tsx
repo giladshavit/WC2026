@@ -61,7 +61,7 @@ export default function QuickPicksDoneScreen() {
           style={styles.subtitle}
           maxFontSizeMultiplier={1.2}
         >
-          Your tournament winner and top scorer picks are in.{'\n'}Now go predict the matches!
+          Your tournament winner, top scorer and total goals picks are in.{'\n'}Now go predict the matches!
         </Text>
       </ScrollView>
 
