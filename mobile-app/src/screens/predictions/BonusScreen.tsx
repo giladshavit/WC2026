@@ -114,28 +114,6 @@ type FieldKey = (typeof ALL_FIELDS)[number];
 const PILL_FIELDS = ['g1', 'g4', 'g5', 'g6', 'k1', 'k2', 'k3', 't1', 't3'];
 const PICKER_FIELDS = ['g2', 'g3', 't2'];
 
-const FLAG_CODE_TO_EMOJI: Record<string, string> = {
-  'fr': '🇫🇷',
-  'gb-eng': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-  'no': '🇳🇴',
-  'es': '🇪🇸',
-  'ar': '🇦🇷',
-  'pt': '🇵🇹',
-  'be': '🇧🇪',
-  'br': '🇧🇷',
-  'nl': '🇳🇱',
-  'de': '🇩🇪',
-  'eg': '🇪🇬',
-  'sn': '🇸🇳',
-  'uy': '🇺🇾',
-  'gb-sct': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
-  'us': '🇺🇸',
-  'mx': '🇲🇽',
-  'ma': '🇲🇦',
-  'jp': '🇯🇵',
-  'hr': '🇭🇷',
-};
-
 const { width: screenWidth } = Dimensions.get('window');
 
 const SECTION_ICONS: Record<string, string> = {
@@ -1521,8 +1499,6 @@ export default function BonusScreen() {
     if (field === 't3') {
       const correctValRaw = getCorrectAnswerForField(field);
       const correctIds = correctValRaw ? correctValRaw.split(',').map((s) => s.trim()) : [];
-      const GAP = 10;
-      const pillW = (screenWidth - 80 - GAP) / 2;
 
       const getLockedPillStyle = (optValue: string) => {
         const userVal = String(localAnswers[field] ?? '');
@@ -1539,6 +1515,22 @@ export default function BonusScreen() {
         return { style: styles.pillDimmed, textColor: undefined };
       };
 
+      const CARD_GAP = 6;
+      const CARD_COLS = 3;
+      const CARD_W = Math.floor((screenWidth - 88 - CARD_GAP * (CARD_COLS - 1)) / CARD_COLS);
+      const PHOTO_SIZE = Math.floor(CARD_W * 0.52);
+      const TEXT_AREA_H = 46;
+      const CARD_PADDING_TOP = 8;
+      const CARD_PADDING_BOTTOM = 12;
+      const CARD_H = PHOTO_SIZE + TEXT_AREA_H + CARD_PADDING_TOP + CARD_PADDING_BOTTOM;
+      const FLAG_SIZE = 12;
+
+      const FLAG_CODE_TO_EMOJI: Record<string, string> = {
+        'fr': '🇫🇷', 'gb-eng': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'no': '🇳🇴', 'es': '🇪🇸',
+        'ar': '🇦🇷', 'pt': '🇵🇹', 'be': '🇧🇪', 'br': '🇧🇷',
+        'nl': '🇳🇱', 'de': '🇩🇪',
+      };
+
       return (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -1546,61 +1538,99 @@ export default function BonusScreen() {
           contentContainerStyle={{
             flexDirection: 'row',
             flexWrap: 'wrap',
-            gap: GAP,
+            gap: CARD_GAP,
             paddingBottom: 16,
-            paddingHorizontal: 0,
+            paddingHorizontal: 4,
             justifyContent: 'center',
           }}
         >
           {getOptionsForField('t3').map((opt) => {
             const selected = String(localAnswers[field] ?? '') === opt.value;
             const lockedStyle = !isEditable ? getLockedPillStyle(opt.value) : null;
+            const photo = (opt as { photo?: string | null; flag?: string }).photo ?? null;
+            const flag = (opt as { flag?: string }).flag ?? null;
+            const emoji = flag ? FLAG_CODE_TO_EMOJI[flag] ?? null : null;
+            const firstName = opt.label.split(' ')[0];
+            const lastName = opt.label.split(' ').slice(1).join(' ');
             return (
               <TouchableOpacity
                 key={opt.value}
                 style={[
                   {
-                    width: pillW,
-                    height: 52,
+                    width: CARD_W,
+                    height: CARD_H,
                     borderRadius: 14,
                     backgroundColor: '#152a45',
-                    borderWidth: 1,
+                    borderWidth: 1.5,
                     borderColor: '#2d4a6e',
-                    flexDirection: 'row',
                     alignItems: 'center',
-                    paddingHorizontal: 10,
-                    gap: 8,
+                    justifyContent: 'flex-start',
+                    paddingTop: CARD_PADDING_TOP,
+                    paddingBottom: CARD_PADDING_BOTTOM,
+                    overflow: 'hidden',
+                    flexDirection: 'column',
+                    gap: 4,
                   },
-                  isEditable && selected && styles.wizardPillSelected,
+                  isEditable && selected && {
+                    backgroundColor: 'rgba(22,163,74,0.2)',
+                    borderColor: '#16a34a',
+                    borderWidth: 2,
+                    shadowColor: '#16a34a',
+                    shadowOpacity: 0.4,
+                    shadowRadius: 8,
+                    elevation: 4,
+                  },
                   !isEditable && lockedStyle?.style,
                   !isEditable && interimVal !== null && opt.value === interimVal && (selected ? styles.pillInterimAndSelected : styles.pillInterim),
                 ]}
                 onPress={isEditable ? () => handleSelect(field, opt.value) : undefined}
                 activeOpacity={isEditable ? 0.7 : 1}
               >
-                {(() => {
-                  const emoji = (opt as any).flag
-                    ? FLAG_CODE_TO_EMOJI[(opt as any).flag] ?? null
-                    : null;
-                  return emoji
-                    ? <Text style={{ fontSize: 18, lineHeight: 22 }}>{emoji}</Text>
-                    : <View style={{ width: 22, height: 16, borderRadius: 2, backgroundColor: '#334155' }} />;
-                })()}
-                <Text
-                  style={[
-                    { fontSize: 13, fontWeight: '600', color: '#94a3b8', flex: 1 },
-                    isEditable && selected && { color: '#fff', fontWeight: '700' },
-                    !isEditable &&
-                      (lockedStyle?.textColor
-                        ? { color: lockedStyle.textColor }
-                        : styles.optionTextLocked),
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.7}
-                >
-                  {opt.label}
-                </Text>
+                {photo ? (
+                  <Image
+                    source={{ uri: photo }}
+                    style={{ width: PHOTO_SIZE, height: PHOTO_SIZE, borderRadius: PHOTO_SIZE / 2 }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={{
+                    width: PHOTO_SIZE, height: PHOTO_SIZE, borderRadius: PHOTO_SIZE / 2,
+                    backgroundColor: '#334155', justifyContent: 'center', alignItems: 'center',
+                  }}>
+                    <Ionicons name="person" size={PHOTO_SIZE * 0.5} color="#475569" />
+                  </View>
+                )}
+                <View style={{ alignItems: 'center', paddingHorizontal: 2 }}>
+                  {lastName ? (
+                    <>
+                      <Text style={{ fontSize: 9, color: selected ? '#86efac' : '#64748b', fontWeight: '500' }} numberOfLines={1}>
+                        {firstName}
+                      </Text>
+                      <Text
+                        style={{ fontSize: 11, color: selected ? '#ffffff' : '#cbd5e1', fontWeight: '800', textAlign: 'center' }}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
+                      >
+                        {lastName}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={{ fontSize: 9, color: 'transparent', fontWeight: '500' }} numberOfLines={1}>
+                        {' '}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: selected ? '#ffffff' : '#cbd5e1', fontWeight: '800', textAlign: 'center' }} numberOfLines={1}>
+                        {opt.label}
+                      </Text>
+                    </>
+                  )}
+                  {emoji ? (
+                    <Text style={{ fontSize: FLAG_SIZE, lineHeight: FLAG_SIZE + 3 }}>{emoji}</Text>
+                  ) : (
+                    <Text style={{ fontSize: FLAG_SIZE, lineHeight: FLAG_SIZE + 3, color: 'transparent' }}>{' '}</Text>
+                  )}
+                </View>
               </TouchableOpacity>
             );
           })}

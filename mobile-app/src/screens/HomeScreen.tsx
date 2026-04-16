@@ -304,29 +304,27 @@ export default function HomeScreen() {
         </View>
 
         {isAdmin && (
-          <>
-            <TouchableOpacity
-              style={styles.adminPill}
-              onPress={() => navigation.navigate('Admin' as any)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="settings-outline" size={14} color="#9ca3af" />
-              <Text style={styles.adminPillText}>Admin</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.debugPill}
-              onPress={async () => {
-                await AsyncStorage.multiRemove(['onboarding_completed', 'quick_picks_done', 'is_first_session']);
-                didCheckRef.current = false;
-                navigation.replace('Onboarding', { mode: 'first-session' });
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="refresh-outline" size={14} color="#f59e0b" />
-              <Text style={styles.debugPillText}>Replay Onboarding</Text>
-            </TouchableOpacity>
-          </>
+          <TouchableOpacity
+            style={styles.adminPill}
+            onPress={() => navigation.navigate('Admin' as any)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="settings-outline" size={14} color="#9ca3af" />
+            <Text style={styles.adminPillText}>Admin</Text>
+          </TouchableOpacity>
         )}
+        <TouchableOpacity
+          style={styles.debugPill}
+          onPress={async () => {
+            await AsyncStorage.multiRemove(['onboarding_completed', 'quick_picks_done', 'is_first_session']);
+            didCheckRef.current = false;
+            navigation.replace('Onboarding', { mode: 'first-session' });
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="refresh-outline" size={14} color="#f59e0b" />
+          <Text style={styles.debugPillText}>Replay Onboarding</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );

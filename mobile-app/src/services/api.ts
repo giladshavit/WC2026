@@ -291,7 +291,7 @@ export interface BonusOptions {
   k3: Array<{ value: string; label: string }>;
   t1: Array<{ value: string; label: string }>;
   t2: Array<{ value: string; label: string }>;
-  t3: Array<{ value: string; label: string }>;
+  t3: Array<{ value: string; label: string; flag?: string; photo?: string | null }>;
 }
 
 export interface BonusOutcomeStatsResponse {
