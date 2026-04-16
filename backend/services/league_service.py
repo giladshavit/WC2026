@@ -21,7 +21,7 @@ class LeagueService:
             return code
     
     @staticmethod
-    def create_league(db: Session, user_id: int, name: str, description: Optional[str] = None, score_mode: str = "multi") -> Dict[str, Any]:
+    def create_league(db: Session, user_id: int, name: str, description: Optional[str] = None, score_mode: str = "multi", simple_bonus: bool = False) -> Dict[str, Any]:
         """Create a new league and automatically join the creator."""
         try:
             # Generate unique invite code
@@ -39,6 +39,7 @@ class LeagueService:
                 invite_code=invite_code,
                 description=description,
                 score_mode=score_mode,
+                simple_bonus=simple_bonus,
             )
             
             DBUtils.commit(db)
@@ -57,6 +58,7 @@ class LeagueService:
                 "created_at": new_league.created_at.isoformat(),
                 "member_count": 1,
                 "score_mode": new_league.score_mode.value if hasattr(new_league.score_mode, 'value') else new_league.score_mode,
+                "simple_bonus": new_league.simple_bonus,
             }
             
         except Exception as e:
@@ -147,6 +149,7 @@ class LeagueService:
                     "member_count": member_count or 1,
                     "joined_at": membership.joined_at.isoformat(),
                     "score_mode": league.score_mode.value if hasattr(league.score_mode, 'value') else league.score_mode,
+                    "simple_bonus": league.simple_bonus,
                 }
                 for league, membership, member_count in rows
             ]
@@ -166,7 +169,16 @@ class LeagueService:
         exact_count: int = 0,
         correct_count: int = 0,
         wrong_count: int = 0,
+        simple_bonus: bool = False,
     ) -> Dict[str, Any]:
+        bonus_pts = (
+            (scores.simple_bonus_score or 0) if simple_bonus
+            else (scores.bonus_score or 0)
+        ) if scores else 0
+        classic_total = (
+            (scores.simple_classic_total or 0) if simple_bonus
+            else (scores.classic_total_score or 0)
+        ) if scores else 0
         return {
             "rank": rank,
             "user_id": user.id,
@@ -177,8 +189,8 @@ class LeagueService:
             "groups_points": scores.groups_score if scores else 0,
             "third_place_points": scores.third_place_score if scores else 0,
             "knockout_points": scores.knockout_score if scores else 0,
-            "bonus_points": (scores.bonus_score or 0) if scores else 0,
-            "classic_total_points": scores.classic_total_score if scores else 0,
+            "bonus_points": bonus_pts,
+            "classic_total_points": classic_total,
             "penalty": scores.penalty if scores else 0,
             "joined_at": membership.joined_at.isoformat() if membership else None,
             "matches_exact_count": exact_count,
@@ -194,10 +206,12 @@ class LeagueService:
         page: int = 1,
         page_size: int = 50,
         score_mode: str = "multi",
+        simple_bonus: bool = False,
     ) -> Dict[str, Any]:
         if score_mode not in ("multi", "classic"):
             score_mode = "multi"
-        rows, total = DBReader.get_global_standings_paginated(db, sort_by, page, page_size, score_mode=score_mode)
+        simple_bonus_flag = simple_bonus and score_mode == "classic"
+        rows, total = DBReader.get_global_standings_paginated(db, sort_by, page, page_size, score_mode=score_mode, simple_bonus=simple_bonus_flag)
         offset = (page - 1) * page_size
         standings = [
             LeagueService._format_standing_row(
@@ -205,6 +219,7 @@ class LeagueService:
                 exact_count=row[2] if len(row) > 2 else 0,
                 correct_count=row[3] if len(row) > 3 else 0,
                 wrong_count=row[4] if len(row) > 4 else 0,
+                simple_bonus=simple_bonus_flag,
             )
             for i, row in enumerate(rows)
         ]
@@ -219,6 +234,7 @@ class LeagueService:
                 exact_count=user_row[2] if user_row and len(user_row) > 2 else 0,
                 correct_count=user_row[3] if user_row and len(user_row) > 3 else 0,
                 wrong_count=user_row[4] if user_row and len(user_row) > 4 else 0,
+                simple_bonus=simple_bonus_flag,
             ) if user_row else None
 
         return {
@@ -237,13 +253,21 @@ class LeagueService:
         sort_by: str = "total",
         page: int = 1,
         page_size: int = 50,
+        simple_bonus_override: Optional[bool] = None,
     ) -> Dict[str, Any]:
         league = DBReader.get_active_league_by_id(db, league_id)
         if not league:
             raise HTTPException(status_code=404, detail="League not found")
 
         score_mode = league.score_mode.value if hasattr(league.score_mode, 'value') else league.score_mode
-        rows, total = DBReader.get_league_standings_paginated(db, league_id, sort_by, page, page_size, score_mode=score_mode)
+        league_simple_bonus = bool(getattr(league, 'simple_bonus', False))
+        if simple_bonus_override is not None:
+            simple_bonus_flag = simple_bonus_override and score_mode == 'classic'
+        else:
+            simple_bonus_flag = league_simple_bonus and score_mode == 'classic'
+        rows, total = DBReader.get_league_standings_paginated(
+            db, league_id, sort_by, page, page_size, score_mode=score_mode, simple_bonus=simple_bonus_flag,
+        )
         offset = (page - 1) * page_size
         standings = [
             LeagueService._format_standing_row(
@@ -251,6 +275,7 @@ class LeagueService:
                 exact_count=row[3] if len(row) > 3 else 0,
                 correct_count=row[4] if len(row) > 4 else 0,
                 wrong_count=row[5] if len(row) > 5 else 0,
+                simple_bonus=simple_bonus_flag,
             )
             for i, row in enumerate(rows)
         ]
@@ -265,6 +290,7 @@ class LeagueService:
                 exact_count=user_row[3] if user_row and len(user_row) > 3 else 0,
                 correct_count=user_row[4] if user_row and len(user_row) > 4 else 0,
                 wrong_count=user_row[5] if user_row and len(user_row) > 5 else 0,
+                simple_bonus=simple_bonus_flag,
             ) if user_row else None
 
         return {
@@ -299,6 +325,7 @@ class LeagueService:
                 "created_at": league.created_at.isoformat(),
                 "member_count": member_count,
                 "score_mode": league.score_mode.value if hasattr(league.score_mode, 'value') else league.score_mode,
+                "simple_bonus": league.simple_bonus,
             }
             
         except HTTPException:

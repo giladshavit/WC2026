@@ -880,8 +880,16 @@ class DBReader:
         ).all()
 
     @staticmethod
-    def _standings_order(sort_by: str, is_league: bool = False, score_mode: str = "multi", match_counts=None):
+    def _standings_order(
+        sort_by: str,
+        is_league: bool = False,
+        score_mode: str = "multi",
+        match_counts=None,
+        simple_bonus: bool = False,
+    ):
         mc = match_counts
+        bonus_col = UserScores.simple_bonus_score if simple_bonus else UserScores.bonus_score
+        classic_total_col = UserScores.simple_classic_total if simple_bonus else UserScores.classic_total_score
 
         tiebreakers_global = [
             UserScores.penalty,
@@ -898,14 +906,14 @@ class DBReader:
         # Classic mode: sort_by determines primary, then classic tiebreakers
         if score_mode == "classic":
             classic_tiebreakers_global = [
-                desc(func.coalesce(UserScores.classic_total_score, 0)),
+                desc(func.coalesce(classic_total_col, 0)),
                 desc(func.coalesce(UserScores.matches_score, 0)),
                 desc(func.coalesce(mc.c.exact_count, 0)) if mc is not None else desc(UserScores.matches_score),
                 desc(func.coalesce(mc.c.correct_count, 0)) if mc is not None else User.created_at,
                 User.created_at,
             ]
             classic_tiebreakers_league = [
-                desc(func.coalesce(UserScores.classic_total_score, 0)),
+                desc(func.coalesce(classic_total_col, 0)),
                 desc(func.coalesce(UserScores.matches_score, 0)),
                 desc(func.coalesce(mc.c.exact_count, 0)) if mc is not None else desc(UserScores.matches_score),
                 desc(func.coalesce(mc.c.correct_count, 0)) if mc is not None else LeagueMembership.joined_at,
@@ -914,13 +922,13 @@ class DBReader:
             classic_tiebreakers = classic_tiebreakers_league if is_league else classic_tiebreakers_global
 
             classic_primary = {
-                "total":   desc(func.coalesce(UserScores.classic_total_score, 0)),
+                "total":   desc(func.coalesce(classic_total_col, 0)),
                 "matches": desc(func.coalesce(UserScores.matches_score, 0)),
-                "bonus":   desc(func.coalesce(UserScores.bonus_score, 0)),
+                "bonus":   desc(func.coalesce(bonus_col, 0)),
                 "exact":   desc(func.coalesce(mc.c.exact_count, 0)) if mc is not None else desc(UserScores.matches_score),
                 "correct": desc(func.coalesce(mc.c.correct_count, 0)) if mc is not None else desc(UserScores.matches_score),
                 "wrong":   desc(func.coalesce(mc.c.wrong_count, 0)) if mc is not None else desc(UserScores.matches_score),
-            }.get(sort_by, desc(func.coalesce(UserScores.classic_total_score, 0)))
+            }.get(sort_by, desc(func.coalesce(classic_total_col, 0)))
 
             return [classic_primary, *classic_tiebreakers]
 
@@ -930,7 +938,7 @@ class DBReader:
             "matches":  desc(UserScores.matches_score),
             "groups":   desc(UserScores.groups_score + UserScores.third_place_score),
             "knockout": desc(UserScores.knockout_score),
-            "bonus":    desc(UserScores.bonus_score),
+            "bonus":    desc(bonus_col),
             "fine":     UserScores.penalty,
             "exact":    desc(func.coalesce(mc.c.exact_count, 0)) if mc is not None else desc(UserScores.matches_score),
             "correct":  desc(func.coalesce(mc.c.correct_count, 0)) if mc is not None else desc(UserScores.matches_score),
@@ -961,10 +969,11 @@ class DBReader:
         page: int = 1,
         page_size: int = 50,
         score_mode: str = "multi",
+        simple_bonus: bool = False,
     ) -> Tuple[List, int]:
         """Returns (rows, total_count). Uses window function to get total in a single query."""
         match_counts = DBReader._match_prediction_counts_subquery(db)
-        order = DBReader._standings_order(sort_by, is_league=False, score_mode=score_mode, match_counts=match_counts)
+        order = DBReader._standings_order(sort_by, is_league=False, score_mode=score_mode, match_counts=match_counts, simple_bonus=simple_bonus)
         q = (
             db.query(User, UserScores)
             .outerjoin(UserScores, User.id == UserScores.user_id)
@@ -988,10 +997,17 @@ class DBReader:
         page: int = 1,
         page_size: int = 50,
         score_mode: str = "multi",
+        simple_bonus: bool = False,
     ) -> Tuple[List, int]:
         """Returns (rows, total_count). Uses window function to get total in a single query."""
         match_counts = DBReader._match_prediction_counts_subquery(db)
-        order = DBReader._standings_order(sort_by, is_league=True, score_mode=score_mode, match_counts=match_counts)
+        order = DBReader._standings_order(
+            sort_by,
+            is_league=True,
+            score_mode=score_mode,
+            match_counts=match_counts,
+            simple_bonus=simple_bonus,
+        )
         q = (
             db.query(User, UserScores, LeagueMembership)
             .join(LeagueMembership, User.id == LeagueMembership.user_id)

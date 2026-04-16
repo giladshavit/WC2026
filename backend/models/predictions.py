@@ -220,6 +220,7 @@ class BonusPrediction(Base):
 
     # Per-prediction total score tracking
     bonus_score = Column(Integer, default=0, nullable=False)
+    simple_bonus_score = Column(Integer, default=0, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

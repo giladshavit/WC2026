@@ -22,7 +22,7 @@ async def get_app_config(
     if credentials:
         try:
             user = AuthService.get_current_user(db, credentials.credentials)
-            is_admin = user.username == "admin" and user.email == "giladshavit1@gmail.com"
+            is_admin = user.username == "admin" and (user.email == "giladshavit1@gmail.com" or user.email == "admin@temp.com")
         except Exception:
             pass
     try:

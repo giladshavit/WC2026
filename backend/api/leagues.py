@@ -18,6 +18,7 @@ class CreateLeagueRequest(BaseModel):
     name: str
     description: Optional[str] = None
     score_mode: Optional[str] = "multi"
+    simple_bonus: Optional[bool] = False
 
     @validator('score_mode')
     def validate_score_mode(cls, v):
@@ -58,6 +59,7 @@ class LeagueResponse(BaseModel):
     member_count: int
     joined_at: Optional[str] = None
     score_mode: Optional[str] = "multi"
+    simple_bonus: Optional[bool] = False
 
 class LeagueStanding(BaseModel):
     rank: int
@@ -138,6 +140,7 @@ def create_league(
             name=league_data.name,
             description=league_data.description,
             score_mode=league_data.score_mode or "multi",
+            simple_bonus=league_data.simple_bonus,
         )
         return LeagueResponse(**result)
     except HTTPException:
@@ -199,6 +202,7 @@ def get_global_standings(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=10, le=100),
     score_mode: str = Query("multi", enum=["multi", "classic"]),
+    simple_bonus_override: Optional[bool] = Query(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -213,6 +217,7 @@ def get_global_standings(
             page=page,
             page_size=page_size,
             score_mode=score_mode,
+            simple_bonus=simple_bonus_override if simple_bonus_override is not None else False,
         )
         standings_data = [LeagueStanding(**s) for s in result["standings"]]
         current_entry = LeagueStanding(**result["current_user_entry"]) if result.get("current_user_entry") else None
@@ -247,6 +252,7 @@ def get_league_standings(
     sort_by: str = Query("total", enum=["total", "matches", "groups", "knockout", "bonus", "fine", "exact", "correct", "wrong"]),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=10, le=100),
+    simple_bonus_override: Optional[bool] = Query(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -263,6 +269,7 @@ def get_league_standings(
             sort_by=sort_by,
             page=page,
             page_size=page_size,
+            simple_bonus_override=simple_bonus_override,
         )
         league_info = LeagueService.get_league_info(db=db, league_id=league_id)
         standings_data = [LeagueStanding(**s) for s in result["standings"]]

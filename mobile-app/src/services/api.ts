@@ -276,6 +276,7 @@ export interface League {
   member_count: number;
   joined_at?: string;
   score_mode?: 'multi' | 'classic';
+  simple_bonus?: boolean;
 }
 
 export interface BonusOptions {
@@ -378,6 +379,7 @@ export interface LeagueStandingsResponse {
     created_at: string;
     member_count: number;
     score_mode?: 'multi' | 'classic';
+    simple_bonus?: boolean;
   } | null;
   standings: LeagueStanding[];
   total_count: number;
@@ -390,6 +392,7 @@ export interface CreateLeagueRequest {
   name: string;
   description?: string;
   score_mode?: 'multi' | 'classic';
+  simple_bonus?: boolean;
 }
 
 export interface JoinLeagueRequest {
@@ -1572,6 +1575,7 @@ export class ApiService {
     page?: number;
     page_size?: number;
     score_mode?: 'multi' | 'classic';
+    simple_bonus?: boolean;
   }): Promise<LeagueStandingsResponse> {
     try {
       const headers: HeadersInit = {};
@@ -1583,6 +1587,7 @@ export class ApiService {
       if (params?.page != null) searchParams.set('page', String(params.page));
       if (params?.page_size != null) searchParams.set('page_size', String(params.page_size));
       if (params?.score_mode) searchParams.set('score_mode', params.score_mode);
+      if (params?.simple_bonus !== undefined) searchParams.set('simple_bonus_override', String(params.simple_bonus));
       const qs = searchParams.toString();
       const url = `${this.baseUrl}/api/leagues/global${qs ? `?${qs}` : ''}`;
       const response = await fetch(url, { headers });
@@ -1601,7 +1606,7 @@ export class ApiService {
 
   async getLeagueStandings(
     leagueId: number,
-    params?: { sort_by?: string; page?: number; page_size?: number; score_mode?: 'multi' | 'classic' }
+    params?: { sort_by?: string; page?: number; page_size?: number; score_mode?: 'multi' | 'classic'; simple_bonus?: boolean }
   ): Promise<LeagueStandingsResponse> {
     try {
       const headers: HeadersInit = {};
@@ -1613,6 +1618,7 @@ export class ApiService {
       if (params?.page != null) searchParams.set('page', String(params.page));
       if (params?.page_size != null) searchParams.set('page_size', String(params.page_size));
       if (params?.score_mode) searchParams.set('score_mode', params.score_mode);
+      if (params?.simple_bonus !== undefined) searchParams.set('simple_bonus_override', String(params.simple_bonus));
       const qs = searchParams.toString();
       const url = `${this.baseUrl}/api/leagues/${leagueId}/standings${qs ? `?${qs}` : ''}`;
       const response = await fetch(url, { headers });

@@ -75,7 +75,9 @@ const SECTION_GROUP_FIELDS = ['g1', 'g2', 'g3', 'g4', 'g5', 'g6'];
 const SECTION_KNOCKOUT_FIELDS = ['k1', 'k2', 'k3'];
 const SECTION_TOURNAMENT_FIELDS = ['t1', 't2', 't3'];
 
-const ALL_FIELDS = ['g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'k1', 'k2', 'k3', 't1', 't2', 't3'] as const;
+const ALL_FIELDS = ['t1', 't2', 't3',
+                      'g1', 'g2', 'g3', 'g4', 'g5', 'g6',
+                      'k1', 'k2', 'k3'] as const;
 
 const FIELD_TO_API: Record<string, keyof BonusPrediction> = {
   g1: 'g1_total_goals_group',
@@ -2024,28 +2026,58 @@ export default function BonusScreen() {
     title: string,
     icon: string,
     fields: string[],
-    isLocked: boolean
+    isLocked: boolean,
+    isCoreSection?: boolean
   ) => {
     const settled = getSectionSettled(fields);
     return (
       <View style={styles.sectionCardSummary} key={title}>
-        <View style={styles.sectionHeaderRow}>
-          <Ionicons name={icon as any} size={22} color="#16a34a" />
-          <Text style={styles.sectionTitle}>{title}</Text>
-          {(() => {
-            const score = getSectionScore(title);
-            if (score) {
-              return (
-                <View style={styles.sectionScoreChip}>
-                  <Text style={styles.sectionScoreText}>{score.earned} pts</Text>
-                </View>
-              );
-            }
-            if (isLocked) {
-              return <Ionicons name="lock-closed-outline" size={20} color="#94a3b8" />;
-            }
-            return null;
-          })()}
+        <View
+          style={[
+            styles.sectionHeaderRow,
+            !isCoreSection && { backgroundColor: '#0d1b2e' },
+          ]}
+        >
+          <Ionicons name={icon as any} size={22} color={isCoreSection ? '#16a34a' : '#94a3b8'} />
+          <Text
+            style={[styles.sectionTitle, { flex: 1, color: '#f1f5f9' }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit={true}
+            minimumFontScale={0.6}
+            maxFontSizeMultiplier={1}
+          >{title}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 'auto' }}>
+            {(() => {
+              const score = getSectionScore(title);
+              if (score) {
+                return (
+                  <View style={[styles.sectionScoreChip, { marginLeft: 0 }]}>
+                    <Text style={styles.sectionScoreText}>{score.earned} pts</Text>
+                  </View>
+                );
+              }
+              if (isCoreSection) {
+                return (
+                  <View style={{
+                    marginLeft: 'auto',
+                    marginRight: 4,
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                    borderRadius: 8,
+                    backgroundColor: 'rgba(22,163,74,0.15)',
+                    borderWidth: 1,
+                    borderColor: '#16a34a',
+                  }}>
+                    <Text style={{ fontSize: 10, color: '#16a34a', fontWeight: '700' }}>Basic</Text>
+                  </View>
+                );
+              }
+              if (isLocked) {
+                return <Ionicons name="lock-closed-outline" size={20} color="#94a3b8" />;
+              }
+              return null;
+            })()}
+          </View>
         </View>
         {fields.map((field, idx) => {
           const globalIdx = ALL_FIELDS.indexOf(field as FieldKey);
@@ -2054,7 +2086,13 @@ export default function BonusScreen() {
           const editable = isSectionEditable(field);
           const label = getAnswerLabel(field, val);
           const isLast = idx === fields.length - 1;
-          const rowBg = idx % 2 === 0 ? '#1e3a5f' : '#162c4a';
+          const rowBg = isCoreSection
+            ? idx % 2 === 0
+              ? '#1e3a5f'
+              : '#162c4a'
+            : idx % 2 === 0
+              ? '#111e2e'
+              : '#0f1b29';
 
           return (
             <TouchableOpacity
@@ -2068,8 +2106,16 @@ export default function BonusScreen() {
               disabled={false}
             >
               <View style={styles.summaryRowLeft}>
-                <Text style={styles.summaryQNew}>Q{globalIdx + 1}</Text>
-                <Text style={styles.summaryQuestionLabelNew} numberOfLines={3}>
+                <Text style={[styles.summaryQNew, !isCoreSection && { color: '#475569' }]}>
+                  Q{globalIdx + 1}
+                </Text>
+                <Text
+                  style={[
+                    styles.summaryQuestionLabelNew,
+                    !isCoreSection && { color: '#cbd5e1' },
+                  ]}
+                  numberOfLines={3}
+                >
                   {QUESTION_LABELS[field]}
                 </Text>
               </View>
@@ -2147,6 +2193,13 @@ export default function BonusScreen() {
       )}
 
         {renderSummarySection(
+          'Tournament',
+          'medal-outline',
+          SECTION_TOURNAMENT_FIELDS,
+          isSectionLocked(SECTION_TOURNAMENT_FIELDS),
+          true
+        )}
+        {renderSummarySection(
           'Group Stage',
           'home-outline',
           SECTION_GROUP_FIELDS,
@@ -2157,12 +2210,6 @@ export default function BonusScreen() {
           'trophy-outline',
           SECTION_KNOCKOUT_FIELDS,
           isSectionLocked(SECTION_KNOCKOUT_FIELDS)
-        )}
-        {renderSummarySection(
-          'Tournament',
-          'medal-outline',
-          SECTION_TOURNAMENT_FIELDS,
-          isSectionLocked(SECTION_TOURNAMENT_FIELDS)
         )}
       </ScrollView>
 

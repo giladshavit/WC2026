@@ -17,6 +17,8 @@ class UserScores(Base):
     bonus_score = Column(Integer, default=0, nullable=False)
     bonus_penalty = Column(Integer, default=0, nullable=False)
     classic_total_score = Column(Integer, default=0, nullable=False)
+    simple_bonus_score = Column(Integer, default=0, nullable=False)
+    simple_classic_total = Column(Integer, default=0, nullable=False)
     
     # Match prediction accuracy counters
     matches_total_judged = Column(Integer, default=0)

@@ -23,14 +23,14 @@ export default function CreateLeagueScreen() {
   const navigation = useNavigation();
   const { showToast } = useToast();
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
   const [scoreMode, setScoreMode] = useState<'multi' | 'classic'>('multi');
+  const [simpleBonus, setSimpleBonus] = useState(false);
   const [loading, setLoading] = useState(false);
   const [createdLeague, setCreatedLeague] = useState<any>(null);
   const [nameFocused, setNameFocused] = useState(false);
-  const [descFocused, setDescFocused] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
+  const [openTooltip, setOpenTooltip] = useState<'mode' | 'bonus' | null>(null);
 
   const handleCreateLeague = async () => {
     setNameError(null);
@@ -46,17 +46,13 @@ export default function CreateLeagueScreen() {
       setNameError('League name must be less than 100 characters');
       return;
     }
-    if (description && description.length > 500) {
-      setNameError('Description must be less than 500 characters');
-      return;
-    }
 
     setLoading(true);
     try {
       const newLeague = await apiService.createLeague({
         name: name.trim(),
-        description: description.trim() || undefined,
         score_mode: scoreMode,
+        simple_bonus: scoreMode === 'classic' ? simpleBonus : false,
       });
       setCreatedLeague(newLeague);
     } catch (error: any) {
@@ -163,16 +159,33 @@ export default function CreateLeagueScreen() {
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView
+        style={styles.container}
+        edges={['bottom']}
+        onStartShouldSetResponderCapture={() => {
+          if (openTooltip !== null) { setOpenTooltip(null); return false; }
+          return false;
+        }}
+      >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}
+        style={[styles.keyboardAvoidingView, openTooltip !== null && { zIndex: 100, elevation: 12 }]}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={() => setOpenTooltip(null)}
         >
           <View style={styles.formCard}>
+            {openTooltip !== null && (
+              <View pointerEvents="box-only" style={StyleSheet.absoluteFillObject}>
+                <TouchableOpacity
+                  style={StyleSheet.absoluteFillObject}
+                  activeOpacity={1}
+                  onPress={() => setOpenTooltip(null)}
+                />
+              </View>
+            )}
             <View style={styles.inputGroup}>
               <Text style={styles.label} maxFontSizeMultiplier={1.2}>League Name *</Text>
               <TextInput
@@ -195,26 +208,35 @@ export default function CreateLeagueScreen() {
               </View>
             </View>
 
-            <View style={[styles.inputGroup, { marginBottom: 0 }]}>
-              <Text style={styles.label} maxFontSizeMultiplier={1.2}>Description (optional)</Text>
-              <TextInput
-                style={[styles.input, styles.textArea, descFocused && styles.inputFocused]}
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Enter league description"
-                placeholderTextColor="#64748b"
-                maxLength={500}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                onFocus={() => setDescFocused(true)}
-                onBlur={() => setDescFocused(false)}
-              />
-              <Text style={styles.characterCount}>{description.length}/500</Text>
-            </View>
-
             <View style={styles.inputGroup}>
-              <Text style={styles.label} maxFontSizeMultiplier={1.2}>Default View Mode</Text>
+              <View style={styles.tooltipLabelWrap}>
+                <View style={styles.tooltipLabelRow}>
+                  <Text style={[styles.label, { marginBottom: 0, marginLeft: 0 }]} maxFontSizeMultiplier={1.2}>Default View Mode</Text>
+                  <TouchableOpacity
+                    onPress={() => setOpenTooltip((t) => (t === 'mode' ? null : 'mode'))}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="help-circle-outline" size={17} color="#94a3b8" />
+                  </TouchableOpacity>
+                </View>
+                {openTooltip === 'mode' && (
+                  <View style={styles.tooltipBubble}>
+                    <View>
+                      <Text style={{ color: '#38bdf8', fontWeight: '700' }}>Classic</Text>
+                      <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
+                        Matches + Bonus
+                      </Text>
+                    </View>
+                    <View style={{ marginTop: 10 }}>
+                      <Text style={{ color: '#f59e0b', fontWeight: '700' }}>Multi</Text>
+                      <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
+                        Matches + Bonus + Route
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
               <View style={styles.modeToggleRow}>
                 <TouchableOpacity
                   style={[
@@ -223,7 +245,10 @@ export default function CreateLeagueScreen() {
                       ? { backgroundColor: 'rgba(251,191,36,0.18)', borderColor: '#f59e0b' }
                       : { backgroundColor: '#0f2744', borderColor: '#2d4a6e' },
                   ]}
-                  onPress={() => setScoreMode('multi')}
+                  onPress={() => {
+                    setScoreMode('multi');
+                    setSimpleBonus(false);
+                  }}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="trophy-outline" size={14} color={scoreMode === 'multi' ? '#f59e0b' : '#64748b'} />
@@ -259,23 +284,85 @@ export default function CreateLeagueScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-              <View style={{ marginTop: 8, marginHorizontal: 4, gap: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#38bdf8', flexShrink: 0, marginTop: 1 }} />
-                  <Text style={{ fontSize: 12, color: '#94a3b8', flexShrink: 1 }} maxFontSizeMultiplier={1.2} numberOfLines={1}>
-                    <Text style={{ color: '#38bdf8', fontWeight: '700' }}>Classic</Text>
-                    {' — Matches + Bonus'}
-                  </Text>
+            </View>
+
+            {scoreMode === 'classic' && (
+              <View style={styles.inputGroup}>
+                <View style={styles.tooltipLabelWrap}>
+                  <View style={styles.tooltipLabelRow}>
+                    <Text style={[styles.label, { marginBottom: 0, marginLeft: 0 }]} maxFontSizeMultiplier={1.2}>Bonus Mode</Text>
+                    <TouchableOpacity
+                      onPress={() => setOpenTooltip((t) => (t === 'bonus' ? null : 'bonus'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="help-circle-outline" size={17} color="#94a3b8" />
+                    </TouchableOpacity>
+                  </View>
+                  {openTooltip === 'bonus' && (
+                    <View style={styles.tooltipBubble}>
+                      <View>
+                        <Text style={{ color: '#f1f5f9', fontWeight: '700' }}>Full Bonus</Text>
+                        <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
+                          All questions (12)
+                        </Text>
+                      </View>
+                      <View style={{ marginTop: 10 }}>
+                        <Text style={{ color: '#16a34a', fontWeight: '700' }}>Basic Bonus</Text>
+                        <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
+                          Tournament questions only (3)
+                        </Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
-                  <Text style={{ fontSize: 12, color: '#94a3b8', flexShrink: 1 }} maxFontSizeMultiplier={1.2} numberOfLines={1}>
-                    <Text style={{ color: '#f59e0b', fontWeight: '700' }}>Multi</Text>
-                    {' — All predictions'}
-                  </Text>
+                <View style={styles.modeToggleRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.modeBtn,
+                      !simpleBonus
+                        ? {
+                            backgroundColor: 'rgba(255,255,255,0.1)',
+                            borderColor: 'rgba(255,255,255,0.35)',
+                          }
+                        : { backgroundColor: '#0f2744', borderColor: '#2d4a6e' },
+                    ]}
+                    onPress={() => setSimpleBonus(false)}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[styles.modeBtnText, !simpleBonus ? { color: '#f1f5f9', fontWeight: '700' } : {}]}
+                      maxFontSizeMultiplier={1.2}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.7}
+                    >
+                      Full Bonus
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.modeBtn,
+                      simpleBonus
+                        ? { backgroundColor: 'rgba(22,163,74,0.18)', borderColor: '#16a34a' }
+                        : { backgroundColor: '#0f2744', borderColor: '#2d4a6e' },
+                    ]}
+                    onPress={() => setSimpleBonus(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[styles.modeBtnText, simpleBonus ? { color: '#16a34a', fontWeight: '700' } : {}]}
+                      maxFontSizeMultiplier={1.2}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.7}
+                    >
+                      Basic Bonus
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-            </View>
+            )}
 
             <TouchableOpacity
               style={[styles.createButton, loading && styles.createButtonDisabled, { marginTop: 8 }]}
@@ -327,9 +414,39 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderWidth: 1,
     borderColor: '#2d4a6e',
+    overflow: 'visible',
   },
   inputGroup: {
     marginBottom: 20,
+  },
+  tooltipLabelWrap: {
+    position: 'relative',
+    marginBottom: 6,
+    marginLeft: 4,
+    zIndex: 100,
+  },
+  tooltipLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  tooltipBubble: {
+    position: 'absolute',
+    bottom: 28,
+    left: 0,
+    zIndex: 100,
+    backgroundColor: '#1e293b',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    minWidth: 220,
+    maxWidth: 280,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 10,
   },
   label: {
     fontSize: 13,
@@ -351,10 +468,6 @@ const styles = StyleSheet.create({
   },
   inputFocused: {
     borderColor: '#2563eb',
-  },
-  textArea: {
-    height: 110,
-    textAlignVertical: 'top',
   },
   characterCount: {
     fontSize: 11,

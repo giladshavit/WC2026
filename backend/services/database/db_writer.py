@@ -1356,34 +1356,56 @@ class DBWriter:
     # ═══════════════════════════════════════════════════════
     @staticmethod
     def bulk_update_bonus_scores(db: Session) -> None:
-        """
-        Bulk-upsert user_scores.bonus_score from bonus_predictions.bonus_score.
-        Sets total_points and classic_total_score accordingly.
-        Call after updating bonus_predictions.bonus_score in Python loop + db.flush().
-        Caller must commit.
-        """
-        from sqlalchemy import text
-        db.execute(text("""
-            INSERT INTO user_scores
-                (user_id, matches_score, total_points, classic_total_score,
-                 groups_score, third_place_score, knockout_score, bonus_score,
-                 bonus_penalty, groups_penalty, third_place_penalty,
-                 knockout_penalty, free_changes, free_changes_used,
-                 penalty, has_used_bracket_reset)
-            SELECT
-                bp.user_id,
-                0,
-                COALESCE(bp.bonus_score, 0),
-                COALESCE(bp.bonus_score, 0),
-                0, 0, 0,
-                COALESCE(bp.bonus_score, 0),
-                0, 0, 0, 0, 0, 0, 0, false
-            FROM bonus_predictions bp
-            ON CONFLICT (user_id) DO UPDATE SET
-                bonus_score         = EXCLUDED.bonus_score,
-                total_points        = user_scores.total_points - user_scores.bonus_score + EXCLUDED.bonus_score,
-                classic_total_score = user_scores.matches_score + EXCLUDED.bonus_score
-        """))
+        dialect = db.get_bind().dialect.name
+        if dialect == "postgresql":
+            db.execute(text("""
+                INSERT INTO user_scores
+                    (user_id, matches_score, total_points, classic_total_score,
+                     groups_score, third_place_score, knockout_score, bonus_score,
+                     bonus_penalty, groups_penalty, third_place_penalty,
+                     knockout_penalty, free_changes, free_changes_used,
+                     penalty, has_used_bracket_reset,
+                     simple_bonus_score, simple_classic_total)
+                SELECT
+                    bp.user_id,
+                    0,
+                    COALESCE(bp.bonus_score, 0),
+                    COALESCE(bp.bonus_score, 0),
+                    0, 0, 0,
+                    COALESCE(bp.bonus_score, 0),
+                    0, 0, 0, 0, 0, 0, 0, false,
+                    COALESCE(bp.simple_bonus_score, 0),
+                    COALESCE(bp.simple_bonus_score, 0)
+                FROM bonus_predictions bp
+                ON CONFLICT (user_id) DO UPDATE SET
+                    bonus_score          = EXCLUDED.bonus_score,
+                    total_points         = user_scores.total_points
+                                           - user_scores.bonus_score
+                                           + EXCLUDED.bonus_score,
+                    classic_total_score  = user_scores.matches_score
+                                           + EXCLUDED.bonus_score,
+                    simple_bonus_score   = EXCLUDED.simple_bonus_score,
+                    simple_classic_total = user_scores.matches_score
+                                           + EXCLUDED.simple_bonus_score
+            """))
+        else:
+            # SQLite fallback
+            from models.predictions import BonusPrediction as BP
+            from models.user_scores import UserScores
+            preds = db.query(BP).all()
+            for pred in preds:
+                us = db.query(UserScores).filter_by(user_id=pred.user_id).first()
+                if not us:
+                    continue
+                new_bonus = pred.bonus_score or 0
+                new_simple = pred.simple_bonus_score or 0
+                old_bonus = us.bonus_score or 0
+                us.bonus_score = new_bonus
+                us.total_points = (us.total_points or 0) - old_bonus + new_bonus
+                us.classic_total_score = (us.matches_score or 0) + new_bonus
+                us.simple_bonus_score = new_simple
+                us.simple_classic_total = (us.matches_score or 0) + new_simple
+            db.flush()
 
     @staticmethod
     def create_bonus_prediction(db: Session, user_id: int) -> BonusPrediction:
@@ -1597,10 +1619,10 @@ class DBWriter:
     # ═══════════════════════════════════════════════════════
     @staticmethod
     def create_league(db: Session, name: str, created_by: int,
-                      invite_code: str, score_mode: str = "multi", **kwargs) -> League:
+                      invite_code: str, score_mode: str = "multi", simple_bonus: bool = False, **kwargs) -> League:
         from models.league import LeagueScoreMode
         score_mode_enum = LeagueScoreMode(score_mode) if isinstance(score_mode, str) else score_mode
-        league = League(name=name, created_by=created_by, invite_code=invite_code, score_mode=score_mode_enum, **kwargs)
+        league = League(name=name, created_by=created_by, invite_code=invite_code, score_mode=score_mode_enum, simple_bonus=simple_bonus, **kwargs)
         db.add(league)
         db.flush()
         db.refresh(league)

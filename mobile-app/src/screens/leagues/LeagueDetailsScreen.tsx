@@ -518,9 +518,10 @@ interface ColumnLegendModalProps {
   visible: boolean;
   onClose: () => void;
   initialMode: 'classic' | 'multi';
+  isSimpleBonus?: boolean;
 }
 
-function ColumnLegendModal({ visible, onClose, initialMode }: ColumnLegendModalProps) {
+function ColumnLegendModal({ visible, onClose, initialMode, isSimpleBonus }: ColumnLegendModalProps) {
   const [activeMode, setActiveMode] = React.useState<'classic' | 'multi'>(initialMode);
 
   React.useEffect(() => {
@@ -532,7 +533,15 @@ function ColumnLegendModal({ visible, onClose, initialMode }: ColumnLegendModalP
     { icon: 'remove-circle-outline', color: '#f59e0b', label: 'Correct', desc: 'Right outcome, wrong score' },
     { icon: 'close-circle-outline', color: '#ef4444', label: 'Wrong', desc: 'Wrong outcome' },
     { icon: 'football-outline', color: '#60a5fa', label: 'Matches', desc: 'Points from match predictions' },
-    { icon: 'gift-outline', color: '#4ade80', label: 'Bonus', desc: 'Points from bonus questions' },
+    {
+      icon: 'gift-outline',
+      color: '#4ade80',
+      label: 'Bonus',
+      desc:
+        isSimpleBonus && activeMode === 'classic'
+          ? 'Tournament bonus questions only'
+          : 'Points from bonus questions',
+    },
     { icon: 'star-outline', color: '#fbbf24', label: 'Total', desc: 'Total points (Matches + Bonus)' },
   ];
 
@@ -749,6 +758,9 @@ export default function LeagueDetailsScreen() {
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [userDismissedLive, setUserDismissedLive] = useState(false);
   const [infoModalVisible, setInfoModalVisible] = useState(false);
+  const [basicOverride, setBasicOverride] = useState<boolean | null>(null);
+  const isSimpleBonus = !!(standingsData?.league_info?.simple_bonus);
+  const effectiveSimpleBonus = basicOverride !== null ? basicOverride : isSimpleBonus;
 
   const SORT_COLORS: Record<string, string> = {
     exact: '#22c55e',
@@ -768,7 +780,7 @@ export default function LeagueDetailsScreen() {
     setPage(1);
     setSortBy(newSortBy);
     setTimeout(() => {
-      fetchStandings(false, 1, newSortBy);
+      fetchStandings(false, 1, newSortBy, undefined, effectiveSimpleBonus);
     }, 0);
   };
 
@@ -830,7 +842,7 @@ export default function LeagueDetailsScreen() {
     }
   };
 
-  const fetchStandings = async (append: boolean, pageOverride?: number, sortByOverride?: SortKey, scoreModeOverride?: 'multi' | 'classic') => {
+  const fetchStandings = async (append: boolean, pageOverride?: number, sortByOverride?: SortKey, scoreModeOverride?: 'multi' | 'classic', simpleBonusOverride?: boolean) => {
     // Prevent overlapping fetches
     if (refreshing && append) return;
     if (append) {
@@ -843,8 +855,20 @@ export default function LeagueDetailsScreen() {
       // Resolve score mode ONCE before API call, using league_info from previous fetch if available
       const preCallScoreMode = scoreModeOverride ?? (scoreModeInitializedRef.current ? scoreMode : (standingsData?.league_info?.score_mode ?? 'multi'));
       const data = isGlobalLeague
-        ? await apiService.getGlobalStandings({ sort_by: currentSortBy, page: currentPage, page_size: PAGE_SIZE, score_mode: preCallScoreMode })
-        : await apiService.getLeagueStandings(Number(leagueId), { sort_by: currentSortBy, page: currentPage, page_size: PAGE_SIZE, score_mode: preCallScoreMode });
+        ? await apiService.getGlobalStandings({
+            sort_by: currentSortBy,
+            page: currentPage,
+            page_size: PAGE_SIZE,
+            score_mode: preCallScoreMode,
+            simple_bonus: simpleBonusOverride,
+          })
+        : await apiService.getLeagueStandings(Number(leagueId), {
+            sort_by: currentSortBy,
+            page: currentPage,
+            page_size: PAGE_SIZE,
+            score_mode: preCallScoreMode,
+            simple_bonus: simpleBonusOverride,
+          });
 
       if (requestId !== standingsFetchGenRef.current) return;
 
@@ -964,6 +988,7 @@ export default function LeagueDetailsScreen() {
     setScoreMode('multi');
     scoreModeInitializedRef.current = false;
     liveMatchesFetchedRef.current = false;
+    setBasicOverride(null);
   }, [leagueId]);
 
   useEffect(() => {
@@ -1174,7 +1199,54 @@ export default function LeagueDetailsScreen() {
           </TouchableOpacity>
         )}
         {liveMatchPredictionsList.length === 0 && <View />}
-        <View style={styles.scoreModeToggle}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          {scoreMode === 'classic' && (
+            <TouchableOpacity
+              style={[
+                styles.scoreModeBtn,
+                {
+                  borderRadius: 17,
+                  paddingHorizontal: 12,
+                  paddingVertical: 9,
+                  minWidth: 70,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                },
+                effectiveSimpleBonus
+                  ? {
+                      backgroundColor: 'rgba(22,163,74,0.18)',
+                      borderWidth: 1,
+                      borderColor: '#16a34a',
+                    }
+                  : {
+                      backgroundColor: 'rgba(255,255,255,0.06)',
+                      borderWidth: 0,
+                    },
+              ]}
+              onPress={() => {
+                const newVal = basicOverride !== null ? !basicOverride : !isSimpleBonus;
+                setBasicOverride(newVal);
+                skipNextFetchRef.current = true;
+                setPage(1);
+                setSortBy('total');
+                setScoreModeLoading(true);
+                setTimeout(() => fetchStandings(false, 1, 'total', 'classic', newVal), 0);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.scoreModeBtnText,
+                  effectiveSimpleBonus
+                    ? { color: '#16a34a', fontWeight: '700' }
+                    : { color: '#64748b' },
+                ]}
+              >
+                Basic
+              </Text>
+            </TouchableOpacity>
+          )}
+          <View style={styles.scoreModeToggle}>
           <TouchableOpacity
             style={[
               styles.scoreModeBtn,
@@ -1219,7 +1291,7 @@ export default function LeagueDetailsScreen() {
               setSortBy('total');
               setScoreMode('classic');
               setScoreModeLoading(true);
-              setTimeout(() => fetchStandings(false, 1, 'total', 'classic'), 0);
+              setTimeout(() => fetchStandings(false, 1, 'total', 'classic', basicOverride !== null ? basicOverride : isSimpleBonus), 0);
             }}
           >
             <Text
@@ -1231,6 +1303,7 @@ export default function LeagueDetailsScreen() {
               Classic
             </Text>
           </TouchableOpacity>
+        </View>
         </View>
       </View>
 
@@ -1742,6 +1815,7 @@ export default function LeagueDetailsScreen() {
         visible={infoModalVisible}
         onClose={() => setInfoModalVisible(false)}
         initialMode={scoreMode}
+        isSimpleBonus={effectiveSimpleBonus}
       />
       <ErrorModal
         visible={!!errorModal}
@@ -1957,7 +2031,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 3,
     gap: 2,
-    marginBottom: 10,
   },
   scoreModeBtn: {
     paddingHorizontal: 12,

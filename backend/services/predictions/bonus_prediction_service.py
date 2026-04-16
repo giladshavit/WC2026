@@ -303,6 +303,11 @@ class BonusPredictionService:
                 if (getattr(pred, sf, None) or "") == CORRECT
             )
             pred.bonus_score = new_bonus_score
+            pred.simple_bonus_score = (
+                (8 if (getattr(pred, "q_t1_status", None) or "") == "correct" else 0) +
+                (8 if (getattr(pred, "q_t2_status", None) or "") == "correct" else 0) +
+                (8 if (getattr(pred, "q_t3_status", None) or "") == "correct" else 0)
+            )
 
             if new_status == CORRECT:
                 correct_count += 1
