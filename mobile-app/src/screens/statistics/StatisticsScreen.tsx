@@ -60,6 +60,15 @@ interface UserFullProfile {
     correct_count: number;
     incorrect_count: number;
     has_any_judged: boolean;
+    groups_correct: number;
+    groups_incorrect: number;
+    groups_has_judged: boolean;
+    knockout_correct: number;
+    knockout_incorrect: number;
+    knockout_has_judged: boolean;
+    tournament_correct: number;
+    tournament_incorrect: number;
+    tournament_has_judged: boolean;
   };
 }
 
@@ -307,25 +316,107 @@ export default function StatisticsScreen() {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Bonus Predictions</Text>
             <View style={styles.cardScoreCircle}>
-              <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit={true} numberOfLines={1} minimumFontScale={0.5}>{profile.bonus?.score ?? 0}</Text>
+              <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.5}>
+                {profile.bonus?.score ?? 0}
+              </Text>
             </View>
           </View>
           {!profile.bonus?.has_any_judged ? (
             <Text style={styles.noDataText}>No results yet</Text>
           ) : (
-            <View style={styles.bonusResultRow}>
-              <View style={[styles.bonusResultChip, { backgroundColor: '#dcfce7' }]}>
-                <Text style={[styles.bonusResultCount, { color: '#16a34a' }]}>
-                  ✓ {profile.bonus.correct_count}
-                </Text>
-                <Text style={[styles.bonusResultLabel, { color: '#16a34a' }]}>correct</Text>
-              </View>
-              <View style={[styles.bonusResultChip, { backgroundColor: '#fee2e2' }]}>
-                <Text style={[styles.bonusResultCount, { color: '#dc2626' }]}>
-                  ✗ {profile.bonus.incorrect_count}
-                </Text>
-                <Text style={[styles.bonusResultLabel, { color: '#dc2626' }]}>wrong</Text>
-              </View>
+            <View style={styles.bonusSectionsContainer}>
+              {[
+                {
+                  label: 'Tournament',
+                  correct: profile.bonus?.tournament_correct ?? 0,
+                  incorrect: profile.bonus?.tournament_incorrect ?? 0,
+                  hasJudged: profile.bonus?.tournament_has_judged ?? false,
+                  total: 3,
+                },
+                {
+                  label: 'Group Stage',
+                  correct: profile.bonus?.groups_correct ?? 0,
+                  incorrect: profile.bonus?.groups_incorrect ?? 0,
+                  hasJudged: profile.bonus?.groups_has_judged ?? false,
+                  total: 6,
+                },
+                {
+                  label: 'Knockout',
+                  correct: profile.bonus?.knockout_correct ?? 0,
+                  incorrect: profile.bonus?.knockout_incorrect ?? 0,
+                  hasJudged: profile.bonus?.knockout_has_judged ?? false,
+                  total: 3,
+                },
+              ].map(({ label, correct, incorrect, hasJudged, total }) => {
+                const correctPct = (correct / total) * 100;
+                const incorrectPct = (incorrect / total) * 100;
+                return (
+                  <View key={label} style={styles.bonusSectionCard}>
+                    <View style={styles.bonusSectionCardRow}>
+                      <Text style={styles.bonusSectionCardLabel}>{label}</Text>
+                      <View style={styles.bonusSectionChips}>
+                        {hasJudged ? (
+                          <>
+                            <View style={styles.bonusMiniChipGreen}>
+                              <Text style={styles.bonusMiniChipTextGreen}>✓ {correct}</Text>
+                            </View>
+                            <View style={styles.bonusMiniChipRed}>
+                              <Text style={styles.bonusMiniChipTextRed}>✗ {incorrect}</Text>
+                            </View>
+                            <Text style={styles.bonusSectionTotal} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.7}>{correct + incorrect}/{total}</Text>
+                          </>
+                        ) : (
+                          <Text style={styles.bonusSectionPending}>Pending</Text>
+                        )}
+                      </View>
+                    </View>
+                    {hasJudged && (
+                      <View style={styles.bonusProgressTrack}>
+                        {correctPct > 0 && (
+                          <View style={[styles.bonusProgressFill, { width: `${correctPct}%` as any, backgroundColor: '#16a34a' }]} />
+                        )}
+                        {incorrectPct > 0 && (
+                          <View style={[styles.bonusProgressFill, { width: `${incorrectPct}%` as any, backgroundColor: '#ef4444' }]} />
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+              {/* Total row */}
+              {(() => {
+                const totalCorrect = (profile.bonus?.groups_correct ?? 0) + (profile.bonus?.knockout_correct ?? 0) + (profile.bonus?.tournament_correct ?? 0);
+                const totalIncorrect = (profile.bonus?.groups_incorrect ?? 0) + (profile.bonus?.knockout_incorrect ?? 0) + (profile.bonus?.tournament_incorrect ?? 0);
+                const totalAll = 12;
+                const hasAny = profile.bonus?.has_any_judged ?? false;
+                if (!hasAny) return null;
+                const correctPct = (totalCorrect / totalAll) * 100;
+                const incorrectPct = (totalIncorrect / totalAll) * 100;
+                return (
+                  <View style={styles.bonusTotalCard}>
+                    <View style={styles.bonusSectionCardRow}>
+                      <Text style={styles.bonusTotalLabel}>Total</Text>
+                      <View style={styles.bonusSectionChips}>
+                        <View style={styles.bonusMiniChipGreen}>
+                          <Text style={styles.bonusMiniChipTextGreen}>✓ {totalCorrect}</Text>
+                        </View>
+                        <View style={styles.bonusMiniChipRed}>
+                          <Text style={styles.bonusMiniChipTextRed}>✗ {totalIncorrect}</Text>
+                        </View>
+                        <Text style={styles.bonusSectionTotal} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.7}>{totalCorrect + totalIncorrect}/{totalAll}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.bonusProgressTrack}>
+                      {correctPct > 0 && (
+                        <View style={[styles.bonusProgressFill, { width: `${correctPct}%` as any, backgroundColor: '#16a34a' }]} />
+                      )}
+                      {incorrectPct > 0 && (
+                        <View style={[styles.bonusProgressFill, { width: `${incorrectPct}%` as any, backgroundColor: '#ef4444' }]} />
+                      )}
+                    </View>
+                  </View>
+                );
+              })()}
             </View>
           )}
         </View>
@@ -663,6 +754,95 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
   },
   cardLast: { marginBottom: 32 },
+  bonusSectionsContainer: {
+    gap: 8,
+    marginTop: 4,
+  },
+  bonusSectionCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    padding: 12,
+    paddingBottom: 10,
+  },
+  bonusTotalCard: {
+    backgroundColor: '#f0fdf4',
+    borderRadius: 12,
+    padding: 12,
+    paddingBottom: 10,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  bonusSectionCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  bonusSectionCardLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1f2937',
+    flex: 1,
+    marginRight: 8,
+  },
+  bonusTotalLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#15803d',
+    flex: 1,
+    marginRight: 8,
+  },
+  bonusSectionChips: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
+  bonusSectionTotal: {
+    fontSize: 12,
+    color: '#9ca3af',
+    width: 36,
+    textAlign: 'right',
+  },
+  bonusSectionPending: {
+    fontSize: 13,
+    color: '#9ca3af',
+  },
+  bonusMiniChipGreen: {
+    width: 52,
+    height: 26,
+    backgroundColor: '#dcfce7',
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bonusMiniChipRed: {
+    width: 52,
+    height: 26,
+    backgroundColor: '#fee2e2',
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bonusMiniChipTextGreen: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#16a34a',
+  },
+  bonusMiniChipTextRed: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#dc2626',
+  },
+  bonusProgressTrack: {
+    height: 8,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 99,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  bonusProgressFill: {
+    height: '100%',
+  },
   bonusResultRow: {
     flexDirection: 'row',
     gap: 12,

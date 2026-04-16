@@ -210,6 +210,15 @@ class UserProfileStatisticsService:
                 "correct_count": 0,
                 "incorrect_count": 0,
                 "has_any_judged": False,
+                "groups_correct": 0,
+                "groups_incorrect": 0,
+                "groups_has_judged": False,
+                "knockout_correct": 0,
+                "knockout_incorrect": 0,
+                "knockout_has_judged": False,
+                "tournament_correct": 0,
+                "tournament_incorrect": 0,
+                "tournament_has_judged": False,
             }
         correct_count = sum(
             1 for col in UserProfileStatisticsService.BONUS_STATUS_COLS
@@ -220,10 +229,33 @@ class UserProfileStatisticsService:
             if getattr(pred, col, "pending") in ("incorrect", "wrong")
         )
         has_any_judged = correct_count + incorrect_count > 0
+
+        GROUP_COLS = ["q_g1_status", "q_g2_status", "q_g3_status", "q_g4_status", "q_g5_status", "q_g6_status"]
+        KNOCKOUT_COLS = ["q_k1_status", "q_k2_status", "q_k3_status"]
+        TOURNAMENT_COLS = ["q_t1_status", "q_t2_status", "q_t3_status"]
+
+        def _count(cols):
+            correct = sum(1 for c in cols if getattr(pred, c, "pending") == "correct")
+            incorrect = sum(1 for c in cols if getattr(pred, c, "pending") in ("incorrect", "wrong"))
+            return correct, incorrect
+
+        g_c, g_i = _count(GROUP_COLS)
+        k_c, k_i = _count(KNOCKOUT_COLS)
+        t_c, t_i = _count(TOURNAMENT_COLS)
+
         return {
             "score": user_scores.bonus_score or 0,
             "penalty": user_scores.bonus_penalty or 0,
             "correct_count": correct_count,
             "incorrect_count": incorrect_count,
             "has_any_judged": has_any_judged,
+            "groups_correct": g_c,
+            "groups_incorrect": g_i,
+            "groups_has_judged": (g_c + g_i) > 0,
+            "knockout_correct": k_c,
+            "knockout_incorrect": k_i,
+            "knockout_has_judged": (k_c + k_i) > 0,
+            "tournament_correct": t_c,
+            "tournament_incorrect": t_i,
+            "tournament_has_judged": (t_c + t_i) > 0,
         }
