@@ -42,7 +42,7 @@ interface Section {
 type ContentBlock =
   | { type: 'paragraph'; text: string }
   | { type: 'bullet'; items: string[] }
-  | { type: 'note'; text: string; color?: 'green' | 'yellow' | 'red' }
+  | { type: 'note'; text: string; color?: 'green' | 'yellow' | 'red'; showBasicBadge?: boolean }
   | { type: 'table'; headers: string[]; rows: TableRow[]; compact?: boolean; isWide?: boolean }
   | { type: 'subsection'; title: string; blocks: ContentBlock[]; variant?: 'prediction' | 'section' | 'spaced' }
   | { type: 'tiebreaker'; items: string[] }
@@ -110,9 +110,9 @@ const sections: Section[] = [
           {
             type: 'bullet',
             items: [
-              '6 group-stage questions (Q1–Q6)',
-              '3 knockout questions (Q7–Q9)',
-              '3 tournament questions (Q10–Q12)',
+              '3 tournament questions',
+              '6 group-stage questions',
+              '3 knockout questions',
             ],
           },
           {
@@ -120,6 +120,12 @@ const sections: Section[] = [
             headers: ['Result', 'Points'],
             compact: true,
             rows: [{ cells: ['Correct answer', '8'] }],
+          },
+          {
+            type: 'note',
+            color: 'green',
+            text: 'Basic leagues only count the 3 tournament questions toward your score.',
+            showBasicBadge: true,
           },
           {
             type: 'note',
@@ -748,17 +754,6 @@ const timelineStyles = StyleSheet.create({
     fontSize: 11,
     color: '#7a8fa6',
   },
-  nowBadge: {
-    backgroundColor: '#16a34a',
-    borderRadius: 5,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-  },
-  nowBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#fff',
-  },
 });
 
 function StageTimelineBlock() {
@@ -832,11 +827,6 @@ function StageTimelineBlock() {
               <Text style={[timelineStyles.stageLabel, isActive && timelineStyles.stageLabelActive]}>
                 {item.stage === 'SEMI' ? 'Semi-Final - End' : item.label}
               </Text>
-              {isActive && (
-                <View style={timelineStyles.nowBadge}>
-                  <Text style={timelineStyles.nowBadgeText}>NOW</Text>
-                </View>
-              )}
             </View>
             <Text style={[timelineStyles.col1, timelineStyles.dateText]}>{startStr}</Text>
             <Text style={[timelineStyles.col1, timelineStyles.dateText]}>{endStr}</Text>
@@ -858,6 +848,18 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
             return <View key={i}>{renderParagraphWithBold(block.text)}</View>;
 
           case 'note': {
+            if (block.color === 'green' && block.showBasicBadge === true) {
+              return (
+                <View key={i} style={[styles.noteBox, { borderLeftColor: '#16a34a' }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                    <View style={styles.basicBadge}>
+                      <Text style={styles.basicBadgeText}>Basic</Text>
+                    </View>
+                    <Text style={styles.noteText}>{block.text}</Text>
+                  </View>
+                </View>
+              );
+            }
             const borderColor =
               block.color === 'red'
                 ? '#ef4444'
@@ -874,12 +876,28 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
           case 'bullet':
             return (
               <View key={i} style={styles.bulletList}>
-                {block.items.map((item, j) => (
-                  <View key={j} style={styles.bulletRow}>
-                    <View style={styles.bulletDot} />
-                    <Text style={styles.bulletText}>{item}</Text>
-                  </View>
-                ))}
+                {block.items.map((item, j) => {
+                  const isTournament = item === '3 tournament questions';
+                  if (isTournament) {
+                    return (
+                      <View key={j} style={styles.bulletRow}>
+                        <View style={styles.bulletDot} />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, flexWrap: 'wrap' }}>
+                          <Text style={[styles.bulletText, { flexShrink: 1 }]}>3 tournament questions</Text>
+                          <View style={styles.basicBadge}>
+                            <Text style={styles.basicBadgeText}>Basic</Text>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  }
+                  return (
+                    <View key={j} style={styles.bulletRow}>
+                      <View style={styles.bulletDot} />
+                      <Text style={styles.bulletText}>{item}</Text>
+                    </View>
+                  );
+                })}
               </View>
             );
 
@@ -1376,7 +1394,21 @@ const styles = StyleSheet.create({
     marginTop: 8,
     flexShrink: 0,
   },
-  bulletText: { flex: 1, fontSize: 14, color: '#94a3b8', lineHeight: 22 },
+  bulletText: { fontSize: 14, color: '#94a3b8', lineHeight: 22 },
+  basicBadge: {
+    backgroundColor: 'rgba(22, 163, 74, 0.15)',
+    borderWidth: 1,
+    borderColor: '#16a34a',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    alignSelf: 'center',
+  },
+  basicBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#16a34a',
+  },
 
   // Table
   tableWrap: {
