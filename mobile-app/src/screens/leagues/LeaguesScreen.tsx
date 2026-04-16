@@ -22,6 +22,13 @@ import { ErrorModal } from '../../components/modals/CustomModals';
 
 const AVATAR_COLORS = ['#2563eb', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
+function getLeagueAvatarColor(league: League): string {
+  if (league.score_mode === 'classic') {
+    return league.simple_bonus ? '#16a34a' : '#0ea5e9';
+  }
+  return '#d97706'; // multi
+}
+
 export default function LeaguesScreen() {
   const navigation = useNavigation();
   const route = useRoute();
@@ -102,7 +109,7 @@ export default function LeaguesScreen() {
     }
   };
 
-  const renderLeagueItem = ({ item, index }: { item: League; index: number }) => {
+  const renderLeagueItem = ({ item }: { item: League }) => {
     const leagueWithRank = item as League & { user_rank?: number };
     return (
     <TouchableOpacity
@@ -111,7 +118,7 @@ export default function LeaguesScreen() {
       activeOpacity={0.7}
     >
       <View style={styles.leagueCardTop}>
-        <View style={[styles.avatar, { backgroundColor: AVATAR_COLORS[index % 5] }]}>
+        <View style={[styles.avatar, { backgroundColor: getLeagueAvatarColor(item) }]}>
           <Text style={styles.avatarLetter}>{item.name.charAt(0).toUpperCase()}</Text>
         </View>
         <View style={styles.leagueCardCenter}>
