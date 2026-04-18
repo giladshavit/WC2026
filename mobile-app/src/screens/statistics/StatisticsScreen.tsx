@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   StyleSheet, View, Text, ActivityIndicator, RefreshControl,
-  ScrollView, StatusBar,
+  ScrollView, StatusBar, Modal, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { MainStackParamList } from '../../navigation/MainStackParamList';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { apiService } from '../../services/api';
@@ -86,7 +88,175 @@ function getGroupBlockColor(correctPositions: number | null): string {
   }
 }
 
+function StatsInfoModal({ visible, onClose, onGoToRules }: {
+  visible: boolean;
+  onClose: () => void;
+  onGoToRules: () => void;
+}) {
+  const rows = [
+    {
+      icon: 'football-outline',
+      color: '#38bdf8',
+      label: 'Match Predictions',
+      desc: 'Points awarded after each match result is confirmed.',
+    },
+    {
+      icon: 'gift-outline',
+      color: '#a78bfa',
+      label: 'Bonus Predictions',
+      desc: 'Points awarded once the answer to the relevant question is known.',
+    },
+    {
+      icon: 'git-branch-outline',
+      color: '#f59e0b',
+      label: 'Bracket (Route)',
+      desc: 'Points awarded after each group or knockout round is completed.',
+    },
+    {
+      icon: 'warning-outline',
+      color: '#f87171',
+      label: 'Fines',
+      desc: 'Deducted for editing Multi Mode predictions after the tournament begins.',
+    },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity
+        style={statsInfoStyles.overlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableOpacity activeOpacity={1} style={statsInfoStyles.card} onPress={() => {}}>
+          <View style={statsInfoStyles.titleRow}>
+            <Ionicons name="information-circle" size={18} color="#94a3b8" />
+            <Text style={statsInfoStyles.title} maxFontSizeMultiplier={1.1}>How Points Work</Text>
+          </View>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            style={statsInfoStyles.rowsScroll}
+          >
+            {rows.map((row) => (
+              <View key={row.label} style={statsInfoStyles.row}>
+                <View style={[statsInfoStyles.iconBox, { backgroundColor: row.color + '22' }]}>
+                  <Ionicons name={row.icon as any} size={16} color={row.color} />
+                </View>
+                <View style={statsInfoStyles.rowText}>
+                  <Text style={[statsInfoStyles.rowLabel, { color: row.color }]} maxFontSizeMultiplier={1.1}>{row.label}</Text>
+                  <Text style={statsInfoStyles.rowDesc} maxFontSizeMultiplier={1.1}>{row.desc}</Text>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+          <TouchableOpacity style={statsInfoStyles.rulesBtn} onPress={onGoToRules}>
+            <Ionicons name="book-outline" size={15} color="#16a34a" />
+            <Text style={statsInfoStyles.rulesBtnText} maxFontSizeMultiplier={1.1}>View Full Rules</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={statsInfoStyles.closeBtn} onPress={onClose}>
+            <Text style={statsInfoStyles.closeBtnText} maxFontSizeMultiplier={1.1}>Got it</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+const statsInfoStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  card: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 360,
+    maxHeight: '88%',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  rowsScroll: {
+    flexShrink: 1,
+    marginBottom: 4,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#f1f5f9',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+    flex: 1,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  rowText: { flex: 1, justifyContent: 'center' },
+  rowLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  rowDesc: {
+    fontSize: 12,
+    color: '#94a3b8',
+    lineHeight: 17,
+  },
+  rulesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 16,
+    backgroundColor: 'rgba(22,163,74,0.12)',
+    borderRadius: 10,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(22,163,74,0.3)',
+  },
+  rulesBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#16a34a',
+  },
+  closeBtn: {
+    marginTop: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  closeBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#e2e8f0',
+  },
+});
+
 export default function StatisticsScreen() {
+  const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
+  const [infoModalVisible, setInfoModalVisible] = useState(false);
   const { showToast } = useToast();
   const [profile, setProfile] = useState<UserFullProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,6 +277,19 @@ export default function StatisticsScreen() {
       setRefreshing(false);
     }
   }, [getCurrentUserId]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setInfoModalVisible(true)}
+          style={{ paddingRight: 16, paddingVertical: 8 }}
+        >
+          <Ionicons name="information-circle" size={24} color="#e2e8f0" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
 
   useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
 
@@ -267,7 +450,7 @@ export default function StatisticsScreen() {
             </View>
             <View style={styles.pointsStatSeparator} />
             <View style={styles.pointsStatBlock}>
-              <Ionicons name="trophy-outline" size={20} color="#a7f3d0" />
+              <Ionicons name="git-branch-outline" size={20} color="#a7f3d0" />
               <Text style={styles.pointsStatNumber}>{bracketPts}</Text>
               <Text style={styles.pointsStatLabel}>Bracket</Text>
             </View>
@@ -716,6 +899,14 @@ export default function StatisticsScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+    <StatsInfoModal
+      visible={infoModalVisible}
+      onClose={() => setInfoModalVisible(false)}
+      onGoToRules={() => {
+        setInfoModalVisible(false);
+        navigation.navigate('Rules');
+      }}
+    />
     </>
   );
 }
