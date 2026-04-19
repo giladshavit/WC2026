@@ -666,26 +666,24 @@
     };
 
     const captureBracket = async () => {
+      if (Platform.OS === 'android') return;
+
       if (!bracketRef.current) {
         setErrorModal({ title: 'Error', message: 'Cannot capture bracket at this time.' });
         return;
       }
-
       try {
         setIsCapturing(true);
-
         const { status } = await MediaLibrary.requestPermissionsAsync();
         if (status !== 'granted') {
           setErrorModal({ title: 'Permission Required', message: 'Photo library access is required to save bracket images.' });
           return;
         }
-
         const uri = await captureRef(bracketRef.current, {
           format: 'png',
           quality: 1.0,
           result: 'tmpfile',
         });
-
         const asset = await MediaLibrary.createAssetAsync(uri);
         await MediaLibrary.createAlbumAsync('Bracket Screenshots', asset, false);
         showToast('Bracket saved to photos!', 'success');
@@ -947,9 +945,11 @@
 
             {!editMode && (
               <>
-                <TouchableOpacity style={styles.screenshotButton} onPress={captureBracket} disabled={isCapturing}>
-                  <Ionicons name="camera-outline" size={18} color="#fff" />
-                </TouchableOpacity>
+                {Platform.OS !== 'android' && (
+                  <TouchableOpacity style={styles.screenshotButton} onPress={captureBracket} disabled={isCapturing}>
+                    <Ionicons name="camera-outline" size={18} color="#fff" />
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity style={styles.shareButton} onPress={shareBracket} disabled={isCapturing}>
                   <Ionicons name="share-outline" size={18} color="#fff" />
                 </TouchableOpacity>
