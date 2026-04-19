@@ -238,7 +238,7 @@
     gap: 4,
   },
     t3CardSelected: {
-      backgroundColor: 'rgba(22,163,74,0.2)',
+      backgroundColor: '#1a3d2b',
       borderColor: '#16a34a',
       borderWidth: 2,
       shadowColor: '#16a34a',
