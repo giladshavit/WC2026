@@ -841,13 +841,19 @@ class ResultsService:
         Reset all user scores to zero and all prediction points to zero (admin only)
         """
         from models.user_scores import UserScores
-        from models.predictions import MatchPrediction, GroupStagePrediction, ThirdPlacePrediction, KnockoutStagePrediction
-        
+        from models.predictions import (
+            MatchPrediction,
+            GroupStagePrediction,
+            ThirdPlacePrediction,
+            KnockoutStagePrediction,
+            BonusPrediction,
+        )
+
         try:
             # Get all user scores
             all_scores = DBReader.get_all_user_scores(db)
             count = 0
-            
+
             for user_scores in all_scores:
                 DBWriter.reset_user_scores(db, user_scores)
                 DBWriter.update_user_scores(
@@ -858,6 +864,11 @@ class ResultsService:
                     knockout_penalty=0,
                     bonus_score=0,
                     bonus_penalty=0,
+                    simple_bonus_score=0,
+                    simple_classic_total=0,
+                    has_used_bracket_reset=False,
+                    free_changes=0,
+                    free_changes_used=0,
                 )
                 count += 1
 
@@ -874,8 +885,32 @@ class ResultsService:
             DBWriter.reset_knockout_prediction_penalties(db)
 
             # Reset bonus predictions
-            bonus_pred_count = DBWriter.reset_bonus_prediction_points(db)
-            DBWriter.reset_bonus_prediction_penalties(db)
+            bonus_preds = db.query(BonusPrediction).all()
+            for bp in bonus_preds:
+                bp.points = 0
+                bp.bonus_score = 0
+                bp.simple_bonus_score = 0
+                bp.penalty_points = 0
+                bp.changes_count = 0
+                bp.groups_status = "pending"
+                bp.knockout_status = "pending"
+                bp.tournament_status = "pending"
+                for _attr in (
+                    "q_g1_status",
+                    "q_g2_status",
+                    "q_g3_status",
+                    "q_g4_status",
+                    "q_g5_status",
+                    "q_g6_status",
+                    "q_k1_status",
+                    "q_k2_status",
+                    "q_k3_status",
+                    "q_t1_status",
+                    "q_t2_status",
+                    "q_t3_status",
+                ):
+                    setattr(bp, _attr, "pending")
+            bonus_pred_count = len(bonus_preds)
             
             DBUtils.commit(db)
             
