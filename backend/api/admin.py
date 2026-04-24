@@ -1136,6 +1136,30 @@ def create_test_users_draw_predictions(
     return result
 
 
+@router.delete("/admin/delete-test-users", response_model=Dict[str, Any])
+def delete_test_users(db: Session = Depends(get_db)):
+    """Delete all users whose username starts with 'bot_' (admin only)"""
+    from models.user import User
+
+    bot_users = db.query(User).filter(User.username.like('bot_%')).all()
+    deleted_count = 0
+    errors = 0
+
+    for user in bot_users:
+        try:
+            DBWriter.delete_user_account(db, user.id)
+            deleted_count += 1
+        except Exception as e:
+            print(f"Error deleting bot user {user.id}: {e}")
+            errors += 1
+
+    return {
+        "message": f"Deleted {deleted_count} bot users",
+        "deleted": deleted_count,
+        "errors": errors
+    }
+
+
 @router.post("/admin/create-random-group-and-third-place-results", response_model=Dict[str, Any])
 def create_random_group_and_third_place_results(
     request: CreateRandomResultsRequest,

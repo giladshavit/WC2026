@@ -55,6 +55,7 @@ const adminOptions: Array<{
 export default function AdminMenuScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [deleting, setDeleting] = useState(false);
+  const [deletingBots, setDeletingBots] = useState(false);
   const [creatingRandom, setCreatingRandom] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
   const [generatingUsers, setGeneratingUsers] = useState(false);
@@ -280,6 +281,44 @@ export default function AdminMenuScreen() {
     );
   };
 
+  const handleDeleteTestUsers = () => {
+    Alert.alert(
+      '🤖 Delete Test Users',
+      'Permanently delete all users whose username starts with "bot_".\n\n' +
+        'This cannot be undone.\n\n' +
+        'Continue?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingBots(true);
+            try {
+              const result = await apiService.deleteTestUsers();
+              Alert.alert(
+                '✅ Success',
+                `Deleted: ${result.deleted}\nErrors: ${result.errors}`,
+                [{ text: 'OK' }]
+              );
+            } catch (error: any) {
+              Alert.alert(
+                '❌ Error',
+                error.message || 'Failed to delete test users',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              setDeletingBots(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -313,9 +352,9 @@ export default function AdminMenuScreen() {
           <Text style={styles.quickActionsTitle}>Quick Actions</Text>
           
           <TouchableOpacity
-            style={[styles.quickActionButton, styles.generateTestUsersButton, (generatingUsers || generatingDrawUsers || deleting || creatingRandom || rebuilding) && styles.buttonDisabled]}
+            style={[styles.quickActionButton, styles.generateTestUsersButton, (generatingUsers || generatingDrawUsers || deleting || deletingBots || creatingRandom || rebuilding) && styles.buttonDisabled]}
             onPress={handleGenerateTestUsers}
-            disabled={generatingUsers || generatingDrawUsers || deleting || creatingRandom || rebuilding}
+            disabled={generatingUsers || generatingDrawUsers || deleting || deletingBots || creatingRandom || rebuilding}
             activeOpacity={0.7}
           >
             <Text style={styles.quickActionButtonText}>
@@ -324,9 +363,9 @@ export default function AdminMenuScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.quickActionButton, styles.generateDrawUsersButton, (generatingDrawUsers || generatingUsers || deleting || creatingRandom || rebuilding) && styles.buttonDisabled]}
+            style={[styles.quickActionButton, styles.generateDrawUsersButton, (generatingDrawUsers || generatingUsers || deleting || deletingBots || creatingRandom || rebuilding) && styles.buttonDisabled]}
             onPress={handleGenerateDrawUsers}
-            disabled={generatingDrawUsers || generatingUsers || deleting || creatingRandom || rebuilding}
+            disabled={generatingDrawUsers || generatingUsers || deleting || deletingBots || creatingRandom || rebuilding}
             activeOpacity={0.7}
           >
             <Text style={styles.quickActionButtonText}>
@@ -335,9 +374,20 @@ export default function AdminMenuScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.quickActionButton, styles.createRandomButton, (creatingRandom || deleting || rebuilding || generatingUsers || generatingDrawUsers) && styles.buttonDisabled]}
+            style={[styles.quickActionButton, styles.deleteTestUsersButton, (deletingBots || generatingUsers || generatingDrawUsers || deleting || creatingRandom || rebuilding) && styles.buttonDisabled]}
+            onPress={handleDeleteTestUsers}
+            disabled={deletingBots || generatingUsers || generatingDrawUsers || deleting || creatingRandom || rebuilding}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.quickActionButtonText}>
+              {deletingBots ? 'Deleting...' : '🤖 Delete All Test Users'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.quickActionButton, styles.createRandomButton, (creatingRandom || deleting || deletingBots || rebuilding || generatingUsers || generatingDrawUsers) && styles.buttonDisabled]}
             onPress={() => handleCreateRandomResults(false)}
-            disabled={creatingRandom || deleting || rebuilding || generatingUsers || generatingDrawUsers}
+            disabled={creatingRandom || deleting || deletingBots || rebuilding || generatingUsers || generatingDrawUsers}
             activeOpacity={0.7}
           >
             <Text style={styles.quickActionButtonText}>
@@ -346,9 +396,9 @@ export default function AdminMenuScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.quickActionButton, styles.rebuildButton, (rebuilding || deleting || creatingRandom || generatingUsers || generatingDrawUsers) && styles.buttonDisabled]}
+            style={[styles.quickActionButton, styles.rebuildButton, (rebuilding || deleting || deletingBots || creatingRandom || generatingUsers || generatingDrawUsers) && styles.buttonDisabled]}
             onPress={handleRebuildRound32}
-            disabled={rebuilding || deleting || creatingRandom || generatingUsers || generatingDrawUsers}
+            disabled={rebuilding || deleting || deletingBots || creatingRandom || generatingUsers || generatingDrawUsers}
             activeOpacity={0.7}
           >
             <Text style={styles.quickActionButtonText}>
@@ -358,9 +408,9 @@ export default function AdminMenuScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.deleteButton, (deleting || generatingUsers || generatingDrawUsers) && styles.deleteButtonDisabled]}
+          style={[styles.deleteButton, (deleting || deletingBots || generatingUsers || generatingDrawUsers) && styles.deleteButtonDisabled]}
           onPress={handleDeleteAllResults}
-          disabled={deleting || generatingUsers || generatingDrawUsers}
+          disabled={deleting || deletingBots || generatingUsers || generatingDrawUsers}
           activeOpacity={0.7}
         >
           <Text style={styles.deleteButtonText}>
@@ -429,6 +479,9 @@ const styles = StyleSheet.create({
   },
   generateDrawUsersButton: {
     backgroundColor: '#0891b2',
+  },
+  deleteTestUsersButton: {
+    backgroundColor: '#ea580c',
   },
   createRandomButton: {
     backgroundColor: '#9333ea',

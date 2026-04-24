@@ -1492,6 +1492,14 @@ export class ApiService {
     }
   }
 
+  async deleteTestUsers(): Promise<{ deleted: number; errors: number }> {
+    const response = await fetch(`${this.baseUrl}/api/admin/delete-test-users`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }
+
   // League methods
   async getUserLeagues(): Promise<League[]> {
     try {
