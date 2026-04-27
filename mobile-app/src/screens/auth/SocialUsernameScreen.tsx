@@ -15,6 +15,7 @@ import type { ScrollView as RNScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
+import { AppEventsLogger } from 'react-native-fbsdk-next';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -117,6 +118,7 @@ export default function SocialUsernameScreen({
           await SecureStore.setItemAsync('auth_token', result.access_token);
           await SecureStore.setItemAsync('auth_user', JSON.stringify(userData));
           setUser(userData);
+          AppEventsLogger.logEvent('registration_completed');
           onSuccess();
         } else {
           setErrorModal({
@@ -137,6 +139,7 @@ export default function SocialUsernameScreen({
           await SecureStore.setItemAsync('auth_token', result.access_token);
           await SecureStore.setItemAsync('auth_user', JSON.stringify(userData));
           setUser(userData);
+          AppEventsLogger.logEvent('registration_completed');
           onSuccess();
         } else {
           setErrorModal({

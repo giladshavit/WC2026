@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -11,6 +11,8 @@ import { TournamentProvider } from './src/contexts/TournamentContext';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ToastProvider } from './src/components/toast/Toast';
 import { Text, TextInput } from 'react-native';
+import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
+import { Settings } from 'react-native-fbsdk-next';
 
 // Global font scaling cap — allows up to 30% enlargement, prevents layout breakage
 if ((Text as any).defaultProps == null) (Text as any).defaultProps = {};
@@ -74,6 +76,13 @@ function AppContent() {
 }
 
 export default function App() {
+  useEffect(() => {
+    (async () => {
+      const { status } = await requestTrackingPermissionsAsync();
+      await Settings.setAdvertiserTrackingEnabled(status === 'granted');
+    })();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <AuthProvider>

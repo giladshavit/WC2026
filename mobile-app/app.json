@@ -17,7 +17,8 @@
       "bundleIdentifier": "com.predictoapp.football",
       "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSUserTrackingUsageDescription": "This helps us show you relevant ads and improve your Predicto experience."
       }
     },
     "android": {
@@ -67,6 +68,23 @@
               "android.permission.ACCESS_MEDIA_LOCATION"
             ]
           }
+        }
+      ],
+      [
+        "react-native-fbsdk-next",
+        {
+          "appID": "1508136107625749",
+          "clientToken": "960679422ad667db68f7a580a9fdc635",
+          "displayName": "Predicto",
+          "advertiserIDCollectionEnabled": false,
+          "autoLogAppEventsEnabled": true,
+          "isAutoInitEnabled": true
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "This helps us show you relevant ads and improve your Predicto experience."
         }
       ]
     ],

@@ -1,5 +1,6 @@
 // Use localhost for emulator/web, network IP for physical device
 import { Platform } from 'react-native';
+import { AppEventsLogger } from 'react-native-fbsdk-next';
 import * as Device from 'expo-device';
 
 // Change this to your Mac's IP address when testing on physical device
@@ -709,6 +710,7 @@ export class ApiService {
       }
 
       const data = await response.json();
+      AppEventsLogger.logEvent('prediction_submitted');
       return data;
     } catch (error) {
       console.error('Error updating match prediction:', error);
@@ -768,6 +770,7 @@ export class ApiService {
       }
 
       const data = await response.json();
+      AppEventsLogger.logEvent('prediction_submitted');
       return data;
     } catch (error) {
       console.error('Error updating batch match predictions:', error);
@@ -825,6 +828,7 @@ export class ApiService {
       }
 
       const data = await response.json();
+      AppEventsLogger.logEvent('prediction_submitted');
       return data;
     } catch (error) {
       console.error('Error updating batch group predictions:', error);
@@ -870,6 +874,7 @@ export class ApiService {
       }
 
       const data = await response.json();
+      AppEventsLogger.logEvent('prediction_submitted');
       return data;
     } catch (error) {
       console.error('Error updating third place prediction:', error);
@@ -1005,7 +1010,9 @@ export class ApiService {
         err.detail = detail;
         throw err;
       }
-      return await response.json();
+      const commitData = await response.json();
+      AppEventsLogger.logEvent('prediction_submitted');
+      return commitData;
     } catch (error) {
       console.error('Error committing drafts:', error);
       throw error;
@@ -1078,6 +1085,7 @@ export class ApiService {
       }
 
       const data = await response.json();
+      AppEventsLogger.logEvent('prediction_submitted');
       return data;
     } catch (error) {
       console.error('Error updating knockout prediction:', error);
@@ -1110,6 +1118,7 @@ export class ApiService {
       }
 
       const data = await response.json();
+      AppEventsLogger.logEvent('prediction_submitted');
       return data;
     } catch (error) {
       console.error('Error updating batch knockout predictions:', error);
@@ -1861,7 +1870,9 @@ export class ApiService {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return response.json();
+    const bonusData = await response.json();
+    AppEventsLogger.logEvent('prediction_submitted');
+    return bonusData;
   }
 
   async getBonusStatistics(fieldKey: string): Promise<{

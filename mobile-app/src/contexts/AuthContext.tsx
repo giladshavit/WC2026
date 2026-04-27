@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { AppEventsLogger } from 'react-native-fbsdk-next';
 import { apiService, User, AuthResponse } from '../services/api';
 
 interface AuthContextType {
@@ -101,6 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const userData = await apiService.getCurrentUser();
       await storeAuth(authResponse, userData);
       setUser(userData);
+      AppEventsLogger.logEvent('registration_completed');
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
