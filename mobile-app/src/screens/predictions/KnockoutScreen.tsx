@@ -350,12 +350,20 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
     React.useCallback(() => {
       const checkAndRefresh = async () => {
         try {
-          const earlyStageUpdateStr = await AsyncStorage.getItem('earlyStageUpdated');
-          if (earlyStageUpdateStr !== null) {
+          const [earlyStageUpdateStr, bracketUpdatedMatchesStr] = await Promise.all([
+            AsyncStorage.getItem('earlyStageUpdated'),
+            AsyncStorage.getItem('bracketUpdatedMatches'),
+          ]);
+
+          const hasBracketUpdates =
+            bracketUpdatedMatchesStr !== null &&
+            JSON.parse(bracketUpdatedMatchesStr).length > 0;
+
+          if (earlyStageUpdateStr !== null || hasBracketUpdates) {
             await fetchAllStages(true);
           }
         } catch (error) {
-          console.error('Error checking early stage update:', error);
+          console.error('Error checking for updates on focus:', error);
         }
       };
       checkAndRefresh();
