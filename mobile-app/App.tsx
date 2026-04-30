@@ -1,5 +1,5 @@
 import './src/i18n/index';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   CommonActions,
   NavigationContainer,
@@ -102,14 +102,30 @@ function AppContent() {
     setShowSplash(false);
   };
 
-  /** Deep link invite: stash for logged-out users; reset stack (Home → JoinLeague) when logged in */
+  const pendingLaunchCodeRef = useRef<string | null>(null);
+
+  /** Cold-launch deep link: stash for logged-out users; reset stack when logged in + nav ready */
   useEffect(() => {
     if (isLoading || !launchLinkUrl) return;
     const code = extractJoinInviteCodeFromUrl(launchLinkUrl);
     if (!code) return;
-    if (!isAuthenticated) void saveInviteCode(code);
-    else if (!showSplash && navReady) tryConsumeJoinInviteUrl(launchLinkUrl);
+    if (!isAuthenticated) {
+      void saveInviteCode(code);
+    } else if (!showSplash && navReady) {
+      pendingLaunchCodeRef.current = null;
+      tryConsumeJoinInviteUrl(launchLinkUrl);
+    } else {
+      pendingLaunchCodeRef.current = code;
+    }
   }, [launchLinkUrl, isLoading, isAuthenticated, saveInviteCode, showSplash, navReady]);
+
+  useEffect(() => {
+    if (!navReady || !isAuthenticated || showSplash) return;
+    const code = pendingLaunchCodeRef.current;
+    if (!code) return;
+    pendingLaunchCodeRef.current = null;
+    dispatchJoinInviteReset(code);
+  }, [navReady, isAuthenticated, showSplash]);
 
   useEffect(() => {
     const subscription = Linking.addEventListener('url', ({ url }) => {
