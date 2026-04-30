@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import predictions, admin, auth, leagues, download
+from api import predictions, admin, auth, leagues, download, well_known
 from api import bonus as bonus_router
 from api import scoring, config
 from api.statistics import router as statistics_router
@@ -45,7 +45,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
+# Include routers (.well-known must be public and registered before other routes)
+app.include_router(well_known.router, prefix="")
 app.include_router(download.router, prefix="", tags=["download"])
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(leagues.router, prefix="/api", tags=["leagues"])
