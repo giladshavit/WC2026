@@ -135,28 +135,41 @@ function AppContent() {
         void saveInviteCode(code);
         return;
       }
-      if (!navigationRef.isReady()) return;
-      tryConsumeJoinInviteUrl(url);
+      const runNavigation = () => {
+        if (navigationRef.isReady()) {
+          tryConsumeJoinInviteUrl(url);
+        } else {
+          requestAnimationFrame(runNavigation);
+        }
+      };
+      requestAnimationFrame(runNavigation);
     });
     return () => subscription.remove();
   }, [isAuthenticated, saveInviteCode]);
 
   useEffect(() => {
-    if (showSplash || isLoading || !isAuthenticated || !navReady) return;
+    if (!navReady || !isAuthenticated || showSplash) return;
 
     let cancelled = false;
     (async () => {
       const pending = await getPendingInviteCode();
       if (!pending || cancelled) return;
       await clearInviteCode();
-      if (!navigationRef.isReady()) return;
-      dispatchJoinInviteReset(pending);
+
+      const runNavigation = () => {
+        if (navigationRef.isReady()) {
+          dispatchJoinInviteReset(pending);
+        } else {
+          requestAnimationFrame(runNavigation);
+        }
+      };
+      requestAnimationFrame(runNavigation);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [showSplash, isLoading, isAuthenticated, navReady, getPendingInviteCode, clearInviteCode]);
+  }, [navReady, isAuthenticated, showSplash, getPendingInviteCode, clearInviteCode]);
 
   if (showSplash) {
     return <SplashScreen onAnimationComplete={handleSplashComplete} />;
