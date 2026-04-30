@@ -1,6 +1,7 @@
 import './src/i18n/index';
 import React, { useState, useEffect } from 'react';
 import {
+  CommonActions,
   NavigationContainer,
   createNavigationContainerRef,
 } from '@react-navigation/native';
@@ -37,23 +38,49 @@ if ((TextInput as any).defaultProps == null) (TextInput as any).defaultProps = {
 
 const navigationRef = createNavigationContainerRef();
 
+/** Join League lives under LeagueStack (Leagues), not Home — see reset state below */
 const linking = {
   prefixes: ['predicto://', 'https://getpredicto.com', 'https://www.getpredicto.com'],
   config: {
     screens: {
-      Leagues: {
-        screens: {
-          JoinLeague: {
-            path: 'join',
-            parse: {
-              code: (code: string) => (typeof code === 'string' ? code : '').toUpperCase(),
-            },
-          },
-        },
-      },
+      Home: '',
     },
   },
 };
+
+const processedJoinDeepLinkUrls = new Set<string>();
+
+function dispatchJoinInviteReset(code: string) {
+  if (!navigationRef.isReady()) return;
+  navigationRef.dispatch(
+    CommonActions.reset({
+      index: 1,
+      routes: [
+        { name: 'Home' },
+        {
+          name: 'Leagues',
+          state: {
+            routes: [
+              { name: 'LeaguesMain' },
+              { name: 'JoinLeague', params: { code } },
+            ],
+            index: 1,
+          },
+        },
+      ],
+    })
+  );
+}
+
+/** Authenticated-only: normalize URL consumption for join deep links */
+function tryConsumeJoinInviteUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  const code = extractJoinInviteCodeFromUrl(url);
+  if (!code || processedJoinDeepLinkUrls.has(url)) return false;
+  processedJoinDeepLinkUrls.add(url);
+  dispatchJoinInviteReset(code);
+  return true;
+}
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -75,12 +102,28 @@ function AppContent() {
     setShowSplash(false);
   };
 
-  /** Logged-out users: persist invite from deep link so we can open Join League after auth */
+  /** Deep link invite: stash for logged-out users; reset stack (Home → JoinLeague) when logged in */
   useEffect(() => {
     if (isLoading || !launchLinkUrl) return;
     const code = extractJoinInviteCodeFromUrl(launchLinkUrl);
-    if (code && !isAuthenticated) void saveInviteCode(code);
-  }, [launchLinkUrl, isLoading, isAuthenticated, saveInviteCode]);
+    if (!code) return;
+    if (!isAuthenticated) void saveInviteCode(code);
+    else if (!showSplash && navReady) tryConsumeJoinInviteUrl(launchLinkUrl);
+  }, [launchLinkUrl, isLoading, isAuthenticated, saveInviteCode, showSplash, navReady]);
+
+  useEffect(() => {
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      const code = extractJoinInviteCodeFromUrl(url);
+      if (!code) return;
+      if (!isAuthenticated) {
+        void saveInviteCode(code);
+        return;
+      }
+      if (!navigationRef.isReady()) return;
+      tryConsumeJoinInviteUrl(url);
+    });
+    return () => subscription.remove();
+  }, [isAuthenticated, saveInviteCode]);
 
   useEffect(() => {
     if (showSplash || isLoading || !isAuthenticated || !navReady) return;
@@ -90,12 +133,8 @@ function AppContent() {
       const pending = await getPendingInviteCode();
       if (!pending || cancelled) return;
       await clearInviteCode();
-      if (navigationRef.isReady()) {
-        (navigationRef as any).navigate('Leagues', {
-          screen: 'JoinLeague',
-          params: { code: pending },
-        });
-      }
+      if (!navigationRef.isReady()) return;
+      dispatchJoinInviteReset(pending);
     })();
 
     return () => {
