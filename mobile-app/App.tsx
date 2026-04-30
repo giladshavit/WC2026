@@ -124,7 +124,15 @@ function AppContent() {
     const code = pendingLaunchCodeRef.current;
     if (!code) return;
     pendingLaunchCodeRef.current = null;
-    dispatchJoinInviteReset(code);
+
+    const runNavigation = () => {
+      if (navigationRef.isReady()) {
+        dispatchJoinInviteReset(code);
+      } else {
+        requestAnimationFrame(runNavigation);
+      }
+    };
+    requestAnimationFrame(runNavigation);
   }, [navReady, isAuthenticated, showSplash]);
 
   useEffect(() => {
