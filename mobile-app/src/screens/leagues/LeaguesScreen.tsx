@@ -121,8 +121,12 @@ export default function LeaguesScreen() {
       activeOpacity={0.7}
     >
       <View style={styles.leagueCardTop}>
-        <View style={[styles.avatar, { backgroundColor: getLeagueAvatarColor(item) }]}>
-          <Text style={styles.avatarLetter}>{item.name.charAt(0).toUpperCase()}</Text>
+        <View style={styles.avatarIcon}>
+          <Ionicons
+            name="football-outline"
+            size={36}
+            color={getLeagueAvatarColor(item)}
+          />
         </View>
         <View style={styles.leagueCardCenter}>
           <Text style={styles.leagueName} maxFontSizeMultiplier={1.2}>{item.name}</Text>
@@ -494,7 +498,8 @@ const styles = StyleSheet.create({
   leagueCard: {
     backgroundColor: '#1e3a5f',
     borderRadius: 14,
-    padding: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -508,18 +513,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avatar: {
+  avatarIcon: {
     width: 44,
     height: 44,
-    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
-  },
-  avatarLetter: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
+    marginLeft: 2,
   },
   leagueCardCenter: {
     flex: 1,
