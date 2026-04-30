@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
 
 // ─── Fine Confirmation Modal ─────────────────────────────────────────────
 
@@ -20,6 +21,7 @@ interface FineModalProps {
 }
 
 export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel, freeChangesInfo }: FineModalProps) {
+  const { t } = useTranslation();
   if (freeChangesInfo) {
     const { totalChanges, freeAvailable, freeUsed, paidChanges, penalty } = freeChangesInfo;
     const freeRemaining = freeAvailable - freeUsed;
@@ -33,15 +35,15 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
               <View style={[styles.iconCircle, { backgroundColor: '#dcfce7' }]}>
                 <Ionicons name="gift-outline" size={32} color="#4ade80" />
               </View>
-              <Text style={styles.title}>Confirm Save</Text>
+              <Text style={styles.title}>{t('modals.confirmSave')}</Text>
               <View style={styles.statBoxesRow}>
                 <View style={[styles.statBox, { backgroundColor: '#fef2f2', borderWidth: 1.5, borderColor: '#fca5a5' }]}>
                   <Text style={[styles.statBoxNumber, { color: '#dc2626' }]}>{freeUsed}</Text>
-                  <Text style={styles.statBoxLabel}>changes made</Text>
+                  <Text style={styles.statBoxLabel}>{t('modals.changesMade')}</Text>
                 </View>
                 <View style={[styles.statBox, { backgroundColor: 'rgba(74,222,128,0.12)', borderWidth: 1.5, borderColor: '#4ade80' }]}>
                   <Text style={[styles.statBoxNumber, { color: '#16a34a' }]}>{freeRemaining}</Text>
-                  <Text style={styles.statBoxLabel}>free remaining</Text>
+                  <Text style={styles.statBoxLabel}>{t('modals.freeRemaining')}</Text>
                 </View>
               </View>
               <View style={styles.buttonsContainer}>
@@ -50,14 +52,14 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
                   onPress={onConfirm}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.buttonText}>Save for Free</Text>
+                  <Text style={styles.buttonText}>{t('modals.saveForFree')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.button, styles.buttonCancel]}
                   onPress={onCancel}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.buttonTextCancel}>Cancel</Text>
+                  <Text style={styles.buttonTextCancel}>{t('modals.cancel')}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -72,7 +74,7 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
           <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onCancel}>
             <TouchableOpacity style={styles.container} activeOpacity={1} onPress={() => {}}>
-              <Text style={styles.title}>Confirm Save</Text>
+              <Text style={styles.title}>{t('modals.confirmSave')}</Text>
               {/* ROW 1: Two boxes side by side */}
               <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginBottom: 16 }}>
                 {/* Box 1: Free used - left */}
@@ -84,7 +86,7 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
                     {freeUsed}
                   </Text>
                   <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500', marginTop: 2 }}>
-                    free used
+                    {t('modals.freeUsed')}
                   </Text>
                 </View>
                 {/* Box 2: Paid changes - right, more prominent */}
@@ -96,7 +98,7 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
                     {paidChanges}
                   </Text>
                   <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500', marginTop: 2 }}>
-                    paid changes
+                    {t('modals.paidChanges')}
                   </Text>
                 </View>
               </View>
@@ -105,7 +107,7 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
                 fontSize: 10, fontWeight: '700', color: '#94a3b8',
                 letterSpacing: 1.5, marginBottom: 6, textTransform: 'uppercase'
               }}>
-                FINE
+                {t('modals.fine')}
               </Text>
               <View style={{
                 width: '85%', alignSelf: 'center', alignItems: 'center', backgroundColor: '#fef2f2',
@@ -124,7 +126,7 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
                 activeOpacity={0.85}
               >
                 <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
-                  Save (-{penalty} pts)
+                  {t('modals.saveFine', { penalty })}
                 </Text>
               </TouchableOpacity>
               {/* Cancel button */}
@@ -134,7 +136,7 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
                 onPress={onCancel}
                 activeOpacity={0.85}
               >
-                <Text style={{ color: '#64748b', fontSize: 15, fontWeight: '600' }}>Cancel</Text>
+                <Text style={{ color: '#64748b', fontSize: 15, fontWeight: '600' }}>{t('modals.cancel')}</Text>
               </TouchableOpacity>
             </TouchableOpacity>
           </TouchableOpacity>
@@ -148,13 +150,13 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
           <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onCancel}>
             <TouchableOpacity style={styles.container} activeOpacity={1} onPress={() => {}}>
-              <Text style={styles.title}>Confirm Save</Text>
+              <Text style={styles.title}>{t('modals.confirmSave')}</Text>
               <View style={styles.fineBlock}>
-                <Text style={styles.fineBlockLabel}>FINE</Text>
+                <Text style={styles.fineBlockLabel}>{t('modals.fine')}</Text>
                 <Text style={styles.fineBlockNumber}>-{penalty} pts</Text>
               </View>
               <Text style={styles.fineSubtext}>
-                {totalChanges} changes will cost {penalty} pts
+                {t('modals.changesWillCost', { count: totalChanges, penalty })}
               </Text>
               <View style={styles.buttonsContainer}>
                 <TouchableOpacity
@@ -162,14 +164,14 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
                   onPress={onConfirm}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.buttonText}>Save (-{penalty} pts)</Text>
+                  <Text style={styles.buttonText}>{t('modals.saveFine', { penalty })}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.button, styles.buttonCancel]}
                   onPress={onCancel}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.buttonTextCancel}>Cancel</Text>
+                  <Text style={styles.buttonTextCancel}>{t('modals.cancel')}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -179,9 +181,9 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
     }
 
     // Fallback: no penalty or edge case
-    let message = `${totalChanges} changes.`;
-    let confirmLabel = 'Save';
-    let useGreenButton = true;
+    const message = t('modals.changesCount', { count: totalChanges });
+    const confirmLabel = t('common.save');
+    const useGreenButton = true;
 
     return (
       <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -190,7 +192,7 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
             <View style={[styles.iconCircle, { backgroundColor: '#dcfce7' }]}>
               <Ionicons name="save-outline" size={28} color="#16a34a" />
             </View>
-            <Text style={styles.title}>Save Changes</Text>
+            <Text style={styles.title}>{t('modals.saveChanges')}</Text>
             <Text style={styles.message}>{message}</Text>
             <View style={styles.buttonsContainer}>
               <TouchableOpacity
@@ -205,7 +207,7 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
                 onPress={onCancel}
                 activeOpacity={0.85}
               >
-                <Text style={styles.buttonTextCancel}>Cancel</Text>
+                <Text style={styles.buttonTextCancel}>{t('modals.cancel')}</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -223,16 +225,16 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
             <Ionicons name="save-outline" size={28} color="#16a34a" />
           </View>
 
-          <Text style={styles.title}>Save Prediction</Text>
+          <Text style={styles.title}>{t('modals.savePrediction')}</Text>
 
-          <Text style={styles.message}>Saving will apply a fine of</Text>
+          <Text style={styles.message}>{t('modals.savingWillApplyFine')}</Text>
 
           <View style={styles.fineBadge}>
             <Text style={styles.fineNumber}>{finePoints}</Text>
-            <Text style={styles.fineLabel}>{finePoints === 1 ? 'point' : 'points'}</Text>
+            <Text style={styles.fineLabel}>{finePoints === 1 ? t('modals.finePoint') : t('modals.finePoints')}</Text>
           </View>
 
-          <Text style={styles.subMessage}>Are you sure you want to save?</Text>
+          <Text style={styles.subMessage}>{t('modals.areYouSureToSave')}</Text>
 
           <View style={styles.buttonsContainer}>
             <TouchableOpacity
@@ -240,14 +242,14 @@ export function FineConfirmationModal({ visible, finePoints, onConfirm, onCancel
               onPress={onConfirm}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonText}>Save & Accept Fine</Text>
+              <Text style={styles.buttonText}>{t('modals.saveAcceptFine')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.buttonCancel]}
               onPress={onCancel}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonTextCancel}>Cancel</Text>
+              <Text style={styles.buttonTextCancel}>{t('modals.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -265,6 +267,7 @@ interface ExitModalProps {
 }
 
 export function UnsavedChangesModal({ visible, onDiscard, onStay }: ExitModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onStay}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onStay}>
@@ -273,10 +276,8 @@ export function UnsavedChangesModal({ visible, onDiscard, onStay }: ExitModalPro
             <Ionicons name="exit-outline" size={28} color="#ef4444" />
           </View>
 
-          <Text style={styles.title}>Unsaved Changes</Text>
-          <Text style={styles.message}>
-            You have unsaved predictions.{'\n'}If you leave now, your changes will be lost.
-          </Text>
+          <Text style={styles.title}>{t('modals.unsavedChanges')}</Text>
+          <Text style={styles.message}>{t('modals.unsavedMessage')}</Text>
 
           <View style={styles.buttonsContainer}>
             <TouchableOpacity
@@ -284,14 +285,14 @@ export function UnsavedChangesModal({ visible, onDiscard, onStay }: ExitModalPro
               onPress={onDiscard}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonText}>Leave Without Saving</Text>
+              <Text style={styles.buttonText}>{t('modals.leaveWithoutSaving')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.buttonCancel]}
               onPress={onStay}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonTextCancel}>Stay</Text>
+              <Text style={styles.buttonTextCancel}>{t('modals.stay')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -310,6 +311,7 @@ interface LeaveLeagueModalProps {
 }
 
 export function LeaveLeagueModal({ visible, leagueName, onConfirm, onCancel }: LeaveLeagueModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onCancel}>
@@ -318,9 +320,9 @@ export function LeaveLeagueModal({ visible, leagueName, onConfirm, onCancel }: L
             <Ionicons name="exit-outline" size={28} color="#ef4444" />
           </View>
 
-          <Text style={styles.title}>Leave League</Text>
+          <Text style={styles.title}>{t('modals.leaveLeague')}</Text>
           <Text style={styles.message}>
-            Are you sure you want to leave "{leagueName}"?
+            {t('modals.leaveLeagueMessage', { name: leagueName })}
           </Text>
 
           <View style={styles.buttonsContainer}>
@@ -329,14 +331,14 @@ export function LeaveLeagueModal({ visible, leagueName, onConfirm, onCancel }: L
               onPress={onConfirm}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonText}>Leave</Text>
+              <Text style={styles.buttonText}>{t('modals.leave')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.buttonCancel]}
               onPress={onCancel}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonTextCancel}>Cancel</Text>
+              <Text style={styles.buttonTextCancel}>{t('modals.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -353,6 +355,7 @@ interface MaximumReachedModalProps {
 }
 
 export function MaximumReachedModal({ visible, onClose }: MaximumReachedModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
@@ -361,10 +364,9 @@ export function MaximumReachedModal({ visible, onClose }: MaximumReachedModalPro
             <Ionicons name="checkmark-done-outline" size={28} color="#d97706" />
           </View>
 
-          <Text style={styles.title}>Maximum Reached</Text>
+          <Text style={styles.title}>{t('modals.maximumReached')}</Text>
           <Text style={styles.message}>
-            You've already selected 8 teams.{'\n'}
-            Remove a team first to add another.
+            {t('modals.maximumReachedMessage')}
           </Text>
 
           <View style={styles.buttonsContainer}>
@@ -373,7 +375,7 @@ export function MaximumReachedModal({ visible, onClose }: MaximumReachedModalPro
               onPress={onClose}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonTextCancel}>Got it</Text>
+              <Text style={styles.buttonTextCancel}>{t('modals.gotIt')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -395,12 +397,15 @@ interface ErrorModalProps {
 
 export function ErrorModal({
   visible,
-  title = 'Something went wrong',
+  title,
   message,
   onClose,
   onGoBack,
-  goBackLabel = 'Go Back',
+  goBackLabel,
 }: ErrorModalProps) {
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t('modals.somethingWentWrong');
+  const resolvedGoBackLabel = goBackLabel ?? t('modals.goBack');
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
@@ -408,7 +413,7 @@ export function ErrorModal({
           <View style={[styles.iconCircle, { backgroundColor: '#fee2e2' }]}>
             <Ionicons name="alert-circle-outline" size={28} color="#dc2626" />
           </View>
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.title}>{resolvedTitle}</Text>
           <Text style={styles.message}>{message}</Text>
           <View style={styles.buttonsContainer}>
             {onGoBack ? (
@@ -418,14 +423,14 @@ export function ErrorModal({
                   onPress={onGoBack}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.buttonText}>{goBackLabel}</Text>
+                  <Text style={styles.buttonText}>{resolvedGoBackLabel}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.button, styles.buttonCancel]}
                   onPress={onClose}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.buttonTextCancel}>Got it</Text>
+                  <Text style={styles.buttonTextCancel}>{t('modals.gotIt')}</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -434,7 +439,7 @@ export function ErrorModal({
                 onPress={onClose}
                 activeOpacity={0.85}
               >
-                <Text style={styles.buttonTextCancel}>Got it</Text>
+                <Text style={styles.buttonTextCancel}>{t('modals.gotIt')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -461,12 +466,15 @@ export function ConfirmationModal({
   visible,
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   destructive = false,
   onConfirm,
   onCancel,
 }: ConfirmationModalProps) {
+  const { t } = useTranslation();
+  const resolvedConfirmLabel = confirmLabel ?? t('common.confirm');
+  const resolvedCancelLabel = cancelLabel ?? t('modals.cancel');
   const iconColor = destructive ? '#ef4444' : '#16a34a';
   const iconBg = destructive ? '#fee2e2' : '#dcfce7';
   return (
@@ -484,14 +492,14 @@ export function ConfirmationModal({
               onPress={onConfirm}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonText}>{confirmLabel}</Text>
+              <Text style={styles.buttonText}>{resolvedConfirmLabel}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.buttonCancel]}
               onPress={onCancel}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonTextCancel}>{cancelLabel}</Text>
+              <Text style={styles.buttonTextCancel}>{resolvedCancelLabel}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -510,6 +518,7 @@ interface ValidationModalProps {
 }
 
 export function ValidationModal({ visible, title, message, onClose }: ValidationModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
@@ -525,7 +534,7 @@ export function ValidationModal({ visible, title, message, onClose }: Validation
               onPress={onClose}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonTextCancel}>Got it</Text>
+              <Text style={styles.buttonTextCancel}>{t('modals.gotIt')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -544,6 +553,7 @@ interface InfoModalProps {
 }
 
 export function InfoModal({ visible, title, message, onClose }: InfoModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
@@ -559,7 +569,7 @@ export function InfoModal({ visible, title, message, onClose }: InfoModalProps) 
               onPress={onClose}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonTextCancel}>Got it</Text>
+              <Text style={styles.buttonTextCancel}>{t('modals.gotIt')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -577,7 +587,8 @@ interface LockedMatchModalProps {
 }
 
 export function LockedMatchModal({ visible, message, onClose }: LockedMatchModalProps) {
-  const displayMessage = message || "This match has already started.\nPredictions are no longer editable.";
+  const { t } = useTranslation();
+  const displayMessage = message || t('modals.matchLockedMessage');
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
@@ -585,7 +596,7 @@ export function LockedMatchModal({ visible, message, onClose }: LockedMatchModal
           <View style={[styles.iconCircle, { backgroundColor: '#f1f5f9' }]}>
             <Ionicons name="lock-closed-outline" size={28} color="#64748b" />
           </View>
-          <Text style={styles.title}>Match Locked</Text>
+          <Text style={styles.title}>{t('modals.matchLocked')}</Text>
           <Text style={styles.message}>
             {displayMessage}
           </Text>
@@ -595,7 +606,7 @@ export function LockedMatchModal({ visible, message, onClose }: LockedMatchModal
               onPress={onClose}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonTextCancel}>Got it</Text>
+              <Text style={styles.buttonTextCancel}>{t('modals.gotIt')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

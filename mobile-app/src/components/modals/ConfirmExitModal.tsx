@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 interface ConfirmExitModalProps {
@@ -12,31 +13,32 @@ interface ConfirmExitModalProps {
 export default function ConfirmExitModal({
   visible, changesCount, onClose, onConfirm
 }: ConfirmExitModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.modal} onPress={() => {}}>
+        <Pressable style={[styles.modal, { direction: 'ltr' }]} onPress={() => {}}>
 
           <View style={styles.iconContainer}>
             <Ionicons name="exit-outline" size={32} color="#d97706" />
           </View>
 
-          <Text style={styles.title}>Exit Edit Mode?</Text>
+          <Text style={styles.title}>{t('modals.exitEditMode')}</Text>
 
           <View style={styles.warningBadge}>
             <Text style={styles.warningNumber}>{changesCount}</Text>
             <Text style={styles.warningLabel}>
-              {changesCount === 1 ? 'change' : 'changes'} will be lost
+              {t('modals.changesLost', { count: changesCount })}
             </Text>
           </View>
 
           <TouchableOpacity style={styles.destructiveButton} onPress={onConfirm}>
             <Ionicons name="exit-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
-            <Text style={styles.destructiveButtonText}>Exit Without Saving</Text>
+            <Text style={styles.destructiveButtonText}>{t('modals.exitWithoutSaving')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.secondaryButton} onPress={onClose}>
-            <Text style={styles.secondaryButtonText}>Stay & Keep Editing</Text>
+            <Text style={styles.secondaryButtonText}>{t('modals.stayEditing')}</Text>
           </TouchableOpacity>
 
         </Pressable>

@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 /** Same as GroupsPage / BonusPage — header strip matches OnboardingScreen StatusBar */
@@ -55,6 +56,7 @@ function flagUrl(code: string) {
 type ThirdPlacePageProps = { isActive: boolean };
 
 export default function ThirdPlacePage({ isActive }: ThirdPlacePageProps) {
+  const { t } = useTranslation();
   const mountedRef = React.useRef(true);
 
   const tapScaleRefs = React.useRef(DEMO_TEAMS.map(() => new Animated.Value(1))).current;
@@ -171,16 +173,20 @@ export default function ThirdPlacePage({ isActive }: ThirdPlacePageProps) {
     <View style={styles.root}>
       <View style={styles.staticHeader}>
         <View style={styles.modeBadge}>
-          <Text style={styles.modeBadgeText} allowFontScaling={false} numberOfLines={1}>MULTI MODE</Text>
+          <Text style={styles.modeBadgeText} allowFontScaling={false} numberOfLines={1}>
+            {t('onboarding.thirdplace_badge')}
+          </Text>
         </View>
         <Text style={styles.pageSubtitle} maxFontSizeMultiplier={1.1} numberOfLines={2} ellipsizeMode="tail">
-          Pick the 8 third-place groups that advance to the knockouts
+          {t('onboarding.thirdplace_subtitle')}
         </Text>
       </View>
 
       <View style={styles.counterWrap}>
         <View style={styles.counterBadge}>
-          <Text style={styles.counterBadgeText}>Selected: {selectedCount}/8</Text>
+          <Text style={styles.counterBadgeText}>
+            {t('onboarding.thirdplace_selected', { count: selectedCount })}
+          </Text>
         </View>
       </View>
 
@@ -204,6 +210,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: BG,
+    direction: 'ltr',
   },
   staticHeader: {
     alignItems: 'center',

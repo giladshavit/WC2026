@@ -18,7 +18,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 
+import { IS_RTL } from '../../utils/rtl';
 import { apiService, BonusPrediction, BonusOptions, GroupPrediction } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTournament } from '../../contexts/TournamentContext';
@@ -56,21 +58,6 @@ export function clearBonusPredictionCache(): void {
   _bonusPredictionCache = null;
 }
 
-const QUESTION_LABELS: Record<string, string> = {
-  g1: 'Total goals scored in Group Stage',
-  g2: 'Top scoring group',
-  g3: 'Top scoring team in Group Stage',
-  g4: 'Teams finishing with 9/9 points',
-  g5: 'Teams with clean sheets in Group Stage',
-  g6: 'Scoreless draws (0:0) in Group Stage',
-  k1: 'Total goals scored in Knockout Stage',
-  k2: 'Matches decided by penalty shootout',
-  k3: '3rd-place teams reaching Quarter Finals',
-  t1: 'Total goals in the tournament',
-  t2: 'Who will win the Tournament?',
-  t3: 'Who will be the top scorer?',
-};
-
 const SECTION_GROUP_FIELDS = ['g1', 'g2', 'g3', 'g4', 'g5', 'g6'];
 const SECTION_KNOCKOUT_FIELDS = ['k1', 'k2', 'k3'];
 const SECTION_TOURNAMENT_FIELDS = ['t1', 't2', 't3'];
@@ -94,33 +81,12 @@ const FIELD_TO_API: Record<string, keyof BonusPrediction> = {
   t3: 't3_top_scorer',
 };
 
-const SECTION_NAMES: Record<string, string> = {
-  g1: 'Group Stage',
-  g2: 'Group Stage',
-  g3: 'Group Stage',
-  g4: 'Group Stage',
-  g5: 'Group Stage',
-  g6: 'Group Stage',
-  k1: 'Knockout',
-  k2: 'Knockout',
-  k3: 'Knockout',
-  t1: 'Tournament',
-  t2: 'Tournament',
-  t3: 'Tournament',
-};
-
 type FieldKey = (typeof ALL_FIELDS)[number];
 
 const PILL_FIELDS = ['g1', 'g4', 'g5', 'g6', 'k1', 'k2', 'k3', 't1', 't3'];
 const PICKER_FIELDS = ['g2', 'g3', 't2'];
 
 const { width: screenWidth } = Dimensions.get('window');
-
-const SECTION_ICONS: Record<string, string> = {
-  'Group Stage': 'home',
-  Knockout: 'trophy',
-  Tournament: 'medal',
-};
 
 const SECTION_SCORE_FIELDS: Record<string, string[]> = {
   'Group Stage': ['q_g1_status', 'q_g2_status', 'q_g3_status', 'q_g4_status', 'q_g5_status', 'q_g6_status'],
@@ -226,6 +192,13 @@ function BonusStatsModal({
   groups: GroupPrediction[];
   allTeams: Array<{ id: number; name: string; flag_url?: string; groupId: number }>;
 }) {
+  const { t } = useTranslation();
+  const QUESTION_LABELS: Record<string, string> = {
+    g1: t('bonus.q_g1'), g2: t('bonus.q_g2'), g3: t('bonus.q_g3'),
+    g4: t('bonus.q_g4'), g5: t('bonus.q_g5'), g6: t('bonus.q_g6'),
+    k1: t('bonus.q_k1'), k2: t('bonus.q_k2'), k3: t('bonus.q_k3'),
+    t1: t('bonus.q_t1'), t2: t('bonus.q_t2'), t3: t('bonus.q_t3'),
+  };
   const opts = getOptionsForField(fieldKey);
 
   const getQuestionSettledStatus = (field: string): 'correct' | 'incorrect' | null => {
@@ -243,11 +216,11 @@ function BonusStatsModal({
 
   const renderOutcomeStats = () => {
     if (!outcomeData) return null;
-    const { correct_pct, incorrect_pct, correct, incorrect, total_answered } = outcomeData;
+    const { correct_pct, incorrect_pct, total_answered } = outcomeData;
     return (
       <View style={{ paddingVertical: 8 }}>
         <Text style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', marginBottom: 16 }}>
-          {total_answered} predictions
+          {t('bonus.statsPredictions', { count: total_answered })}
         </Text>
 
         {/* Correct row */}
@@ -255,10 +228,10 @@ function BonusStatsModal({
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
-              <Text style={{ color: '#16a34a', fontSize: 14, fontWeight: '700' }}>Correct</Text>
+              <Text style={{ color: '#16a34a', fontSize: 14, fontWeight: '700' }}>{t('bonus.statsCorrect')}</Text>
             </View>
             <Text style={{ color: '#16a34a', fontSize: 14, fontWeight: '800' }}>
-              {correct_pct}% ({correct})
+              {t('bonus.statsGotRight', { pct: correct_pct })}
             </Text>
           </View>
           <View style={{ height: 28, backgroundColor: '#1a2332', borderRadius: 8, overflow: 'hidden' }}>
@@ -276,10 +249,10 @@ function BonusStatsModal({
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="close-circle" size={18} color="#ef4444" />
-              <Text style={{ color: '#ef4444', fontSize: 14, fontWeight: '700' }}>Incorrect</Text>
+              <Text style={{ color: '#ef4444', fontSize: 14, fontWeight: '700' }}>{t('bonus.statsIncorrect')}</Text>
             </View>
             <Text style={{ color: '#ef4444', fontSize: 14, fontWeight: '800' }}>
-              {incorrect_pct}% ({incorrect})
+              {t('bonus.statsGotWrong', { pct: incorrect_pct })}
             </Text>
           </View>
           <View style={{ height: 28, backgroundColor: '#1a2332', borderRadius: 8, overflow: 'hidden' }}>
@@ -478,9 +451,9 @@ function BonusStatsModal({
         >
           <Ionicons name="checkmark-circle" size={24} color="#fff" style={{ marginRight: 10 }} />
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>Correct ✓</Text>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>{t('bonus.statsCorrectTick')}</Text>
             <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, marginTop: 2 }}>
-              {correctPct}% got it right
+              {t('bonus.statsGotRight', { pct: correctPct })}
             </Text>
           </View>
           <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>{correctPct}%</Text>
@@ -501,15 +474,15 @@ function BonusStatsModal({
         >
           <Ionicons name="close-circle" size={24} color="#fff" style={{ marginRight: 10 }} />
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>Incorrect ✗</Text>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>{t('bonus.statsIncorrectCross')}</Text>
             <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, marginTop: 2 }}>
-              {incorrectPct}% got it wrong
+              {t('bonus.statsGotWrong', { pct: incorrectPct })}
             </Text>
           </View>
           <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>{incorrectPct}%</Text>
         </View>
         <Text style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', marginTop: 16 }}>
-          {totalAnswered} players answered this question
+          {t('bonus.statsPlayersAnswered', { count: totalAnswered })}
         </Text>
       </View>
     );
@@ -521,7 +494,7 @@ function BonusStatsModal({
     }
     if (loading) return <ActivityIndicator color="#16a34a" style={{ marginVertical: 24 }} />;
     if (!data || data.total_answered === 0) return (
-      <Text style={bonusStatsStyles.empty}>No predictions yet</Text>
+      <Text style={bonusStatsStyles.empty}>{t('bonus.statsNoPredictions')}</Text>
     );
     if (fieldKey === 'g2') return renderG2Grid();
     if (fieldKey === 'g3') return renderG3Grid();
@@ -538,10 +511,10 @@ function BonusStatsModal({
       >
         {/* Centered popup — tap inside does NOT close */}
         <TouchableOpacity activeOpacity={1} onPress={() => {}}>
-          <View style={bonusStatsStyles.popup}>
+          <View style={[bonusStatsStyles.popup, { direction: IS_RTL ? 'rtl' : 'ltr' }]}>
             {/* Header */}
             <View style={bonusStatsStyles.popupHeader}>
-              <Text style={bonusStatsStyles.title} numberOfLines={2}>
+              <Text style={[bonusStatsStyles.title, { textAlign: 'center' }]} numberOfLines={2}>
                 {QUESTION_LABELS[fieldKey]}
               </Text>
               <TouchableOpacity onPress={onClose} style={bonusStatsStyles.closeBtn} hitSlop={8}>
@@ -640,9 +613,37 @@ const bonusStatsStyles = StyleSheet.create({
 
 export default function BonusScreen() {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const { finePerChange } = useTournament();
   const { showToast } = useToast();
   const { getCurrentUserId } = useAuth();
+
+  const SECTION_NAMES: Record<string, string> = {
+    g1: t('bonus.groupStage'), g2: t('bonus.groupStage'), g3: t('bonus.groupStage'),
+    g4: t('bonus.groupStage'), g5: t('bonus.groupStage'), g6: t('bonus.groupStage'),
+    k1: t('bonus.knockout'), k2: t('bonus.knockout'), k3: t('bonus.knockout'),
+    t1: t('bonus.tournament'), t2: t('bonus.tournament'), t3: t('bonus.tournament'),
+  };
+
+  const QUESTION_LABELS: Record<string, string> = {
+    g1: t('bonus.q_g1'), g2: t('bonus.q_g2'), g3: t('bonus.q_g3'),
+    g4: t('bonus.q_g4'), g5: t('bonus.q_g5'), g6: t('bonus.q_g6'),
+    k1: t('bonus.q_k1'), k2: t('bonus.q_k2'), k3: t('bonus.q_k3'),
+    t1: t('bonus.q_t1'), t2: t('bonus.q_t2'), t3: t('bonus.q_t3'),
+  };
+
+  const wizardSectionIconName = (field: string): 'home' | 'trophy' | 'medal' => {
+    if (field.startsWith('g')) return 'home';
+    if (field.startsWith('k')) return 'trophy';
+    return 'medal';
+  };
+
+  const sectionScoreLookupKey = (fields: string[]): keyof typeof SECTION_SCORE_FIELDS => {
+    const f = fields[0] ?? '';
+    if (f.startsWith('t')) return 'Tournament';
+    if (f.startsWith('g')) return 'Group Stage';
+    return 'Knockout';
+  };
 
   const [prediction, setPrediction] = useState<BonusPrediction | null>(null);
   const [options, setOptions] = useState<BonusOptions | null>(null);
@@ -1080,6 +1081,7 @@ export default function BonusScreen() {
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
           contentContainerStyle={{
+            direction: 'ltr',
             flexDirection: 'row',
             flexWrap: 'wrap',
             paddingHorizontal: 0,
@@ -1210,6 +1212,7 @@ export default function BonusScreen() {
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
           contentContainerStyle={{
+            direction: 'ltr',
             flexDirection: 'row',
             flexWrap: 'wrap',
             paddingHorizontal: 0,
@@ -1333,6 +1336,7 @@ export default function BonusScreen() {
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
           contentContainerStyle={{
+            direction: 'ltr',
             flexDirection: 'row',
             flexWrap: 'wrap',
             paddingHorizontal: 0,
@@ -1446,6 +1450,7 @@ export default function BonusScreen() {
       return (
         <View
           style={{
+            direction: 'ltr',
             flexDirection: 'row',
             flexWrap: 'wrap',
             paddingHorizontal: 0,
@@ -1536,6 +1541,7 @@ export default function BonusScreen() {
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
           contentContainerStyle={{
+            direction: 'ltr',
             flexDirection: 'row',
             flexWrap: 'wrap',
             gap: CARD_GAP,
@@ -1656,7 +1662,7 @@ export default function BonusScreen() {
         return { style: styles.pillDimmed, textColor: undefined, showCheckmark: false };
       };
       return (
-        <View style={[styles.pillGrid3col, { justifyContent: 'center' }]}>
+        <View style={[styles.pillGrid3col, { justifyContent: 'center', direction: 'ltr' }]}>
           {opts.map((opt) => {
             const selected = String(localAnswers[field] ?? '') === opt.value;
             const lockedStyle = !isEditable ? getLockedPillStyle(opt.value) : null;
@@ -1742,7 +1748,7 @@ export default function BonusScreen() {
         );
       };
       return (
-        <View style={styles.pillGridK1}>
+        <View style={[styles.pillGridK1, { direction: 'ltr' }]}>
           {opts.slice(0, 6).map((opt) => renderK1Pill(opt))}
           {opts.length > 6 && (
             <View style={styles.pillGridK1LastRow}>
@@ -1769,7 +1775,7 @@ export default function BonusScreen() {
       return { style: styles.pillDimmed, textColor: undefined, showCheckmark: false };
     };
     return (
-      <View style={styles.pillGrid}>
+      <View style={[styles.pillGrid, { direction: 'ltr' }]}>
         {opts.map((opt) => {
           const selected = String(localAnswers[field] ?? '') === opt.value;
           const lockedStyle = !isEditable ? getLockedPillStyle(opt.value) : null;
@@ -1817,7 +1823,7 @@ export default function BonusScreen() {
           <SafeAreaView edges={['top']} />
           <View style={styles.wizardHeader}>
             <TouchableOpacity onPress={handleBack} style={styles.headerBtnLeft} hitSlop={12}>
-              <Ionicons name="chevron-back" size={24} color="#fff" />
+              <Ionicons name={IS_RTL ? 'chevron-forward' : 'chevron-back'} size={24} color="#fff" />
             </TouchableOpacity>
             <View style={styles.wizardHeaderCenter}>
               <Text
@@ -1830,7 +1836,7 @@ export default function BonusScreen() {
                 {SECTION_NAMES[currentField].toUpperCase()}
               </Text>
               <Ionicons
-                name={(SECTION_ICONS[SECTION_NAMES[currentField]] || 'help') as any}
+                name={wizardSectionIconName(currentField) as any}
                 size={32}
                 color="rgba(255,255,255,0.8)"
               />
@@ -1840,7 +1846,7 @@ export default function BonusScreen() {
               style={styles.editPillBtn}
               hitSlop={8}
             >
-              <Text style={styles.editPillText}>View All</Text>
+              <Text style={styles.editPillText}>{t('bonus.viewAll')}</Text>
             </TouchableOpacity>
           </View>
         </LinearGradient>
@@ -1909,12 +1915,18 @@ export default function BonusScreen() {
                       </TouchableOpacity>
                     </View>
                   </View>
-                  <Text style={styles.questionTextDark}>{QUESTION_LABELS[currentField]}</Text>
+                  <View style={{ alignItems: 'center', width: '100%' }}>
+                    <Text style={[styles.questionTextDark, { textAlign: 'center', width: '100%' }]}>
+                      {QUESTION_LABELS[currentField]}
+                    </Text>
+                  </View>
                   {prediction && !(prediction as any)[FIELD_TO_EDITABLE[currentField]] && (
                     <View>
                       <View style={styles.lockedNotice}>
                         <Ionicons name="lock-closed-outline" size={13} color="#64748b" />
-                        <Text style={styles.lockedNoticeText}>This question is no longer open for editing</Text>
+                        <Text style={[styles.lockedNoticeText, { textAlign: IS_RTL ? 'right' : 'left' }]}>
+                          {t('bonus.lockedNotice')}
+                        </Text>
                       </View>
                     </View>
                   )}
@@ -1934,13 +1946,13 @@ export default function BonusScreen() {
                         {showPick && (
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: '#38bdf8' }} />
-                            <Text style={{ fontSize: 11, color: '#38bdf8', fontWeight: '500' }}>Your pick</Text>
+                            <Text style={{ fontSize: 11, color: '#38bdf8', fontWeight: '500' }}>{t('bonus.yourPick')}</Text>
                           </View>
                         )}
                         {showInterim && (
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             <View style={styles.interimLegendDot} />
-                            <Text style={styles.interimLegendText}>Current known result</Text>
+                            <Text style={styles.interimLegendText}>{t('bonus.interimLegend')}</Text>
                           </View>
                         )}
                       </View>
@@ -1957,10 +1969,10 @@ export default function BonusScreen() {
               onPress={() => currentStep > 0 && setCurrentStep((p) => p - 1)}
               disabled={currentStep === 0}
             >
-              <Ionicons name="arrow-back" size={22} color="#94a3b8" />
+              <Ionicons name={IS_RTL ? 'arrow-forward' : 'arrow-back'} size={22} color="#94a3b8" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
-              <Text style={styles.skipText}>Skip</Text>
+              <Text style={styles.skipText}>{t('bonus.skip')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.navCircle}
@@ -1969,7 +1981,7 @@ export default function BonusScreen() {
                 else setViewMode('summary');
               }}
             >
-              <Ionicons name="arrow-forward" size={22} color="#94a3b8" />
+              <Ionicons name={IS_RTL ? 'arrow-back' : 'arrow-forward'} size={22} color="#94a3b8" />
             </TouchableOpacity>
           </SafeAreaView>
         </View>
@@ -2061,7 +2073,7 @@ export default function BonusScreen() {
           >{title}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 'auto' }}>
             {(() => {
-              const score = getSectionScore(title);
+              const score = getSectionScore(sectionScoreLookupKey(fields));
               if (score) {
                 return (
                   <View style={[styles.sectionScoreChip, { marginLeft: 0 }]}>
@@ -2081,7 +2093,7 @@ export default function BonusScreen() {
                     borderWidth: 1,
                     borderColor: '#16a34a',
                   }}>
-                    <Text style={{ fontSize: 10, color: '#16a34a', fontWeight: '700' }}>Basic</Text>
+                    <Text style={{ fontSize: 10, color: '#16a34a', fontWeight: '700' }}>{t('bonus.basic')}</Text>
                   </View>
                 );
               }
@@ -2113,6 +2125,7 @@ export default function BonusScreen() {
               style={[
                 styles.summaryRowNew,
                 { backgroundColor: rowBg },
+                IS_RTL && { flexDirection: 'row-reverse' },
                 !isLast && styles.summaryRowBorder,
               ]}
               onPress={() => goToQuestion(globalIdx)}
@@ -2126,6 +2139,7 @@ export default function BonusScreen() {
                   style={[
                     styles.summaryQuestionLabelNew,
                     !isCoreSection && { color: '#cbd5e1' },
+                    { textAlign: IS_RTL ? 'right' : 'left' },
                   ]}
                   numberOfLines={3}
                 >
@@ -2136,7 +2150,7 @@ export default function BonusScreen() {
                 {!answered ? (
                   <View style={styles.summaryRowRightContent}>
                     <Ionicons name="add-circle-outline" size={16} color="#cbd5e1" />
-                    <Text style={styles.summaryAnswerPrompt}>Answer</Text>
+                    <Text style={styles.summaryAnswerPrompt}>{t('bonus.answer')}</Text>
                   </View>
                 ) : getQuestionStatus(field) === 'correct' ? (
                   <View style={styles.summaryRowRightContent}>
@@ -2174,17 +2188,17 @@ export default function BonusScreen() {
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <TouchableOpacity onPress={handleBack} style={styles.headerBackBtn} hitSlop={12}>
-              <Ionicons name="chevron-back" size={24} color="#fff" />
+              <Ionicons name={IS_RTL ? 'chevron-forward' : 'chevron-back'} size={24} color="#fff" />
             </TouchableOpacity>
 
-            <Text style={styles.headerTitle}>Bonus Predictions</Text>
+            <Text style={styles.headerTitle}>{t('bonus.title')}</Text>
 
             <TouchableOpacity
               onPress={() => setViewMode('wizard')}
               style={styles.headerEditPillBtn}
               hitSlop={8}
             >
-              <Text style={styles.headerEditPillText}>Edit</Text>
+              <Text style={styles.headerEditPillText}>{t('bonus.edit')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -2206,20 +2220,20 @@ export default function BonusScreen() {
       )}
 
         {renderSummarySection(
-          'Tournament',
+          t('bonus.tournament'),
           'medal-outline',
           SECTION_TOURNAMENT_FIELDS,
           isSectionLocked(SECTION_TOURNAMENT_FIELDS),
           true
         )}
         {renderSummarySection(
-          'Group Stage',
+          t('bonus.groupStage'),
           'home-outline',
           SECTION_GROUP_FIELDS,
           isSectionLocked(SECTION_GROUP_FIELDS)
         )}
         {renderSummarySection(
-          'Knockout',
+          t('bonus.knockout'),
           'trophy-outline',
           SECTION_KNOCKOUT_FIELDS,
           isSectionLocked(SECTION_KNOCKOUT_FIELDS)

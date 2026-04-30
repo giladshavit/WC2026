@@ -17,6 +17,8 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { IS_RTL } from '../../utils/rtl';
 import Svg, { Path } from 'react-native-svg';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -40,6 +42,7 @@ export default function LoginScreen({
   onForgotPassword,
   onSocialRegistration,
 }: LoginScreenProps) {
+  const { t } = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -49,6 +52,7 @@ export default function LoginScreen({
     message: string;
   } | null>(null);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const scrollViewRef = useRef<RNScrollView>(null);
   const { login, loginWithGoogle, loginWithApple } = useAuth();
 
@@ -75,21 +79,20 @@ export default function LoginScreen({
       } catch (err) {
         if (err instanceof Error && (err as Error & { httpStatus?: number }).httpStatus === 409) {
           setErrorModal({
-            title: 'Account Exists',
-            message:
-              'This email is already registered. Please login with username and password.',
+            title: t('auth.accountExists'),
+            message: t('auth.accountExistsMsg'),
           });
         } else {
           setErrorModal({
-            title: 'Error',
-            message: 'Google sign-in failed. Please try again.',
+            title: t('auth.errorTitle'),
+            message: t('auth.googleFailed'),
           });
         }
       } finally {
         setIsLoading(false);
       }
     },
-    [loginWithGoogle, onSocialRegistration]
+    [loginWithGoogle, onSocialRegistration, t]
   );
 
   useEffect(() => {
@@ -131,14 +134,13 @@ export default function LoginScreen({
       }
       if (err instanceof Error && (err as Error & { httpStatus?: number }).httpStatus === 409) {
         setErrorModal({
-          title: 'Account Exists',
-          message:
-            'This email is already registered. Please login with username and password.',
+          title: t('auth.accountExists'),
+          message: t('auth.accountExistsMsg'),
         });
       } else {
         setErrorModal({
-          title: 'Error',
-          message: 'Apple sign-in failed. Please try again.',
+          title: t('auth.errorTitle'),
+          message: t('auth.appleFailed'),
         });
       }
     } finally {
@@ -153,7 +155,7 @@ export default function LoginScreen({
   const handleLogin = async () => {
     setError('');
     if (!username.trim() || !password.trim()) {
-      setError('Please fill in all fields');
+      setError(t('auth.fillAllFields'));
       return;
     }
 
@@ -161,17 +163,17 @@ export default function LoginScreen({
       setIsLoading(true);
       await login(username.trim(), password);
     } catch (err) {
-      let msg = 'Something went wrong. Please try again.';
+      let msg = t('auth.genericError');
       if (err instanceof Error) {
         if (err.message.includes('401') || err.message.toLowerCase().includes('invalid') || err.message.toLowerCase().includes('unauthorized')) {
-          msg = 'Incorrect username or password. Please try again.';
+          msg = t('auth.wrongCredentials');
         } else if (err.message.includes('Network') || err.message.includes('fetch') || err.message.includes('connect')) {
-          msg = 'Cannot connect to server. Please check your connection.';
+          msg = t('auth.cannotConnect');
         } else {
           msg = err.message;
         }
       }
-      setErrorModal({ title: 'Login Failed', message: msg });
+      setErrorModal({ title: t('auth.loginFailed'), message: msg });
     } finally {
       setIsLoading(false);
     }
@@ -192,20 +194,22 @@ export default function LoginScreen({
       >
         <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Username</Text>
+              <Text style={[styles.label, { textAlign: 'left' }]}>{t('auth.username')}</Text>
+              <View style={{ position: 'relative' }}>
               <TextInput
                 style={[
                   styles.input,
                   focusedInput === 'username' && styles.inputFocused,
+                  { textAlign: 'auto' },
                 ]}
                 value={username}
-                onChangeText={(t) => {
-                  setUsername(t);
+                onChangeText={(text) => {
+                  setUsername(text);
                   setError('');
                 }}
                 onFocus={() => { setFocusedInput('username'); scrollToInput(0); }}
                 onBlur={() => setFocusedInput(null)}
-                placeholder="Enter username"
+                placeholder={IS_RTL ? '' : t('auth.enterUsername')}
                 placeholderTextColor="#64748b"
                 textContentType="oneTimeCode"
                 autoCapitalize="none"
@@ -214,58 +218,78 @@ export default function LoginScreen({
                 maxLength={14}
                 maxFontSizeMultiplier={1.2}
               />
+              </View>
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  focusedInput === 'password' && styles.inputFocused,
-                ]}
-                value={password}
-                onChangeText={(t) => {
-                  setPassword(t);
-                  setError('');
-                }}
-                onFocus={() => { setFocusedInput('password'); scrollToInput(80); }}
-                onBlur={() => setFocusedInput(null)}
-                placeholder="Enter password"
-                placeholderTextColor="#64748b"
-                textContentType="oneTimeCode"
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-                maxLength={20}
-                maxFontSizeMultiplier={1.2}
-              />
+              <Text style={[styles.label, { textAlign: 'left' }]}>{t('auth.password')}</Text>
+              <View style={{ position: 'relative' }}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    focusedInput === 'password' && styles.inputFocused,
+                    { textAlign: 'auto', paddingLeft: 44 },
+                  ]}
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    setError('');
+                  }}
+                  onFocus={() => { setFocusedInput('password'); scrollToInput(80); }}
+                  onBlur={() => setFocusedInput(null)}
+                  placeholder={IS_RTL ? '' : t('auth.enterPassword')}
+                  placeholderTextColor="#64748b"
+                  textContentType="oneTimeCode"
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                  maxLength={20}
+                  maxFontSizeMultiplier={1.2}
+                />
+                <TouchableOpacity
+                  style={{
+                    position: 'absolute',
+                    left: 12,
+                    top: 0,
+                    bottom: 0,
+                    justifyContent: 'center',
+                  }}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#64748b"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <TouchableOpacity
-              style={styles.forgotLink}
+              style={[styles.forgotLink, { alignSelf: IS_RTL ? 'flex-start' : 'flex-end' }]}
               onPress={onForgotPassword}
               disabled={isLoading}
             >
-              <Text style={styles.forgotLinkText}>Forgot Password?</Text>
+              <Text style={[styles.forgotLinkText, { textAlign: 'left' }]}>{t('auth.forgotPassword')}</Text>
             </TouchableOpacity>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? <Text style={[styles.errorText, { textAlign: 'left' }]}>{error}</Text> : null}
 
             <TouchableOpacity
               style={[styles.button, isLoading && styles.buttonDisabled]}
               onPress={handleLogin}
               disabled={isLoading}
             >
-              <Text style={styles.buttonText}>
-                {isLoading ? 'Logging in...' : 'Login'}
+              <Text style={[styles.buttonText, { textAlign: 'left' }]}>
+                {isLoading ? t('auth.loggingIn') : t('auth.login')}
               </Text>
             </TouchableOpacity>
 
-            <Text style={styles.socialDivider}>───── or ─────</Text>
+            <Text style={styles.socialDivider}>───── {t('auth.orDivider')} ─────</Text>
 
             <TouchableOpacity
-              style={[styles.socialButtonBase, styles.socialButtonGoogle]}
+              style={[styles.socialButtonBase, styles.socialButtonGoogle, { flexDirection: IS_RTL ? 'row-reverse' : 'row' }]}
               onPress={() => { void promptAsync(); }}
               disabled={isLoading}
               activeOpacity={0.85}
@@ -277,26 +301,26 @@ export default function LoginScreen({
                 <Path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
                 <Path fill="none" d="M0 0h48v48H0z" />
               </Svg>
-              <Text style={styles.socialButtonTextDark}>Continue with Google</Text>
+              <Text style={styles.socialButtonTextDark}>{t('auth.continueWithGoogle')}</Text>
             </TouchableOpacity>
 
             {Platform.OS === 'ios' ? (
               <TouchableOpacity
-                style={[styles.socialButtonBase, styles.socialButtonApple]}
+                style={[styles.socialButtonBase, styles.socialButtonApple, { flexDirection: IS_RTL ? 'row-reverse' : 'row' }]}
                 onPress={() => {
                   void handleAppleSignIn();
                 }}
                 disabled={isLoading}
               >
                 <Ionicons name="logo-apple" size={20} color="#ffffff" />
-                <Text style={styles.socialButtonTextLight}>Continue with Apple</Text>
+                <Text style={styles.socialButtonTextLight}>{t('auth.continueWithApple')}</Text>
               </TouchableOpacity>
             ) : null}
 
-            <View style={styles.switchContainer}>
-              <Text style={styles.switchText} maxFontSizeMultiplier={1.2}>Don't have an account? </Text>
+            <View style={[styles.switchContainer, { flexDirection: IS_RTL ? 'row-reverse' : 'row' }]}>
+              <Text style={[styles.switchText, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>{t('auth.noAccount')} </Text>
               <TouchableOpacity onPress={onSwitchToRegister} disabled={isLoading}>
-                <Text style={styles.switchLink} maxFontSizeMultiplier={1.2}>Sign up here</Text>
+                <Text style={[styles.switchLink, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>{t('auth.signUpHere')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -313,7 +337,7 @@ export default function LoginScreen({
               <Ionicons name="alert-circle" size={36} color="#ef4444" />
             </View>
             <Text style={styles.modalTitle}>
-              {errorModal?.title ?? 'Error'}
+              {errorModal?.title ?? t('auth.errorTitle')}
             </Text>
             <Text style={styles.modalMessage}>
               {errorModal?.message ?? ''}
@@ -322,7 +346,7 @@ export default function LoginScreen({
               style={styles.modalButton}
               onPress={() => setErrorModal(null)}
             >
-              <Text style={styles.modalButtonText}>OK</Text>
+              <Text style={styles.modalButtonText}>{t('common.ok')}</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -360,6 +384,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: 'rgba(30, 41, 59, 0.8)',
     color: '#ffffff',
+    textAlign: 'auto',
   },
   inputFocused: {
     borderColor: '#16a34a',

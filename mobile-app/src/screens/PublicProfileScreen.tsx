@@ -921,7 +921,7 @@ export default function PublicProfileScreen() {
 
   if (profileError) {
     return (
-      <View style={styles.safeArea}>
+      <View style={[styles.safeArea, { direction: 'ltr' }]}>
         <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
         {renderHeader()}
         <View style={styles.errorContainer}>
@@ -942,7 +942,7 @@ export default function PublicProfileScreen() {
 
   if (!tournamentStarted) {
     return (
-      <View style={styles.safeArea}>
+      <View style={[styles.safeArea, { direction: 'ltr' }]}>
         <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
         {renderHeader()}
         {renderScoreBar()}
@@ -957,7 +957,7 @@ export default function PublicProfileScreen() {
   }
 
   return (
-    <View style={styles.safeArea}>
+    <View style={[styles.safeArea, { direction: 'ltr' }]}>
       <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
       {renderHeader()}
       {renderScoreBar()}

@@ -13,7 +13,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useTranslation } from 'react-i18next';
 import { MainStackParamList } from '../../navigation/MainNavigator';
+import { IS_RTL } from '../../utils/rtl';
 import WelcomePage from './WelcomePage';
 import MatchesPage from './MatchesPage';
 import BonusPage from './BonusPage';
@@ -39,6 +41,8 @@ export default function OnboardingScreen({ onDone: onDoneProp }: OnboardingScree
   const route = useRoute<RouteProp<MainStackParamList, 'Onboarding'>>();
   const mode = route.params?.mode ?? 'replay';
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const layoutDirection = IS_RTL ? 'rtl' : 'ltr';
   const [page, setPage] = React.useState(0);
   const listRef = React.useRef<FlatList>(null);
 
@@ -66,69 +70,80 @@ export default function OnboardingScreen({ onDone: onDoneProp }: OnboardingScree
     []
   );
 
+  const displayPages = pages; // no reversal needed — I18nManager handles horizontal mirroring
+
   const onMomentumScrollEnd = React.useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const x = e.nativeEvent.contentOffset.x;
-      const next = Math.round(x / SCREEN_WIDTH);
-      setPage(Math.min(Math.max(next, 0), pages.length - 1));
+      const rawIndex = Math.round(x / SCREEN_WIDTH);
+      // RTL: horizontal FlatList still reports offset along the LTR axis; map to logical slide index.
+      const logicalIndex = IS_RTL ? pages.length - 1 - rawIndex : rawIndex;
+      setPage(Math.min(Math.max(logicalIndex, 0), pages.length - 1));
     },
     [pages.length]
   );
 
   const goNext = React.useCallback(() => {
     if (page < pages.length - 1) {
-      listRef.current?.scrollToIndex({ index: page + 1, animated: true });
-      setPage((p) => p + 1);
+      const nextPage = page + 1;
+      const displayIndex = nextPage; // I18nManager mirrors scroll; no RTL index flip
+      listRef.current?.scrollToIndex({ index: displayIndex, animated: true });
+      setPage(nextPage);
     } else {
       onDone();
     }
   }, [page, pages.length, onDone]);
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { direction: layoutDirection }]}>
       <StatusBar barStyle="light-content" backgroundColor={BG} />
       <TouchableOpacity
         style={[styles.skipButton, { top: insets.top + 8 }]}
         onPress={onDone}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
-        <Text style={styles.skipText}>Skip</Text>
+        <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
       </TouchableOpacity>
 
-      <View style={[styles.mainColumn, { paddingTop: insets.top + 40 }]}>
-      <FlatList
-        ref={listRef}
-        style={styles.list}
-        data={pages}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item) => item.key}
-        renderItem={({ item, index }) => (
-          <View style={[styles.page, { width: SCREEN_WIDTH }]}>
-            {item.render(index === page)}
-          </View>
-        )}
-        onMomentumScrollEnd={onMomentumScrollEnd}
-        onScrollToIndexFailed={(info) => {
-          setTimeout(() => {
-            listRef.current?.scrollToIndex({ index: info.index, animated: true });
-          }, 100);
-        }}
-      />
+      <View style={[styles.mainColumn, { paddingTop: insets.top + 40, direction: layoutDirection }]}>
+        <FlatList
+          ref={listRef}
+          style={styles.list}
+          data={displayPages}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => item.key}
+          getItemLayout={(_, index) => ({
+            length: SCREEN_WIDTH,
+            offset: SCREEN_WIDTH * index,
+            index,
+          })}
+          renderItem={({ item, index }) => (
+            <View style={[styles.page, { width: SCREEN_WIDTH }]}>
+              {item.render(index === page)}
+            </View>
+          )}
+          onMomentumScrollEnd={onMomentumScrollEnd}
+          onScrollToIndexFailed={(info) => {
+            setTimeout(() => {
+              listRef.current?.scrollToIndex({ index: info.index, animated: true });
+            }, 100);
+          }}
+        />
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <View style={styles.dots}>
-          {pages.map((_, i) => (
-            <View key={i} style={[styles.dot, i === page && styles.dotActive]} />
-          ))}
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <View style={styles.dots}>
+            {pages.map((_, i) => (
+              <View key={i} style={[styles.dot, i === page && styles.dotActive]} />
+            ))}
+          </View>
+          <TouchableOpacity style={styles.nextBtn} onPress={goNext} activeOpacity={0.85}>
+            <Text style={styles.nextBtnText}>
+              {page < pages.length - 1 ? t('onboarding.next') : t('onboarding.getStarted')}
+            </Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.nextBtn} onPress={goNext} activeOpacity={0.85}>
-          <Text style={styles.nextBtnText}>
-            {page < pages.length - 1 ? 'Next' : 'Get Started'}
-          </Text>
-        </TouchableOpacity>
-      </View>
       </View>
     </View>
   );

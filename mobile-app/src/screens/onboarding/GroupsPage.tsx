@@ -1,5 +1,6 @@
 import React from 'react';
 import { Animated, Easing, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 /** Same as BonusPage `staticHeader` — matches OnboardingScreen StatusBar (`#0f172a`) */
 const STATUS_BAR_BG = '#0f172a';
@@ -38,6 +39,7 @@ function badgeColor(rank: number): string {
 type GroupsPageProps = { isActive: boolean };
 
 export default function GroupsPage({ isActive }: GroupsPageProps) {
+  const { t } = useTranslation();
   const mountedRef = React.useRef(true);
 
   const tapScales = React.useRef(
@@ -131,9 +133,13 @@ export default function GroupsPage({ isActive }: GroupsPageProps) {
     <View style={styles.root}>
       <View style={styles.staticHeader}>
         <View style={styles.modeBadge}>
-          <Text style={styles.modeBadgeText} allowFontScaling={false}>MULTI MODE</Text>
+          <Text style={styles.modeBadgeText} allowFontScaling={false}>
+            {t('onboarding.groups_badge')}
+          </Text>
         </View>
-        <Text style={styles.pageSubtitle} maxFontSizeMultiplier={1.3}>Rank all 4 teams in each group</Text>
+        <Text style={styles.pageSubtitle} maxFontSizeMultiplier={1.3}>
+          {t('onboarding.groups_subtitle')}
+        </Text>
       </View>
 
       <View style={styles.body}>
@@ -205,6 +211,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: BG,
+    direction: 'ltr',
   },
   staticHeader: {
     alignItems: 'center',

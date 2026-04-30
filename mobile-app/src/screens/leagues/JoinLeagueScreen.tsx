@@ -12,10 +12,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService } from '../../services/api';
 import { ErrorModal } from '../../components/modals/CustomModals';
-import { useToast } from '../../components/toast/Toast';
 
 const CONFETTI = [
   { color: '#2563eb', style: { top: -4, left: -4 } },
@@ -25,8 +25,8 @@ const CONFETTI = [
 ];
 
 export default function JoinLeagueScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
-  const { showToast } = useToast();
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [codeFocused, setCodeFocused] = useState(false);
@@ -37,8 +37,8 @@ export default function JoinLeagueScreen() {
     const code = inviteCode.trim().toUpperCase();
     if (!/^[A-Z0-9]{8}$/.test(code)) {
       setErrorModal({
-        title: 'Error',
-        message: 'Invite code must be exactly 8 uppercase letters and numbers',
+        title: t('joinLeague.errorFallback'),
+        message: t('joinLeague.errorInvalidCode'),
       });
       return;
     }
@@ -50,11 +50,11 @@ export default function JoinLeagueScreen() {
       setJoinedLeague(result);
     } catch (error: any) {
       const msg = error?.message ?? '';
-      let userMessage = 'Something went wrong. Please try again.';
-      if (msg.includes('404')) userMessage = 'Invalid or inactive invite code.';
-      else if (msg.includes('400') || msg.toLowerCase().includes('already')) userMessage = 'You are already a member of this league.';
-      else if (msg.includes('401') || msg.includes('403')) userMessage = 'You must be logged in to join a league.';
-      setErrorModal({ title: 'Could not join league', message: userMessage });
+      let userMessage = t('joinLeague.errorGeneric');
+      if (msg.includes('404')) userMessage = t('joinLeague.errorNotFound');
+      else if (msg.includes('400') || msg.toLowerCase().includes('already')) userMessage = t('joinLeague.errorAlreadyMember');
+      else if (msg.includes('401') || msg.includes('403')) userMessage = t('joinLeague.errorUnauthorized');
+      setErrorModal({ title: t('joinLeague.errorTitle'), message: userMessage });
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ export default function JoinLeagueScreen() {
 
   if (joinedLeague) {
     return (
-      <>
+      <View style={{ flex: 1, direction: 'ltr' }}>
         <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
         <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.successContainer}>
@@ -81,34 +81,30 @@ export default function JoinLeagueScreen() {
             ))}
             <Ionicons name="checkmark-circle" size={64} color="#22c55e" />
           </View>
-          <Text style={styles.successTitle}>Joined Successfully!</Text>
+          <Text style={styles.successTitle}>{t('joinLeague.successTitle')}</Text>
           <Text style={styles.successSubtitle}>
-            Welcome to{' '}
-            <Text style={{ fontWeight: '700', color: '#1d4ed8' }}>
-              {joinedLeague.league_name}
-            </Text>
-            !
+            {t('joinLeague.successSubtitle', { name: joinedLeague.league_name })}
           </Text>
           <TouchableOpacity
             style={styles.doneButton}
             onPress={() => {
               (navigation as any).navigate('LeaguesMain', {
-                showToast: 'Joined league successfully!',
+                showToast: t('joinLeague.toastSuccess'),
                 refreshLeagues: true,
               });
             }}
             activeOpacity={0.8}
           >
-            <Text style={styles.doneButtonText}>Let's Go!</Text>
+            <Text style={styles.doneButtonText}>{t('joinLeague.letsGo')}</Text>
           </TouchableOpacity>
         </View>
         </SafeAreaView>
-      </>
+      </View>
     );
   }
 
   return (
-    <>
+    <View style={{ flex: 1, direction: 'ltr' }}>
       <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
       <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardAvoidingView
@@ -122,9 +118,9 @@ export default function JoinLeagueScreen() {
           {/* Banner card */}
           <View style={styles.bannerCard}>
             <Ionicons name="people-circle-outline" size={52} color="#93c5fd" />
-            <Text style={styles.bannerTitle}>Enter your invite code</Text>
+            <Text style={styles.bannerTitle}>{t('joinLeague.bannerTitle')}</Text>
             <Text style={styles.bannerSubtitle}>
-              Get the 8-character code from your league creator
+              {t('joinLeague.bannerSubtitle')}
             </Text>
           </View>
 
@@ -166,7 +162,7 @@ export default function JoinLeagueScreen() {
               <Ionicons name="lock-closed" size={16} color="#ffffff" />
             )}
             <Text style={styles.joinButtonText}>
-              {loading ? 'Joining...' : 'Join League'}
+              {loading ? t('joinLeague.joining') : t('joinLeague.joinButton')}
             </Text>
             {isReady && (
               <Ionicons name="arrow-forward" size={16} color="#ffffff" />
@@ -177,12 +173,12 @@ export default function JoinLeagueScreen() {
 
       <ErrorModal
         visible={!!errorModal}
-        title={errorModal?.title ?? 'Error'}
+        title={errorModal?.title ?? t('joinLeague.errorFallback')}
         message={errorModal?.message ?? ''}
         onClose={() => setErrorModal(null)}
       />
       </SafeAreaView>
-    </>
+    </View>
   );
 }
 

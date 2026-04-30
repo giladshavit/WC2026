@@ -1,5 +1,6 @@
 import React from 'react';
 import { Animated, Image, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ONBOARDING_MATCHES } from '../../constants/onboardingTeams';
 
@@ -267,33 +268,42 @@ const DEMO_SCORES = [
 ];
 
 export default function MatchesPage() {
+  const { t } = useTranslation();
   const demo = ONBOARDING_MATCHES.slice(0, 3);
 
   return (
-    <View style={styles.classicPage}>
-      <View style={styles.classicBadge}>
-        <Text style={styles.classicBadgeText} allowFontScaling={false}>CLASSIC MODE</Text>
-      </View>
-      <Text style={styles.classicSubtitle} maxFontSizeMultiplier={1.3}>
-        Predict the exact score of every match
-      </Text>
+    <View style={styles.root}>
+      <View style={styles.classicPage}>
+        <View style={styles.classicBadge}>
+          <Text style={styles.classicBadgeText} allowFontScaling={false}>
+            {t('onboarding.classic_badge')}
+          </Text>
+        </View>
+        <Text style={styles.classicSubtitle} maxFontSizeMultiplier={1.3}>
+          {t('onboarding.classic_subtitle')}
+        </Text>
 
-      <View style={styles.cardsBlock}>
-        {demo.map((m, i) => (
-          <DemoMatchCard
-            key={m.id}
-            {...m}
-            homeScore={DEMO_SCORES[i]?.home ?? ''}
-            awayScore={DEMO_SCORES[i]?.away ?? ''}
-            showArrow={i === 1}
-          />
-        ))}
+        <View style={styles.cardsBlock}>
+          {demo.map((m, i) => (
+            <DemoMatchCard
+              key={m.id}
+              {...m}
+              homeScore={DEMO_SCORES[i]?.home ?? ''}
+              awayScore={DEMO_SCORES[i]?.away ?? ''}
+              showArrow={i === 1}
+            />
+          ))}
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    direction: 'ltr',
+  },
   classicPage: {
     flex: 1,
     paddingHorizontal: 16,

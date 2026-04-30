@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 interface EnterEditModeModalProps {
@@ -22,6 +23,7 @@ export default function EnterEditModeModal({
   onClose,
   onEnterEditMode,
 }: EnterEditModeModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal
       visible={visible}
@@ -30,18 +32,18 @@ export default function EnterEditModeModal({
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.content} onPress={() => {}}>
+        <Pressable style={[styles.content, { direction: 'ltr' }]} onPress={() => {}}>
           {/* Icon */}
           <View style={styles.iconContainer}>
             <Ionicons name="create-outline" size={32} color="#0f766e" />
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Enter Edit Mode</Text>
+          <Text style={styles.title}>{t('modals.enterEditMode')}</Text>
 
           {/* Subtitle */}
           <Text style={styles.subtitle}>
-            To make changes to your bracket, switch to Edit Mode. Note that saving changes will apply fine points.
+            {t('modals.enterEditModeDesc')}
           </Text>
 
           {/* Primary button */}
@@ -50,7 +52,7 @@ export default function EnterEditModeModal({
             onPress={onEnterEditMode}
           >
             <Ionicons name="create-outline" size={20} color="#ffffff" />
-            <Text style={styles.primaryButtonText}>Enter Edit Mode</Text>
+            <Text style={styles.primaryButtonText}>{t('modals.enterEditMode')}</Text>
           </Pressable>
 
           {/* Secondary button */}
@@ -58,7 +60,7 @@ export default function EnterEditModeModal({
             style={styles.secondaryButton}
             onPress={onClose}
           >
-            <Text style={styles.secondaryButtonText}>Cancel</Text>
+            <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
           </Pressable>
         </Pressable>
       </Pressable>

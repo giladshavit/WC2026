@@ -141,7 +141,7 @@ export default function ThirdPlaceStatsModal({ visible, onClose }: Props) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity style={styles.modalContent} activeOpacity={1} onPress={() => {}}>
+        <TouchableOpacity style={[styles.modalContent, { direction: 'ltr' }]} activeOpacity={1} onPress={() => {}}>
           <View style={styles.modalHeader}>
             <Text
               style={[styles.modalTitle, { flex: 1, textAlign: 'center' }]}

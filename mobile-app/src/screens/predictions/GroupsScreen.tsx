@@ -9,6 +9,7 @@ import { useTournament } from '../../contexts/TournamentContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { FineConfirmationModal, UnsavedChangesModal, ErrorModal, ValidationModal } from '../../components/modals/CustomModals';
 import { useToast } from '../../components/toast/Toast';
+import { useTranslation } from 'react-i18next';
 
 interface GroupsCache {
   data: GroupsResponse;
@@ -50,6 +51,7 @@ interface GroupsScreenProps {
 }
 
 export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps) {
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const [errorModal, setErrorModal] = useState<{
     title: string;
@@ -614,7 +616,7 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { direction: 'ltr' }]}>
         <ActivityIndicator size="large" color="#16a34a" />
         <Text style={styles.loadingText}>Loading groups...</Text>
         <ErrorModal
@@ -636,7 +638,7 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
 
   if (groups.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
+      <View style={[styles.emptyContainer, { direction: 'ltr' }]}>
         <Ionicons name="cloud-offline-outline" size={56} color="#f87171" />
         <Text style={styles.emptyText}>Could not load groups</Text>
         <Text style={styles.emptySubtext}>Please check your connection and try again</Text>
@@ -680,7 +682,7 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
     : (groupsScore ?? 0);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { direction: 'ltr' }]}>
       {(showSaveButton || showPoints) && (
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -723,7 +725,7 @@ export default function GroupsScreen({ onFirstTimeComplete }: GroupsScreenProps)
                     color={showNetScore ? '#16a34a' : '#64748b'}
                   />
                   <Text style={[styles.netScoreToggleText, showNetScore && styles.netScoreToggleTextActive]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-                    Net
+                    {t('route.net')}
                   </Text>
                 </TouchableOpacity>
               )}

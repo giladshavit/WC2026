@@ -17,6 +17,8 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { IS_RTL } from '../../utils/rtl';
 import Svg, { Path } from 'react-native-svg';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -40,6 +42,7 @@ export default function RegisterScreen({
   onSwitchToLogin,
   onSocialRegistration,
 }: RegisterScreenProps) {
+  const { t } = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -51,6 +54,8 @@ export default function RegisterScreen({
     message: string;
   } | null>(null);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const scrollViewRef = useRef<RNScrollView>(null);
   const { register, loginWithGoogle, loginWithApple } = useAuth();
 
@@ -77,21 +82,20 @@ export default function RegisterScreen({
       } catch (err) {
         if (err instanceof Error && (err as Error & { httpStatus?: number }).httpStatus === 409) {
           setErrorModal({
-            title: 'Account Exists',
-            message:
-              'This email is already registered. Please login with username and password.',
+            title: t('auth.accountExists'),
+            message: t('auth.accountExistsMsg'),
           });
         } else {
           setErrorModal({
-            title: 'Error',
-            message: 'Google sign-in failed. Please try again.',
+            title: t('auth.errorTitle'),
+            message: t('auth.googleFailed'),
           });
         }
       } finally {
         setIsLoading(false);
       }
     },
-    [loginWithGoogle, onSocialRegistration]
+    [loginWithGoogle, onSocialRegistration, t]
   );
 
   useEffect(() => {
@@ -133,14 +137,13 @@ export default function RegisterScreen({
       }
       if (err instanceof Error && (err as Error & { httpStatus?: number }).httpStatus === 409) {
         setErrorModal({
-          title: 'Account Exists',
-          message:
-            'This email is already registered. Please login with username and password.',
+          title: t('auth.accountExists'),
+          message: t('auth.accountExistsMsg'),
         });
       } else {
         setErrorModal({
-          title: 'Error',
-          message: 'Apple sign-in failed. Please try again.',
+          title: t('auth.errorTitle'),
+          message: t('auth.appleFailed'),
         });
       }
     } finally {
@@ -154,31 +157,31 @@ export default function RegisterScreen({
 
   const validateForm = (): string | null => {
     if (!username.trim() || !password.trim() || !name.trim() || !email.trim()) {
-      return 'Please fill in all fields';
+      return t('auth.fillAllFields');
     }
     if (!EMAIL_REGEX.test(email.trim())) {
-      return 'Please enter a valid email address';
+      return t('auth.invalidEmailMsg');
     }
     if (username.length < 3) {
-      return 'Username must be at least 3 characters';
+      return t('auth.usernameLength');
     }
     if (username.length > 14) {
-      return 'Username must be 14 characters or less';
+      return t('auth.usernameLength');
     }
     if (name.length < 2) {
-      return 'Name must be at least 2 characters';
+      return t('auth.nameLength');
     }
     if (name.length > 14) {
-      return 'Name must be 14 characters or less';
+      return t('auth.nameLength');
     }
     if (password.length < 6) {
-      return 'Password must be at least 6 characters';
+      return t('auth.passwordLength');
     }
     if (password.length > 20) {
-      return 'Password must be at most 20 characters';
+      return t('auth.passwordLength');
     }
     if (password !== confirmPassword) {
-      return 'Passwords do not match';
+      return t('auth.passwordsMismatch');
     }
     return null;
   };
@@ -186,28 +189,28 @@ export default function RegisterScreen({
   const handleRegister = async () => {
     const validationError = validateForm();
     if (validationError) {
-      setErrorModal({ title: 'Invalid Input', message: validationError });
+      setErrorModal({ title: t('auth.invalidInput'), message: validationError });
       return;
     }
     try {
       setIsLoading(true);
       await register(username.trim(), password, name.trim(), email.trim().toLowerCase());
     } catch (err) {
-      let msg = 'Something went wrong. Please try again.';
+      let msg = t('auth.genericError');
       if (err instanceof Error) {
         if (err.message.includes('400') || err.message.toLowerCase().includes('exist') || err.message.toLowerCase().includes('taken') || err.message.toLowerCase().includes('already')) {
           if (err.message.toLowerCase().includes('email')) {
-            msg = 'This email is already registered. Please use a different one.';
+            msg = t('auth.emailInUse');
           } else {
-            msg = 'This username is already taken. Please choose a different one.';
+            msg = t('auth.usernameTaken');
           }
         } else if (err.message.includes('Network') || err.message.includes('fetch') || err.message.includes('connect')) {
-          msg = 'Cannot connect to server. Please check your connection.';
+          msg = t('auth.cannotConnect');
         } else {
           msg = err.message;
         }
       }
-      setErrorModal({ title: 'Registration Failed', message: msg });
+      setErrorModal({ title: t('auth.registrationFailed'), message: msg });
     } finally {
       setIsLoading(false);
     }
@@ -228,17 +231,19 @@ export default function RegisterScreen({
       >
         <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Full Name</Text>
+              <Text style={[styles.label, { textAlign: 'left' }]}>{t('auth.fullName')}</Text>
+              <View style={{ position: 'relative' }}>
               <TextInput
                 style={[
                   styles.input,
                   focusedInput === 'name' && styles.inputFocused,
+                  { textAlign: 'auto' },
                 ]}
                 value={name}
-                onChangeText={(t) => setName(t)}
+                onChangeText={(text) => setName(text)}
                 onFocus={() => { setFocusedInput('name'); scrollToInput(0); }}
                 onBlur={() => setFocusedInput(null)}
-                placeholder="Enter full name"
+                placeholder={IS_RTL ? '' : t('auth.enterFullName')}
                 placeholderTextColor="#64748b"
                 textContentType="oneTimeCode"
                 autoCapitalize="words"
@@ -247,20 +252,23 @@ export default function RegisterScreen({
                 maxLength={14}
                 maxFontSizeMultiplier={1.2}
               />
+              </View>
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Username</Text>
+              <Text style={[styles.label, { textAlign: 'left' }]}>{t('auth.username')}</Text>
+              <View style={{ position: 'relative' }}>
               <TextInput
                 style={[
                   styles.input,
                   focusedInput === 'username' && styles.inputFocused,
+                  { textAlign: 'auto' },
                 ]}
                 value={username}
-                onChangeText={(t) => setUsername(t)}
+                onChangeText={(text) => setUsername(text)}
                 onFocus={() => { setFocusedInput('username'); scrollToInput(80); }}
                 onBlur={() => setFocusedInput(null)}
-                placeholder="Enter username (min 3 chars)"
+                placeholder={IS_RTL ? '' : t('auth.enterUsername')}
                 placeholderTextColor="#64748b"
                 textContentType="oneTimeCode"
                 autoCapitalize="none"
@@ -269,20 +277,23 @@ export default function RegisterScreen({
                 maxLength={14}
                 maxFontSizeMultiplier={1.2}
               />
+              </View>
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={[styles.label, { textAlign: 'left' }]}>{t('auth.email')}</Text>
+              <View style={{ position: 'relative' }}>
               <TextInput
                 style={[
                   styles.input,
                   focusedInput === 'email' && styles.inputFocused,
+                  { textAlign: 'auto' },
                 ]}
                 value={email}
-                onChangeText={(t) => setEmail(t)}
+                onChangeText={(text) => setEmail(text)}
                 onFocus={() => { setFocusedInput('email'); scrollToInput(160); }}
                 onBlur={() => setFocusedInput(null)}
-                placeholder="Enter your email"
+                placeholder={IS_RTL ? '' : t('auth.enterEmail')}
                 placeholderTextColor="#64748b"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -291,52 +302,91 @@ export default function RegisterScreen({
                 maxLength={100}
                 maxFontSizeMultiplier={1.2}
               />
+              </View>
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  focusedInput === 'password' && styles.inputFocused,
-                ]}
-                value={password}
-                onChangeText={(t) => setPassword(t)}
-                onFocus={() => { setFocusedInput('password'); scrollToInput(240); }}
-                onBlur={() => setFocusedInput(null)}
-                placeholder="Enter password (min 6 chars)"
-                placeholderTextColor="#64748b"
-                textContentType="oneTimeCode"
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-                maxLength={20}
-                maxFontSizeMultiplier={1.2}
-              />
+              <Text style={[styles.label, { textAlign: 'left' }]}>{t('auth.password')}</Text>
+              <View style={{ position: 'relative' }}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    focusedInput === 'password' && styles.inputFocused,
+                    { textAlign: 'auto', paddingLeft: 44 },
+                  ]}
+                  value={password}
+                  onChangeText={(text) => setPassword(text)}
+                  onFocus={() => { setFocusedInput('password'); scrollToInput(240); }}
+                  onBlur={() => setFocusedInput(null)}
+                  placeholder={IS_RTL ? '' : t('auth.enterPassword')}
+                  placeholderTextColor="#64748b"
+                  textContentType="oneTimeCode"
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                  maxLength={20}
+                  maxFontSizeMultiplier={1.2}
+                />
+                <TouchableOpacity
+                  style={{
+                    position: 'absolute',
+                    left: 12,
+                    top: 0,
+                    bottom: 0,
+                    justifyContent: 'center',
+                  }}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#64748b"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  focusedInput === 'confirmPassword' && styles.inputFocused,
-                ]}
-                value={confirmPassword}
-                onChangeText={(t) => setConfirmPassword(t)}
-                onFocus={() => { setFocusedInput('confirmPassword'); scrollToInput(320); }}
-                onBlur={() => setFocusedInput(null)}
-                placeholder="Enter password again"
-                placeholderTextColor="#64748b"
-                textContentType="oneTimeCode"
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-                maxLength={20}
-                maxFontSizeMultiplier={1.2}
-              />
+              <Text style={[styles.label, { textAlign: 'left' }]}>{t('auth.confirmPassword')}</Text>
+              <View style={{ position: 'relative' }}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    focusedInput === 'confirmPassword' && styles.inputFocused,
+                    { textAlign: 'auto', paddingLeft: 44 },
+                  ]}
+                  value={confirmPassword}
+                  onChangeText={(text) => setConfirmPassword(text)}
+                  onFocus={() => { setFocusedInput('confirmPassword'); scrollToInput(320); }}
+                  onBlur={() => setFocusedInput(null)}
+                  placeholder={IS_RTL ? '' : t('auth.enterConfirmPassword')}
+                  placeholderTextColor="#64748b"
+                  textContentType="oneTimeCode"
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                  maxLength={20}
+                  maxFontSizeMultiplier={1.2}
+                />
+                <TouchableOpacity
+                  style={{
+                    position: 'absolute',
+                    left: 12,
+                    top: 0,
+                    bottom: 0,
+                    justifyContent: 'center',
+                  }}
+                  onPress={() => setShowConfirmPassword((prev) => !prev)}
+                >
+                  <Ionicons
+                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#64748b"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <TouchableOpacity
@@ -344,15 +394,15 @@ export default function RegisterScreen({
               onPress={handleRegister}
               disabled={isLoading}
             >
-              <Text style={styles.buttonText}>
-                {isLoading ? 'Signing up...' : 'Sign Up'}
+              <Text style={[styles.buttonText, { textAlign: 'left' }]}>
+                {isLoading ? t('auth.creatingAccount') : t('auth.createAccount')}
               </Text>
             </TouchableOpacity>
 
-            <Text style={styles.socialDivider}>───── or ─────</Text>
+            <Text style={styles.socialDivider}>───── {t('auth.orDivider')} ─────</Text>
 
             <TouchableOpacity
-              style={[styles.socialButtonBase, styles.socialButtonGoogle]}
+              style={[styles.socialButtonBase, styles.socialButtonGoogle, { flexDirection: IS_RTL ? 'row-reverse' : 'row' }]}
               onPress={() => { void promptAsync(); }}
               disabled={isLoading}
               activeOpacity={0.85}
@@ -364,26 +414,26 @@ export default function RegisterScreen({
                 <Path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
                 <Path fill="none" d="M0 0h48v48H0z" />
               </Svg>
-              <Text style={styles.socialButtonTextDark}>Continue with Google</Text>
+              <Text style={styles.socialButtonTextDark}>{t('auth.continueWithGoogle')}</Text>
             </TouchableOpacity>
 
             {Platform.OS === 'ios' ? (
               <TouchableOpacity
-                style={[styles.socialButtonBase, styles.socialButtonApple]}
+                style={[styles.socialButtonBase, styles.socialButtonApple, { flexDirection: IS_RTL ? 'row-reverse' : 'row' }]}
                 onPress={() => {
                   void handleAppleSignIn();
                 }}
                 disabled={isLoading}
               >
                 <Ionicons name="logo-apple" size={20} color="#ffffff" />
-                <Text style={styles.socialButtonTextLight}>Continue with Apple</Text>
+                <Text style={styles.socialButtonTextLight}>{t('auth.continueWithApple')}</Text>
               </TouchableOpacity>
             ) : null}
 
-            <View style={styles.switchContainer}>
-              <Text style={styles.switchText} maxFontSizeMultiplier={1.2}>Already have an account? </Text>
+            <View style={[styles.switchContainer, { flexDirection: IS_RTL ? 'row-reverse' : 'row' }]}>
+              <Text style={[styles.switchText, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>{t('auth.alreadyHaveAccount')} </Text>
               <TouchableOpacity onPress={onSwitchToLogin} disabled={isLoading}>
-                <Text style={styles.switchLink} maxFontSizeMultiplier={1.2}>Login here</Text>
+                <Text style={[styles.switchLink, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>{t('auth.loginHere')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -400,7 +450,7 @@ export default function RegisterScreen({
               <Ionicons name="alert-circle" size={36} color="#ef4444" />
             </View>
             <Text style={styles.modalTitle}>
-              {errorModal?.title ?? 'Error'}
+              {errorModal?.title ?? t('auth.errorTitle')}
             </Text>
             <Text style={styles.modalMessage}>
               {errorModal?.message ?? ''}
@@ -409,7 +459,7 @@ export default function RegisterScreen({
               style={styles.modalButton}
               onPress={() => setErrorModal(null)}
             >
-              <Text style={styles.modalButtonText}>OK</Text>
+              <Text style={styles.modalButtonText}>{t('common.ok')}</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -447,6 +497,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: 'rgba(30, 41, 59, 0.8)',
     color: '#ffffff',
+    textAlign: 'auto',
   },
   inputFocused: {
     borderColor: '#16a34a',

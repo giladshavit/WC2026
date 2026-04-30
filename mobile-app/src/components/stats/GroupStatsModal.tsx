@@ -338,7 +338,7 @@ export default function GroupStatsModal({ visible, groupId, groupName, teams, on
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity style={styles.modalContent} activeOpacity={1} onPress={() => {}}>
+        <TouchableOpacity style={[styles.modalContent, { direction: 'ltr' }]} activeOpacity={1} onPress={() => {}}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { flex: 1, textAlign: 'center' }]}>Group {groupName}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButtonWrapper}>

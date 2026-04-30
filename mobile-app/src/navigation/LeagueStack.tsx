@@ -1,5 +1,6 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
+import { useTranslation } from 'react-i18next';
 import LeaguesScreen from '../screens/leagues/LeaguesScreen';
 import CreateLeagueScreen from '../screens/leagues/CreateLeagueScreen';
 import JoinLeagueScreen from '../screens/leagues/JoinLeagueScreen';
@@ -8,6 +9,8 @@ import LeagueDetailsScreen from '../screens/leagues/LeagueDetailsScreen';
 const Stack = createStackNavigator();
 
 export default function LeagueStack() {
+  const { t } = useTranslation();
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -34,14 +37,16 @@ export default function LeagueStack() {
         name="CreateLeague" 
         component={CreateLeagueScreen}
         options={{ 
-          title: 'Create League',
+          title: t('createLeague.createButton'),
+          headerBackTitle: t('leagues.title'),
         }}
       />
       <Stack.Screen 
         name="JoinLeague" 
         component={JoinLeagueScreen}
         options={{ 
-          title: 'Join League',
+          title: t('joinLeague.title'),
+          headerBackTitle: t('leagues.title'),
         }}
       />
       <Stack.Screen 

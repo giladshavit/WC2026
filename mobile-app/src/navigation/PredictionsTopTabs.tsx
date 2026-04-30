@@ -1,5 +1,6 @@
 import React from 'react';
 import { StatusBar } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,6 +10,7 @@ import KnockoutScreen from '../screens/predictions/KnockoutScreen';
 const Tab = createMaterialTopTabNavigator();
 
 export default function PredictionsTopTabs() {
+  const { t } = useTranslation();
   useFocusEffect(
     React.useCallback(() => {
       AsyncStorage.setItem('knockoutFirstTimeOpening', 'true');
@@ -42,8 +44,8 @@ export default function PredictionsTopTabs() {
           },
         }}
       >
-        <Tab.Screen name="Groups" component={GroupsContainerScreen} options={{ title: 'Group Stage' }} />
-        <Tab.Screen name="Knockout" component={KnockoutScreen} options={{ title: 'Knockout Stage' }} />
+        <Tab.Screen name="Groups" component={GroupsContainerScreen} options={{ title: t('route.groupStage') }} />
+        <Tab.Screen name="Knockout" component={KnockoutScreen} options={{ title: t('route.knockoutStage') }} />
       </Tab.Navigator>
     </>
   );

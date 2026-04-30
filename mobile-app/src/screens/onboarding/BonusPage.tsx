@@ -1,6 +1,8 @@
 import React from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { IS_RTL } from '../../utils/rtl';
 
 /** Same as OnboardingScreen StatusBar / root (`#0f172a`) — header area matches status bar */
 const STATUS_BAR_BG = '#0f172a';
@@ -26,6 +28,18 @@ const BONUS_QUESTIONS = [
   { key: 't3', label: 'Who will be the top scorer?', section: 'Tournament' },
 ] as const;
 
+const BONUS_Q_KEYS = [
+  'bonus_q1', 'bonus_q2', 'bonus_q3', 'bonus_q4',
+  'bonus_q5', 'bonus_q6', 'bonus_q7', 'bonus_q8',
+  'bonus_q9', 'bonus_q10', 'bonus_q11', 'bonus_q12',
+] as const;
+
+const SECTION_LABEL_KEYS: Record<string, string> = {
+  'Group Stage': 'bonus_section_group',
+  Knockout: 'bonus_section_knockout',
+  Tournament: 'bonus_section_tournament',
+};
+
 const SECTION_ICONS: Record<string, 'home-outline' | 'trophy-outline' | 'medal-outline'> = {
   'Group Stage': 'home-outline',
   Knockout: 'trophy-outline',
@@ -37,6 +51,7 @@ type Phase = 'summary' | 'wizard';
 type BonusPageProps = { isActive: boolean };
 
 export default function BonusPage({ isActive }: BonusPageProps) {
+  const { t } = useTranslation();
   const mountedRef = React.useRef(true);
 
   const fadeSummary = React.useRef(new Animated.Value(1)).current;
@@ -236,11 +251,13 @@ export default function BonusPage({ isActive }: BonusPageProps) {
 
   const summaryCard = (
     <Animated.View style={[styles.summaryLayer, { top: headerHeight }, { opacity: fadeSummary }]}>
-      <View style={styles.summaryHeader}>
+      <View style={[styles.summaryHeader, IS_RTL && { flexDirection: 'row-reverse' }]}>
         <View style={styles.summaryHeaderSpacer} />
-        <Text style={styles.summaryTitle} maxFontSizeMultiplier={1}>Bonus Predictions</Text>
+        <Text style={[styles.summaryTitle, IS_RTL && { textAlign: 'center' }]} maxFontSizeMultiplier={1}>
+          {t('onboarding.bonus_title')}
+        </Text>
         <View style={styles.summaryHeaderEditWrap}>
-          <AnimatedGlowEditButton editScale={editScale} editGlow={editGlow} />
+          <AnimatedGlowEditButton editLabel={t('onboarding.bonus_edit')} editScale={editScale} editGlow={editGlow} />
         </View>
       </View>
 
@@ -258,14 +275,16 @@ export default function BonusPage({ isActive }: BonusPageProps) {
                 <View style={styles.sectionHeaderBlock}>
                   <View style={styles.sectionHeader}>
                     <Ionicons name={SECTION_ICONS[q.section] ?? 'home-outline'} size={18} color="#94a3b8" />
-                    <Text style={styles.sectionHeaderText}>{q.section}</Text>
+                    <Text style={styles.sectionHeaderText}>
+                      {t(`onboarding.${SECTION_LABEL_KEYS[q.section]}`)}
+                    </Text>
                   </View>
                 </View>
               ) : null}
-              <View style={styles.summaryRow}>
+              <View style={[styles.summaryRow, IS_RTL && { flexDirection: 'row-reverse' }]}>
                 <Text style={styles.qLabel}>Q{qNum}</Text>
-                <Text style={styles.summaryQText} numberOfLines={3}>
-                  {q.label}
+                <Text style={[styles.summaryQText, IS_RTL && { textAlign: 'right' }]} numberOfLines={3}>
+                  {t(`onboarding.${BONUS_Q_KEYS[index]}`)}
                 </Text>
                 {isQ1 ? (
                   q1Answered ? (
@@ -273,7 +292,7 @@ export default function BonusPage({ isActive }: BonusPageProps) {
                   ) : (
                     <View style={styles.summaryAnswerEmpty}>
                       <Ionicons name="add-circle-outline" size={16} color="#475569" />
-                      <Text style={styles.summaryAnswerPrompt}>Answer</Text>
+                      <Text style={styles.summaryAnswerPrompt}>{t('onboarding.bonus_answer')}</Text>
                     </View>
                   )
                 ) : isQ2 ? (
@@ -282,13 +301,13 @@ export default function BonusPage({ isActive }: BonusPageProps) {
                   ) : (
                     <View style={styles.summaryAnswerEmpty}>
                       <Ionicons name="add-circle-outline" size={16} color="#475569" />
-                      <Text style={styles.summaryAnswerPrompt}>Answer</Text>
+                      <Text style={styles.summaryAnswerPrompt}>{t('onboarding.bonus_answer')}</Text>
                     </View>
                   )
                 ) : (
                   <View style={styles.summaryAnswerEmpty}>
                     <Ionicons name="add-circle-outline" size={16} color="#475569" />
-                    <Text style={styles.summaryAnswerPrompt}>Answer</Text>
+                    <Text style={styles.summaryAnswerPrompt}>{t('onboarding.bonus_answer')}</Text>
                   </View>
                 )}
                 <Ionicons name="chevron-forward" size={18} color="#64748b" />
@@ -305,7 +324,7 @@ export default function BonusPage({ isActive }: BonusPageProps) {
     <Animated.View
       style={[
         styles.wizardLayer,
-        { top: headerHeight },
+        { top: headerHeight, direction: 'ltr' },
         {
           opacity: wizardOpacity,
           transform: [{ translateX: wizardEnterX }],
@@ -352,7 +371,9 @@ export default function BonusPage({ isActive }: BonusPageProps) {
             <View style={styles.qChip}>
               <Text style={styles.qChipText}>Q1</Text>
             </View>
-            <Text style={styles.questionTitle} maxFontSizeMultiplier={1}>Total goals in Group Stage</Text>
+            <Text style={styles.questionTitle} maxFontSizeMultiplier={1}>
+              {t('onboarding.wizard_q1_title')}
+            </Text>
             <View style={styles.pillGrid}>
               {PILL_LABELS.map((label) => {
                 const selected = selectedPill === label;
@@ -374,7 +395,9 @@ export default function BonusPage({ isActive }: BonusPageProps) {
             <View style={styles.qChip}>
               <Text style={styles.qChipText}>Q4</Text>
             </View>
-            <Text style={styles.questionTitle} maxFontSizeMultiplier={1}>Teams finishing with 9/9 points</Text>
+            <Text style={styles.questionTitle} maxFontSizeMultiplier={1}>
+              {t('onboarding.wizard_q4_title')}
+            </Text>
             <View style={styles.pillGrid}>
               {Q2_PILL_LABELS.map((label) => {
                 const selected = selectedGroup === label;
@@ -403,10 +426,12 @@ export default function BonusPage({ isActive }: BonusPageProps) {
         onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
       >
         <View style={styles.bonusBadge}>
-          <Text style={styles.bonusBadgeText} allowFontScaling={false}>CLASSIC MODE</Text>
+          <Text style={styles.bonusBadgeText} allowFontScaling={false}>
+            {t('onboarding.bonus_badge')}
+          </Text>
         </View>
         <Text style={styles.pageSubtitle} maxFontSizeMultiplier={1.15}>
-          Answer 12 special questions about the tournament
+          {t('onboarding.bonus_subtitle')}
         </Text>
       </View>
 
@@ -417,9 +442,11 @@ export default function BonusPage({ isActive }: BonusPageProps) {
 }
 
 function AnimatedGlowEditButton({
+  editLabel,
   editScale,
   editGlow,
 }: {
+  editLabel: string;
   editScale: Animated.Value;
   editGlow: Animated.Value;
 }) {
@@ -437,7 +464,7 @@ function AnimatedGlowEditButton({
     >
       <Animated.View style={{ transform: [{ scale: editScale }] }}>
         <View style={styles.editPill}>
-          <Text style={styles.editPillText} allowFontScaling={false}>Edit</Text>
+          <Text style={styles.editPillText} allowFontScaling={false}>{editLabel}</Text>
         </View>
       </Animated.View>
     </Animated.View>
@@ -448,6 +475,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#1e293b',
+    direction: 'ltr',
   },
   staticHeader: {
     alignItems: 'center',

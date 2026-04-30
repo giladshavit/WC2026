@@ -14,6 +14,8 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
+import { IS_RTL } from '../../utils/rtl';
 
 import type { MainStackParamList } from '../../navigation/MainStackParamList';
 import { apiService, BonusPrediction } from '../../services/api';
@@ -29,6 +31,7 @@ const markDone = async () => {
 };
 
 export default function QuickPicksT1Screen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const route = useRoute<RouteProp<MainStackParamList, 'QuickPicksT1'>>();
   const insets = useSafeAreaInsets();
@@ -104,21 +107,26 @@ export default function QuickPicksT1Screen() {
       </View>
 
       <View style={styles.questionBlock}>
-        <Text style={styles.questionTitle}>How many goals in the tournament?</Text>
+        <Text style={styles.questionTitle}>
+          {t('onboarding.quickpicks_goals_question')}
+        </Text>
       </View>
 
-      <View style={styles.dots}>
-        {[0, 1, 2].map((i) => (
-          <View key={i} style={[styles.dot, i === 2 && styles.dotActive]} />
-        ))}
-      </View>
+        <View style={styles.dots}>
+          {[0, 1, 2].map((i) => {
+            const dotIndex = IS_RTL ? 2 - i : i;
+            return (
+              <View key={i} style={[styles.dot, dotIndex === 2 && styles.dotActive]} />
+            );
+          })}
+        </View>
 
-      <View style={styles.body}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={{ flex: 1 }}
-          contentContainerStyle={[styles.t3ScrollContent, { gap: GAP }]}
-        >
+        <View style={styles.body}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={{ flex: 1 }}
+            contentContainerStyle={[styles.t3ScrollContent, { gap: GAP }]}
+          >
           {t1Options.map((opt) => {
             const selected = selectedT1 === opt.value;
             return (
@@ -152,12 +160,12 @@ export default function QuickPicksT1Screen() {
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
-      </View>
+          </ScrollView>
+        </View>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <TouchableOpacity onPress={onSkip} style={styles.skipBtn} hitSlop={{ top: 8, bottom: 8 }}>
-          <Text style={styles.skipText}>Skip for now</Text>
+          <Text style={styles.skipText}>{t('onboarding.quickpicks_skip')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -165,7 +173,7 @@ export default function QuickPicksT1Screen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
+  root: { flex: 1, backgroundColor: BG, direction: 'ltr' },
   header: {
     paddingHorizontal: 24,
     flexDirection: 'row',
@@ -174,9 +182,9 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 36, alignItems: 'flex-start', justifyContent: 'center' },
   backBtnPlaceholder: { width: 36 },
-  questionBlock: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 4 },
+  questionBlock: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 16 },
   questionTitle: { fontSize: 20, fontWeight: '800', color: '#f1f5f9', textAlign: 'center' },
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 12 },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 8, marginBottom: 12 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(148,163,184,0.35)' },
   dotActive: { backgroundColor: '#38bdf8', width: 22 },
   body: { flex: 1, paddingHorizontal: 20 },

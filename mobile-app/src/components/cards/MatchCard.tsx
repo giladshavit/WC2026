@@ -6,6 +6,7 @@ import type { TextInput as RNTextInput } from 'react-native';
 import { Match, apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../toast/Toast';
+import { useTranslation } from 'react-i18next';
 
 type ScoreField = 'home' | 'away';
 
@@ -155,6 +156,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
   const rootRef = useRef<View>(null);
   const { getCurrentUserId } = useAuth();
   const { showToast } = useToast();
+  const { t } = useTranslation();
 
   useImperativeHandle(ref, () => ({
     measureCard: () =>
@@ -333,18 +335,18 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
     const userId = getCurrentUserId();
     if (!userId) return;
     try {
-      const result = await apiService.getTemptationSuggestions(match.id, userId);
+      const result = await apiService.getTemptationSuggestions(match.id, userId!);
       if (!result.available) {
-        showToast('Not enough data yet', 'info');
+        showToast(t('matches.temptNotEnoughData'), 'info');
         return;
       }
       setTemptationSuggestions(result.suggestions);
       setShowTemptationSuggestions(true);
     } catch (error) {
       console.error('Error fetching temptation suggestions:', error);
-      showToast('Could not load suggestions', 'error');
+      showToast(t('matches.temptLoadError'), 'error');
     }
-  }, [match.id, getCurrentUserId, showToast]);
+  }, [match.id, getCurrentUserId, showToast, t]);
 
   const handleTemptationSuggestionTap = React.useCallback(
     (home: number, away: number) => {
@@ -600,7 +602,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
           onPress={() => setShowTemptationSuggestions(false)}
         >
           <Pressable
-            style={[styles.temptationModal, { width: Dimensions.get('window').width * 0.85 }]}
+            style={[styles.temptationModal, { width: Dimensions.get('window').width * 0.85, direction: 'ltr' }]}
             onPress={() => {}}
           >
             <TouchableOpacity
@@ -610,12 +612,16 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
             >
               <Ionicons name="close" size={22} color="#a78bfa" />
             </TouchableOpacity>
-            <Text style={styles.temptationModalTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} maxFontSizeMultiplier={1.2}>Temptation Offer</Text>
+            <Text style={styles.temptationModalTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} maxFontSizeMultiplier={1.2}>
+              {t('matches.temptTitle')}
+            </Text>
             <View style={styles.temptationModalSubtitleWrap}>
-              <Text style={styles.temptationModalSubtitle} numberOfLines={2} maxFontSizeMultiplier={1.2}>Pick one of the rare predictions below.</Text>
+              <Text style={styles.temptationModalSubtitle} numberOfLines={2} maxFontSizeMultiplier={1.2}>
+                {t('matches.temptSubtitle')}
+              </Text>
               <Text style={styles.temptationModalSubtitleLine2}>
-                  <Text style={styles.temptationModalSubtitleGray} maxFontSizeMultiplier={1.2}>If correct, you earn </Text>
-                  <Text style={styles.temptationModalSubtitlePurple} maxFontSizeMultiplier={1.2}>×2 points!</Text>
+                <Text style={styles.temptationModalSubtitleGray}>{t('matches.temptSubtitleGray')}</Text>
+                <Text style={styles.temptationModalSubtitlePurple}>{t('matches.temptSubtitlePurple')}</Text>
               </Text>
             </View>
             <View style={styles.temptationModalDivider} />
@@ -656,7 +662,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
               onPress={() => setShowTemptationSuggestions(false)}
               activeOpacity={0.7}
             >
-              <Text style={styles.temptationCancelText}>Cancel</Text>
+              <Text style={styles.temptationCancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>

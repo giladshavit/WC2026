@@ -32,6 +32,8 @@
   import * as MediaLibrary from 'expo-media-library';
   import * as Sharing from 'expo-sharing';
   import Ionicons from '@expo/vector-icons/Ionicons';
+  import { useTranslation } from 'react-i18next';
+import { IS_RTL } from '../../utils/rtl';
 
   interface BracketScreenProps {}
 
@@ -83,6 +85,7 @@
     const [isLoadingResetPreview, setIsLoadingResetPreview] = useState(false);
     const [showInfo, setShowInfo] = useState(false);
 
+    const { t } = useTranslation();
     const { showToast } = useToast();
     const [errorModal, setErrorModal] = useState<{
       title: string;
@@ -788,7 +791,7 @@
 
     if (loading) {
       return (
-        <View style={styles.loadingContainer}>
+        <View style={[styles.loadingContainer, { direction: 'ltr' }]}>
           <ActivityIndicator size="large" color="#667eea" />
           <Text style={styles.loadingText}>Loading bracket...</Text>
           <ErrorModal
@@ -808,7 +811,7 @@
     if (!organizedBracket) {
       return (
         <>
-          <View style={styles.errorContainer}>
+          <View style={[styles.errorContainer, { direction: 'ltr' }]}>
             <Ionicons name="cloud-offline-outline" size={56} color="#f87171" />
             <Text style={styles.emptyTitle}>Could not load bracket</Text>
             <Text style={styles.emptySubtitle}>Please check your connection and try again</Text>
@@ -830,7 +833,7 @@
     return (
       <>
         <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
-        <View style={[styles.container, { pointerEvents: 'box-none' }]}>
+        <View style={[styles.container, { pointerEvents: 'box-none', direction: 'ltr' }]}>
         {/* Subtle dot-grid background */}
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
           {Array.from({ length: Math.ceil(screenHeight / 28) }).map((_, row) =>
@@ -999,9 +1002,11 @@
         {/* Info Modal */}
         <Modal visible={showInfo} transparent animationType="fade">
           <Pressable style={styles.modalOverlay} onPress={() => setShowInfo(false)}>
-            <Pressable style={[styles.modalCard, { backgroundColor: '#1e293b' }]} onPress={e => e.stopPropagation()}>
+            <Pressable style={[styles.modalCard, { backgroundColor: '#1e293b', direction: IS_RTL ? 'rtl' : 'ltr' }]} onPress={e => e.stopPropagation()}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 16 }}>
-                <Text style={[styles.modalTitle, { color: '#f1f5f9' }]}>Bracket Legend</Text>
+                <Text style={[styles.modalTitle, { color: '#f1f5f9', textAlign: 'left' }]}>
+                  {t('bracket.legendTitle')}
+                </Text>
                 <TouchableOpacity onPress={() => setShowInfo(false)}>
                   <Ionicons name="close" size={24} color="#94a3b8" />
                 </TouchableOpacity>
@@ -1012,40 +1017,40 @@
                   !['GROUP_CYCLE_1', 'GROUP_CYCLE_2', 'GROUP_CYCLE_3'].includes(currentStage);
 
                 const colorLegendRows: { borderColor: string; prefix: string; prefixColor: string; suffix: string }[] = [
-                  { borderColor: '#cbd5e1', prefix: 'Valid — ', prefixColor: '#cbd5e1', suffix: 'full points potential' },
-                  { borderColor: '#ef4444', prefix: 'Invalid — ', prefixColor: '#ef4444', suffix: '0 points potential' },
+                  { borderColor: '#cbd5e1', prefix: t('bracket.validLabel'), prefixColor: '#cbd5e1', suffix: t('bracket.validDesc') },
+                  { borderColor: '#ef4444', prefix: t('bracket.invalidLabel'), prefixColor: '#ef4444', suffix: t('bracket.invalidDesc') },
                 ];
                 if (isPostGroupStage) {
                   colorLegendRows.push({
                     borderColor: '#fb923c',
-                    prefix: 'Unreachable — ',
+                    prefix: t('bracket.unreachableLabel'),
                     prefixColor: '#fb923c',
-                    suffix: 'your predicted winner is expected in a different match at this stage (partial points potential)',
+                    suffix: t('bracket.unreachableDesc'),
                   });
                 }
 
                 const buttonRows: { icon: string; color: string; label: string }[] = [];
                 if (!editMode) {
-                  buttonRows.push({ icon: 'camera-outline', color: '#1e3a8a', label: 'Camera: save bracket as photo' });
-                  buttonRows.push({ icon: 'share-outline', color: '#0369a1', label: 'Share: share bracket image' });
+                  buttonRows.push({ icon: 'camera-outline', color: '#1e3a8a', label: t('bracket.btnCamera') });
+                  buttonRows.push({ icon: 'share-outline', color: '#0369a1', label: t('bracket.btnShare') });
                 }
                 if (!isPreTournament && !editMode && canEditDrafts) {
-                  buttonRows.push({ icon: 'create-outline', color: '#0f766e', label: 'Edit: enter edit mode to change predictions' });
+                  buttonRows.push({ icon: 'create-outline', color: '#0f766e', label: t('bracket.btnEdit') });
                 }
                 if (currentStage === 'PRE_ROUND32' && !editMode && !hasUsedBracketReset) {
-                  buttonRows.push({ icon: 'refresh-circle-outline', color: '#7c3aed', label: 'Bracket Reset: rebuild predictions from actual Round of 32 teams (one time only)' });
+                  buttonRows.push({ icon: 'refresh-circle-outline', color: '#7c3aed', label: t('bracket.btnBracketReset') });
                 }
                 if (editMode) {
-                  buttonRows.push({ icon: 'checkmark-circle-outline', color: '#15803d', label: 'Save: save all changes' });
-                  buttonRows.push({ icon: 'refresh-outline', color: '#475569', label: 'Reset: undo all unsaved changes in this session' });
-                  buttonRows.push({ icon: 'log-out-outline', color: '#9a3412', label: 'Exit: leave edit mode (will ask to discard changes)' });
+                  buttonRows.push({ icon: 'checkmark-circle-outline', color: '#15803d', label: t('bracket.btnSave') });
+                  buttonRows.push({ icon: 'refresh-outline', color: '#475569', label: t('bracket.btnReset') });
+                  buttonRows.push({ icon: 'log-out-outline', color: '#9a3412', label: t('bracket.btnExit') });
                 }
                 const sectionHeaderBase = { marginBottom: 6, marginTop: 12, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, alignSelf: 'center' as const };
                 const sectionHeaderText = { fontSize: 10, fontWeight: '700' as const, letterSpacing: 1, color: '#94a3b8' };
                 return (
                   <>
                     <View style={[sectionHeaderBase, { backgroundColor: 'rgba(45, 74, 110, 0.6)' }]}>
-                      <Text style={sectionHeaderText}>CARD COLORS</Text>
+                      <Text style={sectionHeaderText}>{t('bracket.sectionCardColors')}</Text>
                     </View>
                     {colorLegendRows.map((row, i) => (
                       <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 8 }}>
@@ -1056,7 +1061,7 @@
                           flexShrink: 0,
                           marginTop: 2,
                         }} />
-                        <Text style={{ flex: 1, fontSize: 13, lineHeight: 20, color: '#cbd5e1' }}>
+                        <Text style={{ flex: 1, fontSize: 13, lineHeight: 20, color: '#cbd5e1', textAlign: 'left' }}>
                           <Text style={{ color: row.prefixColor, fontWeight: '700' }}>{row.prefix}</Text>
                           <Text style={{ color: '#cbd5e1', fontSize: 13 }}>{row.suffix}</Text>
                         </Text>
@@ -1066,12 +1071,12 @@
                       <>
                         <View style={{ height: 1, backgroundColor: '#2d4a6e', marginVertical: 12, width: '100%' }} />
                         <View style={[sectionHeaderBase, { backgroundColor: 'rgba(71, 85, 105, 0.5)' }]}>
-                          <Text style={sectionHeaderText}>BUTTONS</Text>
+                          <Text style={sectionHeaderText}>{t('bracket.sectionButtons')}</Text>
                         </View>
                         {buttonRows.map((row, i) => (
                           <View key={`btn-${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 }}>
                             <Ionicons name={row.icon as any} size={20} color={row.color} />
-                            <Text style={{ flex: 1, fontSize: 13, color: '#cbd5e1', lineHeight: 18 }}>{row.label}</Text>
+                            <Text style={{ flex: 1, fontSize: 13, color: '#cbd5e1', lineHeight: 18, textAlign: 'left' }}>{row.label}</Text>
                           </View>
                         ))}
                       </>

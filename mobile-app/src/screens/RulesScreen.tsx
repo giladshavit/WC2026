@@ -9,11 +9,15 @@ import {
   Dimensions,
   Modal,
   ActivityIndicator,
+  I18nManager,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { apiService, AppConfig } from '../services/api';
+import { IS_RTL } from '../utils/rtl';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -53,393 +57,366 @@ type ContentBlock =
 
 // ─── Content ─────────────────────────────────────────────────────────────────
 
-const sections: Section[] = [
-  {
-    id: 'intro',
-    title: 'What is Predicto?',
-    emoji: '🎯',
-    content: [
-      {
-        type: 'paragraph',
-        text: 'Predicto is a prediction game for the 2026 Football Tournament. Predict match scores and bonus questions — or go all in with group standings, the full knockout bracket, and more. Then outscore your friends.',
-      },
-      {
-        type: 'paragraph',
-        text: 'Two league modes: Classic Mode (matches + bonus) and Multi Mode (everything).',
-      },
-    ],
-  },
-  {
-    id: 'classic',
-    title: 'Classic Mode',
-    emoji: '⚽',
-    content: [
-      {
-        type: 'subsection',
-        title: 'Match Predictions',
-        variant: 'prediction',
-        blocks: [
-          {
-            type: 'paragraph',
-            text: 'Predict the exact scoreline for every match. Only the result after 90 minutes counts — no extra time or penalties. Predictions lock at kick-off.',
-          },
-          {
-            type: 'table',
-            headers: ['Stage', 'Direction', 'Exact Score'],
-            rows: [
-              { cells: ['Group / R32', '2', '5'] },
-              { cells: ['Round of 16', '3', '7'] },
-              { cells: ['Quarter-Final', '4', '9'] },
-              { cells: ['Semi-Final', '5', '10'] },
-              { cells: ['3rd Place', '6', '12'] },
-              { cells: ['Final', '7', '15'] },
-            ],
-          },
-          { type: 'temptation-card' },
-        ],
-      },
-      {
-        type: 'subsection',
-        title: 'Bonus Predictions',
-        variant: 'prediction',
-        blocks: [
-          {
-            type: 'paragraph',
-            text: '12 questions covering the group stage, knockout stage, and the full tournament. One answer per question.',
-          },
-          {
-            type: 'bullet',
-            items: [
-              '3 tournament questions',
-              '6 group-stage questions',
-              '3 knockout questions',
-            ],
-          },
-          {
-            type: 'table',
-            headers: ['Result', 'Points'],
-            compact: true,
-            rows: [{ cells: ['Correct answer', '8'] }],
-          },
-          {
-            type: 'note',
-            color: 'green',
-            text: 'Basic leagues only count the 3 tournament questions toward your score.',
-            showBasicBadge: true,
-          },
-          {
-            type: 'note',
-            color: 'red',
-            text: 'All 12 bonus questions lock when the tournament begins. Make sure all your answers are in before kick-off.',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'multi',
-    title: 'Multi Mode',
-    emoji: '🏆',
-    content: [
-      {
-        type: 'paragraph',
-        text: 'Multi Mode builds on Classic Mode with full route predictions — who advances from every group all the way to the Final. Three additional prediction types:',
-      },
-      {
-        type: 'subsection',
-        title: 'Group Stage',
-        variant: 'prediction',
-        blocks: [
-          {
-            type: 'paragraph',
-            text: 'Predict the exact finishing order (1st–4th) for all 4 teams in each of the 12 groups. Editable until end of Matchday 2.',
-          },
-          {
-            type: 'table',
-            headers: ['Position', 'Points'],
-            compact: true,
-            rows: [
-              { cells: ['1st', '6'] },
-              { cells: ['2nd', '5'] },
-              { cells: ['3rd', '4'] },
-              { cells: ['4th', '2'] },
-            ],
-          },
-        ],
-      },
-      {
-        type: 'subsection',
-        title: '3rd Place',
-        variant: 'prediction',
-        blocks: [
-          {
-            type: 'paragraph',
-            text: 'Choose 8 of the 12 groups whose 3rd-place team advances. Editable until end of Matchday 2.',
-          },
-          {
-            type: 'table',
-            headers: ['Correct Groups', 'Points'],
-            compact: true,
-            rows: [
-              { cells: ['Up to 4', '0'] },
-              { cells: ['5', '6'] },
-              { cells: ['6', '12'] },
-              { cells: ['7', '18'] },
-              { cells: ['8', '24'] },
-            ],
-          },
-          {
-            type: 'note',
-            color: 'yellow',
-            text: 'You pick 8 of 12 — at least 4 are always correct. Points kick in from 5 correct.',
-          },
-        ],
-      },
-      {
-        type: 'subsection',
-        title: 'Knockout',
-        variant: 'prediction',
-        blocks: [
-          {
-            type: 'paragraph',
-            text: 'Predict the winner of every match from R32 to the Final. Editable round by round, no later than Semi-Finals start.',
-          },
-          {
-            type: 'table',
-            headers: ['Stage', 'Full', 'Partial'],
-            rows: [
-              { cells: ['Round of 32', '6', '3'] },
-              { cells: ['Round of 16', '8', '4'] },
-              { cells: ['Quarter-Final', '10', '5'] },
-              { cells: ['Semi-Final', '12', '6'] },
-              { cells: ['Final', '15', '—'] },
-            ],
-          },
-          {
-            type: 'note',
-            color: 'green',
-            text: '✅ Full points — your picked winner won this exact match.',
-          },
-          {
-            type: 'note',
-            color: 'yellow',
-            text: '🟡 Partial points — your picked winner advanced, but through a different match in the same round.',
-          },
-        ],
-      },
-      {
-        type: 'subsection',
-        title: 'Bracket View',
-        variant: 'prediction',
-        blocks: [
-          {
-            type: 'paragraph',
-            text: 'The Bracket screen shows your full knockout prediction tree — all the way from the Round of 32 to the Final. Use Edit Mode to explore changes freely before saving.',
-          },
-          {
-            type: 'bullet',
-            items: [
-              'Each match shows your predicted winner with a validity indicator.',
-              'Screenshot the bracket anytime to save or share your full tree.',
-            ],
-          },
-        ],
-      },
-      {
-        type: 'subsection',
-        title: '⚠️ Changes & Fines',
-        variant: 'section',
-        blocks: [
-          {
-            type: 'paragraph',
-            text: 'A fine is deducted each time you save a change to any Multi Mode prediction type — groups, 3rd place, or knockout. Cost depends on the current tournament stage.',
-          },
-          {
-            type: 'subsection',
-            title: 'What counts as a change?',
-            blocks: [
-              {
-                type: 'paragraph',
-                text: 'Each of the following counts as one change:',
-              },
-              {
-                type: 'bullet',
-                items: [
-                  'Group Stage — each team moved in positions 1st–3rd within a group.',
-                  '3rd Place — each group toggled in or out of your selection.',
-                  'Knockout — changing a predicted winner in any round.',
-                ],
-              },
-              {
-                type: 'table',
-                headers: ['Tournament Stage', 'Fine per Change'],
-                rows: [
-                  { cells: ['Pre tournament', '0 (free)'], highlight: true },
-                  { cells: ['Matchday 1', '−1 pt'] },
-                  { cells: ['Matchday 2', '−1 pt'] },
-                  { cells: ['Matchday 3', '−2 pts'] },
-                  { cells: ['Pre Round of 32', '−2 pts'] },
-                  { cells: ['Pre Round of 16', '−3 pts'] },
-                  { cells: ['Pre Quarter-Final', '−3 pts'] },
-                  { cells: ['Pre Semi-Final', '−4 pts'] },
-                ],
-              },
-            ],
-          },
-          {
-            type: 'subsection',
-            title: 'Free Changes',
-            variant: 'spaced',
-            blocks: [
-              {
-                type: 'paragraph',
-                text: 'At key stages of the tournament, you receive free changes edits that cost no fine points. These accumulate across stages, so unused changes carry forward.',
-              },
-              {
-                type: 'table',
-                headers: ['Stage', 'Free Changes'],
-                compact: true,
-                rows: [
-                  { cells: ['Matchday 1 starts', '+12'] },
-                  { cells: ['Pre Round of 32', '+8'] },
-                  { cells: ['Pre Round of 16', '+4'] },
-                  { cells: ['Pre Quarter-Final', '+2'] },
-                  { cells: ['Pre Semi-Final', '+1'] },
-                ],
-              },
-              {
-                type: 'note',
-                color: 'yellow',
-                text: 'Use them wisely. Free changes are shared across all Multi Mode prediction types — groups, 3rd place, and knockout.',
-              },
-            ],
-          },
-          {
-            type: 'subsection',
-            title: '🔄 Bracket Reset (One-Time)',
-            variant: 'spaced',
-            blocks: [
-              {
-                type: 'paragraph',
-                text: 'During the Pre Round of 32 stage, every knockout prediction gets a status indicator:',
-              },
-              {
-                type: 'table',
-                headers: ['Status', 'Potential Points'],
-                compact: true,
-                rows: [
-                  { cells: ['Invalid 🔴', '0'] },
-                  { cells: ['Unreachable 🟠', 'Partial only'] },
-                  { cells: ['Valid ⚪', 'Full'] },
-                ],
-              },
-              {
-                type: 'paragraph',
-                text: 'You get one offer to reset the entire bracket, with a penalty based on your current invalid and unreachable predictions. The exact cost is shown before you confirm.',
-              },
-              {
-                type: 'note',
-                color: 'green',
-                text: 'After a reset, all knockout edits are completely free — no fines, regardless of stage.',
-              },
-              {
-                type: 'note',
-                color: 'yellow',
-                text: 'Your accumulated free changes are NOT affected by the reset — they stay intact for use across all Multi Mode predictions.',
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'availability',
-    title: 'Prediction Windows',
-    emoji: '📅',
-    content: [
-      {
-        type: 'paragraph',
-        text: 'Each prediction type has an editing window. Once a stage begins or the deadline passes, it locks.',
-      },
-      {
-        type: 'table',
-        headers: ['Stage', 'Groups', '3rd', 'R32', 'R16', 'QF', 'SF', 'Final'],
-        isWide: true,
-        rows: [
-          { cells: ['Pre-tournament', '✅', '✅', '✅', '✅', '✅', '✅', '✅'] },
-          { cells: ['Matchday 1–2', '✅', '✅', '✅', '✅', '✅', '✅', '✅'] },
-          { cells: ['Matchday 3', '❌', '❌', '✅', '✅', '✅', '✅', '✅'] },
-          { cells: ['Pre R32', '❌', '❌', '✅', '✅', '✅', '✅', '✅'] },
-          { cells: ['Pre R16', '❌', '❌', '❌', '✅', '✅', '✅', '✅'] },
-          { cells: ['Pre QF', '❌', '❌', '❌', '❌', '✅', '✅', '✅'] },
-          { cells: ['QF+', '❌', '❌', '❌', '❌', '❌', '❌', '❌'] },
-        ],
-      },
-      {
-        type: 'note',
-        color: 'red',
-        text: 'While any knockout round is live, ALL bracket predictions are locked — including rounds not yet started.',
-      },
-    ],
-  },
-  {
-    id: 'leagues',
-    title: 'Leagues & Leaderboard',
-    emoji: '🏅',
-    content: [
-      {
-        type: 'paragraph',
-        text: 'Compete in leagues with friends. Two league types available:',
-      },
-      {
-        type: 'mode-cards',
-        cards: [
-          {
-            mode: 'Classic Mode',
-            emoji: '⚽',
-            color: '#38bdf8',
-            description: 'Match predictions + Bonus questions',
-            includes: ['Matches', 'Bonus'],
-          },
-          {
-            mode: 'Multi Mode',
-            emoji: '🏆',
-            color: '#f59e0b',
-            description: 'The full prediction experience',
-            includes: ['Matches', 'Bonus', 'Groups + 3rd Places', 'Knockout', 'Fines'],
-          },
-        ],
-      },
-      { type: 'dual-tiebreaker' },
-    ],
-  },
-  {
-    id: 'timeline',
-    title: 'Stage Timeline',
-    emoji: '📆',
-    content: [
-      { type: 'paragraph', text: 'All times shown in your local timezone.' },
-      { type: 'stage-timeline' },
-    ],
-  },
-];
+function getSections(t: TFunction): Section[] {
+  return [
+    {
+      id: 'intro',
+      title: t('rules.introTitle'),
+      emoji: '🎯',
+      content: [
+        { type: 'paragraph', text: t('rules.introP1') },
+        { type: 'paragraph', text: t('rules.introP2') },
+      ],
+    },
+    {
+      id: 'classic',
+      title: t('rules.classicTitle'),
+      emoji: '⚽',
+      content: [
+        { type: 'paragraph', text: t('rules.classicIntroP1') },
+        {
+          type: 'subsection',
+          title: t('rules.classicMatchTitle'),
+          variant: 'prediction',
+          blocks: [
+            { type: 'paragraph', text: t('rules.classicMatchP1') },
+            {
+              type: 'table',
+              headers: [t('rules.tableStage'), t('rules.tableDirection'), t('rules.tableExactScore')],
+              rows: [
+                { cells: [t('rules.tableGroupR32'), '2', '5'] },
+                { cells: [t('rules.tableR16'), '3', '7'] },
+                { cells: [t('rules.tableQF'), '4', '9'] },
+                { cells: [t('rules.tableSF'), '5', '10'] },
+                { cells: [t('rules.table3rd'), '6', '12'] },
+                { cells: [t('rules.tableFinal'), '7', '15'] },
+              ],
+            },
+            { type: 'temptation-card' },
+          ],
+        },
+        {
+          type: 'subsection',
+          title: t('rules.classicBonusTitle'),
+          variant: 'prediction',
+          blocks: [
+            { type: 'paragraph', text: t('rules.classicBonusP1') },
+            {
+              type: 'bullet',
+              items: [
+                t('rules.classicBonusBullet1'),
+                t('rules.classicBonusBullet2'),
+                t('rules.classicBonusBullet3'),
+              ],
+            },
+            {
+              type: 'table',
+              headers: [t('rules.tableResult'), t('rules.tablePoints')],
+              compact: true,
+              rows: [{ cells: [t('rules.tableCorrectAnswer'), '8'] }],
+            },
+            {
+              type: 'note',
+              color: 'green',
+              text: t('rules.classicBonusNoteBasic'),
+              showBasicBadge: true,
+            },
+            {
+              type: 'note',
+              color: 'red',
+              text: t('rules.classicBonusNoteLock'),
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'multi',
+      title: t('rules.multiTitle'),
+      emoji: '🏆',
+      content: [
+        { type: 'paragraph', text: t('rules.multiP1') },
+        {
+          type: 'subsection',
+          title: t('rules.multiGroupTitle'),
+          variant: 'prediction',
+          blocks: [
+            { type: 'paragraph', text: t('rules.multiGroupP1') },
+            {
+              type: 'table',
+              headers: [t('rules.tablePosition'), t('rules.tablePoints')],
+              compact: true,
+              rows: [
+                { cells: [t('rules.tablePosition1'), '6'] },
+                { cells: [t('rules.tablePosition2'), '5'] },
+                { cells: [t('rules.tablePosition3'), '4'] },
+                { cells: [t('rules.tablePosition4'), '2'] },
+              ],
+            },
+          ],
+        },
+        {
+          type: 'subsection',
+          title: t('rules.multi3rdTitle'),
+          variant: 'prediction',
+          blocks: [
+            { type: 'paragraph', text: t('rules.multi3rdSubtitle') },
+            { type: 'paragraph', text: t('rules.multi3rdEditWindow') },
+            { type: 'paragraph', text: t('rules.multi3rdScoringNote') },
+            {
+              type: 'table',
+              headers: [t('rules.tableCorrectGroups'), t('rules.tablePoints')],
+              compact: true,
+              rows: [
+                { cells: [t('rules.tableUpTo4'), '0'] },
+                { cells: ['5', '6'] },
+                { cells: ['6', '12'] },
+                { cells: ['7', '18'] },
+                { cells: ['8', '24'] },
+              ],
+            },
+            {
+              type: 'note',
+              color: 'yellow',
+              text: t('rules.multi3rdNote'),
+            },
+          ],
+        },
+        {
+          type: 'subsection',
+          title: t('rules.multiKnockoutTitle'),
+          variant: 'prediction',
+          blocks: [
+            { type: 'paragraph', text: t('rules.multiKnockoutP1') },
+            {
+              type: 'table',
+              headers: [t('rules.tableStage'), t('rules.tableFull'), t('rules.tablePartial')],
+              rows: [
+                { cells: [t('rules.tableRoundOf32'), '6', '3'] },
+                { cells: [t('rules.tableR16'), '8', '4'] },
+                { cells: [t('rules.tableQF'), '10', '5'] },
+                { cells: [t('rules.tableSF'), '12', '6'] },
+                { cells: [t('rules.tableFinal'), '15', '—'] },
+              ],
+            },
+            {
+              type: 'note',
+              color: 'green',
+              text: t('rules.multiKnockoutNoteGreen'),
+            },
+            {
+              type: 'note',
+              color: 'yellow',
+              text: t('rules.multiKnockoutNoteYellow'),
+            },
+          ],
+        },
+        {
+          type: 'subsection',
+          title: t('rules.multiFinesTitle'),
+          variant: 'section',
+          blocks: [
+            { type: 'paragraph', text: t('rules.multiFinesIntro') },
+            {
+              type: 'subsection',
+              title: t('rules.multiFinesChangesTitle'),
+              blocks: [
+                { type: 'paragraph', text: t('rules.multiFinesChangesP1') },
+                {
+                  type: 'bullet',
+                  items: [
+                    t('rules.multiFinesChangesBullet1'),
+                    t('rules.multiFinesChangesBullet2'),
+                    t('rules.multiFinesChangesBullet3'),
+                  ],
+                },
+              ],
+            },
+            {
+              type: 'subsection',
+              title: t('rules.multiFreeTitle'),
+              variant: 'spaced',
+              blocks: [
+                { type: 'paragraph', text: t('rules.multiFreeP1') },
+                {
+                  type: 'table',
+                  headers: [t('rules.tableStage'), t('rules.tableFreeChanges')],
+                  compact: true,
+                  rows: [
+                    { cells: [t('rules.tableMatchday1Starts'), '+12'] },
+                    { cells: [t('rules.tablePreR32'), '+8'] },
+                    { cells: [t('rules.tablePreR16'), '+4'] },
+                    { cells: [t('rules.tablePreQF'), '+2'] },
+                    { cells: [t('rules.tablePreSF'), '+1'] },
+                  ],
+                },
+              ],
+            },
+            {
+              type: 'subsection',
+              title: t('rules.multiFinesSubTitle'),
+              variant: 'spaced',
+              blocks: [
+                { type: 'paragraph', text: t('rules.multiFinesPenaltyP1') },
+                {
+                  type: 'table',
+                  headers: [t('rules.tableTournamentStage'), t('rules.tableFinePerChange')],
+                  rows: [
+                    { cells: [t('rules.tablePreTournament'), t('rules.tableFineFree')], highlight: true },
+                    { cells: [t('rules.tableMatchday1'), t('rules.tableFineNeg1pt')] },
+                    { cells: [t('rules.tableMatchday2'), t('rules.tableFineNeg1pt')] },
+                    { cells: [t('rules.tableMatchday3'), t('rules.tableFineNeg2pts')] },
+                    { cells: [t('rules.tablePreR32'), t('rules.tableFineNeg2pts')] },
+                    { cells: [t('rules.tablePreR16'), t('rules.tableFineNeg3pts')] },
+                    { cells: [t('rules.tablePreQF'), t('rules.tableFineNeg3pts')] },
+                    { cells: [t('rules.tablePreSF'), t('rules.tableFineNeg4pts')] },
+                  ],
+                },
+              ],
+            },
+            {
+              type: 'subsection',
+              title: t('rules.multiResetTitle'),
+              variant: 'spaced',
+              blocks: [
+                { type: 'paragraph', text: t('rules.multiResetP1') },
+                {
+                  type: 'table',
+                  headers: [t('rules.tableColor'), t('rules.tablePotentialPoints')],
+                  compact: true,
+                  rows: [
+                    { cells: ['🔴', '0'] },
+                    { cells: ['🟠', t('rules.tablePartialOnly')] },
+                    { cells: ['⚪', t('rules.tableFull')] },
+                  ],
+                },
+                { type: 'paragraph', text: t('rules.multiResetP2') },
+                {
+                  type: 'note',
+                  color: 'green',
+                  text: t('rules.multiResetNoteGreen'),
+                },
+                {
+                  type: 'note',
+                  color: 'yellow',
+                  text: t('rules.multiResetNoteYellow'),
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'availability',
+      title: t('rules.availabilityTitle'),
+      emoji: '📅',
+      content: [
+        { type: 'paragraph', text: t('rules.availabilityP1') },
+        {
+          type: 'table',
+          headers: [
+            t('rules.tableStage'),
+            t('rules.tableGroups'),
+            t('rules.availabilityColThird'),
+            t('rules.availabilityColR32'),
+            t('rules.availabilityColR16'),
+            t('rules.availabilityColQF'),
+            t('rules.availabilityColSF'),
+            t('rules.availabilityColFinal'),
+          ],
+          isWide: true,
+          rows: [
+            { cells: [t('rules.tablePreTournamentFull'), '✅', '✅', '✅', '✅', '✅', '✅', '✅'] },
+            { cells: [t('rules.tableMatchday12'), '✅', '✅', '✅', '✅', '✅', '✅', '✅'] },
+            { cells: [t('rules.tableMatchday3Full'), '❌', '❌', '✅', '✅', '✅', '✅', '✅'] },
+            { cells: [t('rules.tablePreR32Full'), '❌', '❌', '✅', '✅', '✅', '✅', '✅'] },
+            { cells: [t('rules.tablePreR16Full'), '❌', '❌', '❌', '✅', '✅', '✅', '✅'] },
+            { cells: [t('rules.tablePreQFFullNew'), '❌', '❌', '❌', '❌', '✅', '✅', '✅'] },
+            { cells: [t('rules.tablePreQFFull'), '❌', '❌', '❌', '❌', '❌', '✅', '✅'] },
+            { cells: [t('rules.tableSFPlus'), '❌', '❌', '❌', '❌', '❌', '❌', '❌'] },
+          ],
+        },
+        {
+          type: 'note',
+          color: 'red',
+          text: t('rules.availabilityNote'),
+        },
+      ],
+    },
+    {
+      id: 'leagues',
+      title: t('rules.leaguesTitle'),
+      emoji: '🏅',
+      content: [
+        { type: 'paragraph', text: t('rules.leaguesP1') },
+        {
+          type: 'mode-cards',
+          cards: [
+            {
+              mode: t('rules.classicTitle'),
+              emoji: '⚽',
+              color: '#38bdf8',
+              description: t('rules.leaguesClassicDesc'),
+              includes: [t('rules.leaguesPillMatches'), t('rules.leaguesPillBonus')],
+            },
+            {
+              mode: t('rules.multiTitle'),
+              emoji: '🏆',
+              color: '#f59e0b',
+              description: t('rules.leaguesMultiDesc'),
+              includes: [
+                t('rules.leaguesPillMatches'),
+                t('rules.leaguesPillBonus'),
+                t('rules.leaguesPillGroups'),
+                t('rules.leaguesPillKnockout'),
+                t('rules.leaguesPillFines'),
+              ],
+            },
+          ],
+        },
+        { type: 'dual-tiebreaker' },
+      ],
+    },
+    {
+      id: 'timeline',
+      title: t('rules.timelineTitle'),
+      emoji: '📆',
+      content: [
+        { type: 'paragraph', text: t('rules.timelineP1') },
+        { type: 'stage-timeline' },
+      ],
+    },
+  ];
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function renderParagraphWithBold(text: string) {
+function renderParagraphWithBold(text: string, t: TFunction) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return (
-    <Text style={styles.paragraph}>
-      {parts.map((part, i) =>
-        part.startsWith('**') && part.endsWith('**') ? (
-          <Text key={i} style={[styles.paragraph, styles.paragraphBold]}>
-            {part.slice(2, -2)}
+    <Text style={[styles.paragraph, styles.paragraphWrap]}>
+      {parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          const boldText = part.slice(2, -2);
+          const boldColor =
+            boldText === t('rules.classicModeName')
+              ? '#38bdf8'
+              : boldText === t('rules.multiModeName')
+                ? '#f59e0b'
+                : '#e2e8f0';
+          return (
+            <Text key={i} style={[styles.paragraph, styles.paragraphBold, { color: boldColor }]}>
+              {boldText}
+            </Text>
+          );
+        }
+        return (
+          <Text key={i} style={[styles.paragraph]}>
+            {part}
           </Text>
-        ) : (
-          <Text key={i}>{part}</Text>
-        )
-      )}
+        );
+      })}
     </Text>
   );
 }
@@ -458,6 +435,7 @@ function RulesTable({
   isWide?: boolean;
 }) {
   const isWide = isWideProp ?? headers.length > 3;
+  const isThreeCol = headers.length === 3 && !isWide && !compact;
 
   const tableContent = (
     <View style={[styles.table, isWide && { minWidth: screenWidth * 1.3 }]}>
@@ -470,13 +448,21 @@ function RulesTable({
               j === 0 && (compact ? styles.tableCellCompact : styles.tableCellWide),
               isWide && j !== 0 && styles.tableCellNarrow,
               isWide && { flex: j === 0 ? 1.8 : 1, paddingHorizontal: 2 },
+              isThreeCol && (j === 1 || j === 2) && { flex: 3.2 },
             ]}
           >
             <Text
-              style={styles.tableHeaderText}
-              numberOfLines={isWide ? 1 : undefined}
-              adjustsFontSizeToFit={isWide}
-              minimumFontScale={isWide ? 0.6 : undefined}
+              style={[
+                styles.tableHeaderText,
+                isThreeCol && (j === 1 || j === 2) && { fontSize: 10 },
+              ]}
+              numberOfLines={isThreeCol && (j === 1 || j === 2) ? 1 : 2}
+              adjustsFontSizeToFit={
+                !!(isThreeCol && (j === 1 || j === 2))
+              }
+              minimumFontScale={
+                isThreeCol && (j === 1 || j === 2) ? 0.5 : undefined
+              }
             >
               {h}
             </Text>
@@ -501,6 +487,7 @@ function RulesTable({
                 k === 0 && (compact ? styles.tableCellCompact : styles.tableCellWide),
                 isWide && k !== 0 && styles.tableCellNarrow,
                 isWide && { flex: k === 0 ? 1.8 : 1 },
+                isThreeCol && (k === 1 || k === 2) && { flex: 3.2 },
               ]}
             >
               <Text
@@ -537,38 +524,54 @@ function RulesTable({
 // ─── Dual Tiebreaker Card ──────────────────────────────────────────────────────
 
 function DualTiebreakerCard() {
+  const { t } = useTranslation();
   const classicItems = [
-    'Total points',
-    'Match points',
-    'Exact scores',
-    'Direction',
-    'Registration',
+    t('rules.tiebreakerTotalPoints'),
+    t('rules.tiebreakerMatchPoints'),
+    t('rules.tiebreakerExactScores'),
+    t('rules.tiebreakerDirection'),
+    t('rules.tiebreakerRegistration'),
   ];
   const multiItems = [
-    'Total points',
-    'Fewer fines',
-    'Match points',
-    'Registration',
+    t('rules.tiebreakerTotalPoints'),
+    t('rules.tiebreakerFewerFines'),
+    t('rules.tiebreakerMatchPoints'),
+    t('rules.tiebreakerRegistration'),
   ];
+  // Under forceRTL, use `row` so layout follows reading direction; `row-reverse` inverts and fights RTL.
+  const rowDir = 'row';
 
   return (
     <View style={tbStyles.container}>
-      <Text style={tbStyles.mainTitle}>🤝 Tiebreaker</Text>
-      <Text style={tbStyles.subtitle}>Equal total points? Rank is decided by:</Text>
+      <Text style={[tbStyles.mainTitle]}>{t('rules.tiebreakerTitle')}</Text>
+      <Text style={[tbStyles.subtitle]}>{t('rules.tiebreakerSubtitle')}</Text>
       <View style={tbStyles.row}>
         {/* Classic */}
         <View style={[tbStyles.card, { borderColor: '#38bdf855' }]}>
-          <View style={tbStyles.cardHeader}>
+          <View style={[tbStyles.cardHeader, { flexDirection: rowDir }]}>
             <Text style={tbStyles.cardEmoji}>⚽</Text>
-            <Text style={[tbStyles.cardTitle, { color: '#38bdf8' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>Classic Mode</Text>
+            <Text
+              style={[tbStyles.cardTitle, { color: '#38bdf8' }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+              maxFontSizeMultiplier={1.2}
+            >
+              {t('rules.classicTitle')}
+            </Text>
           </View>
           <View style={[tbStyles.cardDivider, { backgroundColor: '#38bdf833' }]} />
           {classicItems.map((item, i) => (
-            <View key={i} style={tbStyles.itemRow}>
+            <View key={i} style={[tbStyles.itemRow, { flexDirection: rowDir }]}>
               <View style={tbStyles.badge}>
                 <Text style={tbStyles.badgeText}>{i + 1}</Text>
               </View>
-              <Text style={tbStyles.itemText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+              <Text
+                style={[tbStyles.itemText]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
                 {item}
               </Text>
             </View>
@@ -576,17 +579,30 @@ function DualTiebreakerCard() {
         </View>
         {/* Multi */}
         <View style={[tbStyles.card, { borderColor: '#f59e0b55' }]}>
-          <View style={tbStyles.cardHeader}>
+          <View style={[tbStyles.cardHeader, { flexDirection: rowDir }]}>
             <Text style={tbStyles.cardEmoji}>🏆</Text>
-            <Text style={[tbStyles.cardTitle, { color: '#f59e0b' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>Multi Mode</Text>
+            <Text
+              style={[tbStyles.cardTitle, { color: '#f59e0b' }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+              maxFontSizeMultiplier={1.2}
+            >
+              {t('rules.multiTitle')}
+            </Text>
           </View>
           <View style={[tbStyles.cardDivider, { backgroundColor: '#f59e0b33' }]} />
           {multiItems.map((item, i) => (
-            <View key={i} style={tbStyles.itemRow}>
+            <View key={i} style={[tbStyles.itemRow, { flexDirection: rowDir }]}>
               <View style={tbStyles.badge}>
                 <Text style={tbStyles.badgeText}>{i + 1}</Text>
               </View>
-              <Text style={tbStyles.itemText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+              <Text
+                style={[tbStyles.itemText]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
                 {item}
               </Text>
             </View>
@@ -610,11 +626,13 @@ const tbStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#e2e8f0',
+    textAlign: 'left',
   },
   subtitle: {
     fontSize: 13,
     color: '#94a3b8',
     marginBottom: 2,
+    textAlign: 'left',
   },
   row: {
     flexDirection: 'row',
@@ -644,6 +662,7 @@ const tbStyles = StyleSheet.create({
   cardTitle: {
     fontSize: 13,
     fontWeight: '700',
+    textAlign: 'left',
   },
   itemRow: {
     flexDirection: 'row',
@@ -669,6 +688,7 @@ const tbStyles = StyleSheet.create({
     fontSize: 12,
     color: '#cbd5e1',
     fontWeight: '500',
+    textAlign: 'left',
   },
 });
 
@@ -690,6 +710,27 @@ function formatDate(isoString: string | null): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function stageToLabel(stage: string, t: TFunction, fallbackLabel: string): string {
+  const keyByStage: Record<string, string> = {
+    PRE_GROUP_STAGE: 'home.stages.PRE_GROUP_STAGE',
+    GROUP_CYCLE_1: 'home.stages.GROUP_CYCLE_1',
+    GROUP_CYCLE_2: 'home.stages.GROUP_CYCLE_2',
+    GROUP_CYCLE_3: 'home.stages.GROUP_CYCLE_3',
+    PRE_ROUND32: 'home.stages.PRE_ROUND32',
+    ROUND32: 'home.stages.ROUND32',
+    PRE_ROUND16: 'home.stages.PRE_ROUND16',
+    ROUND16: 'home.stages.ROUND16',
+    PRE_QUARTER: 'home.stages.PRE_QUARTER',
+    QUARTER: 'home.stages.QUARTER',
+    PRE_SEMI: 'home.stages.PRE_SEMI',
+    SEMI: 'home.stages.SEMI',
+    PRE_FINAL: 'home.stages.PRE_FINAL',
+    FINAL: 'home.stages.FINAL',
+  };
+  const key = keyByStage[stage];
+  return key ? t(key) : fallbackLabel;
 }
 
 const timelineStyles = StyleSheet.create({
@@ -728,8 +769,6 @@ const timelineStyles = StyleSheet.create({
   },
   tableRowActive: {
     backgroundColor: 'rgba(22,163,74,0.08)',
-    borderLeftWidth: 3,
-    borderLeftColor: '#16a34a',
     borderBottomColor: '#1a3a2a',
   },
   col0: {
@@ -756,7 +795,7 @@ const timelineStyles = StyleSheet.create({
   },
 });
 
-function StageTimelineBlock() {
+function StageTimelineBlock({ t }: { t: TFunction }) {
   const [timeline, setTimeline] = React.useState<StageTimelineItem[] | null>(null);
   const [currentStage, setCurrentStage] = React.useState<string | null>(null);
 
@@ -798,9 +837,15 @@ function StageTimelineBlock() {
     <View style={timelineStyles.tableContainer}>
       {/* Header row */}
       <View style={timelineStyles.tableHeader}>
-        <Text style={[timelineStyles.col0, timelineStyles.headerText]}>Stage</Text>
-        <Text style={[timelineStyles.col1, timelineStyles.headerText]}>Start</Text>
-        <Text style={[timelineStyles.col1, timelineStyles.headerText]}>End</Text>
+        <Text style={[timelineStyles.col0, timelineStyles.headerText]}>
+          {t('rules.timelineStageHeader')}
+        </Text>
+        <Text style={[timelineStyles.col1, timelineStyles.headerText]}>
+          {t('rules.timelineStartHeader')}
+        </Text>
+        <Text style={[timelineStyles.col1, timelineStyles.headerText]}>
+          {t('rules.timelineEndHeader')}
+        </Text>
       </View>
 
       {rowsUpToSemi.map((item, index) => {
@@ -820,12 +865,17 @@ function StageTimelineBlock() {
             style={[
               timelineStyles.tableRow,
               isActive && timelineStyles.tableRowActive,
+              isActive && { borderLeftWidth: 3, borderLeftColor: '#16a34a' },
               index % 2 === 1 && !isActive && timelineStyles.tableRowAlt,
             ]}
           >
             <View style={timelineStyles.col0}>
-              <Text style={[timelineStyles.stageLabel, isActive && timelineStyles.stageLabelActive]}>
-                {item.stage === 'SEMI' ? 'Semi-Final - End' : item.label}
+              <Text
+                style={[timelineStyles.stageLabel, isActive && timelineStyles.stageLabelActive]}
+              >
+                {item.stage === 'SEMI'
+                  ? t('rules.semiEnd')
+                  : stageToLabel(item.stage, t, item.label)}
               </Text>
             </View>
             <Text style={[timelineStyles.col1, timelineStyles.dateText]}>{startStr}</Text>
@@ -839,21 +889,40 @@ function StageTimelineBlock() {
 
 // ─── Block Renderer ───────────────────────────────────────────────────────────
 
-function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
+function RenderBlocks({ blocks, t }: { blocks: ContentBlock[]; t: TFunction }) {
+  const rowDir = 'row';
+
   return (
     <>
       {blocks.map((block, i) => {
         switch (block.type) {
           case 'paragraph':
-            return <View key={i}>{renderParagraphWithBold(block.text)}</View>;
+            return <View key={i}>{renderParagraphWithBold(block.text, t)}</View>;
 
           case 'note': {
             if (block.color === 'green' && block.showBasicBadge === true) {
               return (
-                <View key={i} style={[styles.noteBox, { borderLeftColor: '#16a34a' }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                <View
+                  key={i}
+                  style={[
+                    styles.noteBox,
+                    IS_RTL
+                      ? { borderRightWidth: 3, borderRightColor: '#16a34a' }
+                      : { borderLeftWidth: 3, borderLeftColor: '#16a34a' },
+                    { alignItems: 'flex-start' },
+                  ]}
+                >
+                  <View
+                    style={{
+                      flexDirection: rowDir,
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: 6,
+                      width: '100%',
+                    }}
+                  >
                     <View style={styles.basicBadge}>
-                      <Text style={styles.basicBadgeText}>Basic</Text>
+                      <Text style={styles.basicBadgeText}>{t('rules.basicBadge')}</Text>
                     </View>
                     <Text style={styles.noteText}>{block.text}</Text>
                   </View>
@@ -867,7 +936,16 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
                 ? '#f59e0b'
                 : '#16a34a';
             return (
-              <View key={i} style={[styles.noteBox, { borderLeftColor: borderColor }]}>
+              <View
+                key={i}
+                style={[
+                  styles.noteBox,
+                  IS_RTL
+                    ? { borderRightWidth: 3, borderRightColor: borderColor }
+                    : { borderLeftWidth: 3, borderLeftColor: borderColor },
+                  { alignItems: 'flex-start' },
+                ]}
+              >
                 <Text style={styles.noteText}>{block.text}</Text>
               </View>
             );
@@ -877,24 +955,34 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
             return (
               <View key={i} style={styles.bulletList}>
                 {block.items.map((item, j) => {
-                  const isTournament = item === '3 tournament questions';
+                  const isTournament = item === t('rules.classicBonusBullet1');
                   if (isTournament) {
                     return (
-                      <View key={j} style={styles.bulletRow}>
+                      <View key={j} style={[styles.bulletRow, { flexDirection: rowDir }]}>
                         <View style={styles.bulletDot} />
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, flexWrap: 'wrap' }}>
-                          <Text style={[styles.bulletText, { flexShrink: 1 }]}>3 tournament questions</Text>
+                        <View
+                          style={{
+                            flexDirection: rowDir,
+                            alignItems: 'center',
+                            gap: 6,
+                            flexShrink: 1,
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <Text style={[styles.bulletText, { flexShrink: 1 }]}>
+                            {t('rules.classicBonusBullet1')}
+                          </Text>
                           <View style={styles.basicBadge}>
-                            <Text style={styles.basicBadgeText}>Basic</Text>
+                            <Text style={styles.basicBadgeText}>{t('rules.basicBadge')}</Text>
                           </View>
                         </View>
                       </View>
                     );
                   }
                   return (
-                    <View key={j} style={styles.bulletRow}>
+                    <View key={j} style={[styles.bulletRow, { flexDirection: rowDir }]}>
                       <View style={styles.bulletDot} />
-                      <Text style={styles.bulletText}>{item}</Text>
+                      <Text style={[styles.bulletText]}>{item}</Text>
                     </View>
                   );
                 })}
@@ -914,19 +1002,22 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
 
           case 'subsection':
             return (
-              <View key={i} style={[
-                styles.subsection,
-                block.variant === 'prediction' && styles.subsectionPredictionSpacing,
-                block.variant === 'spaced' && styles.subsectionSpaced,
-              ]}>
+              <View
+                key={i}
+                style={[
+                  styles.subsection,
+                  block.variant === 'prediction' && styles.subsectionPredictionSpacing,
+                  block.variant === 'spaced' && styles.subsectionSpaced,
+                ]}
+              >
                 {block.variant === 'prediction' ? (
-                  <Text style={styles.subsectionLabelA}>{block.title}</Text>
+                  <Text style={[styles.subsectionLabelA]}>{block.title}</Text>
                 ) : block.variant === 'section' ? (
-                  <Text style={styles.subsectionTitleSection}>{block.title}</Text>
+                  <Text style={[styles.subsectionTitleSection]}>{block.title}</Text>
                 ) : (
-                  <Text style={styles.subsectionTitle}>{block.title}</Text>
+                  <Text style={[styles.subsectionTitle]}>{block.title}</Text>
                 )}
-                <RenderBlocks blocks={block.blocks} />
+                <RenderBlocks blocks={block.blocks} t={t} />
               </View>
             );
 
@@ -936,14 +1027,14 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
           case 'tiebreaker':
             return (
               <View key={i} style={styles.tiebreakerCard}>
-                <Text style={styles.tiebreakerTitle}>🤝 Tiebreaker</Text>
-                <Text style={styles.tiebreakerSub}>Equal total points? Rank is decided by:</Text>
+                <Text style={[styles.tiebreakerTitle]}>{t('rules.tiebreakerTitle')}</Text>
+                <Text style={[styles.tiebreakerSub]}>{t('rules.tiebreakerSubtitle')}</Text>
                 {block.items.map((item, j) => (
-                  <View key={j} style={styles.tiebreakerRow}>
+                  <View key={j} style={[styles.tiebreakerRow, { flexDirection: rowDir }]}>
                     <View style={styles.tiebreakerBadge}>
                       <Text style={styles.tiebreakerBadgeText}>{j + 1}</Text>
                     </View>
-                    <Text style={styles.tiebreakerText}>{item}</Text>
+                    <Text style={[styles.tiebreakerText]}>{item}</Text>
                   </View>
                 ))}
               </View>
@@ -952,31 +1043,21 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
           case 'temptation-card':
             return (
               <View key={i} style={styles.temptationCard}>
-                <Text style={styles.temptationTitle}>🎰 Temptation — High Risk / High Reward</Text>
+                <Text style={[styles.temptationTitle]}>{t('rules.temptationTitle')}</Text>
                 <View style={styles.temptationDivider} />
-                <Text style={styles.temptationBody}>
-                  Tap Temptation on any match to unlock 3 rare scoreline options almost nobody else
-                  has predicted. Guess correctly and your points are doubled. Options update live
-                  based on all players' picks.
-                </Text>
+                <Text style={[styles.temptationBody]}>{t('rules.temptationBody')}</Text>
               </View>
             );
 
           case 'stage-timeline':
-            return <StageTimelineBlock key={i} />;
+            return <StageTimelineBlock key={i} t={t} />;
 
           case 'mode-cards':
             return (
               <View key={i} style={styles.modeCardsRow}>
                 {block.cards.map((card, j) => (
-                  <View
-                    key={j}
-                    style={[
-                      styles.modeCard,
-                      { borderColor: card.color + '55' },
-                    ]}
-                  >
-                    <View style={styles.modeCardHeader}>
+                  <View key={j} style={[styles.modeCard, { borderColor: card.color + '55' }]}>
+                    <View style={[styles.modeCardHeader, { flexDirection: rowDir }]}>
                       <Text style={styles.modeCardEmoji}>{card.emoji}</Text>
                       <Text
                         style={[styles.modeCardName, { color: card.color }]}
@@ -984,22 +1065,28 @@ function RenderBlocks({ blocks }: { blocks: ContentBlock[] }) {
                         adjustsFontSizeToFit
                         minimumFontScale={0.75}
                         maxFontSizeMultiplier={1.2}
-                      >{card.mode}</Text>
+                      >
+                        {card.mode}
+                      </Text>
                     </View>
                     <Text
-                      style={styles.modeCardDesc}
+                      style={[styles.modeCardDesc]}
                       numberOfLines={2}
                       maxFontSizeMultiplier={1.2}
-                    >{card.description}</Text>
+                    >
+                      {card.description}
+                    </Text>
                     <View style={styles.modeCardDivider} />
                     <View style={styles.modeCardPills}>
                       {card.includes.map((item, k) => (
                         <View key={k} style={styles.modeCardPill}>
                           <Text
-                            style={styles.modeCardPillText}
+                            style={[styles.modeCardPillText]}
                             numberOfLines={2}
                             maxFontSizeMultiplier={1.2}
-                          >{item}</Text>
+                          >
+                            {item}
+                          </Text>
                         </View>
                       ))}
                     </View>
@@ -1023,29 +1110,36 @@ function NavMenu({
   onClose,
   onSelect,
   activeId,
+  sections,
 }: {
   visible: boolean;
   onClose: () => void;
   onSelect: (id: string) => void;
   activeId: string;
+  sections: Section[];
 }) {
+  const { t } = useTranslation();
+  const rowDir = 'row';
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={onClose}>
         <View style={styles.menuSheet}>
           <View style={styles.menuHandle} />
-          <Text style={styles.menuTitle}>Jump to section</Text>
+          <Text style={[styles.menuTitle]}>{t('rules.jumpToSection')}</Text>
           {sections.map((s) => (
             <TouchableOpacity
               key={s.id}
-              style={[styles.menuItem, activeId === s.id && styles.menuItemActive]}
+              style={[styles.menuItem, { flexDirection: rowDir }, activeId === s.id && styles.menuItemActive]}
               onPress={() => {
                 onSelect(s.id);
                 onClose();
               }}
             >
               <Text style={styles.menuItemEmoji}>{s.emoji}</Text>
-              <Text style={[styles.menuItemText, activeId === s.id && styles.menuItemTextActive]}>
+              <Text
+                style={[styles.menuItemText, activeId === s.id && styles.menuItemTextActive]}
+              >
                 {s.title}
               </Text>
               {activeId === s.id && (
@@ -1062,6 +1156,8 @@ function NavMenu({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function RulesScreen() {
+  const { t } = useTranslation();
+  const sections = getSections(t);
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const scrollRef = React.useRef<ScrollView>(null);
@@ -1092,10 +1188,14 @@ export default function RulesScreen() {
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="chevron-back" size={24} color="#f1f5f9" />
+          <Ionicons
+            name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'}
+            size={24}
+            color="#f1f5f9"
+          />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>How to Play</Text>
+        <Text style={[styles.headerTitle, { flex: 1, textAlign: 'center' }]}>{t('rules.screenTitle')}</Text>
 
         <TouchableOpacity
           style={[styles.iconBtn, styles.iconBtnFilled]}
@@ -1107,9 +1207,15 @@ export default function RulesScreen() {
       </View>
 
       {/* Section indicator bar */}
-      <TouchableOpacity style={styles.sectionBar} onPress={() => setMenuVisible(true)} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.sectionBar}
+        onPress={() => setMenuVisible(true)}
+        activeOpacity={0.7}
+      >
         <Text style={styles.sectionBarEmoji}>{activeEmoji}</Text>
-        <Text style={styles.sectionBarTitle} numberOfLines={1}>{activeTitle}</Text>
+        <Text style={[styles.sectionBarTitle]} numberOfLines={1}>
+          {activeTitle}
+        </Text>
         <View style={styles.sectionBarDots}>
           {sections.map((_, i) => (
             <View
@@ -1130,13 +1236,21 @@ export default function RulesScreen() {
         onClose={() => setMenuVisible(false)}
         onSelect={scrollToSection}
         activeId={activeSection}
+        sections={sections}
       />
 
       {/* Content */}
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: insets.bottom + 40,
+            width: '100%',
+            alignItems: 'stretch',
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         onScroll={(e) => {
           const y = e.nativeEvent.contentOffset.y;
@@ -1156,20 +1270,22 @@ export default function RulesScreen() {
             onLayout={(e) => {
               sectionOffsets.current[section.id] = e.nativeEvent.layout.y;
             }}
-            style={styles.section}
+            style={[styles.section, { width: '100%' }]}
           >
-            <View style={styles.sectionHeader}>
+            <View style={[styles.sectionHeader, { width: '100%' }]}>
               <Text style={styles.sectionEmoji}>{section.emoji}</Text>
               <Text
-                style={styles.sectionTitle}
+                style={[styles.sectionTitle, { flex: 1 }]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.75}
                 maxFontSizeMultiplier={1.3}
-              >{section.title}</Text>
+              >
+                {section.title}
+              </Text>
             </View>
             <View style={styles.sectionDivider} />
-            <RenderBlocks blocks={section.content} />
+            <RenderBlocks blocks={section.content} t={t} />
           </View>
         ))}
       </ScrollView>
@@ -1186,7 +1302,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#0a1628',
@@ -1220,6 +1335,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#111e35',
     borderBottomWidth: 1,
     borderBottomColor: '#1a2a45',
+    alignSelf: 'stretch',
   },
   sectionBarEmoji: { fontSize: 15 },
   sectionBarTitle: {
@@ -1286,7 +1402,12 @@ const styles = StyleSheet.create({
   },
   menuItemActive: { backgroundColor: '#0a1628' },
   menuItemEmoji: { fontSize: 18, width: 26, textAlign: 'center' },
-  menuItemText: { flex: 1, fontSize: 15, color: '#64748b', fontWeight: '500' },
+  menuItemText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#64748b',
+    fontWeight: '500',
+  },
   menuItemTextActive: { color: '#f1f5f9', fontWeight: '700' },
 
   // Scroll
@@ -1303,6 +1424,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    alignSelf: 'stretch',
   },
   sectionEmoji: { fontSize: 22 },
   sectionTitle: {
@@ -1310,27 +1432,33 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#f1f5f9',
     flexShrink: 1,
+    textAlign: 'left',
   },
   sectionDivider: {
     height: 2,
     backgroundColor: '#16a34a',
     width: 36,
     borderRadius: 2,
+    alignSelf: 'auto',
   },
 
   // Subsection
-  subsection: { gap: 8, marginTop: 4 },
+  subsection: { gap: 8, marginTop: 4, alignSelf: 'stretch' },
   subsectionPredictionSpacing: { marginTop: 30 },
   subsectionSpaced: { marginTop: 24 },
   subsectionTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: '#e2e8f0',
+    alignSelf: 'stretch',
+    textAlign: 'left',
   },
   subsectionTitleSection: {
     fontSize: 17,
     fontWeight: '700',
     color: '#e2e8f0',
+    alignSelf: 'stretch',
+    textAlign: 'left',
   },
   subsectionLabel: {
     flexDirection: 'row',
@@ -1364,6 +1492,8 @@ const styles = StyleSheet.create({
     color: '#e2e8f0',
     textTransform: 'uppercase',
     letterSpacing: 1,
+    alignSelf: 'stretch',
+    textAlign: 'left',
   },
 
   // Paragraph
@@ -1371,20 +1501,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94a3b8',
     lineHeight: 22,
+    textAlign: 'left',
   },
-  paragraphBold: { fontWeight: '700', color: '#e2e8f0' },
+  paragraphWrap: {
+    alignSelf: 'stretch',
+    width: '100%',
+  },
+  paragraphBold: {
+    fontWeight: '700',
+    color: '#e2e8f0',
+    textAlign: 'left',
+  },
 
   // Note
   noteBox: {
     backgroundColor: '#111e35',
-    borderLeftWidth: 3,
     borderRadius: 8,
     padding: 12,
   },
-  noteText: { fontSize: 13, color: '#cbd5e1', lineHeight: 20 },
+  noteText: {
+    fontSize: 13,
+    color: '#cbd5e1',
+    lineHeight: 20,
+    textAlign: 'left',
+  },
 
   // Bullet
-  bulletList: { gap: 8 },
+  bulletList: { gap: 8, alignItems: 'stretch' },
   bulletRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   bulletDot: {
     width: 6,
@@ -1394,7 +1537,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     flexShrink: 0,
   },
-  bulletText: { fontSize: 14, color: '#94a3b8', lineHeight: 22 },
+  bulletText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    lineHeight: 22,
+    textAlign: 'left',
+  },
   basicBadge: {
     backgroundColor: 'rgba(22, 163, 74, 0.15)',
     borderWidth: 1,
@@ -1447,7 +1595,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRightWidth: 1,
     borderRightColor: '#111e35',
-    minWidth: 80,
   },
   tableCellWide: { minWidth: 150, alignItems: 'flex-start' },
   tableCellCompact: { minWidth: 120, alignItems: 'flex-start' },
@@ -1456,12 +1603,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#16a34a',
-    textTransform: 'uppercase',
     letterSpacing: 0.5,
     textAlign: 'center',
   },
   tableCellText: { fontSize: 13, color: '#64748b', textAlign: 'center' },
-  tableCellTextFirst: { color: '#e2e8f0', fontWeight: '600', textAlign: 'left' },
+  tableCellTextFirst: {
+    color: '#e2e8f0',
+    fontWeight: '600',
+  },
   tableCellTextHighlight: { color: '#86efac', fontWeight: '700' },
 
   // Tiebreaker card
@@ -1473,8 +1622,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1a3060',
   },
-  tiebreakerTitle: { fontSize: 15, fontWeight: '700', color: '#e2e8f0' },
-  tiebreakerSub: { fontSize: 13, color: '#94a3b8', marginBottom: 4 },
+  tiebreakerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#e2e8f0',
+    alignSelf: 'stretch',
+    textAlign: 'left',
+  },
+  tiebreakerSub: {
+    fontSize: 13,
+    color: '#94a3b8',
+    marginBottom: 4,
+    alignSelf: 'stretch',
+    textAlign: 'left',
+  },
   tiebreakerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   tiebreakerBadge: {
     width: 26,
@@ -1485,13 +1646,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tiebreakerBadgeText: { fontSize: 12, fontWeight: '800', color: '#fff' },
-  tiebreakerText: { fontSize: 14, color: '#cbd5e1', fontWeight: '500', flex: 1 },
+  tiebreakerText: {
+    fontSize: 14,
+    color: '#cbd5e1',
+    fontWeight: '500',
+    flex: 1,
+    textAlign: 'left',
+  },
 
   // Temptation card
   temptationCard: {
-    backgroundColor: '#1c1200',
+    backgroundColor: '#1a0a2e',
     borderWidth: 2,
-    borderColor: '#f59e0b',
+    borderColor: '#7c3aed',
     borderRadius: 12,
     padding: 14,
     marginTop: 4,
@@ -1500,7 +1667,9 @@ const styles = StyleSheet.create({
   temptationTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#f59e0b',
+    color: '#a78bfa',
+    alignSelf: 'stretch',
+    textAlign: 'left',
   },
   temptationDivider: {
     height: 1,
@@ -1511,6 +1680,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#cbd5e1',
     lineHeight: 20,
+    alignSelf: 'stretch',
+    textAlign: 'left',
   },
 
   // Mode cards
@@ -1535,10 +1706,12 @@ const styles = StyleSheet.create({
   modeCardName: {
     fontSize: 13,
     fontWeight: '700',
+    textAlign: 'left',
   },
   modeCardDesc: {
     fontSize: 12,
     color: '#64748b',
+    textAlign: 'left',
   },
   modeCardDivider: {
     height: 1,
@@ -1559,5 +1732,6 @@ const styles = StyleSheet.create({
   modeCardPillText: {
     fontSize: 11,
     color: '#94a3b8',
+    textAlign: 'left',
   },
 });

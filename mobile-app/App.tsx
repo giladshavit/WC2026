@@ -1,8 +1,10 @@
+import './src/i18n/index';
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Text, TextInput, I18nManager } from 'react-native';
+import { getLocales } from 'expo-localization';
 import MainNavigator from './src/navigation/MainNavigator';
 import AuthScreen from './src/screens/auth/AuthScreen';
 import SocialUsernameScreen from './src/screens/auth/SocialUsernameScreen';
@@ -10,9 +12,14 @@ import SplashScreen from './src/screens/SplashScreen';
 import { TournamentProvider } from './src/contexts/TournamentContext';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ToastProvider } from './src/components/toast/Toast';
-import { Text, TextInput } from 'react-native';
 import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import { Settings } from 'react-native-fbsdk-next';
+
+const isHebrew = (getLocales()[0]?.languageTag ?? 'en').toLowerCase().startsWith('he');
+I18nManager.allowRTL(isHebrew);
+I18nManager.forceRTL(isHebrew);
+
+export { IS_RTL } from './src/utils/rtl';
 
 // Global font scaling cap — allows up to 30% enlargement, prevents layout breakage
 if ((Text as any).defaultProps == null) (Text as any).defaultProps = {};
@@ -75,11 +82,15 @@ function AppContent() {
   );
 }
 
-export default function App() {
+function AppRoot() {
   useEffect(() => {
     (async () => {
-      const { status } = await requestTrackingPermissionsAsync();
-      await Settings.setAdvertiserTrackingEnabled(status === 'granted');
+      try {
+        const { status } = await requestTrackingPermissionsAsync();
+        await Settings.setAdvertiserTrackingEnabled(status === 'granted');
+      } catch (e) {
+        console.warn('Tracking/Facebook SDK init failed:', e);
+      }
     })();
   }, []);
 
@@ -92,6 +103,20 @@ export default function App() {
       </AuthProvider>
     </SafeAreaProvider>
   );
+}
+
+export default function App() {
+  try {
+    return <AppRoot />;
+  } catch (error) {
+    console.error('App() synchronous render error', error);
+    if (error instanceof Error) {
+      console.error('App() stack', error.stack);
+    } else {
+      console.error('App() non-Error', String(error));
+    }
+    throw error;
+  }
 }
 
 const styles = StyleSheet.create({

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 interface ConfirmResetModalProps {
@@ -12,40 +13,36 @@ interface ConfirmResetModalProps {
 export default function ConfirmResetModal({
   visible, changesCount, onClose, onConfirm
 }: ConfirmResetModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.modal} onPress={() => {}}>
+        <Pressable style={[styles.modal, { direction: 'ltr' }]} onPress={() => {}}>
 
           <View style={styles.iconContainer}>
             <Ionicons name="refresh-outline" size={32} color="#dc2626" />
           </View>
 
-          <Text style={styles.title}>Reset Changes</Text>
+          <Text style={styles.title}>{t('modals.resetChanges')}</Text>
 
           <Text style={styles.subtitle}>
-            This will discard{' '}
-            <Text style={styles.boldText}>
-              {changesCount} change{changesCount !== 1 ? 's' : ''}
-            </Text>
-            {' '}and restore your bracket to the last saved state.
-            {'\n'}This cannot be undone.
+            {t('modals.resetDesc', { count: changesCount })}
           </Text>
 
           <View style={styles.warningBox}>
             <Ionicons name="warning-outline" size={16} color="#dc2626" style={{ marginRight: 6 }} />
             <Text style={styles.warningText}>
-              All unsaved predictions will be lost
+              {t('modals.unsavedLost')}
             </Text>
           </View>
 
           <TouchableOpacity style={styles.destructiveButton} onPress={onConfirm}>
             <Ionicons name="refresh-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
-            <Text style={styles.destructiveButtonText}>Reset All Changes</Text>
+            <Text style={styles.destructiveButtonText}>{t('modals.resetAll')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.secondaryButton} onPress={onClose}>
-            <Text style={styles.secondaryButtonText}>Cancel</Text>
+            <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
           </TouchableOpacity>
 
         </Pressable>

@@ -18,6 +18,8 @@ import * as SecureStore from 'expo-secure-store';
 import { AppEventsLogger } from 'react-native-fbsdk-next';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { IS_RTL } from '../../utils/rtl';
 
 export interface SocialUsernameScreenProps {
   provider: 'google' | 'apple';
@@ -42,6 +44,7 @@ export default function SocialUsernameScreen({
   id_token,
   identity_token,
 }: SocialUsernameScreenProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState(prefillName ?? '');
   const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -61,16 +64,16 @@ export default function SocialUsernameScreen({
     const n = name.trim();
     const u = username.trim();
     if (!n || !u) {
-      return 'Please fill in all fields';
+      return t('auth.fillAllFields');
     }
     if (n.length < 2 || n.length > 14) {
-      return 'Name must be between 2 and 14 characters';
+      return t('auth.nameLength');
     }
     if (u.length < 3 || u.length > 14) {
-      return 'Username must be between 3 and 14 characters';
+      return t('auth.usernameLength');
     }
     if (!USERNAME_REGEX.test(u)) {
-      return 'Username can only contain letters, numbers, and underscores';
+      return t('auth.usernameChars');
     }
     return null;
   };
@@ -78,7 +81,7 @@ export default function SocialUsernameScreen({
   const handleContinue = async () => {
     const validationError = validate();
     if (validationError) {
-      setErrorModal({ title: 'Invalid Input', message: validationError });
+      setErrorModal({ title: t('auth.invalidInput'), message: validationError });
       return;
     }
 
@@ -88,16 +91,16 @@ export default function SocialUsernameScreen({
     if (provider === 'google') {
       if (!id_token?.trim()) {
         setErrorModal({
-          title: 'Error',
-          message: 'Missing sign-in token. Please go back and try again.',
+          title: t('auth.errorTitle'),
+          message: t('auth.missingToken'),
         });
         return;
       }
     } else {
       if (!identity_token?.trim()) {
         setErrorModal({
-          title: 'Error',
-          message: 'Missing sign-in token. Please go back and try again.',
+          title: t('auth.errorTitle'),
+          message: t('auth.missingToken'),
         });
         return;
       }
@@ -122,8 +125,8 @@ export default function SocialUsernameScreen({
           onSuccess();
         } else {
           setErrorModal({
-            title: 'Sign-up Failed',
-            message: 'Could not complete sign-up. Please try again.',
+            title: t('auth.signUpFailed'),
+            message: t('auth.signUpCouldNotComplete'),
           });
         }
       } else {
@@ -143,17 +146,17 @@ export default function SocialUsernameScreen({
           onSuccess();
         } else {
           setErrorModal({
-            title: 'Sign-up Failed',
-            message: 'Could not complete sign-up. Please try again.',
+            title: t('auth.signUpFailed'),
+            message: t('auth.signUpCouldNotComplete'),
           });
         }
       }
     } catch (err) {
-      let msg = 'Something went wrong. Please try again.';
+      let msg = t('auth.genericError');
       if (err instanceof Error) {
         const httpStatus = (err as Error & { httpStatus?: number }).httpStatus;
         if (httpStatus === 409) {
-          msg = 'This email is already registered. Sign in with your existing account.';
+          msg = t('auth.emailInUseSignIn');
         } else if (
           err.message.includes('400') ||
           err.message.toLowerCase().includes('exist') ||
@@ -161,21 +164,21 @@ export default function SocialUsernameScreen({
           err.message.toLowerCase().includes('already')
         ) {
           if (err.message.toLowerCase().includes('email')) {
-            msg = 'This email is already registered. Please use a different one.';
+            msg = t('auth.emailInUse');
           } else {
-            msg = 'This username is already taken. Please choose a different one.';
+            msg = t('auth.usernameTaken');
           }
         } else if (
           err.message.includes('Network') ||
           err.message.includes('fetch') ||
           err.message.includes('connect')
         ) {
-          msg = 'Cannot connect to server. Please check your connection.';
+          msg = t('auth.cannotConnect');
         } else {
           msg = err.message;
         }
       }
-      setErrorModal({ title: 'Sign-up Failed', message: msg });
+      setErrorModal({ title: t('auth.signUpFailed'), message: msg });
     } finally {
       setIsLoading(false);
     }
@@ -199,26 +202,28 @@ export default function SocialUsernameScreen({
                   disabled={isLoading}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   accessibilityRole="button"
-                  accessibilityLabel="Go back"
+                  accessibilityLabel={t('common.back')}
                 >
                   <Ionicons name="arrow-back" size={24} color="#16a34a" />
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.screenTitle} maxFontSizeMultiplier={1.2}>
-                You're signed in!
+              <Text style={[styles.screenTitle, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>
+                {t('auth.completeProfile')}
               </Text>
-              <Text style={styles.screenSubtitle} maxFontSizeMultiplier={1.2}>
-                Choose a display name and username to continue.
+              <Text style={[styles.screenSubtitle, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>
+                {t('auth.completeProfileSubtitle')}
               </Text>
 
               <View style={styles.form}>
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Full Name</Text>
+                  <Text style={[styles.label, { textAlign: 'left' }]}>{t('auth.fullName')}</Text>
+                  <View style={{ position: 'relative' }}>
                   <TextInput
                     style={[
                       styles.input,
                       focusedInput === 'name' && styles.inputFocused,
+                      { textAlign: 'auto' },
                     ]}
                     value={name}
                     onChangeText={setName}
@@ -227,7 +232,7 @@ export default function SocialUsernameScreen({
                       scrollToInput(0);
                     }}
                     onBlur={() => setFocusedInput(null)}
-                    placeholder="Enter full name"
+                    placeholder={IS_RTL ? '' : t('auth.enterFullName')}
                     placeholderTextColor="#64748b"
                     textContentType="name"
                     autoCapitalize="words"
@@ -236,14 +241,17 @@ export default function SocialUsernameScreen({
                     maxLength={14}
                     maxFontSizeMultiplier={1.2}
                   />
+                  </View>
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Username</Text>
+                  <Text style={[styles.label, { textAlign: 'left' }]}>{t('auth.username')}</Text>
+                  <View style={{ position: 'relative' }}>
                   <TextInput
                     style={[
                       styles.input,
                       focusedInput === 'username' && styles.inputFocused,
+                      { textAlign: 'auto' },
                     ]}
                     value={username}
                     onChangeText={setUsername}
@@ -252,7 +260,7 @@ export default function SocialUsernameScreen({
                       scrollToInput(80);
                     }}
                     onBlur={() => setFocusedInput(null)}
-                    placeholder="Enter username (3–14 chars)"
+                    placeholder={IS_RTL ? '' : t('auth.enterUsername')}
                     placeholderTextColor="#64748b"
                     textContentType="username"
                     autoCapitalize="none"
@@ -261,6 +269,7 @@ export default function SocialUsernameScreen({
                     maxLength={14}
                     maxFontSizeMultiplier={1.2}
                   />
+                  </View>
                 </View>
 
                 <TouchableOpacity
@@ -268,8 +277,8 @@ export default function SocialUsernameScreen({
                   onPress={handleContinue}
                   disabled={isLoading}
                 >
-                  <Text style={styles.buttonText}>
-                    {isLoading ? 'Please wait...' : 'Continue'}
+                  <Text style={[styles.buttonText, { textAlign: 'left' }]}>
+                    {isLoading ? t('auth.continuing') : t('auth.continue')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -289,7 +298,7 @@ export default function SocialUsernameScreen({
                 <Ionicons name="alert-circle" size={36} color="#ef4444" />
               </View>
               <Text style={styles.modalTitle}>
-                {errorModal?.title ?? 'Error'}
+                {errorModal?.title ?? t('auth.errorTitle')}
               </Text>
               <Text style={styles.modalMessage}>
                 {errorModal?.message ?? ''}
@@ -298,7 +307,7 @@ export default function SocialUsernameScreen({
                 style={styles.modalButton}
                 onPress={() => setErrorModal(null)}
               >
-                <Text style={styles.modalButtonText}>OK</Text>
+                <Text style={styles.modalButtonText}>{t('common.ok')}</Text>
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -355,6 +364,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: 'rgba(30, 41, 59, 0.8)',
     color: '#ffffff',
+    textAlign: 'auto',
   },
   inputFocused: {
     borderColor: '#16a34a',

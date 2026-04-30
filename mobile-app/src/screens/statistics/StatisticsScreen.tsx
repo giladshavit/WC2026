@@ -12,6 +12,8 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/toast/Toast';
+import { useTranslation } from 'react-i18next';
+import { IS_RTL } from '../../utils/rtl';
 
 interface ProfilePerGroup {
   group_id: number;
@@ -93,30 +95,31 @@ function StatsInfoModal({ visible, onClose, onGoToRules }: {
   onClose: () => void;
   onGoToRules: () => void;
 }) {
+  const { t } = useTranslation();
   const rows = [
     {
       icon: 'football-outline',
       color: '#38bdf8',
-      label: 'Match Predictions',
-      desc: 'Points awarded after each match result is confirmed.',
+      label: t('statistics.infoMatchLabel'),
+      desc: t('statistics.infoMatchDesc'),
     },
     {
       icon: 'gift-outline',
       color: '#a78bfa',
-      label: 'Bonus Predictions',
-      desc: 'Points awarded once the answer to the relevant question is known.',
+      label: t('statistics.infoBonusLabel'),
+      desc: t('statistics.infoBonusDesc'),
     },
     {
       icon: 'git-branch-outline',
       color: '#f59e0b',
-      label: 'Bracket (Route)',
-      desc: 'Points awarded after each group or knockout round is completed.',
+      label: t('statistics.infoBracketLabel'),
+      desc: t('statistics.infoBracketDesc'),
     },
     {
       icon: 'warning-outline',
       color: '#f87171',
-      label: 'Fines',
-      desc: 'Deducted for editing Multi Mode predictions after the tournament begins.',
+      label: t('statistics.infoFinesLabel'),
+      desc: t('statistics.infoFinesDesc'),
     },
   ];
 
@@ -127,10 +130,10 @@ function StatsInfoModal({ visible, onClose, onGoToRules }: {
         activeOpacity={1}
         onPress={onClose}
       >
-        <TouchableOpacity activeOpacity={1} style={statsInfoStyles.card} onPress={() => {}}>
+        <TouchableOpacity activeOpacity={1} style={[statsInfoStyles.card, { direction: IS_RTL ? 'rtl' : 'ltr' }]} onPress={() => {}}>
           <View style={statsInfoStyles.titleRow}>
             <Ionicons name="information-circle" size={18} color="#94a3b8" />
-            <Text style={statsInfoStyles.title} maxFontSizeMultiplier={1.1}>How Points Work</Text>
+            <Text style={statsInfoStyles.title} maxFontSizeMultiplier={1.1}>{t('statistics.infoTitle')}</Text>
           </View>
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -149,12 +152,12 @@ function StatsInfoModal({ visible, onClose, onGoToRules }: {
               </View>
             ))}
           </ScrollView>
-          <TouchableOpacity style={statsInfoStyles.rulesBtn} onPress={onGoToRules}>
+          <TouchableOpacity style={[statsInfoStyles.rulesBtn, IS_RTL && { flexDirection: 'row-reverse' }]} onPress={onGoToRules}>
             <Ionicons name="book-outline" size={15} color="#16a34a" />
-            <Text style={statsInfoStyles.rulesBtnText} maxFontSizeMultiplier={1.1}>View Full Rules</Text>
+            <Text style={statsInfoStyles.rulesBtnText} maxFontSizeMultiplier={1.1}>{t('statistics.infoViewRules')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={statsInfoStyles.closeBtn} onPress={onClose}>
-            <Text style={statsInfoStyles.closeBtnText} maxFontSizeMultiplier={1.1}>Got it</Text>
+            <Text style={statsInfoStyles.closeBtnText} maxFontSizeMultiplier={1.1}>{t('statistics.infoGotIt')}</Text>
           </TouchableOpacity>
         </TouchableOpacity>
       </TouchableOpacity>
@@ -194,6 +197,7 @@ const statsInfoStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#f1f5f9',
+    textAlign: 'left',
   },
   row: {
     flexDirection: 'row',
@@ -217,11 +221,13 @@ const statsInfoStyles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     marginBottom: 2,
+    textAlign: 'left',
   },
   rowDesc: {
     fontSize: 12,
     color: '#94a3b8',
     lineHeight: 17,
+    textAlign: 'left',
   },
   rulesBtn: {
     flexDirection: 'row',
@@ -239,6 +245,7 @@ const statsInfoStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#16a34a',
+    textAlign: 'left',
   },
   closeBtn: {
     marginTop: 8,
@@ -256,6 +263,7 @@ const statsInfoStyles = StyleSheet.create({
 
 export default function StatisticsScreen() {
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
+  const { t } = useTranslation();
   const [infoModalVisible, setInfoModalVisible] = useState(false);
   const { showToast } = useToast();
   const [profile, setProfile] = useState<UserFullProfile | null>(null);
@@ -271,12 +279,12 @@ export default function StatisticsScreen() {
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
-      showToast('Could not load statistics', 'error');
+      showToast(t('statistics.couldNotLoad'), 'error');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [getCurrentUserId]);
+  }, [getCurrentUserId, showToast, t]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -312,7 +320,7 @@ export default function StatisticsScreen() {
         <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.centered}>
-            <Text style={styles.emptyText}>No statistics available yet</Text>
+            <Text style={styles.emptyText}>{t('statistics.noStatistics')}</Text>
           </View>
         </SafeAreaView>
       </>
@@ -389,7 +397,7 @@ export default function StatisticsScreen() {
           </Svg>
           <View style={[styles.donutCenter, { width: size, height: size }]}>
             <Text style={styles.donutCenterCount}>{judged}</Text>
-            <Text style={styles.donutCenterLabel}>judged</Text>
+            <Text style={styles.donutCenterLabel}>{t('statistics.judged')}</Text>
           </View>
         </View>
       </View>
@@ -434,25 +442,25 @@ export default function StatisticsScreen() {
         {/* 1. Header card */}
         <View style={styles.pointsCard}>
           <Text style={styles.pointsValue}>{profile.total_points}</Text>
-          <Text style={styles.pointsLabel}>Total Points</Text>
+          <Text style={styles.pointsLabel}>{t('statistics.totalPoints')}</Text>
           <View style={styles.pointsDivider} />
           <View style={styles.pointsStatsRow}>
             <View style={styles.pointsStatBlock}>
               <Ionicons name="football-outline" size={20} color="#a7f3d0" />
               <Text style={styles.pointsStatNumber}>{matches.score}</Text>
-              <Text style={styles.pointsStatLabel}>Matches</Text>
+              <Text style={styles.pointsStatLabel}>{t('statistics.matches')}</Text>
             </View>
             <View style={styles.pointsStatSeparator} />
             <View style={styles.pointsStatBlock}>
               <Ionicons name="gift-outline" size={20} color="#a7f3d0" />
               <Text style={styles.pointsStatNumber}>{bonusScore}</Text>
-              <Text style={styles.pointsStatLabel}>Bonus</Text>
+              <Text style={styles.pointsStatLabel}>{t('statistics.bonus')}</Text>
             </View>
             <View style={styles.pointsStatSeparator} />
             <View style={styles.pointsStatBlock}>
               <Ionicons name="git-branch-outline" size={20} color="#a7f3d0" />
               <Text style={styles.pointsStatNumber}>{bracketPts}</Text>
-              <Text style={styles.pointsStatLabel}>Bracket</Text>
+              <Text style={styles.pointsStatLabel}>{t('statistics.bracket')}</Text>
             </View>
             <View style={styles.pointsStatSeparator} />
             <View style={styles.pointsStatBlock}>
@@ -460,7 +468,7 @@ export default function StatisticsScreen() {
               <Text style={[styles.pointsStatNumber, totalPenalty > 0 && styles.pointsStatNumberFine]}>
                 {totalPenalty}
               </Text>
-              <Text style={styles.pointsStatLabel}>Fine</Text>
+              <Text style={styles.pointsStatLabel}>{t('statistics.fine')}</Text>
             </View>
           </View>
         </View>
@@ -468,7 +476,7 @@ export default function StatisticsScreen() {
         {/* 2. Match Predictions card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Match Predictions</Text>
+            <Text style={styles.cardTitle}>{t('statistics.matchPredictions')}</Text>
             <View style={styles.cardScoreCircle}>
               <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit={true} numberOfLines={1} minimumFontScale={0.5}>{matches.score}</Text>
             </View>
@@ -481,23 +489,23 @@ export default function StatisticsScreen() {
                 { value: matches.wrong, color: '#F44336' },
               ])}
               <View style={styles.statChipsRow}>
-                {renderStatChip('#4CAF50', 'Exact', matches.exact)}
-                {renderStatChip('#FF9800', 'Outcome', matches.correct_outcome)}
-                {renderStatChip('#F44336', 'Wrong', matches.wrong)}
+                {renderStatChip('#4CAF50', t('statistics.exact'), matches.exact)}
+                {renderStatChip('#FF9800', t('statistics.outcome'), matches.correct_outcome)}
+                {renderStatChip('#F44336', t('statistics.wrong'), matches.wrong)}
               </View>
               <View style={styles.matchesFooter}>
-                <Text style={styles.matchesFooterText}>✓ {matches.total_judged} matches played</Text>
+                <Text style={styles.matchesFooterText}>✓ {t('statistics.matchesPlayed', { count: matches.total_judged })}</Text>
               </View>
             </>
           ) : (
-            <Text style={styles.noDataText}>No results yet</Text>
+            <Text style={styles.noDataText}>{t('statistics.noResultsYet')}</Text>
           )}
         </View>
 
         {/* 3. Bonus Predictions card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Bonus Predictions</Text>
+            <Text style={styles.cardTitle}>{t('statistics.bonusPredictions')}</Text>
             <View style={styles.cardScoreCircle}>
               <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.5}>
                 {profile.bonus?.score ?? 0}
@@ -505,26 +513,26 @@ export default function StatisticsScreen() {
             </View>
           </View>
           {!profile.bonus?.has_any_judged ? (
-            <Text style={styles.noDataText}>No results yet</Text>
+            <Text style={styles.noDataText}>{t('statistics.noResultsYet')}</Text>
           ) : (
             <View style={styles.bonusSectionsContainer}>
               {[
                 {
-                  label: 'Tournament',
+                  label: t('statistics.tournament'),
                   correct: profile.bonus?.tournament_correct ?? 0,
                   incorrect: profile.bonus?.tournament_incorrect ?? 0,
                   hasJudged: profile.bonus?.tournament_has_judged ?? false,
                   total: 3,
                 },
                 {
-                  label: 'Group Stage',
+                  label: t('statistics.groupStage'),
                   correct: profile.bonus?.groups_correct ?? 0,
                   incorrect: profile.bonus?.groups_incorrect ?? 0,
                   hasJudged: profile.bonus?.groups_has_judged ?? false,
                   total: 6,
                 },
                 {
-                  label: 'Knockout',
+                  label: t('statistics.knockout'),
                   correct: profile.bonus?.knockout_correct ?? 0,
                   incorrect: profile.bonus?.knockout_incorrect ?? 0,
                   hasJudged: profile.bonus?.knockout_has_judged ?? false,
@@ -549,7 +557,7 @@ export default function StatisticsScreen() {
                             <Text style={styles.bonusSectionTotal} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.7}>{correct + incorrect}/{total}</Text>
                           </>
                         ) : (
-                          <Text style={styles.bonusSectionPending}>Pending</Text>
+                          <Text style={styles.bonusSectionPending}>{t('statistics.pending')}</Text>
                         )}
                       </View>
                     </View>
@@ -578,7 +586,7 @@ export default function StatisticsScreen() {
                 return (
                   <View style={styles.bonusTotalCard}>
                     <View style={styles.bonusSectionCardRow}>
-                      <Text style={styles.bonusTotalLabel}>Total</Text>
+                      <Text style={styles.bonusTotalLabel}>{t('statistics.total')}</Text>
                       <View style={styles.bonusSectionChips}>
                         <View style={styles.bonusMiniChipGreen}>
                           <Text style={styles.bonusMiniChipTextGreen}>✓ {totalCorrect}</Text>
@@ -607,7 +615,7 @@ export default function StatisticsScreen() {
         {/* 4. Group Stage + Position Accuracy card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Group Stage</Text>
+            <Text style={styles.cardTitle}>{t('statistics.groupStageTitle')}</Text>
             <View style={styles.cardScoreCircle}>
               <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit={true} numberOfLines={1} minimumFontScale={0.5}>{groups.score}</Text>
             </View>
@@ -647,7 +655,7 @@ export default function StatisticsScreen() {
                 ))}
               </View>
               <View style={styles.sectionDivider} />
-              <Text style={styles.sectionTitle}>Position Accuracy</Text>
+              <Text style={styles.sectionTitle}>{t('statistics.positionAccuracy')}</Text>
               {[
                 { label: '1st', correct: groups.position_totals.first, color: '#16a34a' },
                 { label: '2nd', correct: groups.position_totals.second, color: '#22c55e' },
@@ -674,23 +682,23 @@ export default function StatisticsScreen() {
               ))}
             </>
           ) : (
-            <Text style={styles.noDataText}>No results yet</Text>
+            <Text style={styles.noDataText}>{t('statistics.noResultsYet')}</Text>
           )}
         </View>
 
         {/* 5. Third Place card (Bracket) */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>3rd Place Picks</Text>
+            <Text style={styles.cardTitle}>{t('statistics.thirdPlacePicks')}</Text>
             <View style={styles.cardScoreCircle}>
               <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit={true} numberOfLines={1} minimumFontScale={0.5}>{third_place.score}</Text>
             </View>
           </View>
           {!third_place.has_prediction ? (
-            <Text style={styles.noDataText}>No prediction made</Text>
+            <Text style={styles.noDataText}>{t('statistics.noPredictionMade')}</Text>
           ) : !third_place.result_available ? (
             <>
-              <Text style={[styles.noDataText, { marginBottom: 8 }]}>No results yet</Text>
+              <Text style={[styles.noDataText, { marginBottom: 8 }]}>{t('statistics.noResultsYet')}</Text>
               <View style={styles.groupsGrid}>
                 {[0, 1].map((rowIdx) => (
                   <View key={rowIdx} style={styles.groupsGridRow}>
@@ -708,7 +716,7 @@ export default function StatisticsScreen() {
             </>
           ) : !third_place.picks?.length ? (
             <>
-              <Text style={styles.noDataText}>No groups selected</Text>
+              <Text style={styles.noDataText}>{t('statistics.noGroupsSelected')}</Text>
               <View style={styles.thirdPlaceSummary}>
                 <Text style={[styles.thirdPlaceSummaryText, { color: '#16a34a' }]}>
                   ✓ {third_place.correct_count ?? 0} correct
@@ -766,30 +774,30 @@ export default function StatisticsScreen() {
         {/* 6. Knockout card (Bracket) */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Knockout</Text>
+            <Text style={styles.cardTitle}>{t('statistics.knockoutTitle')}</Text>
             <View style={styles.cardScoreCircle}>
               <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit={true} numberOfLines={1} minimumFontScale={0.5}>{knockout.score}</Text>
             </View>
           </View>
           {judgedKnockout === 0 ? (
-            <Text style={styles.noDataText}>No results yet</Text>
+            <Text style={styles.noDataText}>{t('statistics.noResultsYet')}</Text>
           ) : (
             <>
               {renderDonutChart(knockout.correct_full, knockout.correct_partial, knockout.incorrect)}
               <View style={styles.knockoutLegend}>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
-                  <Text style={styles.legendLabel}>Full</Text>
+                  <Text style={styles.legendLabel}>{t('statistics.full')}</Text>
                   <Text style={styles.legendCount}>{knockout.correct_full}</Text>
                 </View>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: '#FF9800' }]} />
-                  <Text style={styles.legendLabel}>Partial</Text>
+                  <Text style={styles.legendLabel}>{t('statistics.partial')}</Text>
                   <Text style={styles.legendCount}>{knockout.correct_partial}</Text>
                 </View>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: '#F44336' }]} />
-                  <Text style={styles.legendLabel}>Wrong</Text>
+                  <Text style={styles.legendLabel}>{t('statistics.wrong')}</Text>
                   <Text style={styles.legendCount}>{knockout.incorrect}</Text>
                 </View>
               </View>
@@ -800,7 +808,7 @@ export default function StatisticsScreen() {
         {/* 7. Fine Breakdown card */}
         <View style={[styles.card, styles.cardLast]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Fines</Text>
+            <Text style={styles.cardTitle}>{t('statistics.fines')}</Text>
             <View style={styles.cardScoreCircleRed}>
               <Text style={styles.cardScoreCircleText} adjustsFontSizeToFit={true} numberOfLines={1} minimumFontScale={0.5}>
                 {totalPenalty}
@@ -816,9 +824,9 @@ export default function StatisticsScreen() {
             const total    = groups + thirdPl + knockout + bonus;
 
             const allSegments = [
-              { value: groups,   color: '#f59e0b', label: 'Groups' },
-              { value: thirdPl,  color: '#f97316', label: 'Third Place' },
-              { value: knockout, color: '#92400e', label: 'Knockout' },
+              { value: groups,   color: '#f59e0b', label: t('statistics.finesGroups') },
+              { value: thirdPl,  color: '#f97316', label: t('statistics.finesThirdPlace') },
+              { value: knockout, color: '#92400e', label: t('statistics.finesKnockout') },
             ];
 
             const size = 160;
@@ -890,7 +898,7 @@ export default function StatisticsScreen() {
                 )}
                 {total === 0 && (
                   <Text style={[styles.noDataText, { textAlign: 'center', marginTop: 16 }]}>
-                    No fines yet
+                    {t('statistics.noFinesYet')}
                   </Text>
                 )}
               </View>

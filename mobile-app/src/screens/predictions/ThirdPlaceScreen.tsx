@@ -9,6 +9,7 @@ import { ThirdPlaceTeam, ThirdPlacePredictionData, apiService } from '../../serv
 import { useTournament } from '../../contexts/TournamentContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/toast/Toast';
+import { useTranslation } from 'react-i18next';
 import { FineConfirmationModal, UnsavedChangesModal, MaximumReachedModal, ErrorModal, ValidationModal } from '../../components/modals/CustomModals';
 
 interface ThirdPlaceCache {
@@ -28,6 +29,7 @@ export function clearThirdPlaceCache(): void {
 interface ThirdPlaceScreenProps {}
 
 export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
+  const { t } = useTranslation();
   const [teams, setTeams] = useState<ThirdPlaceTeam[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -483,7 +485,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { direction: 'ltr' }]}>
         <ActivityIndicator size="large" color="#16a34a" />
         <Text style={styles.loadingText}>Loading third place teams...</Text>
         <ErrorModal
@@ -503,7 +505,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   // Show message if no teams available (user hasn't completed group predictions)
   if (teams.length === 0) {
     return (
-      <View style={styles.emptyStateContainer}>
+      <View style={[styles.emptyStateContainer, { direction: 'ltr' }]}>
         <Ionicons
           name={loadError ? "cloud-offline-outline" : "football-outline"}
           size={56}
@@ -553,7 +555,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { direction: 'ltr' }]}>
       <View 
         style={styles.header}
         onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
@@ -602,7 +604,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
                     color={showNetScore ? '#16a34a' : '#64748b'}
                   />
                   <Text style={[styles.netScoreToggleText, showNetScore && styles.netScoreToggleTextActive]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-                    Net
+                    {t('route.net')}
                   </Text>
                 </TouchableOpacity>
                 <View style={[styles.pointsContainer, getPointsPillStyle()]}>

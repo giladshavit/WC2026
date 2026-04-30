@@ -92,7 +92,7 @@ export default function MatchEditModal({ visible, match, onClose, onSave, errorM
     >
       <View style={styles.overlay}>
         <SafeAreaView style={styles.container}>
-          <View style={[styles.modal, { overflow: 'hidden' }]}>
+          <View style={[styles.modal, { overflow: 'hidden', direction: 'ltr' }]}>
             {/* Header */}
             <View style={styles.header}>
               <Text style={styles.title}>Tap to Pick Winner</Text>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import LoginScreen from './LoginScreen';
 import RegisterScreen from './RegisterScreen';
 import ForgotPasswordScreen from './ForgotPasswordScreen';
@@ -19,6 +20,7 @@ interface AuthScreenProps {
 }
 
 export default function AuthScreen({ onSocialRegistration }: AuthScreenProps) {
+  const { t } = useTranslation();
   const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const insets = useSafeAreaInsets();
@@ -33,7 +35,7 @@ export default function AuthScreen({ onSocialRegistration }: AuthScreenProps) {
     >
       <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.logoTitle}>Predicto</Text>
-        <Text style={styles.logoSubtitle}>Football 2026 Predictions</Text>
+        <Text style={styles.logoSubtitle}>{t('auth.appSubtitle')}</Text>
       </View>
 
       {!isForgotPassword && (
@@ -44,7 +46,7 @@ export default function AuthScreen({ onSocialRegistration }: AuthScreenProps) {
             activeOpacity={0.7}
           >
             <Text style={[styles.tabText, isLogin && styles.tabTextActive]}>
-              Login
+              {t('auth.login')}
             </Text>
             {isLogin && <View style={styles.tabUnderline} />}
           </TouchableOpacity>
@@ -54,7 +56,7 @@ export default function AuthScreen({ onSocialRegistration }: AuthScreenProps) {
             activeOpacity={0.7}
           >
             <Text style={[styles.tabText, !isLogin && styles.tabTextActive]}>
-              Sign Up
+              {t('auth.signUp')}
             </Text>
             {!isLogin && <View style={styles.tabUnderline} />}
           </TouchableOpacity>

@@ -19,23 +19,25 @@ import PredictOLogo from '../components/shared/PredictOLogo';
 import { MainStackParamList } from '../navigation/MainNavigator';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
+import { useTranslation } from 'react-i18next';
+import { IS_RTL } from '../utils/rtl';
 
-const STAGE_LABELS: Record<string, { label: string; emoji: string; color: string }> = {
-  PRE_GROUP_STAGE: { label: 'Pre-Tournament', emoji: '⏳', color: '#38bdf8' },
-  GROUP_CYCLE_1: { label: 'Matchday 1', emoji: '⚽', color: '#16a34a' },
-  GROUP_CYCLE_2: { label: 'Matchday 2', emoji: '⚽', color: '#16a34a' },
-  GROUP_CYCLE_3: { label: 'Matchday 3', emoji: '⚽', color: '#16a34a' },
-  PRE_ROUND32: { label: 'Pre Round of 32', emoji: '🔜', color: '#f59e0b' },
-  ROUND32: { label: 'Round of 32', emoji: '🔥', color: '#ef4444' },
-  PRE_ROUND16: { label: 'Pre Round of 16', emoji: '🔜', color: '#f59e0b' },
-  ROUND16: { label: 'Round of 16', emoji: '🔥', color: '#ef4444' },
-  PRE_QUARTER: { label: 'Pre Quarter-Final', emoji: '🔜', color: '#f59e0b' },
-  QUARTER: { label: 'Quarter-Final', emoji: '🔥', color: '#ef4444' },
-  PRE_SEMI: { label: 'Pre Semi-Final', emoji: '🔜', color: '#f59e0b' },
-  SEMI: { label: 'Semi-Final', emoji: '🔥', color: '#ef4444' },
-  THIRD_PLACE: { label: 'Third Place', emoji: '🥉', color: '#94a3b8' },
-  FINAL: { label: 'The Final', emoji: '🏆', color: '#fbbf24' },
-  TOURNAMENT_OVER: { label: 'Tournament Over', emoji: '🎉', color: '#94a3b8' },
+const STAGE_STYLES: Record<string, { color: string }> = {
+  PRE_GROUP_STAGE: { color: '#38bdf8' },
+  GROUP_CYCLE_1: { color: '#16a34a' },
+  GROUP_CYCLE_2: { color: '#16a34a' },
+  GROUP_CYCLE_3: { color: '#16a34a' },
+  PRE_ROUND32: { color: '#f59e0b' },
+  ROUND32: { color: '#ef4444' },
+  PRE_ROUND16: { color: '#f59e0b' },
+  ROUND16: { color: '#ef4444' },
+  PRE_QUARTER: { color: '#f59e0b' },
+  QUARTER: { color: '#ef4444' },
+  PRE_SEMI: { color: '#f59e0b' },
+  SEMI: { color: '#ef4444' },
+  THIRD_PLACE: { color: '#94a3b8' },
+  FINAL: { color: '#fbbf24' },
+  TOURNAMENT_OVER: { color: '#94a3b8' },
 };
 
 type NavigationProp = StackNavigationProp<MainStackParamList, 'Home'>;
@@ -74,8 +76,8 @@ function StatsBarChartIcon({ size = 36 }: { size?: number }) {
 }
 
 const actions: Array<{
-  title: string;
-  subtitle: string;
+  titleKey: 'myPredictions' | 'leagues' | 'statistics' | 'profile';
+  subtitleKey: 'allYourPicks' | 'competeWithFriends' | 'standingsInsights' | 'accountDetails';
   icon: string;
   navigateTo: Exclude<keyof MainStackParamList, 'PublicProfile'>;
   accent: string | null;
@@ -83,8 +85,8 @@ const actions: Array<{
   iconColor?: string;
 }> = [
   {
-    title: 'My Predictions',
-    subtitle: 'All your picks',
+    titleKey: 'myPredictions',
+    subtitleKey: 'allYourPicks',
     icon: 'football-outline',
     navigateTo: 'PredictionsMenu',
     accent: '#162444',
@@ -92,8 +94,8 @@ const actions: Array<{
     iconColor: '#4ade80',
   },
   {
-    title: 'Leagues',
-    subtitle: 'Compete with friends',
+    titleKey: 'leagues',
+    subtitleKey: 'competeWithFriends',
     icon: 'trophy-outline',
     navigateTo: 'Leagues',
     accent: '#162444',
@@ -101,16 +103,16 @@ const actions: Array<{
     iconColor: '#fbbf24',
   },
   {
-    title: 'Statistics',
-    subtitle: 'Standings & insights',
+    titleKey: 'statistics',
+    subtitleKey: 'standingsInsights',
     icon: 'stats-chart',
     navigateTo: 'Statistics',
     accent: null,
     accentBorder: null,
   },
   {
-    title: 'Profile',
-    subtitle: 'Account details',
+    titleKey: 'profile',
+    subtitleKey: 'accountDetails',
     icon: 'person-circle-outline',
     navigateTo: 'Profile',
     accent: null,
@@ -120,6 +122,10 @@ const actions: Array<{
 ];
 
 export default function HomeScreen() {
+  const { t } = useTranslation();
+  /** Single source: utils/rtl (I18nManager + locale fallback). */
+  const layoutRTL = IS_RTL;
+  const textAlign: 'left' | 'right' = layoutRTL ? 'right' : 'left';
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
@@ -174,6 +180,8 @@ export default function HomeScreen() {
     ((user?.is_admin === true) || isAdminFromConfig);
 
   const renderButton = (action: (typeof actions)[0]) => {
+    const title = t(`home.${action.titleKey}`);
+    const subtitle = t(`home.${action.subtitleKey}`);
     const glowStyle =
       action.navigateTo === 'PredictionsMenu'
         ? {
@@ -200,7 +208,7 @@ export default function HomeScreen() {
           : null;
     return (
       <TouchableOpacity
-        key={action.title}
+        key={action.navigateTo}
         style={[
           styles.circleButton,
           { width: buttonSize, height: buttonSize, borderRadius: buttonSize / 2 },
@@ -224,44 +232,97 @@ export default function HomeScreen() {
           />
         )}
         <Text
-          style={[styles.buttonTitle, action.accent && styles.accentButtonTitle]}
-          numberOfLines={2}
-          adjustsFontSizeToFit
-          minimumFontScale={0.7}
-          textBreakStrategy="balanced"
-        >
-          {action.title}
-        </Text>
-        <Text
-          style={[styles.buttonSubtitle, action.accent && styles.accentButtonSubtitle]}
-          numberOfLines={2}
+          style={[
+            styles.buttonTitle,
+            { textAlign },
+            action.accent && styles.accentButtonTitle,
+          ]}
+          numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.65}
+          textBreakStrategy="balanced"
         >
-          {action.subtitle}
+          {title}
+        </Text>
+        <Text
+          style={[
+            styles.buttonSubtitle,
+            { textAlign },
+            action.accent && styles.accentButtonSubtitle,
+          ]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.6}
+        >
+          {subtitle}
         </Text>
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={styles.safeArea}>
+    <View style={[styles.safeArea, { direction: layoutRTL ? 'rtl' : 'ltr' }]}>
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.logoContainer}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top + 12,
+            alignItems: 'flex-start',
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.logoContainer,
+            { alignItems: IS_RTL ? 'flex-end' : 'flex-start' },
+          ]}
+        >
           <PredictOLogo size="small" variant="light" />
         </View>
-        <View style={styles.logoSeparator} />
-        <Text style={styles.greeting} maxFontSizeMultiplier={1.3} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>
-          {isFirstSession ? 'Welcome' : 'Welcome back'}, {user?.username ?? 'Champ'}!
+        <View
+          style={[
+            styles.logoSeparator,
+            { alignSelf: IS_RTL ? 'flex-end' : 'flex-start' },
+          ]}
+        />
+        <Text
+          style={[styles.greeting, { textAlign, writingDirection: layoutRTL ? 'rtl' : 'ltr' }]}
+          maxFontSizeMultiplier={1.3}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+        >
+          {isFirstSession ? t('home.welcome') : t('home.welcomeBack')}
+          {', '}
+          {layoutRTL ? (
+            <Text style={styles.greetingLtrEmbed}>{user?.username ?? t('home.champ')}</Text>
+          ) : (
+            <>{user?.username ?? t('home.champ')}</>
+          )}
+          {'!'}
         </Text>
-        {currentStage && STAGE_LABELS[currentStage] && (
-          <View style={styles.stageRow}>
-            <Text style={styles.stageLabel}>Stage:</Text>
-            <Text style={[styles.stageValue, { color: STAGE_LABELS[currentStage].color }]} maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-              {STAGE_LABELS[currentStage].label}
+        {currentStage && STAGE_STYLES[currentStage] && (
+          <Text
+            style={[
+              styles.stageLine,
+              { textAlign, writingDirection: layoutRTL ? 'rtl' : 'ltr' },
+            ]}
+            maxFontSizeMultiplier={1.3}
+            numberOfLines={2}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+          >
+            <Text style={styles.stageLabel}>{t('home.stage')}</Text>
+            <Text
+              style={[
+                styles.stageValue,
+                { color: STAGE_STYLES[currentStage].color },
+              ]}
+            >
+              {` ${t(`home.stages.${currentStage}`)}`}
             </Text>
-          </View>
+          </Text>
         )}
 
         <View style={styles.waveSvgContainer}>
@@ -281,15 +342,15 @@ export default function HomeScreen() {
           {actions.map((action) => renderButton(action))}
         </View>
 
-        <View style={styles.infoRow}>
+        <View style={[styles.infoRow, { flexDirection: 'row' }]}>
           <TouchableOpacity
             style={styles.infoBtn}
             onPress={() => navigation.navigate('Rules' as any)}
             activeOpacity={0.75}
           >
             <Ionicons name="book-outline" size={18} color="#cbd5e1" />
-            <Text style={styles.infoBtnTitle}>Rules</Text>
-            <Text style={styles.infoBtnSubtitle}>Scoring & fines</Text>
+            <Text style={[styles.infoBtnTitle, { textAlign }]}>{t('home.rules')}</Text>
+            <Text style={[styles.infoBtnSubtitle, { textAlign }]}>{t('home.scoringFines')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -298,8 +359,10 @@ export default function HomeScreen() {
             activeOpacity={0.75}
           >
             <Ionicons name="play-circle-outline" size={18} color="#38bdf8" />
-            <Text style={[styles.infoBtnTitle, styles.infoBtnTitleHighlight]}>How it works</Text>
-            <Text style={[styles.infoBtnSubtitle, styles.infoBtnSubtitleHighlight]}>Interactive guide</Text>
+            <Text style={[styles.infoBtnTitle, styles.infoBtnTitleHighlight, { textAlign }]}>{t('home.howItWorks')}</Text>
+            <Text style={[styles.infoBtnSubtitle, styles.infoBtnSubtitleHighlight, { textAlign }]}>
+              {t('home.interactiveGuide')}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -311,7 +374,7 @@ export default function HomeScreen() {
               activeOpacity={0.7}
             >
               <Ionicons name="settings-outline" size={14} color="#9ca3af" />
-              <Text style={styles.adminPillText}>Admin</Text>
+              <Text style={[styles.adminPillText, { textAlign }]}>{t('home.admin')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.debugPill}
@@ -323,7 +386,7 @@ export default function HomeScreen() {
               activeOpacity={0.7}
             >
               <Ionicons name="refresh-outline" size={14} color="#f59e0b" />
-              <Text style={styles.debugPillText}>Replay Onboarding</Text>
+              <Text style={[styles.debugPillText, { textAlign }]}>{t('home.replayOnboarding')}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -348,19 +411,29 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     overflow: 'visible',
   },
-  logoContainer: { alignItems: 'flex-start', marginBottom: 8 },
+  logoContainer: {
+    alignSelf: 'stretch',
+    marginBottom: 8,
+  },
   logoSeparator: {
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.2)',
     marginVertical: 10,
     width: '40%',
   },
-  greeting: { fontSize: 28, fontWeight: '800', color: '#ffffff', marginBottom: 4 },
-  stageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  greeting: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 4,
+    alignSelf: 'stretch',
+  },
+  greetingLtrEmbed: {
+    writingDirection: 'ltr',
+  },
+  stageLine: {
     marginTop: 6,
+    alignSelf: 'stretch',
   },
   stageLabel: {
     fontSize: 15,
@@ -395,6 +468,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
     borderWidth: 1,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
@@ -425,7 +499,6 @@ const styles = StyleSheet.create({
   },
 
   infoRow: {
-    flexDirection: 'row',
     gap: 12,
     marginTop: 24,
     marginBottom: 8,
@@ -484,9 +557,9 @@ const styles = StyleSheet.create({
   adminPillText: { fontSize: 13, color: '#64748b', fontWeight: '500' },
 
   icon: { marginBottom: 8 },
-  buttonTitle: { fontSize: 15, fontWeight: '600', color: '#f1f5f9', textAlign: 'center' },
+  buttonTitle: { fontSize: 15, fontWeight: '600', color: '#f1f5f9' },
   accentButtonTitle: { color: '#ffffff' },
-  buttonSubtitle: { fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 4 },
+  buttonSubtitle: { fontSize: 11, color: '#94a3b8', marginTop: 4 },
   accentButtonSubtitle: { color: 'rgba(255,255,255,0.8)' },
   debugPill: {
     flexDirection: 'row',

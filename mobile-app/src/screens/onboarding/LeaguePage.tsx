@@ -1,5 +1,6 @@
 import React from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 const BG = '#1e293b';
@@ -757,6 +758,7 @@ function createMultiHeaderScales() {
 }
 
 export function ClassicLeaguePage({ isActive }: { isActive: boolean }) {
+  const { t } = useTranslation();
   const [sortKey, setSortKey] = React.useState('total');
   const headerScalesRef = React.useRef<ReturnType<typeof createClassicHeaderScales> | null>(null);
   if (!headerScalesRef.current) {
@@ -779,10 +781,12 @@ export function ClassicLeaguePage({ isActive }: { isActive: boolean }) {
     <View style={styles.root}>
       <View style={styles.staticHeader}>
         <View style={styles.modeBadgeClassic}>
-          <Text style={styles.modeBadgeTextClassic} allowFontScaling={false}>CLASSIC MODE</Text>
+          <Text style={styles.modeBadgeTextClassic} allowFontScaling={false}>
+            {t('onboarding.league_classic_badge')}
+          </Text>
         </View>
         <Text style={styles.pageSubtitle} maxFontSizeMultiplier={1.15} numberOfLines={2} ellipsizeMode="tail">
-          Your league standings - sorted by total points from matches + bonus questions
+          {t('onboarding.league_classic_subtitle')}
         </Text>
       </View>
 
@@ -808,6 +812,7 @@ export function ClassicLeaguePage({ isActive }: { isActive: boolean }) {
 }
 
 export function MultiLeaguePage({ isActive }: { isActive: boolean }) {
+  const { t } = useTranslation();
   const [sortKey, setSortKey] = React.useState('total');
   const headerScalesRef = React.useRef<ReturnType<typeof createMultiHeaderScales> | null>(null);
   if (!headerScalesRef.current) {
@@ -830,10 +835,12 @@ export function MultiLeaguePage({ isActive }: { isActive: boolean }) {
     <View style={styles.root}>
       <View style={styles.staticHeader}>
         <View style={styles.modeBadgeMulti}>
-          <Text style={styles.modeBadgeTextMulti} allowFontScaling={false}>MULTI MODE</Text>
+          <Text style={styles.modeBadgeTextMulti} allowFontScaling={false}>
+            {t('onboarding.league_multi_badge')}
+          </Text>
         </View>
         <Text style={styles.pageSubtitle} maxFontSizeMultiplier={1.15} numberOfLines={2} ellipsizeMode="tail">
-          Total = Matches + Groups & 3rd Place + Knockout + Bonus − Fines
+          {t('onboarding.league_multi_subtitle')}
         </Text>
       </View>
 
@@ -862,6 +869,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: BG,
+    direction: 'ltr',
   },
   staticHeader: {
     alignItems: 'center',

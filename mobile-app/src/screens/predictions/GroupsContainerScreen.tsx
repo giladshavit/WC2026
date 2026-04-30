@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import GroupsScreen from './GroupsScreen';
 import ThirdPlaceScreen from './ThirdPlaceScreen';
 
 type ActiveTab = 'groups' | 'thirdplace';
 
 export default function GroupsContainerScreen() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<ActiveTab>('groups');
 
   return (
@@ -19,7 +21,7 @@ export default function GroupsContainerScreen() {
             onPress={() => setActiveTab('groups')}
           >
             <Text style={[styles.pillText, activeTab === 'groups' && styles.pillTextActive]}>
-              Groups
+              {t('route.groups')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -27,7 +29,7 @@ export default function GroupsContainerScreen() {
             onPress={() => setActiveTab('thirdplace')}
           >
             <Text style={[styles.pillText, activeTab === 'thirdplace' && styles.pillTextActive]}>
-              3rd Place
+              {t('route.thirdPlace')}
             </Text>
           </TouchableOpacity>
         </View>

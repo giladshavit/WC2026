@@ -10,13 +10,16 @@ import {
   StatusBar,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { IS_RTL } from '../../utils/rtl';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiService } from '../../services/api';
 import { useToast } from '../../components/toast/Toast';
 import { ConfirmationModal } from '../../components/modals/CustomModals';
 
 export default function MyProfileScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const { user, logout, getCurrentUserId } = useAuth();
   const { showToast } = useToast();
@@ -101,14 +104,14 @@ export default function MyProfileScreen() {
           ) : (
             <Text style={styles.pointsValue} maxFontSizeMultiplier={1.3}>{totalPoints}</Text>
           )}
-          <Text style={styles.pointsLabel} maxFontSizeMultiplier={1.3}>Total Points</Text>
+          <Text style={styles.pointsLabel} maxFontSizeMultiplier={1.3}>{t('profile.totalPoints')}</Text>
         </View>
 
         {/* Info rows */}
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <Ionicons name="person-outline" size={18} color="#16a34a" />
-            <Text style={styles.infoLabel} maxFontSizeMultiplier={1.3}>Username</Text>
+            <Text style={[styles.infoLabel, { textAlign: IS_RTL ? 'right' : 'left' }]} maxFontSizeMultiplier={1.3}>{t('profile.username')}</Text>
             <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>{user?.username ?? '—'}</Text>
           </View>
           {user?.email && !user.email.endsWith('@privaterelay.appleid.com') ? (
@@ -116,7 +119,7 @@ export default function MyProfileScreen() {
               <View style={styles.infoSeparator} />
               <View style={styles.infoRow}>
                 <Ionicons name="mail-outline" size={18} color="#16a34a" />
-                <Text style={styles.infoLabel} maxFontSizeMultiplier={1.0}>Email</Text>
+                <Text style={[styles.infoLabel, { textAlign: IS_RTL ? 'right' : 'left' }]} maxFontSizeMultiplier={1.0}>{t('profile.email')}</Text>
                 <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit maxFontSizeMultiplier={1.0}>{user.email}</Text>
               </View>
             </>
@@ -124,7 +127,7 @@ export default function MyProfileScreen() {
           <View style={styles.infoSeparator} />
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={18} color="#16a34a" />
-            <Text style={styles.infoLabel} maxFontSizeMultiplier={1.3}>Member since</Text>
+            <Text style={[styles.infoLabel, { textAlign: IS_RTL ? 'right' : 'left' }]} maxFontSizeMultiplier={1.3}>{t('profile.memberSince')}</Text>
             <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
               {user?.created_at
                 ? new Date(user.created_at).toLocaleDateString('en-GB', {
@@ -139,16 +142,25 @@ export default function MyProfileScreen() {
 
         {/* Logout button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={18} color="#ef4444" />
-          <Text style={styles.logoutText} maxFontSizeMultiplier={1.3}>Sign Out</Text>
+          {IS_RTL ? (
+            <>
+              <Text style={styles.logoutText} maxFontSizeMultiplier={1.3}>{t('profile.signOut')}</Text>
+              <Ionicons name="log-in-outline" size={18} color="#ef4444" />
+            </>
+          ) : (
+            <>
+              <Ionicons name="log-out-outline" size={18} color="#ef4444" />
+              <Text style={styles.logoutText} maxFontSizeMultiplier={1.3}>{t('profile.signOut')}</Text>
+            </>
+          )}
         </TouchableOpacity>
         </ScrollView>
       <ConfirmationModal
         visible={signOutModal}
-        title="Sign Out"
-        message="Are you sure you want to sign out?"
-        confirmLabel="Sign Out"
-        cancelLabel="Cancel"
+        title={t('profile.signOutModal.title')}
+        message={t('profile.signOutModal.message')}
+        confirmLabel={t('profile.signOutModal.confirm')}
+        cancelLabel={t('common.cancel')}
         destructive={true}
         onConfirm={() => {
           setSignOutModal(false);
@@ -173,16 +185,16 @@ export default function MyProfileScreen() {
             }}
           >
             <Ionicons name="trash-outline" size={14} color="#ef4444" />
-            <Text style={styles.menuItemText}>Delete Account</Text>
+            <Text style={styles.menuItemText}>{t('profile.deleteAccount')}</Text>
           </TouchableOpacity>
         </View>
       )}
       <ConfirmationModal
         visible={deleteModal}
-        title="Delete Account"
-        message="This will permanently delete your account and all your predictions. This cannot be undone."
-        confirmLabel="Delete My Account"
-        cancelLabel="Cancel"
+        title={t('profile.deleteModal.title')}
+        message={t('profile.deleteModal.message')}
+        confirmLabel={t('profile.deleteModal.confirm')}
+        cancelLabel={t('common.cancel')}
         destructive={true}
         onConfirm={() => {
           setDeleteModal(false);

@@ -14,6 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
+import { IS_RTL } from '../../utils/rtl';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   apiService,
@@ -522,6 +524,7 @@ interface ColumnLegendModalProps {
 }
 
 function ColumnLegendModal({ visible, onClose, initialMode, isSimpleBonus }: ColumnLegendModalProps) {
+  const { t } = useTranslation();
   const [activeMode, setActiveMode] = React.useState<'classic' | 'multi'>(initialMode);
 
   React.useEffect(() => {
@@ -529,29 +532,29 @@ function ColumnLegendModal({ visible, onClose, initialMode, isSimpleBonus }: Col
   }, [visible, initialMode]);
 
   const classicRows = [
-    { icon: 'checkmark-circle-outline', color: '#22c55e', label: 'Exact', desc: 'Predicted the exact scoreline' },
-    { icon: 'remove-circle-outline', color: '#f59e0b', label: 'Correct', desc: 'Right outcome, wrong score' },
-    { icon: 'close-circle-outline', color: '#ef4444', label: 'Wrong', desc: 'Wrong outcome' },
-    { icon: 'football-outline', color: '#60a5fa', label: 'Matches', desc: 'Points from match predictions' },
+    { icon: 'checkmark-circle-outline', color: '#22c55e', label: t('leagueDetails.colExact'), desc: t('leagueDetails.colExactDesc') },
+    { icon: 'remove-circle-outline', color: '#f59e0b', label: t('leagueDetails.colCorrect'), desc: t('leagueDetails.colCorrectDesc') },
+    { icon: 'close-circle-outline', color: '#ef4444', label: t('leagueDetails.colWrong'), desc: t('leagueDetails.colWrongDesc') },
+    { icon: 'football-outline', color: '#60a5fa', label: t('leagueDetails.colMatches'), desc: t('leagueDetails.colMatchesDesc') },
     {
       icon: 'gift-outline',
       color: '#4ade80',
-      label: 'Bonus',
+      label: t('leagueDetails.colBonus'),
       desc:
         isSimpleBonus && activeMode === 'classic'
-          ? 'Tournament bonus questions only'
-          : 'Points from bonus questions',
+          ? t('leagueDetails.colBonusBasicDesc')
+          : t('leagueDetails.colBonusDesc'),
     },
-    { icon: 'star-outline', color: '#fbbf24', label: 'Total', desc: 'Total points (Matches + Bonus)' },
+    { icon: 'star-outline', color: '#fbbf24', label: t('leagueDetails.colTotal'), desc: t('leagueDetails.colTotalClassicDesc') },
   ];
 
   const multiRows = [
-    { icon: 'football-outline', color: '#60a5fa', label: 'Matches', desc: 'Points from match predictions' },
-    { icon: 'home-outline', color: '#c084fc', label: 'Groups', desc: 'Points from group stage + 3rd place predictions' },
-    { icon: 'trophy-outline', color: '#d4a017', label: 'Knockout', desc: 'Points from knockout bracket predictions' },
-    { icon: 'gift-outline', color: '#4ade80', label: 'Bonus', desc: 'Points from bonus questions' },
-    { icon: 'warning-outline', color: '#ef4444', label: 'Fines', desc: 'Point deductions for prediction changes' },
-    { icon: 'star-outline', color: '#fbbf24', label: 'Total', desc: 'Total points (all categories minus fines)' },
+    { icon: 'football-outline', color: '#60a5fa', label: t('leagueDetails.colMatches'), desc: t('leagueDetails.colMatchesDesc') },
+    { icon: 'home-outline', color: '#c084fc', label: t('leagueDetails.colGroups'), desc: t('leagueDetails.colGroupsDesc') },
+    { icon: 'trophy-outline', color: '#d4a017', label: t('leagueDetails.colKnockout'), desc: t('leagueDetails.colKnockoutDesc') },
+    { icon: 'gift-outline', color: '#4ade80', label: t('leagueDetails.colBonus'), desc: t('leagueDetails.colBonusDesc') },
+    { icon: 'warning-outline', color: '#ef4444', label: t('leagueDetails.colFines'), desc: t('leagueDetails.colFinesDesc') },
+    { icon: 'star-outline', color: '#fbbf24', label: t('leagueDetails.colTotal'), desc: t('leagueDetails.colTotalMultiDesc') },
   ];
 
   const rows = activeMode === 'classic' ? classicRows : multiRows;
@@ -559,11 +562,11 @@ function ColumnLegendModal({ visible, onClose, initialMode, isSimpleBonus }: Col
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={legendStyles.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={legendStyles.card} onPress={() => {}}>
+        <TouchableOpacity activeOpacity={1} style={[legendStyles.card, { direction: IS_RTL ? 'rtl' : 'ltr' }]} onPress={() => {}}>
 
           <View style={legendStyles.titleRow}>
             <Ionicons name="information-circle" size={18} color="#94a3b8" />
-            <Text style={legendStyles.title}>Column Guide</Text>
+            <Text style={[legendStyles.title, { textAlign: 'left' }]}>{t('leagueDetails.columnGuide')}</Text>
           </View>
 
           <View style={legendStyles.toggleRow}>
@@ -582,7 +585,7 @@ function ColumnLegendModal({ visible, onClose, initialMode, isSimpleBonus }: Col
                 legendStyles.toggleBtnText,
                 activeMode === 'classic' && { color: '#38bdf8', fontWeight: '700' },
               ]}>
-                Classic
+                {t('createLeague.classic')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -600,7 +603,7 @@ function ColumnLegendModal({ visible, onClose, initialMode, isSimpleBonus }: Col
                 legendStyles.toggleBtnText,
                 activeMode === 'multi' && { color: '#f59e0b', fontWeight: '700' },
               ]}>
-                Multi
+                {t('createLeague.multi')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -611,14 +614,14 @@ function ColumnLegendModal({ visible, onClose, initialMode, isSimpleBonus }: Col
                 <Ionicons name={row.icon as any} size={16} color={row.color} />
               </View>
               <View style={legendStyles.rowText}>
-                <Text style={[legendStyles.rowLabel, { color: row.color }]}>{row.label}</Text>
-                <Text style={legendStyles.rowDesc}>{row.desc}</Text>
+                <Text style={[legendStyles.rowLabel, { color: row.color, textAlign: 'left' }]}>{row.label}</Text>
+                <Text style={[legendStyles.rowDesc, { textAlign: 'left' }]}>{row.desc}</Text>
               </View>
             </View>
           ))}
 
           <TouchableOpacity style={legendStyles.closeBtn} onPress={onClose}>
-            <Text style={legendStyles.closeBtnText}>Got it</Text>
+            <Text style={legendStyles.closeBtnText}>{t('leagueDetails.gotIt')}</Text>
           </TouchableOpacity>
 
         </TouchableOpacity>
@@ -724,6 +727,7 @@ export default function LeagueDetailsScreen() {
   const { leagueId } = route.params as RouteParams;
   const { getCurrentUserId } = useAuth();
   const { showToast } = useToast();
+  const { t } = useTranslation();
 
   const [standingsData, setStandingsData] = useState<LeagueStandingsResponse | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>('total');
@@ -931,8 +935,8 @@ export default function LeagueDetailsScreen() {
       if (requestId !== standingsFetchGenRef.current) return;
       console.error('Error fetching standings:', error);
       setErrorModal({
-        title: 'Failed to Load',
-        message: 'Could not load league standings. Please try again.',
+        title: t('leagueDetails.failedToLoadTitle'),
+        message: t('leagueDetails.errorLoadStandings'),
         goBack: true,
       });
     } finally {
@@ -1025,12 +1029,12 @@ export default function LeagueDetailsScreen() {
     }
   }, [liveMatchPredictionsList.length]);
 
-  const leagueName = !standingsData ? 'League' : (isGlobalLeague ? 'Global League' : standingsData.league_info?.name || 'League');
+  const leagueName = !standingsData ? t('leagueDetails.league') : (isGlobalLeague ? t('leagues.globalLeague') : standingsData.league_info?.name || t('leagueDetails.league'));
 
   const handleCopyInviteCode = async () => {
     if (standingsData?.league_info?.invite_code) {
       await Clipboard.setStringAsync(standingsData.league_info.invite_code);
-      showToast('Invite code copied!', 'success');
+      showToast(t('leagueDetails.inviteCopied'), 'success');
     }
   };
 
@@ -1038,7 +1042,7 @@ export default function LeagueDetailsScreen() {
     setMenuVisible(false);
     const id = Number(leagueId);
     if (isNaN(id)) {
-      setErrorModal({ title: 'Invalid League', message: 'Could not identify this league.' });
+      setErrorModal({ title: t('leagueDetails.invalidLeagueTitle'), message: t('leagueDetails.invalidLeague') });
       return;
     }
     setLeaveModalVisible(true);
@@ -1050,11 +1054,11 @@ export default function LeagueDetailsScreen() {
     setLeaving(true);
     try {
       await apiService.leaveLeague(id);
-      (navigation as any).navigate('LeaguesMain', { showToast: 'Left league successfully' });
+      (navigation as any).navigate('LeaguesMain', { showToast: t('leagueDetails.leftLeague') });
     } catch (error) {
       setErrorModal({
-        title: 'Failed to Leave',
-        message: 'Could not leave the league. Please try again.',
+        title: t('leagueDetails.failedToLeaveTitle'),
+        message: t('leagueDetails.errorLeave'),
       });
     } finally {
       setLeaving(false);
@@ -1075,7 +1079,7 @@ export default function LeagueDetailsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading standings...</Text>
+          <Text style={styles.loadingText}>{t('leagueDetails.loadingStandings')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -1085,7 +1089,7 @@ export default function LeagueDetailsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Failed to load league data</Text>
+          <Text style={styles.errorText}>{t('leagueDetails.failedToLoad')}</Text>
         </View>
         <ErrorModal
           visible={!!errorModal}
@@ -1099,7 +1103,7 @@ export default function LeagueDetailsScreen() {
             setErrorModal(null);
             navigation.goBack();
           }}
-          goBackLabel="Go Back"
+          goBackLabel={t('common.goBack')}
         />
       </SafeAreaView>
     );
@@ -1119,7 +1123,7 @@ export default function LeagueDetailsScreen() {
     : COL_NUM_W * 4 + COL_FINE_W + 16; // matches, groups, knockout, bonus, fine
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { direction: 'ltr' }]}>
       <LinearGradient
         colors={['#0f172a', '#1e293b', '#0f172a']}
         locations={[0, 0.5, 1]}
@@ -1127,14 +1131,19 @@ export default function LeagueDetailsScreen() {
       >
         <View style={styles.header}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={[styles.backButton, IS_RTL && { left: undefined, right: 0 }]}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="chevron-back" size={24} color="#ffffff" />
+            <Ionicons name={IS_RTL ? 'chevron-forward' : 'chevron-back'} size={24} color="#ffffff" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.infoButton, { right: isGlobalLeague ? 0 : 36 }]}
+            style={[
+              styles.infoButton,
+              IS_RTL
+                ? { left: isGlobalLeague ? 0 : 36, right: undefined }
+                : { right: isGlobalLeague ? 0 : 36 },
+            ]}
             onPress={() => setInfoModalVisible(true)}
           >
             <Ionicons name="information-circle" size={22} color="#e2e8f0" />
@@ -1143,7 +1152,7 @@ export default function LeagueDetailsScreen() {
           {!isGlobalLeague && (
             <>
               <TouchableOpacity
-                style={styles.menuButton}
+                style={[styles.menuButton, IS_RTL ? { left: 0, right: undefined } : {}]}
                 onPress={() => setMenuVisible((v) => !v)}
                 disabled={leaving}
               >
@@ -1156,7 +1165,7 @@ export default function LeagueDetailsScreen() {
             <Text style={styles.title}>{leagueName}</Text>
             <View style={[styles.titleUnderline, { backgroundColor: isGlobalLeague ? '#3b82f6' : '#D4AF37' }]} />
             <Text style={styles.memberCount}>
-              {memberCount} {memberCount === 1 ? 'member' : 'members'}
+              {memberCount} {memberCount === 1 ? t('leagueDetails.member') : t('leagueDetails.members')}
             </Text>
             {!isGlobalLeague && standingsData.league_info?.invite_code && (
               <TouchableOpacity style={styles.invitePill} onPress={handleCopyInviteCode}>
@@ -1242,7 +1251,7 @@ export default function LeagueDetailsScreen() {
                     : { color: '#64748b' },
                 ]}
               >
-                Basic
+                {t('leagueDetails.basic')}
               </Text>
             </TouchableOpacity>
           )}
@@ -1272,7 +1281,7 @@ export default function LeagueDetailsScreen() {
                 scoreMode === 'multi' && { color: '#f59e0b', fontWeight: '700' },
               ]}
             >
-              Multi
+              {t('createLeague.multi')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -1300,7 +1309,7 @@ export default function LeagueDetailsScreen() {
                 scoreMode === 'classic' && { color: '#38bdf8', fontWeight: '700' },
               ]}
             >
-              Classic
+              {t('createLeague.classic')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -1381,7 +1390,7 @@ export default function LeagueDetailsScreen() {
                     <View style={[styles.tableFixedLeft, isLiveMode && styles.tableFixedLeftLive]}>
                       <View style={[styles.tableHeader, { height: 46, backgroundColor: '#334155' }]}>
                         <View style={styles.colPlayer}>
-                          <Text style={[styles.headerCell, styles.cellLeft]}>Rank</Text>
+                          <Text style={[styles.headerCell, styles.cellLeft]}>{t('leagueDetails.rank')}</Text>
                         </View>
                       </View>
                     </View>
@@ -1795,13 +1804,13 @@ export default function LeagueDetailsScreen() {
         />
       )}
       {menuVisible && !isGlobalLeague && (
-        <View style={styles.menuDropdownFloating}>
+        <View style={[styles.menuDropdownFloating, IS_RTL ? { left: 16, right: undefined } : {}]}>
           <TouchableOpacity
             style={styles.menuItem}
             onPress={handleLeaveLeague}
           >
             <Ionicons name="exit-outline" size={14} color="#ef4444" />
-            <Text style={styles.menuItemText}>Leave League</Text>
+            <Text style={styles.menuItemText}>{t('leagueDetails.leaveLeague')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -1823,7 +1832,7 @@ export default function LeagueDetailsScreen() {
         message={errorModal?.message ?? ''}
         onClose={() => setErrorModal(null)}
         onGoBack={errorModal?.goBack ? () => { setErrorModal(null); navigation.goBack(); } : undefined}
-        goBackLabel="Go Back"
+        goBackLabel={t('common.goBack')}
       />
     </SafeAreaView>
   );

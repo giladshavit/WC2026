@@ -134,7 +134,7 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
             },
           ]}
         >
-          <View style={styles.textContainer}>
+          <View style={[styles.textContainer, { direction: 'ltr' }]}>
             <Text style={styles.text} maxFontSizeMultiplier={1} numberOfLines={1}>PREDICTO</Text>
             <Animated.View
               style={{

@@ -17,18 +17,19 @@
       "bundleIdentifier": "com.predictoapp.football",
       "buildNumber": "1",
       "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
         "ITSAppUsesNonExemptEncryption": false,
         "NSUserTrackingUsageDescription": "This helps us show you relevant ads and improve your Predicto experience."
       }
     },
     "android": {
-      "newArchEnabled": true,
+      "newArchEnabled": false,
       "package": "com.predictoapp.football",
       "versionCode": 2,
       "enableProguardInReleaseBuilds": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#080c1c"
+        "backgroundColor": "#0a112d"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -86,7 +87,8 @@
         {
           "userTrackingPermission": "This helps us show you relevant ads and improve your Predicto experience."
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "extra": {
       "eas": {

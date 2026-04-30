@@ -8,18 +8,12 @@ import KnockoutMatchCard from '../../components/cards/KnockoutMatchCard';
 import BracketIcon from '../../components/icons/BracketIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTournament } from '../../contexts/TournamentContext';
+import { useTranslation } from 'react-i18next';
 import { useToast } from '../../components/toast/Toast';
 import { ErrorModal, InfoModal } from '../../components/modals/CustomModals';
+import { IS_RTL } from '../../utils/rtl';
 
 interface KnockoutScreenProps {}
-
-const STAGES = [
-  { key: 'round32', name: 'Round of 32' },
-  { key: 'round16', name: 'Round of 16' },
-  { key: 'quarter', name: 'Quarter Final' },
-  { key: 'semi', name: 'Semi Final' },
-  { key: 'final', name: 'Final' },
-];
 
 const ACTIVE_KNOCKOUT_STAGES = ['ROUND32', 'ROUND16', 'QUARTER', 'SEMI', 'FINAL'];
 
@@ -48,15 +42,23 @@ const STAGE_KEY_TO_VALUE: Record<string, number> = {
 
 const STAGE_ORDER = ['round32', 'round16', 'quarter', 'semi', 'final'];
 
+const STAGES = (t: any) => [
+  { key: 'round32', name: t('knockout.round32') },
+  { key: 'round16', name: t('knockout.round16') },
+  { key: 'quarter', name: t('knockout.quarter') },
+  { key: 'semi', name: t('knockout.semi') },
+  { key: 'final', name: t('knockout.final') },
+];
+
 const computeIsStageVisible = (
   stageKey: string,
   predsByStage: Record<string, KnockoutPrediction[]>,
   origWinners: Record<number, number>
 ): boolean => {
-  const stageIndex = STAGES.findIndex(s => s.key === stageKey);
+  const stageIndex = STAGE_ORDER.indexOf(stageKey);
   if (stageIndex === 0) return true;
   for (let i = 0; i < stageIndex; i++) {
-    const matches = predsByStage[STAGES[i].key] || [];
+    const matches = predsByStage[STAGE_ORDER[i]] || [];
     const fullyKnown = matches.filter(m =>
       m.team1_name && m.team1_name !== 'TBD' && m.team1_name.trim() !== '' &&
       m.team2_name && m.team2_name !== 'TBD' && m.team2_name.trim() !== ''
@@ -68,6 +70,7 @@ const computeIsStageVisible = (
 };
 
 export default function KnockoutScreen({}: KnockoutScreenProps) {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const { getCurrentUserId } = useAuth();
   const { currentStage } = useTournament();
@@ -188,7 +191,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
       };
       const originalMap: { [predictionId: number]: number } = {};
 
-      STAGES.forEach(({ key }) => {
+      STAGE_ORDER.forEach((key) => {
         (newPredictionsByStage[key] || []).forEach((p: KnockoutPrediction) => {
           if (p.winner_team_id) originalMap[p.id] = p.winner_team_id;
         });
@@ -197,13 +200,13 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
       // Compute which stages are newly unlocked (to scroll to the first new one)
       const prevUnlocked = new Set(unlockedStagesRef.current);
       const nextUnlocked = new Set(prevUnlocked);
-      STAGES.forEach(({ key }) => {
+      STAGE_ORDER.forEach((key) => {
         if (computeIsStageVisible(key, newPredictionsByStage, originalMap)) {
           nextUnlocked.add(key);
         }
       });
-      const newlyUnlockedStage = STAGES.find(
-        ({ key }) => nextUnlocked.has(key) && !prevUnlocked.has(key)
+      const newlyUnlockedStage = STAGE_ORDER.find(
+        (key) => nextUnlocked.has(key) && !prevUnlocked.has(key)
       );
 
       predictionsByStageRef.current = newPredictionsByStage;
@@ -223,7 +226,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
       const bracketUpdatedMatchesStr = await AsyncStorage.getItem('bracketUpdatedMatches') || '[]';
       const bracketUpdatedMatches = JSON.parse(bracketUpdatedMatchesStr);
       if (bracketUpdatedMatches.length > 0) {
-        const allMatchIds = STAGES.flatMap(s => (newPredictionsByStage[s.key] || []).map((p: KnockoutPrediction) => p.template_match_id));
+        const allMatchIds = STAGE_ORDER.flatMap(key => (newPredictionsByStage[key] || []).map((p: KnockoutPrediction) => p.template_match_id));
         const remainingUpdates = bracketUpdatedMatches.filter(
           (u: any) => !allMatchIds.includes(u.matchId)
         );
@@ -302,13 +305,13 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
       // Compute unlock BEFORE updating state
       const prevUnlocked = new Set(unlockedStagesRef.current);
       const nextUnlocked = new Set(prevUnlocked);
-      STAGES.forEach(({ key }) => {
+      STAGE_ORDER.forEach((key) => {
         if (computeIsStageVisible(key, freshPredictionsByStage, freshOriginalWinners)) {
           nextUnlocked.add(key);
         }
       });
-      const newlyUnlockedStage = STAGES.find(
-        ({ key }) => nextUnlocked.has(key) && !prevUnlocked.has(key)
+      const newlyUnlockedStage = STAGE_ORDER.find(
+        (key) => nextUnlocked.has(key) && !prevUnlocked.has(key)
       );
 
       const lastResult = results[results.length - 1];
@@ -385,9 +388,9 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   // This stage is shown as an empty (no teams) preview section
   const isNextPreviewStage = useCallback((stageKey: string): boolean => {
     if (isPostGroupStage) return false;
-    const stageIndex = STAGES.findIndex(s => s.key === stageKey);
+    const stageIndex = STAGE_ORDER.indexOf(stageKey);
     if (stageIndex === 0) return false;
-    const prevKey = STAGES[stageIndex - 1].key;
+    const prevKey = STAGE_ORDER[stageIndex - 1];
     // Show as preview if previous stage is visible (regardless of completion)
     return unlockedStages.has(prevKey) && !unlockedStages.has(stageKey);
   }, [unlockedStages, isPostGroupStage]);
@@ -562,7 +565,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
   const showHeader = true;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { direction: 'ltr' }]}>
       {showHeader && (
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -571,7 +574,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
               onPress={() => navigation.navigate('Bracket' as never)}
             >
               <BracketIcon size={16} color="#ffffff" />
-              <Text style={styles.bracketButtonText}>Bracket</Text>
+              <Text style={styles.bracketButtonText}>{t('knockout.bracket')}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.headerRight}>
@@ -596,7 +599,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
                     color={showNetScore ? '#16a34a' : '#64748b'}
                   />
                   <Text style={[styles.netScoreToggleText, showNetScore && styles.netScoreToggleTextActive]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-                    Net
+                    {t('route.net')}
                   </Text>
                 </TouchableOpacity>
                 <View style={[styles.pointsContainer, getPointsPillStyle()]}>
@@ -620,7 +623,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#16a34a']} />
         }
       >
-        {STAGES.map(({ key, name }) => renderStageSection(key, name))}
+        {STAGES(t).map(({ key, name }) => renderStageSection(key, name))}
       </ScrollView>
 
       <ErrorModal
@@ -645,7 +648,7 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
           activeOpacity={1}
           onPress={() => setShowBracketModal(false)}
         >
-          <TouchableOpacity style={styles.modalCard} activeOpacity={1} onPress={() => {}}>
+          <TouchableOpacity style={[styles.modalCard, { direction: 'ltr' }]} activeOpacity={1} onPress={() => {}}>
             <BracketIcon size={44} color="#0284c7" />
             <Text style={styles.modalTitle}>Edit via Bracket</Text>
             <Text style={styles.modalSubtitle}>
@@ -681,12 +684,10 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
           activeOpacity={1}
           onPress={() => setShowBracketCompleteModal(false)}
         >
-          <TouchableOpacity style={styles.modalCard} activeOpacity={1} onPress={() => {}}>
+          <TouchableOpacity style={[styles.modalCard, { direction: 'ltr' }]} activeOpacity={1} onPress={() => {}}>
             <BracketIcon size={48} color="#16a34a" />
-            <Text style={styles.modalTitle}>Bracket Complete!</Text>
-            <Text style={styles.modalSubtitle}>
-              Your full tournament bracket is ready. Want to view it?
-            </Text>
+            <Text style={styles.modalTitle}>{t('knockout.bracketCompleteTitle')}</Text>
+            <Text style={styles.modalSubtitle}>{t('knockout.bracketCompleteSubtitle')}</Text>
             <TouchableOpacity
               style={styles.modalButton}
               onPress={() => {
@@ -694,13 +695,13 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
                 navigation.navigate('Bracket' as never);
               }}
             >
-              <Text style={styles.modalButtonText}>View Bracket</Text>
+              <Text style={styles.modalButtonText}>{t('knockout.viewBracket')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.modalButtonSecondary}
               onPress={() => setShowBracketCompleteModal(false)}
             >
-              <Text style={styles.modalButtonSecondaryText}>Later</Text>
+              <Text style={styles.modalButtonSecondaryText}>{t('knockout.later')}</Text>
             </TouchableOpacity>
           </TouchableOpacity>
         </TouchableOpacity>
@@ -713,9 +714,11 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
           activeOpacity={1}
           onPress={() => setShowLegendModal(false)}
         >
-          <TouchableOpacity style={[styles.modalCard, { backgroundColor: '#1e293b' }]} activeOpacity={1} onPress={() => {}}>
+          <TouchableOpacity style={[styles.modalCard, { backgroundColor: '#1e293b', direction: IS_RTL ? 'rtl' : 'ltr' }]} activeOpacity={1} onPress={() => {}}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 16 }}>
-              <Text style={[styles.modalTitle, { color: '#f1f5f9', marginTop: 0 }]}>Card Legend</Text>
+              <Text style={[styles.modalTitle, { color: '#f1f5f9', marginTop: 0, textAlign: 'left' }]}>
+                {t('knockout.legendTitle')}
+              </Text>
               <TouchableOpacity onPress={() => setShowLegendModal(false)}>
                 <Ionicons name="close" size={24} color="#94a3b8" />
               </TouchableOpacity>
@@ -725,8 +728,8 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, width: '100%' }}>
               <Ionicons name="warning-outline" size={22} color="#ef4444" />
               <Text style={{ flex: 1, fontSize: 13, lineHeight: 20, color: '#cbd5e1' }}>
-                <Text style={{ color: '#ef4444', fontWeight: '700' }}>Invalid — </Text>
-                your predicted winner has been eliminated. 0 points potential
+                <Text style={{ color: '#ef4444', fontWeight: '700' }}>{t('knockout.legendInvalidLabel')}</Text>
+                {t('knockout.legendInvalidDesc')}
               </Text>
             </View>
 
@@ -734,8 +737,8 @@ export default function KnockoutScreen({}: KnockoutScreenProps) {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, width: '100%' }}>
               <Ionicons name="alert-circle-outline" size={22} color="#ca8a04" />
               <Text style={{ flex: 1, fontSize: 13, lineHeight: 20, color: '#cbd5e1' }}>
-                <Text style={{ color: '#ca8a04', fontWeight: '700' }}>Unreachable — </Text>
-                your predicted winner is expected in a different match at this stage. Partial points potential
+                <Text style={{ color: '#ca8a04', fontWeight: '700' }}>{t('knockout.legendUnreachableLabel')}</Text>
+                {t('knockout.legendUnreachableDesc')}
               </Text>
             </View>
           </TouchableOpacity>

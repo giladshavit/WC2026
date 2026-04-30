@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
+import { IS_RTL } from '../../utils/rtl';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService } from '../../services/api';
 import * as Clipboard from 'expo-clipboard';
@@ -20,6 +22,7 @@ import { useToast } from '../../components/toast/Toast';
 import { ErrorModal } from '../../components/modals/CustomModals';
 
 export default function CreateLeagueScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const { showToast } = useToast();
   const [name, setName] = useState('');
@@ -35,15 +38,15 @@ export default function CreateLeagueScreen() {
   const handleCreateLeague = async () => {
     setNameError(null);
     if (!name.trim()) {
-      setNameError('League name is required');
+      setNameError(t('createLeague.errorRequired'));
       return;
     }
     if (name.trim().length < 3) {
-      setNameError('League name must be at least 3 characters');
+      setNameError(t('createLeague.errorTooShort'));
       return;
     }
     if (name.trim().length > 100) {
-      setNameError('League name must be less than 100 characters');
+      setNameError(t('createLeague.errorTooLong'));
       return;
     }
 
@@ -70,37 +73,35 @@ export default function CreateLeagueScreen() {
   const handleCopyInviteCode = async () => {
     if (createdLeague?.invite_code) {
       await Clipboard.setStringAsync(createdLeague.invite_code);
-      showToast('Code copied!', 'success');
+      showToast(t('createLeague.codeCopied'), 'success');
     }
   };
 
   const handleShare = async () => {
     if (createdLeague?.invite_code) {
       await Share.share({
-        message: `Join my Predicto league! Code: ${createdLeague.invite_code}`,
+        message: t('createLeague.shareMessage', { code: createdLeague.invite_code }),
       });
     }
   };
 
   if (createdLeague) {
     return (
-      <>
+      <View style={{ flex: 1, direction: 'ltr' }}>
         <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
         <SafeAreaView style={styles.container} edges={['bottom']}>
         <ScrollView contentContainerStyle={styles.successContainer}>
           <View style={styles.successIconCircle}>
             <Ionicons name="checkmark-circle" size={64} color="#22c55e" />
           </View>
-          <Text style={styles.successTitle}>League Created!</Text>
+          <Text style={styles.successTitle}>{t('createLeague.successTitle')}</Text>
           <Text style={styles.successSubtitle}>
-            Your league{' '}
-            <Text style={styles.leagueNameHighlight}>{createdLeague.name}</Text>
-            {' '}has been created successfully.
+            {t('createLeague.successSubtitle', { name: createdLeague.name })}
           </Text>
 
           <View style={styles.inviteCodeSection}>
             <View style={styles.inviteCodeContainer}>
-              <Text style={styles.inviteCodeLabel}>INVITE CODE</Text>
+              <Text style={styles.inviteCodeLabel}>{t('createLeague.inviteCode')}</Text>
               <View style={styles.inviteCodeBox}>
                 <TouchableOpacity
                   style={styles.copyIconInBox}
@@ -125,7 +126,7 @@ export default function CreateLeagueScreen() {
           </View>
 
           <Text style={styles.shareText}>
-            Share this code with friends to invite them to your league!
+            {t('createLeague.shareText')}
           </Text>
 
           <View style={styles.successButtons}>
@@ -133,13 +134,13 @@ export default function CreateLeagueScreen() {
               style={styles.doneButton}
               onPress={() => {
                 (navigation as any).navigate('LeaguesMain', {
-                  showToast: 'League created successfully!',
+                  showToast: t('createLeague.leagueCreatedToast'),
                   refreshLeagues: true,
                 });
               }}
               activeOpacity={0.8}
             >
-              <Text style={styles.doneButtonText}>Done</Text>
+              <Text style={styles.doneButtonText}>{t('createLeague.done')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.shareButton}
@@ -147,17 +148,17 @@ export default function CreateLeagueScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="share-outline" size={18} color="#1d4ed8" />
-              <Text style={styles.shareButtonText}>Share</Text>
+              <Text style={styles.shareButtonText}>{t('createLeague.share')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
         </SafeAreaView>
-      </>
+      </View>
     );
   }
 
   return (
-    <>
+    <View style={{ flex: 1, direction: 'ltr' }}>
       <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
       <SafeAreaView
         style={styles.container}
@@ -187,12 +188,12 @@ export default function CreateLeagueScreen() {
               </View>
             )}
             <View style={styles.inputGroup}>
-              <Text style={styles.label} maxFontSizeMultiplier={1.2}>League Name *</Text>
+              <Text style={styles.label} maxFontSizeMultiplier={1.2}>{t('createLeague.leagueName')}</Text>
               <TextInput
                 style={[styles.input, nameFocused && styles.inputFocused]}
                 value={name}
-                onChangeText={(t) => { setName(t); setNameError(null); }}
-                placeholder="Enter league name"
+                onChangeText={(text) => { setName(text); setNameError(null); }}
+                placeholder={t('createLeague.leagueNamePlaceholder')}
                 placeholderTextColor="#64748b"
                 maxLength={100}
                 autoCapitalize="words"
@@ -211,9 +212,9 @@ export default function CreateLeagueScreen() {
             <View style={styles.inputGroup}>
               <View style={styles.tooltipLabelWrap}>
                 <View style={styles.tooltipLabelRow}>
-                  <Text style={[styles.label, { marginBottom: 0, marginLeft: 0 }]} maxFontSizeMultiplier={1.2}>Default View Mode</Text>
+                  <Text style={[styles.label, { marginBottom: 0, marginLeft: 0 }]} maxFontSizeMultiplier={1.2}>{t('createLeague.defaultViewMode')}</Text>
                   <TouchableOpacity
-                    onPress={() => setOpenTooltip((t) => (t === 'mode' ? null : 'mode'))}
+                    onPress={() => setOpenTooltip((prev) => (prev === 'mode' ? null : 'mode'))}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     activeOpacity={0.7}
                   >
@@ -223,15 +224,15 @@ export default function CreateLeagueScreen() {
                 {openTooltip === 'mode' && (
                   <View style={styles.tooltipBubble}>
                     <View>
-                      <Text style={{ color: '#38bdf8', fontWeight: '700' }}>Classic</Text>
+                      <Text style={{ color: '#38bdf8', fontWeight: '700' }}>{t('createLeague.classic')}</Text>
                       <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
-                        Matches + Bonus
+                        {t('createLeague.classicDesc')}
                       </Text>
                     </View>
                     <View style={{ marginTop: 10 }}>
-                      <Text style={{ color: '#f59e0b', fontWeight: '700' }}>Multi</Text>
+                      <Text style={{ color: '#f59e0b', fontWeight: '700' }}>{t('createLeague.multi')}</Text>
                       <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
-                        Matches + Bonus + Route
+                        {t('createLeague.multiDesc')}
                       </Text>
                     </View>
                   </View>
@@ -259,7 +260,7 @@ export default function CreateLeagueScreen() {
                     adjustsFontSizeToFit={true}
                     minimumFontScale={0.7}
                   >
-                    Multi Mode
+                    {t('createLeague.multiMode')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -280,7 +281,7 @@ export default function CreateLeagueScreen() {
                     adjustsFontSizeToFit={true}
                     minimumFontScale={0.7}
                   >
-                    Classic Mode
+                    {t('createLeague.classicMode')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -290,9 +291,9 @@ export default function CreateLeagueScreen() {
               <View style={styles.inputGroup}>
                 <View style={styles.tooltipLabelWrap}>
                   <View style={styles.tooltipLabelRow}>
-                    <Text style={[styles.label, { marginBottom: 0, marginLeft: 0 }]} maxFontSizeMultiplier={1.2}>Bonus Mode</Text>
+                    <Text style={[styles.label, { marginBottom: 0, marginLeft: 0 }]} maxFontSizeMultiplier={1.2}>{t('createLeague.bonusMode')}</Text>
                     <TouchableOpacity
-                      onPress={() => setOpenTooltip((t) => (t === 'bonus' ? null : 'bonus'))}
+                      onPress={() => setOpenTooltip((prev) => (prev === 'bonus' ? null : 'bonus'))}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       activeOpacity={0.7}
                     >
@@ -302,15 +303,15 @@ export default function CreateLeagueScreen() {
                   {openTooltip === 'bonus' && (
                     <View style={styles.tooltipBubble}>
                       <View>
-                        <Text style={{ color: '#f1f5f9', fontWeight: '700' }}>Full Bonus</Text>
+                        <Text style={{ color: '#f1f5f9', fontWeight: '700' }}>{t('createLeague.fullBonus')}</Text>
                         <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
-                          All questions (12)
+                          {t('createLeague.fullBonusDesc')}
                         </Text>
                       </View>
                       <View style={{ marginTop: 10 }}>
-                        <Text style={{ color: '#16a34a', fontWeight: '700' }}>Basic Bonus</Text>
+                        <Text style={{ color: '#16a34a', fontWeight: '700' }}>{t('createLeague.basicBonus')}</Text>
                         <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
-                          Tournament questions only (3)
+                          {t('createLeague.basicBonusDesc')}
                         </Text>
                       </View>
                     </View>
@@ -337,7 +338,7 @@ export default function CreateLeagueScreen() {
                       adjustsFontSizeToFit={true}
                       minimumFontScale={0.7}
                     >
-                      Full Bonus
+                      {t('createLeague.fullBonus')}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -357,7 +358,7 @@ export default function CreateLeagueScreen() {
                       adjustsFontSizeToFit={true}
                       minimumFontScale={0.7}
                     >
-                      Basic Bonus
+                      {t('createLeague.basicBonus')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -371,7 +372,7 @@ export default function CreateLeagueScreen() {
               activeOpacity={0.8}
             >
               <Text style={styles.createButtonText} maxFontSizeMultiplier={1.2}>
-                {loading ? 'Creating...' : 'Create League'}
+                {loading ? t('createLeague.creating') : t('createLeague.createButton')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -384,7 +385,7 @@ export default function CreateLeagueScreen() {
         onClose={() => setErrorModal(null)}
       />
       </SafeAreaView>
-    </>
+    </View>
   );
 }
 

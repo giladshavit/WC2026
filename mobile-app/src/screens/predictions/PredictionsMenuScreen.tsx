@@ -10,9 +10,11 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import BracketIcon from '../../components/icons/BracketIcon';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { MainStackParamList } from '../../navigation/MainNavigator';
+import { IS_RTL } from '../../utils/rtl';
 
 type NavigationProp = StackNavigationProp<MainStackParamList, 'PredictionsMenu'>;
 
@@ -42,28 +44,29 @@ function GridCard({ title, subtitle, icon, iconBg, onPress, multi }: GridCardPro
 }
 
 export default function PredictionsMenuScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
 
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={[styles.container, { direction: 'ltr' }]} edges={['bottom']}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.gridRow}>
+          <View style={[styles.gridRow, IS_RTL && { flexDirection: 'row-reverse' }]}>
             <GridCard
-              title="Match"
-              subtitle="Predict every score"
+              title={t('predictionsMenu.match')}
+              subtitle={t('predictionsMenu.matchSubtitle')}
               icon={<Ionicons name="football-outline" size={26} color="#38bdf8" />}
               onPress={() => navigation.navigate('MatchPredictions')}
               iconBg="rgba(56,189,248,0.12)"
             />
             <GridCard
-              title="Bonus"
-              subtitle="Special questions"
+              title={t('predictionsMenu.bonus')}
+              subtitle={t('predictionsMenu.bonusSubtitle')}
               icon={<Ionicons name="gift-outline" size={26} color="#38bdf8" />}
               onPress={() => navigation.navigate('BonusPredictions')}
               iconBg="rgba(56,189,248,0.12)"
@@ -74,23 +77,23 @@ export default function PredictionsMenuScreen() {
             <View style={styles.separatorLine} />
             <View style={styles.separatorBadge}>
               <Ionicons name="trophy-outline" size={11} color="#f59e0b" />
-              <Text style={styles.separatorText}>Multi Mode only</Text>
+              <Text style={styles.separatorText}>{t('predictionsMenu.multiModeOnly')}</Text>
             </View>
             <View style={styles.separatorLine} />
           </View>
 
-          <View style={styles.gridRow}>
+          <View style={[styles.gridRow, IS_RTL && { flexDirection: 'row-reverse' }]}>
             <GridCard
-              title="Route"
-              subtitle="Groups & bracket"
+              title={t('predictionsMenu.route')}
+              subtitle={t('predictionsMenu.routeSubtitle')}
               icon={<Ionicons name="git-branch-outline" size={26} color="#f59e0b" />}
               onPress={() => navigation.navigate('RoutePredictions')}
               iconBg="rgba(245,158,11,0.12)"
               multi
             />
             <GridCard
-              title="Full Bracket"
-              subtitle="Full tournament"
+              title={t('predictionsMenu.fullBracket')}
+              subtitle={t('predictionsMenu.fullBracketSubtitle')}
               icon={<BracketIcon size={22} color="#f59e0b" />}
               onPress={() => navigation.navigate('Bracket')}
               iconBg="rgba(245,158,11,0.12)"

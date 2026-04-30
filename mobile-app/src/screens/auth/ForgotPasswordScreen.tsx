@@ -15,6 +15,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ScrollView as RNScrollView } from 'react-native';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { IS_RTL } from '../../utils/rtl';
 
 interface ForgotPasswordScreenProps {
   onBack: () => void;
@@ -25,6 +27,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type Step = 'email' | 'reset';
 
 export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -32,6 +35,8 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
   const [successModal, setSuccessModal] = useState(false);
   const scrollViewRef = useRef<RNScrollView>(null);
@@ -45,8 +50,8 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
     const trimmed = email.trim();
     if (!trimmed || !EMAIL_REGEX.test(trimmed)) {
       setErrorModal({
-        title: 'Invalid Email',
-        message: 'Please enter a valid email address',
+        title: t('auth.invalidEmail'),
+        message: t('auth.invalidEmailMsg'),
       });
       return;
     }
@@ -55,15 +60,15 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
       await apiService.forgotPassword({ email: trimmed.toLowerCase() });
       setStep('reset');
     } catch (err) {
-      let msg = 'Something went wrong. Please try again.';
+      let msg = t('auth.genericError');
       if (err instanceof Error) {
         if (err.message.includes('Network') || err.message.includes('fetch') || err.message.includes('connect')) {
-          msg = 'Cannot connect to server. Please check your connection.';
+          msg = t('auth.cannotConnect');
         } else {
           msg = err.message;
         }
       }
-      setErrorModal({ title: 'Error', message: msg });
+      setErrorModal({ title: t('auth.errorTitle'), message: msg });
     } finally {
       setIsLoading(false);
     }
@@ -73,22 +78,22 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
     const otp = otpCode.trim();
     if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
       setErrorModal({
-        title: 'Invalid Code',
-        message: 'Please enter the 6-digit code from your email.',
+        title: t('auth.invalidCode'),
+        message: t('auth.invalidCodeMsg'),
       });
       return;
     }
     if (newPassword.length < 6 || newPassword.length > 20) {
       setErrorModal({
-        title: 'Invalid Password',
-        message: 'Password must be 6–20 characters.',
+        title: t('auth.invalidPassword'),
+        message: t('auth.passwordLength'),
       });
       return;
     }
     if (newPassword !== confirmPassword) {
       setErrorModal({
-        title: 'Mismatch',
-        message: 'Passwords do not match.',
+        title: t('auth.mismatch'),
+        message: t('auth.passwordsMismatch'),
       });
       return;
     }
@@ -108,19 +113,19 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
       const status = err && typeof err === 'object' && 'httpStatus' in err ? (err as { httpStatus?: number }).httpStatus : undefined;
       if (status === 400) {
         setErrorModal({
-          title: 'Reset Failed',
-          message: 'Invalid or expired code. Please try again.',
+          title: t('auth.resetFailed'),
+          message: t('auth.resetInvalidOrExpired'),
         });
       } else {
-        let msg = 'Something went wrong. Please try again.';
+        let msg = t('auth.genericError');
         if (err instanceof Error) {
           if (err.message.includes('Network') || err.message.includes('fetch') || err.message.includes('connect')) {
-            msg = 'Cannot connect to server. Please check your connection.';
+            msg = t('auth.cannotConnect');
           } else {
             msg = err.message;
           }
         }
-        setErrorModal({ title: 'Error', message: msg });
+        setErrorModal({ title: t('auth.errorTitle'), message: msg });
       }
     } finally {
       setIsLoading(false);
@@ -147,16 +152,18 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
         >
           {step === 'email' ? (
             <View style={styles.form}>
-              <Text style={styles.screenTitle} maxFontSizeMultiplier={1.2}>Forgot Password</Text>
-              <Text style={styles.screenSubtitle} maxFontSizeMultiplier={1.2}>
-                {`Enter your email and we'll send you a reset code`}
+              <Text style={[styles.screenTitle, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>{t('auth.forgotPasswordTitle')}</Text>
+              <Text style={[styles.screenSubtitle, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>
+                {t('auth.forgotPasswordSubtitle')}
               </Text>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Email</Text>
+                <Text style={[styles.label, { textAlign: 'left' }]}>{t('auth.email')}</Text>
+                <View style={{ position: 'relative' }}>
                 <TextInput
                   style={[
                     styles.input,
                     focusedInput === 'email' && styles.inputFocused,
+                    { textAlign: 'auto' },
                   ]}
                   value={email}
                   onChangeText={setEmail}
@@ -165,7 +172,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                     scrollToInput(0);
                   }}
                   onBlur={() => setFocusedInput(null)}
-                  placeholder="Enter your email"
+                  placeholder={IS_RTL ? '' : t('auth.enterEmail')}
                   placeholderTextColor="#64748b"
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -174,114 +181,156 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                   maxLength={100}
                   maxFontSizeMultiplier={1.2}
                 />
+                </View>
               </View>
               <TouchableOpacity
                 style={[styles.button, isLoading && styles.buttonDisabled]}
                 onPress={handleSendCode}
                 disabled={isLoading}
               >
-                <Text style={styles.buttonText}>
-                  {isLoading ? 'Sending...' : 'Send Reset Code'}
+                <Text style={[styles.buttonText, { textAlign: 'left' }]}>
+                  {isLoading ? t('auth.sending') : t('auth.sendResetCode')}
                 </Text>
               </TouchableOpacity>
-              <View style={styles.switchContainer}>
-                <Text style={styles.switchText} maxFontSizeMultiplier={1.2}>Remember your password? </Text>
+              <View style={[styles.switchContainer, { flexDirection: IS_RTL ? 'row-reverse' : 'row' }]}>
+                <Text style={[styles.switchText, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>{t('auth.rememberPassword')} </Text>
                 <TouchableOpacity onPress={onBack} disabled={isLoading}>
-                  <Text style={styles.switchLink} maxFontSizeMultiplier={1.2}>Log in here</Text>
+                  <Text style={[styles.switchLink, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>{t('auth.logInHere')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
             <View style={styles.form}>
-              <Text style={styles.screenTitle} maxFontSizeMultiplier={1.2}>Enter Reset Code</Text>
-              <Text style={styles.screenSubtitle} maxFontSizeMultiplier={1.2}>
-                Check your email for the 6-digit code
+              <Text style={[styles.screenTitle, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>{t('auth.enterResetCode')}</Text>
+              <Text style={[styles.screenSubtitle, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>
+                {t('auth.checkEmailCode')}
               </Text>
-              <Text style={styles.emailHint}>{email.trim().toLowerCase()}</Text>
+              <Text style={[styles.emailHint, { textAlign: 'left' }]}>{email.trim().toLowerCase()}</Text>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Reset Code</Text>
+                <Text style={[styles.label, { textAlign: 'left' }]}>{t('auth.resetCode')}</Text>
+                <View style={{ position: 'relative' }}>
                 <TextInput
                   style={[
                     styles.input,
                     styles.otpInput,
                     focusedInput === 'otp' && styles.inputFocused,
                     otpCode.length > 0 && { letterSpacing: 8 },
+                    { textAlign: 'auto' },
                   ]}
                   value={otpCode}
-                  onChangeText={(t) => setOtpCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
+                  onChangeText={(text) => setOtpCode(text.replace(/[^0-9]/g, '').slice(0, 6))}
                   onFocus={() => {
                     setFocusedInput('otp');
                     scrollToInput(0);
                   }}
                   onBlur={() => setFocusedInput(null)}
-                  placeholder="000000"
+                  placeholder={IS_RTL ? '' : '000000'}
                   placeholderTextColor="#64748b"
                   keyboardType="numeric"
                   maxLength={6}
                   maxFontSizeMultiplier={1.2}
                 />
+                </View>
               </View>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>New Password</Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    focusedInput === 'newPass' && styles.inputFocused,
-                  ]}
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  onFocus={() => {
-                    setFocusedInput('newPass');
-                    scrollToInput(120);
-                  }}
-                  onBlur={() => setFocusedInput(null)}
-                  placeholder="Enter new password"
-                  placeholderTextColor="#64748b"
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!isLoading}
-                  maxLength={20}
-                  maxFontSizeMultiplier={1.2}
-                />
+                <Text style={[styles.label, { textAlign: 'left' }]}>{t('auth.newPassword')}</Text>
+                <View style={{ position: 'relative' }}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedInput === 'newPass' && styles.inputFocused,
+                      { textAlign: 'auto', paddingLeft: 44 },
+                    ]}
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    onFocus={() => {
+                      setFocusedInput('newPass');
+                      scrollToInput(120);
+                    }}
+                    onBlur={() => setFocusedInput(null)}
+                    placeholder={IS_RTL ? '' : t('auth.enterNewPassword')}
+                    placeholderTextColor="#64748b"
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                    maxLength={20}
+                    maxFontSizeMultiplier={1.2}
+                  />
+                  <TouchableOpacity
+                    style={{
+                      position: 'absolute',
+                      left: 12,
+                      top: 0,
+                      bottom: 0,
+                      justifyContent: 'center',
+                    }}
+                    onPress={() => setShowPassword((prev) => !prev)}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color="#64748b"
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Confirm New Password</Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    focusedInput === 'confirmPass' && styles.inputFocused,
-                  ]}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  onFocus={() => {
-                    setFocusedInput('confirmPass');
-                    scrollToInput(200);
-                  }}
-                  onBlur={() => setFocusedInput(null)}
-                  placeholder="Confirm new password"
-                  placeholderTextColor="#64748b"
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!isLoading}
-                  maxLength={20}
-                  maxFontSizeMultiplier={1.2}
-                />
+                <Text style={[styles.label, { textAlign: 'left' }]}>{t('auth.confirmPassword')}</Text>
+                <View style={{ position: 'relative' }}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedInput === 'confirmPass' && styles.inputFocused,
+                      { textAlign: 'auto', paddingLeft: 44 },
+                    ]}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    onFocus={() => {
+                      setFocusedInput('confirmPass');
+                      scrollToInput(200);
+                    }}
+                    onBlur={() => setFocusedInput(null)}
+                    placeholder={IS_RTL ? '' : t('auth.enterConfirmPassword')}
+                    placeholderTextColor="#64748b"
+                    secureTextEntry={!showConfirmPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                    maxLength={20}
+                    maxFontSizeMultiplier={1.2}
+                  />
+                  <TouchableOpacity
+                    style={{
+                      position: 'absolute',
+                      left: 12,
+                      top: 0,
+                      bottom: 0,
+                      justifyContent: 'center',
+                    }}
+                    onPress={() => setShowConfirmPassword((prev) => !prev)}
+                  >
+                    <Ionicons
+                      name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color="#64748b"
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
               <TouchableOpacity
                 style={[styles.button, isLoading && styles.buttonDisabled]}
                 onPress={handleResetPassword}
                 disabled={isLoading}
               >
-                <Text style={styles.buttonText}>
-                  {isLoading ? 'Resetting...' : 'Reset Password'}
+                <Text style={[styles.buttonText, { textAlign: 'left' }]}>
+                  {isLoading ? t('auth.resetting') : t('auth.resetPassword')}
                 </Text>
               </TouchableOpacity>
-              <View style={styles.switchContainer}>
-                <Text style={styles.switchText} maxFontSizeMultiplier={1.2}>Want to try again? </Text>
+              <View style={[styles.switchContainer, { flexDirection: IS_RTL ? 'row-reverse' : 'row' }]}>
+                <Text style={[styles.switchText, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>{t('auth.wantTryAgain')} </Text>
                 <TouchableOpacity onPress={() => setStep('email')} disabled={isLoading}>
-                  <Text style={styles.switchLink} maxFontSizeMultiplier={1.2}>Go back</Text>
+                  <Text style={[styles.switchLink, { textAlign: 'left' }]} maxFontSizeMultiplier={1.2}>{t('auth.goBack')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -296,10 +345,10 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
               <View style={styles.modalIconWrapper}>
                 <Ionicons name="alert-circle" size={36} color="#ef4444" />
               </View>
-              <Text style={styles.modalTitle}>{errorModal?.title ?? 'Error'}</Text>
+              <Text style={styles.modalTitle}>{errorModal?.title ?? t('auth.errorTitle')}</Text>
               <Text style={styles.modalMessage}>{errorModal?.message ?? ''}</Text>
               <TouchableOpacity style={styles.modalButton} onPress={() => setErrorModal(null)}>
-                <Text style={styles.modalButtonText}>OK</Text>
+                <Text style={styles.modalButtonText}>{t('common.ok')}</Text>
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -313,9 +362,9 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
               <View style={styles.successIconWrapper}>
                 <Ionicons name="checkmark-circle" size={36} color="#16a34a" />
               </View>
-              <Text style={styles.modalTitle}>Password Reset!</Text>
+              <Text style={styles.modalTitle}>{t('auth.passwordResetExclamation')}</Text>
               <Text style={styles.modalMessage}>
-                Your password has been updated. Please log in.
+                {t('auth.passwordUpdatedLoginPrompt')}
               </Text>
               <TouchableOpacity
                 style={styles.modalButton}
@@ -324,7 +373,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                   onBack();
                 }}
               >
-                <Text style={styles.modalButtonText}>Go to Login</Text>
+                <Text style={styles.modalButtonText}>{t('auth.goToLogin')}</Text>
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -375,6 +424,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: 'rgba(30, 41, 59, 0.8)',
     color: '#ffffff',
+    textAlign: 'auto',
   },
   otpInput: {
     fontSize: 28,

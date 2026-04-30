@@ -181,7 +181,7 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified,
     const finalGlowColor = isInvalid ? '#ef4444' : '#f59e0b';
 
     return (
-      <View style={[styles.finalWrapper, isLocked && { opacity: 0.45 }]}>
+      <View style={[styles.finalWrapper, isLocked && { opacity: 0.45 }, { direction: 'ltr' }]}>
         {/* Winner or placeholder ABOVE the card */}
         {match.winner_team_id ? (
           <View style={[styles.winnerBanner, { height: 110 * sf }]}>
@@ -248,7 +248,7 @@ export default function BracketMatchCard({ match, onPress, onLayout, isModified,
   }
 
   return (
-    <View style={[styles.wrapper, isLocked && { opacity: 0.45 }]}>
+    <View style={[styles.wrapper, isLocked && { opacity: 0.45 }, { direction: 'ltr' }]}>
       <View style={[
         styles.shadowWrapper,
         {

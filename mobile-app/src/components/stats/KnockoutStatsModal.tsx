@@ -183,7 +183,7 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity style={styles.modalContent} activeOpacity={1} onPress={() => {}}>
+        <TouchableOpacity style={[styles.modalContent, { direction: 'ltr' }]} activeOpacity={1} onPress={() => {}}>
           <View style={styles.modalHeader}>
             <Text
               style={[styles.modalTitle, { paddingRight: 28 }]}

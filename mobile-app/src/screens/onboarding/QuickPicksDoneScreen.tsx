@@ -10,6 +10,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MainStackParamList } from '../../navigation/MainNavigator';
 
@@ -17,6 +18,7 @@ type NavProp = StackNavigationProp<MainStackParamList>;
 const BG = '#0f172a';
 
 export default function QuickPicksDoneScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const insets = useSafeAreaInsets();
 
@@ -55,25 +57,25 @@ export default function QuickPicksDoneScreen() {
           adjustsFontSizeToFit
           numberOfLines={1}
         >
-          Basic picks saved!
+          {t('onboarding.quickpicks_done_title')}
         </Text>
         <Text
           style={styles.subtitle}
           maxFontSizeMultiplier={1.2}
         >
-          Your tournament winner, top scorer and total goals picks are in.{'\n'}Now go predict the matches!
+          {t('onboarding.quickpicks_done_subtitle')}
         </Text>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <TouchableOpacity style={styles.primaryBtn} onPress={goToMatches} activeOpacity={0.85}>
           <Text style={styles.primaryBtnText} maxFontSizeMultiplier={1.2}>
-            Go predict matches!
+            {t('onboarding.quickpicks_done_goMatches')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.ghostBtn} onPress={goHome} activeOpacity={0.85}>
           <Text style={styles.ghostBtnText} maxFontSizeMultiplier={1.2}>
-            Go to home
+            {t('onboarding.quickpicks_done_goHome')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -82,7 +84,7 @@ export default function QuickPicksDoneScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
+  root: { flex: 1, backgroundColor: BG, direction: 'ltr' },
   content: {
     flex: 1,
     justifyContent: 'center',

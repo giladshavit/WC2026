@@ -16,6 +16,8 @@ import * as Clipboard from 'expo-clipboard';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
+import { IS_RTL } from '../../utils/rtl';
 import { apiService, League } from '../../services/api';
 import { useToast } from '../../components/toast/Toast';
 import { ErrorModal } from '../../components/modals/CustomModals';
@@ -30,6 +32,7 @@ function getLeagueAvatarColor(league: League): string {
 }
 
 export default function LeaguesScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const route = useRoute();
   const { showToast } = useToast();
@@ -175,7 +178,7 @@ export default function LeaguesScreen() {
       >
         <Ionicons name="globe-outline" size={32} color="#ffffff" style={styles.globalTrophy} />
         <View style={styles.globalLeagueContent}>
-          <Text style={styles.globalLeagueTitle} maxFontSizeMultiplier={1.2}>Global League</Text>
+          <Text style={styles.globalLeagueTitle} maxFontSizeMultiplier={1.2}>{t('leagues.globalLeague')}</Text>
         </View>
         <Ionicons name="chevron-forward" size={24} color="#ffffff" />
       </LinearGradient>
@@ -187,10 +190,8 @@ export default function LeaguesScreen() {
       <View style={styles.emptyStateIconCircle}>
         <Ionicons name="people-outline" size={60} color="#64748b" />
       </View>
-      <Text style={styles.emptyTitle}>No private leagues yet</Text>
-      <Text style={styles.emptySubtitle}>
-        Create your own or join friends with an invite code
-      </Text>
+      <Text style={styles.emptyTitle}>{t('leagues.emptyTitle')}</Text>
+      <Text style={styles.emptySubtitle}>{t('leagues.emptySubtitle')}</Text>
     </View>
   );
 
@@ -208,7 +209,7 @@ export default function LeaguesScreen() {
           adjustsFontSizeToFit={true}
           minimumFontScale={0.75}
         >
-          + Create League
+          {t('leagues.createLeague')}
         </Text>
       </TouchableOpacity>
       <TouchableOpacity
@@ -223,7 +224,7 @@ export default function LeaguesScreen() {
           adjustsFontSizeToFit={true}
           minimumFontScale={0.75}
         >
-          Enter Code
+          {t('leagues.enterCode')}
         </Text>
       </TouchableOpacity>
     </View>
@@ -285,18 +286,37 @@ export default function LeaguesScreen() {
   const renderHeader = () => (
     <View style={styles.headerWrapper}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={[styles.backButton, { zIndex: 999 }]}
-          onPress={() => {
-            const parent = navigation.getParent();
-            parent?.goBack();
-          }}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <Ionicons name="chevron-back" size={24} color="#ffffff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Leagues</Text>
-        <View style={styles.headerSpacer} />
+        {IS_RTL ? (
+          <>
+            <View style={styles.headerSpacer} />
+            <Text style={styles.headerTitle}>{t('leagues.title')}</Text>
+            <TouchableOpacity
+              style={[styles.backButton, { zIndex: 999 }]}
+              onPress={() => {
+                const parent = navigation.getParent();
+                parent?.goBack();
+              }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Ionicons name="chevron-forward" size={24} color="#ffffff" />
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={[styles.backButton, { zIndex: 999 }]}
+              onPress={() => {
+                const parent = navigation.getParent();
+                parent?.goBack();
+              }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Ionicons name="chevron-back" size={24} color="#ffffff" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{t('leagues.title')}</Text>
+            <View style={styles.headerSpacer} />
+          </>
+        )}
       </View>
       <View style={styles.waveSvgContainer}>
         <Svg
@@ -316,7 +336,7 @@ export default function LeaguesScreen() {
 
   if (loading) {
     return (
-      <View style={styles.statusBarFill}>
+      <View style={[styles.statusBarFill, { direction: 'ltr' }]}>
         <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
         <SafeAreaView style={styles.container} edges={['top']}>
           {renderHeader()}
@@ -331,7 +351,7 @@ export default function LeaguesScreen() {
   }
 
   return (
-    <View style={styles.statusBarFill}>
+    <View style={[styles.statusBarFill, { direction: 'ltr' }]}>
       <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
       <SafeAreaView style={styles.container} edges={['top']}>
         {renderHeader()}

@@ -1,5 +1,9 @@
 import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
+import { Platform } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { IS_RTL } from '../utils/rtl';
 import HomeScreen from '../screens/HomeScreen';
 import MyProfileScreen from '../screens/profile/MyProfileScreen';
 import MatchesScreen from '../screens/predictions/MatchesScreen';
@@ -24,6 +28,7 @@ export type { MainStackParamList };
 const Stack = createStackNavigator<MainStackParamList>();
 
 export default function MainNavigator() {
+  const { t } = useTranslation();
   return (
     <Stack.Navigator
       screenOptions={{
@@ -39,6 +44,14 @@ export default function MainNavigator() {
           fontSize: 20,
         },
         headerBackButtonDisplayMode: 'minimal',
+        headerBackImage: ({ tintColor }) => (
+          <Ionicons
+            name="chevron-back"
+            size={Platform.OS === 'ios' ? 28 : 26}
+            color={tintColor ?? '#fff'}
+            style={IS_RTL ? { transform: [{ scaleX: -1 }] } : undefined}
+          />
+        ),
       }}
     >
       <Stack.Screen
@@ -52,7 +65,7 @@ export default function MainNavigator() {
         name="Profile"
         component={MyProfileScreen}
         options={{
-          title: 'Profile',
+          title: t('profile.title'),
           headerStyle: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0, borderBottomWidth: 0 },
         }}
       />
@@ -60,7 +73,7 @@ export default function MainNavigator() {
         name="PredictionsMenu"
         component={PredictionsMenuScreen}
         options={{
-          title: 'My Predictions',
+          title: t('predictionsMenu.title'),
           headerStyle: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0, borderBottomWidth: 0 },
         }}
       />
@@ -68,7 +81,7 @@ export default function MainNavigator() {
         name="MatchPredictions"
         component={MatchesScreen}
         options={{
-          title: 'Match Predictions',
+          title: t('matches.title'),
           headerStyle: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0, borderBottomWidth: 0 },
           headerTintColor: '#e2e8f0',
         }}
@@ -77,7 +90,7 @@ export default function MainNavigator() {
         name="RoutePredictions"
         component={PredictionsTopTabs}
         options={{
-          title: 'Route Predictions',
+          title: t('route.title'),
           headerStyle: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0, borderBottomWidth: 0 },
           headerTintColor: '#e2e8f0',
         }}
@@ -112,6 +125,7 @@ export default function MainNavigator() {
         options={{
           title: 'Statistics',
           headerStyle: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0, borderBottomWidth: 0 },
+          headerTintColor: '#e2e8f0',
         }}
       />
       <Stack.Screen
@@ -127,17 +141,29 @@ export default function MainNavigator() {
       <Stack.Screen
         name="QuickPicks"
         component={QuickPicksScreen}
-        options={{ headerShown: false }}
+        options={{
+          headerShown: false,
+          gestureDirection: IS_RTL ? 'horizontal-inverted' : 'horizontal',
+          cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+        }}
       />
       <Stack.Screen
         name="QuickPicksT3"
         component={QuickPicksT3Screen}
-        options={{ headerShown: false }}
+        options={{
+          headerShown: false,
+          gestureDirection: IS_RTL ? 'horizontal-inverted' : 'horizontal',
+          cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+        }}
       />
       <Stack.Screen
         name="QuickPicksT1"
         component={QuickPicksT1Screen}
-        options={{ headerShown: false }}
+        options={{
+          headerShown: false,
+          gestureDirection: IS_RTL ? 'horizontal-inverted' : 'horizontal',
+          cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+        }}
       />
       <Stack.Screen
         name="QuickPicksDone"

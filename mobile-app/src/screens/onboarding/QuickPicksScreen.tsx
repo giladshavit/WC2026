@@ -16,6 +16,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+import { useTranslation } from 'react-i18next';
+import { IS_RTL } from '../../utils/rtl';
 import { useAuth } from '../../contexts/AuthContext';
 import type { MainStackParamList } from '../../navigation/MainStackParamList';
 import { apiService, GroupPrediction } from '../../services/api';
@@ -26,6 +28,7 @@ const BG = '#0f172a';
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function QuickPicksScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const insets = useSafeAreaInsets();
   const { getCurrentUserId } = useAuth();
@@ -192,20 +195,25 @@ export default function QuickPicksScreen() {
       </View>
 
       <View style={styles.questionBlock}>
-        <Text style={styles.questionTitle}>Who will win the tournament?</Text>
+        <Text style={styles.questionTitle}>
+          {t('onboarding.quickpicks_champion_question')}
+        </Text>
       </View>
 
       <View style={styles.dots}>
-        {[0, 1, 2].map((i) => (
-          <View key={i} style={[styles.dot, i === 0 && styles.dotActive]} />
-        ))}
+        {[0, 1, 2].map((i) => {
+          const dotIndex = IS_RTL ? 2 - i : i;
+          return (
+            <View key={i} style={[styles.dot, dotIndex === 0 && styles.dotActive]} />
+          );
+        })}
       </View>
 
       <View style={styles.body}>{renderT2Grid()}</View>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <TouchableOpacity onPress={onSkipForNow} style={styles.skipBtn} hitSlop={{ top: 8, bottom: 8 }}>
-          <Text style={styles.skipText}>Skip for now</Text>
+          <Text style={styles.skipText}>{t('onboarding.quickpicks_skip')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -216,6 +224,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: BG,
+    direction: 'ltr',
   },
   centered: {
     justifyContent: 'center',
@@ -238,7 +247,7 @@ const styles = StyleSheet.create({
   questionBlock: {
     paddingHorizontal: 24,
     paddingTop: 8,
-    paddingBottom: 4,
+    paddingBottom: 16,
   },
   questionTitle: {
     fontSize: 20,
@@ -250,6 +259,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 8,
+    marginTop: 8,
     marginBottom: 12,
   },
   dot: {

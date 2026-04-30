@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 interface ConfirmSaveModalProps {
@@ -38,22 +39,23 @@ export default function ConfirmSaveModal({
   onConfirm,
   freeChangesInfo,
 }: ConfirmSaveModalProps) {
+  const { t } = useTranslation();
   if (freeChangesInfo) {
     const { changesCount, freeRemaining, paidChanges, actualPenalty, freeAvailable, freeUsed } = freeChangesInfo;
 
     // Case 4: No changes — keep existing behavior
     if (changesCount === 0) {
-      const messageLines: string[] = ['Changes: 0'];
-      if (freeAvailable > 0) messageLines.push(`Free: ${freeRemaining}`);
-      messageLines.push('Free!');
+      const messageLines: string[] = [t('modals.changesZero')];
+      if (freeAvailable > 0) messageLines.push(t('modals.freeRemainingShort', { remaining: freeRemaining }));
+      messageLines.push(t('modals.freeExclaim'));
       return (
         <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
           <Pressable style={styles.overlay} onPress={onClose}>
-            <Pressable style={styles.content} onPress={() => {}}>
+            <Pressable style={[styles.content, { direction: 'ltr' }]} onPress={() => {}}>
               <View style={styles.iconContainer}>
                 <Ionicons name="save-outline" size={32} color="#15803d" />
               </View>
-              <Text style={styles.title}>Save Changes</Text>
+              <Text style={styles.title}>{t('modals.saveChanges')}</Text>
               {messageLines.map((line, i) => (
                 <Text key={i} style={[styles.subtitle, i === messageLines.length - 1 && { color: '#16a34a', fontWeight: '700' }]}>
                   {line}
@@ -61,10 +63,10 @@ export default function ConfirmSaveModal({
               ))}
               <Pressable style={[styles.primaryButton, { backgroundColor: '#15803d' }]} onPress={onConfirm}>
                 <Ionicons name="save-outline" size={20} color="#ffffff" />
-                <Text style={styles.primaryButtonText}>Save free</Text>
+                <Text style={styles.primaryButtonText}>{t('modals.saveFree')}</Text>
               </Pressable>
               <Pressable style={styles.secondaryButton} onPress={onClose}>
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
+                <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
               </Pressable>
             </Pressable>
           </Pressable>
@@ -77,26 +79,26 @@ export default function ConfirmSaveModal({
       return (
         <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
           <Pressable style={styles.overlay} onPress={onClose}>
-            <Pressable style={styles.content} onPress={() => {}}>
+            <Pressable style={[styles.content, { direction: 'ltr' }]} onPress={() => {}}>
               <View style={[styles.iconContainer, { backgroundColor: '#dcfce7' }]}>
                 <Ionicons name="gift-outline" size={32} color="#4ade80" />
               </View>
-              <Text style={styles.title}>Confirm Save</Text>
+              <Text style={styles.title}>{t('modals.confirmSave')}</Text>
               <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginBottom: 20 }}>
                 <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 12, paddingVertical: 12, borderWidth: 1.5, borderColor: '#fca5a5' }}>
                   <Text style={{ fontSize: 22, fontWeight: '700', color: '#dc2626' }}>{freeUsed}</Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>changes made</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>{t('modals.changesMade')}</Text>
                 </View>
                 <View style={{ flex: 1, alignItems: 'center', backgroundColor: 'rgba(74,222,128,0.12)', borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: '#4ade80' }}>
                   <Text style={{ fontSize: 22, fontWeight: '700', color: '#16a34a' }}>{freeRemaining}</Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>free remaining</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>{t('modals.freeRemaining')}</Text>
                 </View>
               </View>
               <Pressable style={[styles.primaryButton, { backgroundColor: '#15803d' }]} onPress={onConfirm}>
-                <Text style={styles.primaryButtonText}>Save free</Text>
+                <Text style={styles.primaryButtonText}>{t('modals.saveFree')}</Text>
               </Pressable>
               <Pressable style={styles.secondaryButton} onPress={onClose}>
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
+                <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
               </Pressable>
             </Pressable>
           </Pressable>
@@ -109,32 +111,32 @@ export default function ConfirmSaveModal({
       return (
         <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
           <Pressable style={styles.overlay} onPress={onClose}>
-            <Pressable style={styles.content} onPress={() => {}}>
+            <Pressable style={[styles.content, { direction: 'ltr' }]} onPress={() => {}}>
               <View style={[styles.iconContainer, { backgroundColor: '#dcfce7' }]}>
                 <Ionicons name="gift-outline" size={32} color="#4ade80" />
               </View>
-              <Text style={styles.title}>Confirm Save</Text>
+              <Text style={styles.title}>{t('modals.confirmSave')}</Text>
               <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginBottom: 20 }}>
                 <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 12, paddingVertical: 12, borderWidth: 1.5, borderColor: '#fca5a5' }}>
                   <Text style={{ fontSize: 22, fontWeight: '700', color: '#dc2626' }}>{changesCount}</Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>changes made</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>{t('modals.changesMade')}</Text>
                 </View>
                 <View style={{ flex: 1, alignItems: 'center', backgroundColor: 'rgba(74,222,128,0.12)', borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: '#4ade80' }}>
                   <Text style={{ fontSize: 22, fontWeight: '700', color: '#16a34a' }}>{freeRemaining}</Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>free remaining</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>{t('modals.freeRemaining')}</Text>
                 </View>
               </View>
-              <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>FINE</Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>{t('modals.fine')}</Text>
               <View style={{ width: '85%', alignSelf: 'center', alignItems: 'center', backgroundColor: '#f0fdf4', borderRadius: 16, paddingVertical: 14, marginBottom: 20, borderWidth: 1.5, borderColor: '#86efac' }}>
                 <Text style={{ fontSize: 36, fontWeight: '900', color: '#16a34a', letterSpacing: -1 }}>
-                  Free
+                  {t('modals.free')}
                 </Text>
               </View>
               <Pressable style={[styles.primaryButton, { backgroundColor: '#15803d' }]} onPress={onConfirm}>
-                <Text style={styles.primaryButtonText}>Save free</Text>
+                <Text style={styles.primaryButtonText}>{t('modals.saveFree')}</Text>
               </Pressable>
               <Pressable style={styles.secondaryButton} onPress={onClose}>
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
+                <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
               </Pressable>
             </Pressable>
           </Pressable>
@@ -147,31 +149,31 @@ export default function ConfirmSaveModal({
       return (
         <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
           <Pressable style={styles.overlay} onPress={onClose}>
-            <Pressable style={styles.content} onPress={() => {}}>
-              <Text style={styles.title}>Confirm Save</Text>
+            <Pressable style={[styles.content, { direction: 'ltr' }]} onPress={() => {}}>
+              <Text style={styles.title}>{t('modals.confirmSave')}</Text>
               <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginBottom: 16 }}>
                 <View style={{ flex: 1, alignItems: 'center', backgroundColor: 'rgba(74,222,128,0.12)', borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: '#4ade80' }}>
                   <Text style={{ fontSize: 22, fontWeight: '700', color: '#16a34a' }}>{freeUsed}</Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>free used</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>{t('modals.freeUsed')}</Text>
                 </View>
                 <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 12, paddingVertical: 12, borderWidth: 1.5, borderColor: '#fca5a5' }}>
                   <Text style={{ fontSize: 28, fontWeight: '900', color: '#dc2626' }}>{paidChanges}</Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>paid changes</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1}>{t('modals.paidChanges')}</Text>
                 </View>
               </View>
-              <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>FINE</Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>{t('modals.fine')}</Text>
               <View style={{ width: '85%', alignSelf: 'center', alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 16, paddingVertical: 14, marginBottom: 20, borderWidth: 1.5, borderColor: '#fca5a5' }}>
                 <Text style={{ fontSize: 36, fontWeight: '900', color: '#dc2626', letterSpacing: -1 }}>
-                  {actualPenalty === 0 ? 'Free' : `-${actualPenalty} pts`}
+                  {actualPenalty === 0 ? t('modals.free') : `-${actualPenalty} pts`}
                 </Text>
               </View>
               <Pressable style={[styles.primaryButton, { backgroundColor: '#dc2626' }]} onPress={onConfirm}>
                 <Text style={styles.primaryButtonText}>
-                  {actualPenalty === 0 ? 'Save free' : `Save (-${actualPenalty} pts)`}
+                  {actualPenalty === 0 ? t('modals.saveFree') : t('modals.saveWithFine', { pts: actualPenalty })}
                 </Text>
               </Pressable>
               <Pressable style={styles.secondaryButton} onPress={onClose}>
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
+                <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
               </Pressable>
             </Pressable>
           </Pressable>
@@ -183,28 +185,28 @@ export default function ConfirmSaveModal({
     return (
       <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
         <Pressable style={styles.overlay} onPress={onClose}>
-          <Pressable style={styles.content} onPress={() => {}}>
-            <Text style={styles.title}>Confirm Save</Text>
+          <Pressable style={[styles.content, { direction: 'ltr' }]} onPress={() => {}}>
+            <Text style={styles.title}>{t('modals.confirmSave')}</Text>
             <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>
-              FINE
+              {t('modals.fine')}
             </Text>
             <View style={{ width: '85%', alignSelf: 'center', alignItems: 'center', backgroundColor: actualPenalty === 0 ? '#f0fdf4' : '#fef2f2', borderRadius: 16, paddingVertical: 14, marginBottom: 8, borderWidth: 1.5, borderColor: actualPenalty === 0 ? '#86efac' : '#fca5a5' }}>
               <Text style={{ fontSize: 36, fontWeight: '900', color: actualPenalty === 0 ? '#16a34a' : '#dc2626', letterSpacing: -1 }}>
-                {actualPenalty === 0 ? 'Free' : `-${actualPenalty} pts`}
+                {actualPenalty === 0 ? t('modals.free') : `-${actualPenalty} pts`}
               </Text>
             </View>
             <Text style={{ fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 20 }}>
               {actualPenalty === 0
-                ? `${changesCount} changes — no fine`
-                : `${changesCount} changes will cost ${actualPenalty} pts`}
+                ? t('modals.changesNoFine', { count: changesCount })
+                : t('modals.changesCost', { count: changesCount, pts: actualPenalty })}
             </Text>
             <Pressable style={[styles.primaryButton, { backgroundColor: actualPenalty === 0 ? '#15803d' : '#dc2626' }]} onPress={onConfirm}>
               <Text style={styles.primaryButtonText}>
-                {actualPenalty === 0 ? 'Save free' : `Save (-${actualPenalty} pts)`}
+                {actualPenalty === 0 ? t('modals.saveFree') : t('modals.saveWithFine', { pts: actualPenalty })}
               </Text>
             </Pressable>
             <Pressable style={styles.secondaryButton} onPress={onClose}>
-              <Text style={styles.secondaryButtonText}>Cancel</Text>
+              <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -220,40 +222,36 @@ export default function ConfirmSaveModal({
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.content} onPress={() => {}}>
+        <Pressable style={[styles.content, { direction: 'ltr' }]} onPress={() => {}}>
           {/* Icon */}
           <View style={styles.iconContainer}>
             <Ionicons name="save-outline" size={32} color="#15803d" />
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Save Changes</Text>
+          <Text style={styles.title}>{t('modals.saveChanges')}</Text>
 
           {/* Subtitle */}
           <Text style={styles.subtitle}>
-            You're about to commit{' '}
-            <Text style={styles.boldText}>
-              {changesCount} change{changesCount !== 1 ? 's' : ''}
-            </Text>
-            {' '}to your bracket.
+            {t('modals.aboutToCommit', { count: changesCount })}
           </Text>
 
           {/* Fine display */}
           {finePoints > 0 ? (
             <>
-              <Text style={styles.fineMessage}>Saving will apply a fine of</Text>
+              <Text style={styles.fineMessage}>{t('modals.savingFineApply')}</Text>
               <View style={styles.fineBadge}>
                 <Text style={styles.fineNumber}>{finePoints}</Text>
                 <Text style={styles.fineLabel}>
-                  {finePoints === 1 ? 'point' : 'points'}
+                  {finePoints === 1 ? t('modals.finePoint') : t('modals.finePoints')}
                 </Text>
               </View>
-              <Text style={styles.fineSubMessage}>Are you sure you want to save?</Text>
+              <Text style={styles.fineSubMessage}>{t('modals.sureWantSave')}</Text>
             </>
           ) : (
             <View style={styles.freeBadge}>
               <Ionicons name="checkmark-circle-outline" size={16} color="#15803d" style={{ marginRight: 6 }} />
-              <Text style={styles.freeText}>No fine points for this save</Text>
+              <Text style={styles.freeText}>{t('modals.noFine')}</Text>
             </View>
           )}
 
@@ -263,7 +261,7 @@ export default function ConfirmSaveModal({
             onPress={onConfirm}
           >
             <Ionicons name="save-outline" size={20} color="#ffffff" />
-            <Text style={styles.primaryButtonText}>Save & Commit</Text>
+            <Text style={styles.primaryButtonText}>{t('modals.saveCommit')}</Text>
           </Pressable>
 
           {/* Secondary button */}
@@ -271,7 +269,7 @@ export default function ConfirmSaveModal({
             style={styles.secondaryButton}
             onPress={onClose}
           >
-            <Text style={styles.secondaryButtonText}>Cancel</Text>
+            <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
           </Pressable>
         </Pressable>
       </Pressable>

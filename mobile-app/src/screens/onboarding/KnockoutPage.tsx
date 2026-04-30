@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 /** Same as GroupsPage / ThirdPlacePage */
@@ -56,6 +57,7 @@ function emptyWinners(): Record<number, Winner | null> {
 type KnockoutPageProps = { isActive: boolean };
 
 export default function KnockoutPage({ isActive }: KnockoutPageProps) {
+  const { t } = useTranslation();
   const mountedRef = React.useRef(true);
 
   const tapScales = React.useRef(DEMO_MATCHES.map(() => new Animated.Value(1))).current;
@@ -200,10 +202,12 @@ export default function KnockoutPage({ isActive }: KnockoutPageProps) {
     <View style={styles.root}>
       <View style={styles.staticHeader}>
         <View style={styles.modeBadge}>
-          <Text style={styles.modeBadgeText} allowFontScaling={false}>MULTI MODE</Text>
+          <Text style={styles.modeBadgeText} allowFontScaling={false}>
+            {t('onboarding.knockout_badge')}
+          </Text>
         </View>
         <Text style={styles.pageSubtitle} maxFontSizeMultiplier={1.15} numberOfLines={2} ellipsizeMode="tail">
-          Pick the winning team in every knockout match round by round
+          {t('onboarding.knockout_subtitle')}
         </Text>
       </View>
 
@@ -229,6 +233,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: BG,
+    direction: 'ltr',
   },
   staticHeader: {
     alignItems: 'center',

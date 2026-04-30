@@ -181,7 +181,7 @@ export default function MatchStatsModal({ visible, matchId, homeTeamName, awayTe
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity style={styles.modalContent} activeOpacity={1} onPress={() => {}}>
+        <TouchableOpacity style={[styles.modalContent, { direction: 'ltr' }]} activeOpacity={1} onPress={() => {}}>
           {/* Close button row */}
           <View style={styles.closeRow}>
             <TouchableOpacity onPress={onClose} style={styles.closeButtonTouch}>

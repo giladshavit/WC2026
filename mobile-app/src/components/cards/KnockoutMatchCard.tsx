@@ -134,6 +134,7 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
         backgroundColor: cardBackground,
         borderWidth: 1,
         borderColor: '#2d4a6e',
+        direction: 'ltr',
       },
     ]}>
       {/* Stats button — always full opacity, rendered outside the blurred layer */}

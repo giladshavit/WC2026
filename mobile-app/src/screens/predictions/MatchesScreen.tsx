@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Platform, Dimensions, Keyboard, StatusBar, Modal, TouchableOpacity } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { IS_RTL } from '../../utils/rtl';
 import { Match, apiService, MatchesResponse } from '../../services/api';
 import MatchCard, { MatchCardHandle } from '../../components/cards/MatchCard';
 import { useAuth } from '../../contexts/AuthContext';
@@ -33,18 +35,19 @@ function clearMatchesCache(): void {
 const DEBOUNCE_MS = 800;
 
 function MatchLegendModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { t } = useTranslation();
   const rows = [
     {
       icon: 'stats-chart',
       color: '#38bdf8',
-      label: 'Statistics',
-      desc: 'See how all players in your leagues predicted this match',
+      label: t('matches.legendStatsLabel'),
+      desc: t('matches.legendStatsDesc'),
     },
     {
       icon: 'flash',
       color: '#7c3aed',
-      label: 'x2 Temptation',
-      desc: 'Rare prediction suggested by the app. If correct, you earn double points!',
+      label: t('matches.legendTemptLabel'),
+      desc: t('matches.legendTemptDesc'),
     },
   ];
 
@@ -55,27 +58,27 @@ function MatchLegendModal({ visible, onClose }: { visible: boolean; onClose: () 
         activeOpacity={1}
         onPress={onClose}
       >
-        <TouchableOpacity activeOpacity={1} style={matchLegendStyles.card} onPress={() => {}}>
+        <TouchableOpacity activeOpacity={1} style={[matchLegendStyles.card, { direction: IS_RTL ? 'rtl' : 'ltr' }]} onPress={() => {}}>
 
           <View style={matchLegendStyles.titleRow}>
             <Ionicons name="information-circle" size={18} color="#94a3b8" />
-            <Text style={matchLegendStyles.title}>Match Card Guide</Text>
+            <Text style={[matchLegendStyles.title, { textAlign: 'left' }]}>{t('matches.legendTitle')}</Text>
           </View>
 
           {rows.map((row) => (
-            <View key={row.label} style={matchLegendStyles.row}>
+            <View key={row.icon} style={matchLegendStyles.row}>
               <View style={[matchLegendStyles.iconBox, { backgroundColor: row.color + '22' }]}>
                 <Ionicons name={row.icon as any} size={16} color={row.color} />
               </View>
               <View style={matchLegendStyles.rowText}>
-                <Text style={[matchLegendStyles.rowLabel, { color: row.color }]}>{row.label}</Text>
-                <Text style={matchLegendStyles.rowDesc}>{row.desc}</Text>
+                <Text style={[matchLegendStyles.rowLabel, { color: row.color, textAlign: 'left' }]}>{row.label}</Text>
+                <Text style={[matchLegendStyles.rowDesc, { textAlign: 'left' }]}>{row.desc}</Text>
               </View>
             </View>
           ))}
 
           <TouchableOpacity style={matchLegendStyles.closeBtn} onPress={onClose}>
-            <Text style={matchLegendStyles.closeBtnText}>Got it</Text>
+            <Text style={matchLegendStyles.closeBtnText}>{t('matches.legendGotIt')}</Text>
           </TouchableOpacity>
 
         </TouchableOpacity>
@@ -464,7 +467,7 @@ export default function MatchesScreen() {
   }
 
   return (
-    <View style={styles.flex}>
+    <View style={[styles.flex, { direction: 'ltr' }]}>
       <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
       <View style={styles.container}>
         <View style={styles.header}>
