@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   StatusBar,
+  Share,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +18,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { apiService } from '../../services/api';
 import { useToast } from '../../components/toast/Toast';
 import { ConfirmationModal } from '../../components/modals/CustomModals';
+
+const SHARE_URL = 'https://getpredicto.com/download';
 
 export default function MyProfileScreen() {
   const { t } = useTranslation();
@@ -80,6 +83,12 @@ export default function MyProfileScreen() {
     }
   };
 
+  const handleShareApp = async () => {
+    await Share.share({
+      message: t('profile.shareAppMessage', { url: SHARE_URL }),
+    });
+  };
+
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#1e293b" />
@@ -139,6 +148,19 @@ export default function MyProfileScreen() {
             </Text>
           </View>
         </View>
+
+        <TouchableOpacity
+          style={styles.shareAppButton}
+          onPress={handleShareApp}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={t('profile.shareApp')}
+        >
+          <Text style={styles.shareAppButtonText} maxFontSizeMultiplier={1.3}>
+            {t('profile.shareApp')}
+          </Text>
+          <Ionicons name="share-outline" size={18} color="#22d3ee" />
+        </TouchableOpacity>
 
         {/* Logout button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
@@ -340,6 +362,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flexShrink: 1,
     textAlign: 'right',
+  },
+  infoValueSpacer: {
+    flex: 1,
+  },
+  shareAppButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(224, 242, 254, 0.08)',
+    borderRadius: 14,
+    paddingVertical: 16,
+    marginHorizontal: 20,
+    marginTop: 32,
+    marginBottom: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(186, 230, 253, 0.3)',
+  },
+  shareAppButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#22d3ee',
   },
   infoSeparator: {
     height: 1,

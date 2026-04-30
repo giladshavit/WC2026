@@ -154,7 +154,10 @@
     "createLeague": "+ צור ליגה",
     "enterCode": "הזן קוד",
     "emptyTitle": "אין ליגות פרטיות עדיין",
-    "emptySubtitle": "צור ליגה משלך או הצטרף לחברים עם קוד הזמנה"
+    "emptySubtitle": "צור ליגה משלך או הצטרף לחברים עם קוד הזמנה",
+    "share": "שתף",
+    "shareCode": "שתף קוד",
+    "shareMessage": "הצטרף לליגה שלי \"{{name}}\" ב-Predicto! 🏆⚽\n👉 {{url}}\n\nאו הכנס קוד ידנית: {{code}}"
   },
   "createLeague": {
     "leagueName": "שם הליגה *",
@@ -649,6 +652,8 @@
     "username": "שם משתמש",
     "email": "אימייל",
     "memberSince": "חבר מאז",
+    "shareApp": "שתף את האפליקציה",
+    "shareAppMessage": "הצטרף אליי ב-Predicto - אפליקציית ניחושי הכדורגל האולטימטיבית! 🏆⚽\n👉 {{url}}",
     "signOut": "התנתקות",
     "deleteAccount": "מחק חשבון",
     "signOutModal": {

@@ -2,6 +2,7 @@
   "expo": {
     "name": "Predicto",
     "slug": "predicto",
+    "scheme": "predicto",
     "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,6 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
+      "associatedDomains": ["applinks:getpredicto.com"],
       "bundleIdentifier": "com.predictoapp.football",
       "buildNumber": "1",
       "infoPlist": {
@@ -42,6 +44,20 @@
         "android.permission.READ_MEDIA_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.ACCESS_MEDIA_LOCATION"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "getpredicto.com",
+              "pathPrefix": "/join"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
       ]
     },
     "web": {

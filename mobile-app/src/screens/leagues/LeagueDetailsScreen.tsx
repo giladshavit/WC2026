@@ -10,12 +10,14 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { IS_RTL } from '../../utils/rtl';
+import { buildShareMessage } from '../../utils/leagueInviteShare';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   apiService,
@@ -25,7 +27,6 @@ import {
   MemberMatchPrediction,
 } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import * as Clipboard from 'expo-clipboard';
 import { LeaveLeagueModal, ErrorModal } from '../../components/modals/CustomModals';
 import { useToast } from '../../components/toast/Toast';
 
@@ -1031,11 +1032,12 @@ export default function LeagueDetailsScreen() {
 
   const leagueName = !standingsData ? t('leagueDetails.league') : (isGlobalLeague ? t('leagues.globalLeague') : standingsData.league_info?.name || t('leagueDetails.league'));
 
-  const handleCopyInviteCode = async () => {
-    if (standingsData?.league_info?.invite_code) {
-      await Clipboard.setStringAsync(standingsData.league_info.invite_code);
-      showToast(t('leagueDetails.inviteCopied'), 'success');
-    }
+  const handleShareLeague = async () => {
+    const code = standingsData?.league_info?.invite_code;
+    if (!code) return;
+    await Share.share({
+      message: buildShareMessage(leagueName, code, t),
+    });
   };
 
   const handleLeaveLeague = () => {
@@ -1168,9 +1170,9 @@ export default function LeagueDetailsScreen() {
               {memberCount} {memberCount === 1 ? t('leagueDetails.member') : t('leagueDetails.members')}
             </Text>
             {!isGlobalLeague && standingsData.league_info?.invite_code && (
-              <TouchableOpacity style={styles.invitePill} onPress={handleCopyInviteCode}>
-                <Text style={styles.invitePillText}>{standingsData.league_info.invite_code}</Text>
-                <Ionicons name="copy-outline" size={14} color="#94a3b8" />
+              <TouchableOpacity style={styles.invitePill} onPress={() => void handleShareLeague()}>
+                <Ionicons name="share-outline" size={16} color="#60a5fa" />
+                <Text style={styles.invitePillText}>{t('leagues.share')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1964,7 +1966,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#e2e8f0',
-    fontFamily: 'monospace',
   },
   content: {
     flex: 1,

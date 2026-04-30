@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import { IS_RTL } from '../../utils/rtl';
+import { DEEP_LINK_BASE } from '../../utils/leagueInviteShare';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService } from '../../services/api';
 import * as Clipboard from 'expo-clipboard';
@@ -78,11 +78,15 @@ export default function CreateLeagueScreen() {
   };
 
   const handleShare = async () => {
-    if (createdLeague?.invite_code) {
-      await Share.share({
-        message: t('createLeague.shareMessage', { code: createdLeague.invite_code }),
-      });
-    }
+    if (!createdLeague?.invite_code) return;
+    const url = `${DEEP_LINK_BASE}?code=${createdLeague.invite_code}`;
+    await Share.share({
+      message: t('leagues.shareMessage', {
+        name: createdLeague.name,
+        code: createdLeague.invite_code,
+        url,
+      }),
+    });
   };
 
   if (createdLeague) {

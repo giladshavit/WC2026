@@ -1,6 +1,10 @@
 import './src/i18n/index';
 import React, { useState, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  createNavigationContainerRef,
+} from '@react-navigation/native';
+import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, ActivityIndicator, StyleSheet, Text, TextInput, I18nManager } from 'react-native';
@@ -14,6 +18,10 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ToastProvider } from './src/components/toast/Toast';
 import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import { Settings } from 'react-native-fbsdk-next';
+import {
+  extractJoinInviteCodeFromUrl,
+  usePendingInviteCode,
+} from './src/hooks/usePendingInviteCode';
 
 const isHebrew = (getLocales()[0]?.languageTag ?? 'en').toLowerCase().startsWith('he');
 I18nManager.allowRTL(isHebrew);
@@ -27,9 +35,32 @@ if ((Text as any).defaultProps == null) (Text as any).defaultProps = {};
 if ((TextInput as any).defaultProps == null) (TextInput as any).defaultProps = {};
 (TextInput as any).defaultProps.maxFontSizeMultiplier = 1.3;
 
+const navigationRef = createNavigationContainerRef();
+
+const linking = {
+  prefixes: ['predicto://', 'https://getpredicto.com', 'https://www.getpredicto.com'],
+  config: {
+    screens: {
+      Leagues: {
+        screens: {
+          JoinLeague: {
+            path: 'join',
+            parse: {
+              code: (code: string) => (typeof code === 'string' ? code : '').toUpperCase(),
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
+  const { saveInviteCode, getPendingInviteCode, clearInviteCode } = usePendingInviteCode();
+  const launchLinkUrl = Linking.useLinkingURL();
   const [showSplash, setShowSplash] = useState(true);
+  const [navReady, setNavReady] = useState(false);
   const [pendingSocialReg, setPendingSocialReg] = useState<{
     provider: 'google' | 'apple';
     google_id?: string;
@@ -43,6 +74,34 @@ function AppContent() {
   const handleSplashComplete = () => {
     setShowSplash(false);
   };
+
+  /** Logged-out users: persist invite from deep link so we can open Join League after auth */
+  useEffect(() => {
+    if (isLoading || !launchLinkUrl) return;
+    const code = extractJoinInviteCodeFromUrl(launchLinkUrl);
+    if (code && !isAuthenticated) void saveInviteCode(code);
+  }, [launchLinkUrl, isLoading, isAuthenticated, saveInviteCode]);
+
+  useEffect(() => {
+    if (showSplash || isLoading || !isAuthenticated || !navReady) return;
+
+    let cancelled = false;
+    (async () => {
+      const pending = await getPendingInviteCode();
+      if (!pending || cancelled) return;
+      await clearInviteCode();
+      if (navigationRef.isReady()) {
+        (navigationRef as any).navigate('Leagues', {
+          screen: 'JoinLeague',
+          params: { code: pending },
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showSplash, isLoading, isAuthenticated, navReady, getPendingInviteCode, clearInviteCode]);
 
   if (showSplash) {
     return <SplashScreen onAnimationComplete={handleSplashComplete} />;
@@ -58,7 +117,11 @@ function AppContent() {
 
   return (
     <ToastProvider>
-      <NavigationContainer>
+      <NavigationContainer
+        ref={navigationRef}
+        linking={linking as any}
+        onReady={() => setNavReady(true)}
+      >
         {isAuthenticated ? (
           <MainNavigator />
         ) : pendingSocialReg ? (

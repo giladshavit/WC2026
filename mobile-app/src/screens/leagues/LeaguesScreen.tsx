@@ -9,15 +9,16 @@ import {
   StatusBar,
   Animated,
   Easing,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
-import * as Clipboard from 'expo-clipboard';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { IS_RTL } from '../../utils/rtl';
+import { buildShareMessage } from '../../utils/leagueInviteShare';
 import { apiService, League } from '../../services/api';
 import { useToast } from '../../components/toast/Toast';
 import { ErrorModal } from '../../components/modals/CustomModals';
@@ -39,7 +40,6 @@ export default function LeaguesScreen() {
   const [leagues, setLeagues] = useState<League[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [copiedLeagueId, setCopiedLeagueId] = useState<number | null>(null);
   const [errorModal, setErrorModal] = useState<{
     title: string;
     message: string;
@@ -103,13 +103,11 @@ export default function LeaguesScreen() {
     (navigation as any).navigate('LeagueDetails', { leagueId: league.id });
   };
 
-  const handleCopyInviteCode = async (e: any, league: League) => {
-    e.stopPropagation();
-    if (league.invite_code) {
-      await Clipboard.setStringAsync(league.invite_code);
-      setCopiedLeagueId(league.id);
-      setTimeout(() => setCopiedLeagueId(null), 2000);
-    }
+  const handleShareLeague = async (league: League) => {
+    if (!league.invite_code) return;
+    await Share.share({
+      message: buildShareMessage(league.name, league.invite_code, t),
+    });
   };
 
   const renderLeagueItem = ({ item }: { item: League }) => {
@@ -145,18 +143,19 @@ export default function LeaguesScreen() {
         </View>
       </View>
       <View style={styles.leagueCardBottom}>
-        <TouchableOpacity
-          style={styles.inviteRow}
-          onPress={(e) => handleCopyInviteCode(e, item)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="lock-closed-outline" size={12} color="#64748b" />
-          <Text style={styles.inviteCodeLabel} maxFontSizeMultiplier={1.2}>Code:</Text>
-          <Text style={styles.inviteCode} maxFontSizeMultiplier={1.2}>{item.invite_code}</Text>
-          {copiedLeagueId === item.id ? (
-            <Text style={styles.copiedText}>Copied!</Text>
-          ) : null}
-        </TouchableOpacity>
+        {item.invite_code ? (
+          <TouchableOpacity
+            style={styles.shareLeaguePill}
+            onPress={(e) => {
+              e.stopPropagation();
+              void handleShareLeague(item);
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="share-outline" size={14} color="#94a3b8" />
+            <Text style={styles.shareLeaguePillText}>{t('leagues.shareCode')}</Text>
+          </TouchableOpacity>
+        ) : null}
         <View style={styles.dateRow}>
           <Ionicons name="calendar-outline" size={14} color="#94a3b8" />
           <Text style={styles.joinedDate} maxFontSizeMultiplier={1.2}>
@@ -498,7 +497,7 @@ const styles = StyleSheet.create({
   leagueCard: {
     backgroundColor: '#1e3a5f',
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 10,
     marginBottom: 12,
     shadowColor: '#000',
@@ -559,27 +558,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: 8,
   },
-  inviteRow: {
+  shareLeaguePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 0,
+    alignSelf: 'flex-start',
   },
-  inviteCodeLabel: {
-    fontSize: 13,
-    color: '#94a3b8',
-  },
-  inviteCode: {
-    fontSize: 13,
-    color: '#cbd5e1',
-    fontFamily: 'monospace',
-  },
-  copiedText: {
+  shareLeaguePillText: {
     fontSize: 12,
-    color: '#2563eb',
     fontWeight: '600',
-    marginLeft: 4,
+    color: '#e2e8f0',
   },
   dateRow: {
     flexDirection: 'row',

@@ -154,7 +154,10 @@
     "createLeague": "+ Create League",
     "enterCode": "Enter Code",
     "emptyTitle": "No private leagues yet",
-    "emptySubtitle": "Create your own or join friends with an invite code"
+    "emptySubtitle": "Create your own or join friends with an invite code",
+    "share": "Share",
+    "shareCode": "Share Code",
+    "shareMessage": "Join my league \"{{name}}\" on Predicto! 🏆⚽\n👉 {{url}}\n\nOr enter code manually: {{code}}"
   },
   "createLeague": {
     "leagueName": "League Name *",
@@ -649,6 +652,8 @@
     "username": "Username",
     "email": "Email",
     "memberSince": "Member since",
+    "shareApp": "Share App",
+    "shareAppMessage": "Join me on Predicto - The ultimate football predictions app! 🏆⚽\n👉 {{url}}",
     "signOut": "Sign Out",
     "deleteAccount": "Delete Account",
     "signOutModal": {

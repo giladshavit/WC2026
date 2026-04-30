@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService } from '../../services/api';
@@ -27,11 +27,19 @@ const CONFETTI = [
 export default function JoinLeagueScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
+  const route = useRoute();
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [codeFocused, setCodeFocused] = useState(false);
   const [joinedLeague, setJoinedLeague] = useState<{ league_name: string } | null>(null);
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
+
+  useEffect(() => {
+    const params = route.params as { code?: string } | undefined;
+    if (params?.code) {
+      setInviteCode(params.code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8));
+    }
+  }, [route.params]);
 
   const handleJoinLeague = async () => {
     const code = inviteCode.trim().toUpperCase();
