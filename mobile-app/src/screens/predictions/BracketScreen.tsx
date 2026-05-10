@@ -237,9 +237,9 @@ import { IS_RTL } from '../../utils/rtl';
       }
     };
 
-    const drawBracketLines = () => {
+    const drawBracketLines = (padding: number = 60) => {
       if (!organizedBracket) return [];
-      const PADDING = 60; // must match scrollContent paddingLeft
+      const PADDING = padding;
       const SCROLL_PADDING_TOP = 21; // matches scrollContent paddingTop style
       const COL_WIDTH = COLUMN_WIDTH + 20; // column width + marginRight gap
       const LINE_COLOR = '#94a3b8';
@@ -1424,7 +1424,7 @@ import { IS_RTL } from '../../utils/rtl';
               height={totalBracketHeight + Y_OFFSET + 60 + screenshotPaddingTop}
               pointerEvents="none"
             >
-              {drawBracketLines()}
+              {drawBracketLines(40)}
             </Svg>
             <View style={{ flexDirection: 'row', paddingLeft: 60, paddingTop: 20 + screenshotPaddingTop }}>
               {renderColumn('Round of 32 (Left)', organizedBracket.round32_left, false, 0)}
