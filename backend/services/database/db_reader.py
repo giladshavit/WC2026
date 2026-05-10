@@ -1364,7 +1364,9 @@ class DBReader:
                 COUNT(*) FILTER (WHERE gsp.fourth_place = t.id) AS fourth,
                 COUNT(DISTINCT gsp.id) AS total
             FROM unnest(CAST(:team_ids AS int[])) AS t(id)
-            LEFT JOIN group_stage_predictions gsp ON gsp.group_id = :group_id
+            LEFT JOIN group_stage_predictions gsp
+                ON gsp.group_id = :group_id
+               AND gsp.first_place IS NOT NULL
             GROUP BY t.id
         """), {"group_id": group_id, "team_ids": team_ids}).fetchall()
         return {
@@ -1441,6 +1443,8 @@ class DBReader:
             SELECT COUNT(*) AS total
             FROM knockout_stage_predictions
             WHERE template_match_id = :match_id
+              AND team1_id IS NOT NULL
+              AND team2_id IS NOT NULL
         """), {"match_id": template_match_id}).fetchone()
         return row.total or 0
 
@@ -1489,6 +1493,7 @@ class DBReader:
             FROM pair_counts pc
             JOIN teams ta ON ta.id = pc.team_a_id
             JOIN teams tb ON tb.id = pc.team_b_id
+            ORDER BY pc.pair_count DESC
         """), {"match_id": template_match_id, "top_n": top_n}).fetchall()
         return rows
 
