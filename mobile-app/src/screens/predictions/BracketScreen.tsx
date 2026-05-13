@@ -1411,9 +1411,55 @@ import { IS_RTL } from '../../utils/rtl';
               left: 0,
               width: TOTAL_BRACKET_WIDTH,
               height: totalBracketHeight + Y_OFFSET + 60 + screenshotPaddingTop,
-              backgroundColor: '#1e293b',
+              backgroundColor: '#0d1b2e',
             }}
           >
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: screenshotPaddingTop,
+                backgroundColor: '#0d1b2e',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                paddingTop: 14,
+                zIndex: 10,
+              }}
+            >
+              <Text
+                style={{
+                  color: '#f59e0b',
+                  fontSize: 17,
+                  letterSpacing: 11,
+                  opacity: 0.6,
+                }}
+              >
+                ✦  ✦  ✦  ✦  ✦
+              </Text>
+              <Text
+                style={{
+                  color: '#f59e0b',
+                  fontSize: 44,
+                  fontWeight: '900',
+                  letterSpacing: 12,
+                  marginTop: 4,
+                }}
+              >
+                PREDICTO
+              </Text>
+              <View
+                style={{
+                  width: '45%',
+                  height: 1.5,
+                  backgroundColor: '#f59e0b',
+                  opacity: 0.5,
+                  marginTop: 8,
+                }}
+              />
+            </View>
             <Svg
               style={[styles.bracketLines, {
                 height: totalBracketHeight + Y_OFFSET + 60 + screenshotPaddingTop,
@@ -1424,7 +1470,7 @@ import { IS_RTL } from '../../utils/rtl';
               height={totalBracketHeight + Y_OFFSET + 60 + screenshotPaddingTop}
               pointerEvents="none"
             >
-              {drawBracketLines(40)}
+              {drawBracketLines(60)}
             </Svg>
             <View style={{ flexDirection: 'row', paddingLeft: 60, paddingTop: 20 + screenshotPaddingTop }}>
               {renderColumn('Round of 32 (Left)', organizedBracket.round32_left, false, 0)}
@@ -1436,6 +1482,30 @@ import { IS_RTL } from '../../utils/rtl';
               {renderColumn('Quarter (Right)', organizedBracket.quarter_right, false, 6)}
               {renderColumn('Round of 16 (Right)', organizedBracket.round16_right, false, 7)}
               {renderColumn('Round of 32 (Right)', organizedBracket.round32_right, false, 8)}
+            </View>
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 32,
+                backgroundColor: '#0f172a',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 10,
+              }}
+            >
+              <Text
+                style={{
+                  color: '#475569',
+                  fontSize: 11,
+                  letterSpacing: 2,
+                }}
+              >
+                predicto.app
+              </Text>
             </View>
           </View>
           );
