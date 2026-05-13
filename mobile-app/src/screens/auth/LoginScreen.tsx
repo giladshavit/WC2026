@@ -200,7 +200,7 @@ export default function LoginScreen({
                 style={[
                   styles.input,
                   focusedInput === 'username' && styles.inputFocused,
-                  { textAlign: 'auto' },
+                  { textAlign: IS_RTL ? 'right' : 'left' },
                 ]}
                 value={username}
                 onChangeText={(text) => {
@@ -209,7 +209,7 @@ export default function LoginScreen({
                 }}
                 onFocus={() => { setFocusedInput('username'); scrollToInput(0); }}
                 onBlur={() => setFocusedInput(null)}
-                placeholder={IS_RTL ? '' : t('auth.enterUsername')}
+                placeholder={t('auth.enterUsername')}
                 placeholderTextColor="#64748b"
                 textContentType="oneTimeCode"
                 autoCapitalize="none"
@@ -228,7 +228,7 @@ export default function LoginScreen({
                   style={[
                     styles.input,
                     focusedInput === 'password' && styles.inputFocused,
-                    { textAlign: 'auto', paddingLeft: 44 },
+                    { textAlign: IS_RTL ? 'right' : 'left', paddingLeft: 44 },
                   ]}
                   value={password}
                   onChangeText={(text) => {
@@ -237,7 +237,7 @@ export default function LoginScreen({
                   }}
                   onFocus={() => { setFocusedInput('password'); scrollToInput(80); }}
                   onBlur={() => setFocusedInput(null)}
-                  placeholder={IS_RTL ? '' : t('auth.enterPassword')}
+                  placeholder={t('auth.enterPassword')}
                   placeholderTextColor="#64748b"
                   textContentType="oneTimeCode"
                   secureTextEntry={!showPassword}

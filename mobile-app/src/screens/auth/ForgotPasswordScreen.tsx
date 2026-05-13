@@ -163,7 +163,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                   style={[
                     styles.input,
                     focusedInput === 'email' && styles.inputFocused,
-                    { textAlign: 'auto' },
+                    { textAlign: IS_RTL ? 'right' : 'left' },
                   ]}
                   value={email}
                   onChangeText={setEmail}
@@ -172,7 +172,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                     scrollToInput(0);
                   }}
                   onBlur={() => setFocusedInput(null)}
-                  placeholder={IS_RTL ? '' : t('auth.enterEmail')}
+                  placeholder={t('auth.enterEmail')}
                   placeholderTextColor="#64748b"
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -239,7 +239,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                     style={[
                       styles.input,
                       focusedInput === 'newPass' && styles.inputFocused,
-                      { textAlign: 'auto', paddingLeft: 44 },
+                      { textAlign: IS_RTL ? 'right' : 'left', paddingLeft: 44 },
                     ]}
                     value={newPassword}
                     onChangeText={setNewPassword}
@@ -248,7 +248,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                       scrollToInput(120);
                     }}
                     onBlur={() => setFocusedInput(null)}
-                    placeholder={IS_RTL ? '' : t('auth.enterNewPassword')}
+                    placeholder={t('auth.enterNewPassword')}
                     placeholderTextColor="#64748b"
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
@@ -282,7 +282,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                     style={[
                       styles.input,
                       focusedInput === 'confirmPass' && styles.inputFocused,
-                      { textAlign: 'auto', paddingLeft: 44 },
+                      { textAlign: IS_RTL ? 'right' : 'left', paddingLeft: 44 },
                     ]}
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
@@ -291,7 +291,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                       scrollToInput(200);
                     }}
                     onBlur={() => setFocusedInput(null)}
-                    placeholder={IS_RTL ? '' : t('auth.enterConfirmPassword')}
+                    placeholder={t('auth.enterConfirmPassword')}
                     placeholderTextColor="#64748b"
                     secureTextEntry={!showConfirmPassword}
                     autoCapitalize="none"

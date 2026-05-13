@@ -223,7 +223,7 @@ export default function SocialUsernameScreen({
                     style={[
                       styles.input,
                       focusedInput === 'name' && styles.inputFocused,
-                      { textAlign: 'auto' },
+                      { textAlign: IS_RTL ? 'right' : 'left' },
                     ]}
                     value={name}
                     onChangeText={setName}
@@ -232,7 +232,7 @@ export default function SocialUsernameScreen({
                       scrollToInput(0);
                     }}
                     onBlur={() => setFocusedInput(null)}
-                    placeholder={IS_RTL ? '' : t('auth.enterFullName')}
+                    placeholder={t('auth.enterFullName')}
                     placeholderTextColor="#64748b"
                     textContentType="name"
                     autoCapitalize="words"
@@ -251,7 +251,7 @@ export default function SocialUsernameScreen({
                     style={[
                       styles.input,
                       focusedInput === 'username' && styles.inputFocused,
-                      { textAlign: 'auto' },
+                      { textAlign: IS_RTL ? 'right' : 'left' },
                     ]}
                     value={username}
                     onChangeText={setUsername}
@@ -260,7 +260,7 @@ export default function SocialUsernameScreen({
                       scrollToInput(80);
                     }}
                     onBlur={() => setFocusedInput(null)}
-                    placeholder={IS_RTL ? '' : t('auth.enterUsername')}
+                    placeholder={t('auth.enterUsername')}
                     placeholderTextColor="#64748b"
                     textContentType="username"
                     autoCapitalize="none"

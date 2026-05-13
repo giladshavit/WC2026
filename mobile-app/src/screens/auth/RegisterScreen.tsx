@@ -237,13 +237,13 @@ export default function RegisterScreen({
                 style={[
                   styles.input,
                   focusedInput === 'name' && styles.inputFocused,
-                  { textAlign: 'auto' },
+                  { textAlign: IS_RTL ? 'right' : 'left' },
                 ]}
                 value={name}
                 onChangeText={(text) => setName(text)}
                 onFocus={() => { setFocusedInput('name'); scrollToInput(0); }}
                 onBlur={() => setFocusedInput(null)}
-                placeholder={IS_RTL ? '' : t('auth.enterFullName')}
+                placeholder={t('auth.enterFullName')}
                 placeholderTextColor="#64748b"
                 textContentType="oneTimeCode"
                 autoCapitalize="words"
@@ -262,13 +262,13 @@ export default function RegisterScreen({
                 style={[
                   styles.input,
                   focusedInput === 'username' && styles.inputFocused,
-                  { textAlign: 'auto' },
+                  { textAlign: IS_RTL ? 'right' : 'left' },
                 ]}
                 value={username}
                 onChangeText={(text) => setUsername(text)}
                 onFocus={() => { setFocusedInput('username'); scrollToInput(80); }}
                 onBlur={() => setFocusedInput(null)}
-                placeholder={IS_RTL ? '' : t('auth.enterUsername')}
+                placeholder={t('auth.enterUsername')}
                 placeholderTextColor="#64748b"
                 textContentType="oneTimeCode"
                 autoCapitalize="none"
@@ -287,13 +287,13 @@ export default function RegisterScreen({
                 style={[
                   styles.input,
                   focusedInput === 'email' && styles.inputFocused,
-                  { textAlign: 'auto' },
+                  { textAlign: IS_RTL ? 'right' : 'left' },
                 ]}
                 value={email}
                 onChangeText={(text) => setEmail(text)}
                 onFocus={() => { setFocusedInput('email'); scrollToInput(160); }}
                 onBlur={() => setFocusedInput(null)}
-                placeholder={IS_RTL ? '' : t('auth.enterEmail')}
+                placeholder={t('auth.enterEmail')}
                 placeholderTextColor="#64748b"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -312,13 +312,13 @@ export default function RegisterScreen({
                   style={[
                     styles.input,
                     focusedInput === 'password' && styles.inputFocused,
-                    { textAlign: 'auto', paddingLeft: 44 },
+                    { textAlign: IS_RTL ? 'right' : 'left', paddingLeft: 44 },
                   ]}
                   value={password}
                   onChangeText={(text) => setPassword(text)}
                   onFocus={() => { setFocusedInput('password'); scrollToInput(240); }}
                   onBlur={() => setFocusedInput(null)}
-                  placeholder={IS_RTL ? '' : t('auth.enterPassword')}
+                  placeholder={t('auth.enterPassword')}
                   placeholderTextColor="#64748b"
                   textContentType="oneTimeCode"
                   secureTextEntry={!showPassword}
@@ -354,13 +354,13 @@ export default function RegisterScreen({
                   style={[
                     styles.input,
                     focusedInput === 'confirmPassword' && styles.inputFocused,
-                    { textAlign: 'auto', paddingLeft: 44 },
+                    { textAlign: IS_RTL ? 'right' : 'left', paddingLeft: 44 },
                   ]}
                   value={confirmPassword}
                   onChangeText={(text) => setConfirmPassword(text)}
                   onFocus={() => { setFocusedInput('confirmPassword'); scrollToInput(320); }}
                   onBlur={() => setFocusedInput(null)}
-                  placeholder={IS_RTL ? '' : t('auth.enterConfirmPassword')}
+                  placeholder={t('auth.enterConfirmPassword')}
                   placeholderTextColor="#64748b"
                   textContentType="oneTimeCode"
                   secureTextEntry={!showConfirmPassword}
