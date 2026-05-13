@@ -61,6 +61,7 @@ import { IS_RTL } from '../../utils/rtl';
     const Y_OFFSET = Math.max(10, Math.round((AVAILABLE_HEIGHT - bracketContentHeight) / 2));
     const totalBracketHeight = spacing * 8 + CARD_H + Y_OFFSET + 40;
     const TOTAL_BRACKET_WIDTH = 60 + 9 * (COLUMN_WIDTH + 20) + 20;
+    const BRACKET_PADDING_LEFT = Math.round(screenWidth * 0.08);
     const [predictions, setPredictions] = useState<KnockoutPrediction[]>([]);
     const [organizedBracket, setOrganizedBracket] = useState<OrganizedBracket | null>(null);
     const [loading, setLoading] = useState(true);
@@ -964,7 +965,7 @@ import { IS_RTL } from '../../utils/rtl';
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={true}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingLeft: BRACKET_PADDING_LEFT }]}
           style={[styles.scrollView, { marginTop: 44 }]}
           onScroll={() => {
             if (showScrollHint) {
@@ -984,7 +985,7 @@ import { IS_RTL } from '../../utils/rtl';
             height={totalBracketHeight + Y_OFFSET + 60}
             pointerEvents="none"
           >
-            {drawBracketLines()}
+            {drawBracketLines(BRACKET_PADDING_LEFT)}
           </Svg>
 
           {/* hidden view removed - rendered outside ScrollView below */}
@@ -1523,7 +1524,6 @@ import { IS_RTL } from '../../utils/rtl';
       flex: 1,
     },
     scrollContent: {
-      paddingLeft: 60,
       paddingRight: 20,
       paddingTop: 20,
       paddingBottom: 60,
