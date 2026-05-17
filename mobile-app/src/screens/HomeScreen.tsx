@@ -123,7 +123,7 @@ const actions: Array<{
 
 export default function HomeScreen() {
   const { t } = useTranslation();
-  /** Single source: utils/rtl (I18nManager + locale fallback). */
+  /** Single source: utils/rtl (`I18nManager.isRTL`). */
   const layoutRTL = IS_RTL;
   const textAlign: 'left' | 'right' = layoutRTL ? 'right' : 'left';
   const navigation = useNavigation<NavigationProp>();
