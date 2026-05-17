@@ -3,6 +3,7 @@ DBReader: All READ (SELECT) operations from database.
 This is the ONLY place where db.query() should appear for reads.
 No service should call db.query() directly — always go through DBReader.
 """
+from collections import Counter
 from datetime import datetime
 from typing import Any, List, Optional, Sequence, Dict, Tuple
 from sqlalchemy import and_, case, desc, func, text
@@ -366,6 +367,84 @@ class DBReader:
         return db.query(MatchPrediction).filter(
             MatchPrediction.match_id == match_id
         ).all()
+
+    @staticmethod
+    def get_match_prediction_outcome_stats(
+        db: Session, match_id: int, home_team_id: int, away_team_id: int
+    ) -> Optional[Dict]:
+        """
+        Returns outcome-level stats for temptation calculation.
+        Only counts filled predictions (home_score IS NOT NULL AND away_score IS NOT NULL).
+
+        Returns dict with keys:
+            total, home_wins, away_wins, draws,
+            home_pct, away_pct, draw_pct,
+            per_score_home: Counter of (home_score, away_score) for home-win predictions,
+            per_score_away: Counter of (home_score, away_score) for away-win predictions,
+            per_score_draw: Counter of (home_score, away_score) for draw predictions,
+
+        Returns None if no rows exist or if no predictions fall into home/away/draw outcomes.
+        """
+        rows = db.execute(
+            text("""
+            SELECT
+                predicted_winner,
+                home_score,
+                away_score,
+                COUNT(*) AS cnt
+            FROM match_predictions
+            WHERE match_id = :match_id
+              AND home_score IS NOT NULL
+              AND away_score IS NOT NULL
+            GROUP BY predicted_winner, home_score, away_score
+        """),
+            {"match_id": match_id},
+        ).fetchall()
+
+        if not rows:
+            return None
+
+        total = 0
+        home_wins = 0
+        away_wins = 0
+        draws = 0
+        per_score_home = Counter()
+        per_score_away = Counter()
+        per_score_draw = Counter()
+
+        for row in rows:
+            pw = row.predicted_winner
+            h = row.home_score
+            a = row.away_score
+            cnt = row.cnt
+            total += cnt
+
+            if pw == home_team_id:
+                home_wins += cnt
+                per_score_home[(h, a)] += cnt
+            elif pw == away_team_id:
+                away_wins += cnt
+                per_score_away[(h, a)] += cnt
+            elif pw is None or pw == 0:
+                draws += cnt
+                per_score_draw[(h, a)] += cnt
+
+        outcome_total = home_wins + away_wins + draws
+        if outcome_total == 0:
+            return None
+
+        return {
+            "total": total,
+            "home_wins": home_wins,
+            "away_wins": away_wins,
+            "draws": draws,
+            "home_pct": home_wins / outcome_total,
+            "away_pct": away_wins / outcome_total,
+            "draw_pct": draws / outcome_total,
+            "per_score_home": per_score_home,
+            "per_score_away": per_score_away,
+            "per_score_draw": per_score_draw,
+        }
 
     @staticmethod
     def count_match_predictions_for_match(db: Session, match_id: int) -> int:
