@@ -241,7 +241,7 @@ import { IS_RTL } from '../../utils/rtl';
     const drawBracketLines = (padding: number = 60) => {
       if (!organizedBracket) return [];
       const PADDING = padding;
-      const SCROLL_PADDING_TOP = 21; // matches scrollContent paddingTop style
+      const SCROLL_PADDING_TOP = 21;
       const COL_WIDTH = COLUMN_WIDTH + 20; // column width + marginRight gap
       const LINE_COLOR = '#94a3b8';
       const LINE_WIDTH = 1.5;
@@ -687,6 +687,7 @@ import { IS_RTL } from '../../utils/rtl';
           format: 'png',
           quality: 1.0,
           result: 'tmpfile',
+          useRenderInContext: true,
         });
         const asset = await MediaLibrary.createAssetAsync(uri);
         await MediaLibrary.createAlbumAsync('Bracket Screenshots', asset, false);
@@ -707,6 +708,7 @@ import { IS_RTL } from '../../utils/rtl';
           format: 'png',
           quality: 1.0,
           result: 'tmpfile',
+          useRenderInContext: true,
         });
         const isAvailable = await Sharing.isAvailableAsync();
         if (!isAvailable) {
