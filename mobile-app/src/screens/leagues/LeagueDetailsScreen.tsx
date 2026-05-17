@@ -256,23 +256,25 @@ function AnimatedPlayerRow({
           <View style={styles.colPlayer}>
             <View style={styles.rankNameRow}>
               {renderRankIcon()}
-              <Text
-                style={[styles.cellName, styles.cellLeft, isCurrentUser && styles.cellBold]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-                maxFontSizeMultiplier={1}
-                {...(liveNamesNoShrink
-                  ? { adjustsFontSizeToFit: true, minimumFontScale: 0.75 }
-                  : {})}
-              >
-                {truncateName((item as any).username ?? item.name ?? 'Player')}
-              </Text>
+              <View style={styles.playerNameTextWrap}>
+                <Text
+                  style={[styles.cellName, styles.cellLeft, isCurrentUser && styles.cellBold]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  maxFontSizeMultiplier={1}
+                  {...(liveNamesNoShrink
+                    ? { adjustsFontSizeToFit: true, minimumFontScale: 0.75 }
+                    : {})}
+                >
+                  {truncateName((item as any).username ?? item.name ?? 'Player')}
+                </Text>
+                {item.name && item.name !== (item as any).username && (
+                  <Text style={styles.cellSubName} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1}>
+                    {item.name}
+                  </Text>
+                )}
+              </View>
             </View>
-            {item.name && item.name !== (item as any).username && (
-              <Text style={styles.cellSubName} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1}>
-                {item.name}
-              </Text>
-            )}
           </View>
         </View>
       </View>
@@ -1599,20 +1601,22 @@ export default function LeagueDetailsScreen() {
                           {currentUserEntry.rank}
                         </Text>
                       </View>
-                      <Text
-                        style={[styles.cellName, styles.cellLeft, styles.cellBold]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                        maxFontSizeMultiplier={1}
-                      >
-                        {truncateName((currentUserEntry as any).username ?? currentUserEntry.name ?? 'You')}
-                      </Text>
+                      <View style={styles.playerNameTextWrap}>
+                        <Text
+                          style={[styles.cellName, styles.cellLeft, styles.cellBold]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          maxFontSizeMultiplier={1}
+                        >
+                          {truncateName((currentUserEntry as any).username ?? currentUserEntry.name ?? 'You')}
+                        </Text>
+                        {currentUserEntry.name && currentUserEntry.name !== (currentUserEntry as any).username && (
+                          <Text style={styles.cellSubName} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1}>
+                            {currentUserEntry.name}
+                          </Text>
+                        )}
+                      </View>
                     </View>
-                    {currentUserEntry.name && currentUserEntry.name !== (currentUserEntry as any).username && (
-                      <Text style={styles.cellSubName} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1}>
-                        {currentUserEntry.name}
-                      </Text>
-                    )}
                   </View>
                 </View>
               </View>
@@ -2155,13 +2159,16 @@ const styles = StyleSheet.create({
   },
   playerRowContent: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
+    alignSelf: 'stretch',
     flex: 1,
     minWidth: 0,
   },
   colPlayer: {
     flex: 1,
     paddingLeft: 8,
+    justifyContent: 'center',
+    minHeight: 0,
   },
   rankNameRow: {
     flexDirection: 'row',
@@ -2169,6 +2176,7 @@ const styles = StyleSheet.create({
     gap: 6,
     flex: 1,
     minWidth: 0,
+    minHeight: 0,
   },
   /** Bounds name Text so ellipsis works; keeps stat columns aligned with header on narrow screens */
   playerNameTextWrap: {
@@ -2178,8 +2186,7 @@ const styles = StyleSheet.create({
   cellSubName: {
     fontSize: 10,
     color: '#64748b',
-    marginTop: 6,
-    marginLeft: 30,
+    marginTop: 5,
   },
   podiumSubName: {
     fontSize: 9,
@@ -2189,6 +2196,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   rankIconContainer: {
+    alignSelf: 'flex-start',
+    marginTop: 3,
     minWidth: 24,
     width: 'auto',
     height: 20,
