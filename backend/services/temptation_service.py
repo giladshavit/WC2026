@@ -34,6 +34,11 @@ def get_temptation_suggestions(db: Session, match_id: int) -> Optional[List[Dict
         return None
 
     predictions = DBReader.get_match_predictions_by_match(db, match_id)
+    # Only consider predictions that were actually filled by users
+    predictions = [
+        p for p in predictions
+        if p.home_score is not None and p.away_score is not None
+    ]
     total_count = len(predictions)
     if total_count < MIN_PREDICTIONS_FOR_TEMPTATION:
         return None
