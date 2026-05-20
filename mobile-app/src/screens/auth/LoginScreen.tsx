@@ -59,6 +59,7 @@ export default function LoginScreen({
   const [_request, response, promptAsync] = Google.useIdTokenAuthRequest({
     iosClientId: '3581541137-s8l6a0emn5cm6nor6rd65lp67b69enc1.apps.googleusercontent.com',
     androidClientId: '3581541137-0oeqbcv9rrbmth9oo8h3o7777evi9afq.apps.googleusercontent.com',
+    webClientId: '3581541137-vcvo5en24ptlfbs8ng7308qqt7s34j4j.apps.googleusercontent.com',
   });
 
   const handleGoogleToken = useCallback(
