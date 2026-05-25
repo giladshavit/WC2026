@@ -62,7 +62,9 @@ export default function LoginScreen({
     androidClientId: '3581541137-0oeqbcv9rrbmth9oo8h3o7777evi9afq.apps.googleusercontent.com',
     webClientId: '3581541137-vcvo5en24ptlfbs8ng7308qqt7s34j4j.apps.googleusercontent.com',
     ...(Platform.OS === 'android' && {
-      redirectUri: makeRedirectUri({ scheme: 'predicto', path: 'auth' }),
+      redirectUri: makeRedirectUri({
+        native: 'com.predictoapp.football:/',
+      }),
     }),
   });
 
