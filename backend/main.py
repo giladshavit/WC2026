@@ -33,6 +33,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="World Cup 2026 Predictions API", lifespan=lifespan)
 
+@app.get("/app-ads.txt")
+async def app_ads_txt():
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse("google.com, pub-6248733928314999, DIRECT, f08c47fec0942fa0")
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
