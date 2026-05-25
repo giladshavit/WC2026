@@ -15,6 +15,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ScrollView as RNScrollView } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -63,6 +64,9 @@ export default function RegisterScreen({
     iosClientId: '3581541137-s8l6a0emn5cm6nor6rd65lp67b69enc1.apps.googleusercontent.com',
     androidClientId: '3581541137-0oeqbcv9rrbmth9oo8h3o7777evi9afq.apps.googleusercontent.com',
     webClientId: '3581541137-vcvo5en24ptlfbs8ng7308qqt7s34j4j.apps.googleusercontent.com',
+    ...(Platform.OS === 'android' && {
+      redirectUri: makeRedirectUri({ scheme: 'predicto', path: 'auth' }),
+    }),
   });
 
   const handleGoogleToken = useCallback(
