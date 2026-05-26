@@ -11,7 +11,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { apiService } from '../../services/api';
@@ -55,11 +55,20 @@ export default function EditLeagueScreen() {
         simple_bonus: scoreMode === 'classic' ? simpleBonus : false,
       });
       showToast(t('editLeague.successToast'), 'success');
-      (navigation as any).navigate('LeagueDetails', {
-        leagueId: params.leagueId,
-        leagueUpdated: Date.now(),
-        updatedName: name.trim(),
-      });
+      // Find the LeagueDetails screen already in the stack and update its params,
+      // then go back to it — no duplicate screens created.
+      const state = (navigation as any).getState?.();
+      const leagueDetailsRoute = state?.routes?.find((r: any) => r.name === 'LeagueDetails');
+      if (leagueDetailsRoute?.key) {
+        (navigation as any).dispatch({
+          ...CommonActions.setParams({
+            leagueUpdated: Date.now(),
+            updatedName: name.trim(),
+          }),
+          source: leagueDetailsRoute.key,
+        });
+      }
+      navigation.goBack();
     } catch (error: any) {
       const status = error?.httpStatus ?? 0;
       let msg = t('editLeague.errorGeneric');
