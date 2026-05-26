@@ -1024,6 +1024,13 @@ export default function LeagueDetailsScreen() {
   }, [sortBy]);
 
   useEffect(() => {
+    const params = route.params as any;
+    if (params?.leagueUpdated) {
+      fetchStandings(false, 1);
+    }
+  }, [(route.params as any)?.leagueUpdated]);
+
+  useEffect(() => {
     if (liveMatchPredictionsList.length > 0 && !userDismissedLive) {
       setIsLiveMode(true);
     } else if (liveMatchPredictionsList.length === 0) {
@@ -1033,6 +1040,8 @@ export default function LeagueDetailsScreen() {
   }, [liveMatchPredictionsList.length]);
 
   const leagueName = !standingsData ? t('leagueDetails.league') : (isGlobalLeague ? t('leagues.globalLeague') : standingsData.league_info?.name || t('leagueDetails.league'));
+  const leagueInfo = standingsData?.league_info;
+  const isOwner = !!currentUserId && leagueInfo?.created_by === currentUserId;
 
   const handleShareLeague = async () => {
     const code = standingsData?.league_info?.invite_code;
@@ -1811,6 +1820,27 @@ export default function LeagueDetailsScreen() {
       )}
       {menuVisible && !isGlobalLeague && (
         <View style={[styles.menuDropdownFloating, IS_RTL ? { left: 16, right: undefined } : {}]}>
+          {isOwner && (
+            <TouchableOpacity
+              style={[styles.menuItem, { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' }]}
+              onPress={() => {
+                setMenuVisible(false);
+                (navigation as any).navigate('EditLeague' as any, {
+                  leagueId: leagueInfo!.id,
+                  leagueName: leagueInfo!.name,
+                  scoreMode: leagueInfo!.score_mode ?? 'multi',
+                  simpleBonus: leagueInfo!.simple_bonus ?? false,
+                  isOwner: true,
+                });
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="settings-outline" size={18} color="#93c5fd" />
+              <Text style={[styles.menuItemText, { color: '#93c5fd' }]}>
+                {t('leagueDetails.editLeague')}
+              </Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.menuItem}
             onPress={handleLeaveLeague}

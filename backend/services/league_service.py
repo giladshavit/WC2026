@@ -460,6 +460,53 @@ class LeagueService:
         }
 
     @staticmethod
+    def update_league(
+        db: Session,
+        league_id: int,
+        user_id: int,
+        name: Optional[str] = None,
+        score_mode: Optional[str] = None,
+        simple_bonus: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        """Update league settings. Only the creator can do this."""
+        league = DBReader.get_active_league_by_id(db, league_id)
+        if not league:
+            raise HTTPException(status_code=404, detail="League not found")
+
+        owner_id = league.created_by
+        if owner_id != user_id:
+            raise HTTPException(status_code=403, detail="Only the league creator can edit settings")
+
+        # Apply updates
+        if name is not None:
+            name = name.strip()
+            if len(name) < 3 or len(name) > 100:
+                raise HTTPException(status_code=400, detail="League name must be between 3 and 100 characters")
+            league.name = name
+        if score_mode is not None and score_mode in ("multi", "classic"):
+            from models.league import LeagueScoreMode
+            league.score_mode = LeagueScoreMode(score_mode)
+        if simple_bonus is not None:
+            league.simple_bonus = simple_bonus
+
+        try:
+            DBUtils.commit(db)
+            DBUtils.refresh(db, league)
+            return {
+                "id": league.id,
+                "name": league.name,
+                "description": league.description,
+                "invite_code": league.invite_code,
+                "created_by": league.created_by,
+                "created_at": league.created_at.isoformat(),
+                "score_mode": league.score_mode.value if hasattr(league.score_mode, 'value') else league.score_mode,
+                "simple_bonus": league.simple_bonus,
+            }
+        except Exception as e:
+            DBUtils.rollback(db)
+            raise HTTPException(status_code=500, detail=f"Failed to update league: {str(e)}")
+
+    @staticmethod
     def leave_league(db: Session, user_id: int, league_id: int) -> None:
         """Remove a user from a league."""
         membership = DBReader.get_league_membership(db, league_id, user_id)

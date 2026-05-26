@@ -396,6 +396,12 @@ export interface CreateLeagueRequest {
   simple_bonus?: boolean;
 }
 
+export interface UpdateLeagueRequest {
+  name?: string;
+  score_mode?: 'multi' | 'classic';
+  simple_bonus?: boolean;
+}
+
 export interface JoinLeagueRequest {
   invite_code: string;
 }
@@ -1556,6 +1562,40 @@ export class ApiService {
       return data;
     } catch (error) {
       console.warn('createLeague failed (handled by caller):', error);
+      throw error;
+    }
+  }
+
+  async updateLeague(leagueId: number, updates: UpdateLeagueRequest): Promise<League> {
+    try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}/api/leagues/${leagueId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        let detail = errorData.detail || `HTTP error! status: ${response.status}`;
+        if (response.status === 404) {
+          detail = 'This feature is not yet available. Please update the app.';
+        }
+        const err = new Error(detail) as Error & { httpStatus?: number };
+        err.httpStatus = response.status;
+        throw err;
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.warn('updateLeague failed (handled by caller):', error);
       throw error;
     }
   }

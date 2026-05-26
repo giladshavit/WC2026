@@ -3,6 +3,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { useTranslation } from 'react-i18next';
 import LeaguesScreen from '../screens/leagues/LeaguesScreen';
 import CreateLeagueScreen from '../screens/leagues/CreateLeagueScreen';
+import EditLeagueScreen from '../screens/leagues/EditLeagueScreen';
 import JoinLeagueScreen from '../screens/leagues/JoinLeagueScreen';
 import LeagueDetailsScreen from '../screens/leagues/LeagueDetailsScreen';
 
@@ -56,6 +57,16 @@ export default function LeagueStack() {
           title: 'League Details',
           headerShown: false, // LeagueDetailsScreen has its own header
         }}
+      />
+      <Stack.Screen
+        name="EditLeague"
+        component={EditLeagueScreen}
+        options={({ route }: any) => ({
+          title: '',  // EditLeagueScreen renders its own header title via i18n
+          headerStyle: { backgroundColor: '#1e293b' },
+          headerTintColor: '#ffffff',
+          headerShadowVisible: false,
+        })}
       />
     </Stack.Navigator>
   );

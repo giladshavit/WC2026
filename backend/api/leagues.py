@@ -40,6 +40,17 @@ class CreateLeagueRequest(BaseModel):
             raise ValueError("Description must be less than 500 characters")
         return v
 
+class UpdateLeagueRequest(BaseModel):
+    name: Optional[str] = None
+    score_mode: Optional[str] = None  # "multi" | "classic"
+    simple_bonus: Optional[bool] = None
+
+    @validator('score_mode')
+    def validate_score_mode(cls, v):
+        if v is not None and v not in ("multi", "classic"):
+            raise ValueError("score_mode must be 'multi' or 'classic'")
+        return v
+
 class JoinLeagueRequest(BaseModel):
     invite_code: str
 
@@ -149,6 +160,31 @@ def create_league(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create league: {str(e)}"
+        )
+
+@router.patch("/leagues/{league_id}", response_model=dict)
+def update_league(
+    league_id: int,
+    body: UpdateLeagueRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update league settings. Only the league creator can edit."""
+    try:
+        return LeagueService.update_league(
+            db,
+            league_id=league_id,
+            user_id=current_user.id,
+            name=body.name,
+            score_mode=body.score_mode,
+            simple_bonus=body.simple_bonus,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update league: {str(e)}"
         )
 
 @router.get("/leagues", response_model=List[LeagueResponse])
