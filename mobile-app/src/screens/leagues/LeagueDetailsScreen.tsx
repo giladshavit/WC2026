@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { IS_RTL } from '../../utils/rtl';
 import { buildShareMessage } from '../../utils/leagueInviteShare';
@@ -757,7 +757,6 @@ export default function LeagueDetailsScreen() {
   const flashListRef = useRef<any>(null);
   const scoreModeInitializedRef = useRef(false);
   const skipNextFetchRef = useRef(false);
-  const focusCountRef = useRef(0);
   /** Monotonic id so only the latest standings fetch applies state (avoids mixed modes after rapid toggles). */
   const standingsFetchGenRef = useRef(0);
   const liveMatchesFetchedRef = useRef(false);
@@ -1023,19 +1022,6 @@ export default function LeagueDetailsScreen() {
     }
     fetchStandings(false, 1, sortBy);
   }, [sortBy]);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      focusCountRef.current += 1;
-      if (focusCountRef.current <= 1) return; // skip initial mount focus
-      // Came back from another screen — refresh standings with current state
-      setPage(1);
-      setAllStandings([]);
-      setPodiumStandings([]);
-      scoreModeInitializedRef.current = false;
-      fetchStandings(false, 1);
-    }, [leagueId])
-  );
 
   useEffect(() => {
     if (liveMatchPredictionsList.length > 0 && !userDismissedLive) {
