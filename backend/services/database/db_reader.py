@@ -1537,9 +1537,11 @@ class DBReader:
         rows = db.execute(text("""
             WITH pairs AS (
                 SELECT
-                    LEAST(team1_id, team2_id)    AS team_a_id,
-                    GREATEST(team1_id, team2_id) AS team_b_id,
-                    winner_team_id
+                    LEAST(team1_id, team2_id)                              AS team_a_id,
+                    GREATEST(team1_id, team2_id)                           AS team_b_id,
+                    winner_team_id,
+                    -- Track original slot before normalization
+                    (team1_id = LEAST(team1_id, team2_id))::int            AS team_a_was_in_slot1
                 FROM knockout_stage_predictions
                 WHERE template_match_id = :match_id
                   AND team1_id IS NOT NULL
@@ -1549,30 +1551,46 @@ class DBReader:
                 SELECT
                     team_a_id,
                     team_b_id,
-                    COUNT(*)                                                   AS pair_count,
-                    COUNT(*) FILTER (WHERE winner_team_id = team_a_id)         AS winner_a,
-                    COUNT(*) FILTER (WHERE winner_team_id = team_b_id)         AS winner_b,
-                    COUNT(*) FILTER (WHERE winner_team_id IS NOT NULL)         AS decided
+                    COUNT(*)                                                    AS pair_count,
+                    COUNT(*) FILTER (WHERE winner_team_id = team_a_id)          AS winner_a,
+                    COUNT(*) FILTER (WHERE winner_team_id = team_b_id)          AS winner_b,
+                    COUNT(*) FILTER (WHERE winner_team_id IS NOT NULL)           AS decided,
+                    SUM(team_a_was_in_slot1)                                    AS team_a_slot1_votes
                 FROM pairs
                 GROUP BY team_a_id, team_b_id
                 ORDER BY pair_count DESC
                 LIMIT :top_n
+            ),
+            -- Determine display order: if majority placed team_a in slot1, keep order; else swap
+            ordered AS (
+                SELECT
+                    CASE WHEN team_a_slot1_votes * 2 >= pair_count
+                         THEN team_a_id ELSE team_b_id END  AS left_team_id,
+                    CASE WHEN team_a_slot1_votes * 2 >= pair_count
+                         THEN team_b_id ELSE team_a_id END  AS right_team_id,
+                    CASE WHEN team_a_slot1_votes * 2 >= pair_count
+                         THEN winner_a ELSE winner_b END     AS left_winner,
+                    CASE WHEN team_a_slot1_votes * 2 >= pair_count
+                         THEN winner_b ELSE winner_a END     AS right_winner,
+                    pair_count,
+                    decided
+                FROM pair_counts
             )
             SELECT
-                pc.team_a_id,
-                pc.team_b_id,
-                pc.pair_count,
-                pc.winner_a,
-                pc.winner_b,
-                pc.decided,
-                ta.name     AS team_a_name,
-                ta.flag_url AS team_a_flag,
-                tb.name     AS team_b_name,
-                tb.flag_url AS team_b_flag
-            FROM pair_counts pc
-            JOIN teams ta ON ta.id = pc.team_a_id
-            JOIN teams tb ON tb.id = pc.team_b_id
-            ORDER BY pc.pair_count DESC
+                o.left_team_id   AS team_a_id,
+                o.right_team_id  AS team_b_id,
+                o.pair_count,
+                o.left_winner    AS winner_a,
+                o.right_winner   AS winner_b,
+                o.decided,
+                ta.name          AS team_a_name,
+                ta.flag_url      AS team_a_flag,
+                tb.name          AS team_b_name,
+                tb.flag_url      AS team_b_flag
+            FROM ordered o
+            JOIN teams ta ON ta.id = o.left_team_id
+            JOIN teams tb ON tb.id = o.right_team_id
+            ORDER BY o.pair_count DESC
         """), {"match_id": template_match_id, "top_n": top_n}).fetchall()
         return rows
 
