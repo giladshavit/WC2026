@@ -1,14 +1,14 @@
 """
 Temptation feature: users who pick statistically rare predicted outcomes get 2x points if correct.
 """
-from typing import List, Dict, Optional
-import random
+from typing import List, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from services.database import DBReader
 
 MIN_PREDICTIONS_FOR_TEMPTATION = 100  # Feature only active when >= 100 predictions exist
 LOW_POPULARITY_THRESHOLD = 0.25  # Below 25% is "rare"
+EXCLUDED_SCORES = {(0, 0), (1, 0), (0, 1), (1, 1)}
 
 # All possible exact scores per outcome type
 DRAW_SCORES = [(0, 0), (1, 1), (2, 2), (3, 3)]
@@ -56,24 +56,32 @@ def get_temptation_suggestions(db: Session, match_id: int) -> Optional[List[Dict
     if all_outcomes[1][3] < LOW_POPULARITY_THRESHOLD:
         rare_outcomes.append(all_outcomes[1])
 
-    candidates: List[Dict[str, int]] = []
+    candidates: List[Tuple[float, Dict[str, int]]] = []
+    total = stats["total"]
 
     for _name, score_counter, possible_scores, _pct, outcome_count in rare_outcomes:
         if outcome_count == 0:
             for h, a in possible_scores:
-                candidates.append({"home_score": h, "away_score": a})
+                if (h, a) in EXCLUDED_SCORES:
+                    continue
+                count = score_counter.get((h, a), 0)
+                probability = count / total
+                candidates.append((probability, {"home_score": h, "away_score": a}))
         else:
             for h, a in possible_scores:
+                if (h, a) in EXCLUDED_SCORES:
+                    continue
                 count = score_counter.get((h, a), 0)
                 pct = count / outcome_count
                 if pct < LOW_POPULARITY_THRESHOLD:
-                    candidates.append({"home_score": h, "away_score": a})
+                    probability = count / total
+                    candidates.append((probability, {"home_score": h, "away_score": a}))
 
     if not candidates:
         return None
 
-    n = min(3, len(candidates))
-    return random.sample(candidates, n)
+    candidates.sort(key=lambda x: x[0])
+    return [score for _, score in candidates[:3]]
 
 
 def apply_temptation_flag(db: Session, prediction, is_tempted: bool) -> None:
