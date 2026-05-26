@@ -85,15 +85,19 @@ export default function KnockoutStatsModal({ visible, templateMatchId, onClose }
             </View>
             <View style={styles.winnerBar}>
               {(matchup.team_a_winner_pct ?? 0) > 0 && (
-                <View style={[styles.winnerSegmentA, { flex: matchup.team_a_winner_pct }]}>
-                  <Text style={styles.winnerBarText} maxFontSizeMultiplier={1}>{matchup.team_a_winner_pct}%</Text>
-                </View>
+                <View style={[styles.winnerSegmentA, { flex: matchup.team_a_winner_pct }]} />
               )}
               {(matchup.team_b_winner_pct ?? 0) > 0 && (
-                <View style={[styles.winnerSegmentB, { flex: matchup.team_b_winner_pct }]}>
-                  <Text style={styles.winnerBarText} maxFontSizeMultiplier={1}>{matchup.team_b_winner_pct}%</Text>
-                </View>
+                <View style={[styles.winnerSegmentB, { flex: matchup.team_b_winner_pct }]} />
               )}
+            </View>
+            <View style={styles.winnerBarLabels}>
+              <Text style={[styles.winnerBarLabelText, { color: '#3b82f6' }]}>
+                {(matchup.team_a_winner_pct ?? 0) > 0 ? `${matchup.team_a_winner_pct}%` : ''}
+              </Text>
+              <Text style={[styles.winnerBarLabelText, { color: '#f97316', textAlign: 'right' }]}>
+                {(matchup.team_b_winner_pct ?? 0) > 0 ? `${matchup.team_b_winner_pct}%` : ''}
+              </Text>
             </View>
           </View>
         ))}
@@ -326,10 +330,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  winnerBarText: {
-    fontSize: 10,
-    color: '#fff',
-    fontWeight: 'bold',
+  winnerBarLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  winnerBarLabelText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   winnerBanner: {
     flexDirection: 'row',
