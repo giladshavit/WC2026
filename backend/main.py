@@ -18,6 +18,7 @@ from database import engine
 from models import base, user, team, matches as match_models, predictions as prediction_models
 from models import groups as group_models
 from models import password_reset_token  # noqa: F401 — register PasswordResetToken with Base.metadata
+from models import app_settings  # noqa: F401 — register AppSettings with Base.metadata
 from scheduler import start_scheduler, stop_scheduler
 
 # Create database tables

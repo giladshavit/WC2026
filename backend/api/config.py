@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from services.auth_service import AuthService
+from services.settings_service import get_stats_ads_enabled
 from services.stage_manager import StageManager, Stage
 
 router = APIRouter()
@@ -35,6 +36,7 @@ async def get_app_config(
             "penalty_per_change": penalty_per_change,
             "stage_timeline": stage_timeline,
             "is_admin": is_admin,
+            "stats_ads_enabled": get_stats_ads_enabled(db),
         }
     except Exception as e:
         return {
@@ -42,5 +44,6 @@ async def get_app_config(
             "penalty_per_change": 0,
             "stage_timeline": [],
             "is_admin": is_admin,
+            "stats_ads_enabled": get_stats_ads_enabled(db),
             "error": str(e),
         }

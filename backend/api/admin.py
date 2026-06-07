@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
+from services.auth_service import AuthService
 from services.predictions.match_prediction_service import MatchPredictionService
 from services.team_service import TeamService
 from services.group_service import GroupService
@@ -13,9 +15,31 @@ from services.database import DBReader, DBWriter, DBUtils
 from models.groups import Group
 from models.matches import Match, MatchStatus
 from models.team import Team
+from models.user import User
 from database import get_db
+from services.settings_service import get_stats_ads_enabled, set_stats_ads_enabled
 
 router = APIRouter()
+security = HTTPBearer()
+
+
+def get_admin_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    try:
+        user = AuthService.get_current_user(db, credentials.credentials)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+        )
+    if user.username != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return user
 
 # Pydantic models for request validation
 class GroupStageMatchRequest(BaseModel):
@@ -34,6 +58,21 @@ class UpdateTeamGroupRequest(BaseModel):
     team_id: int
     group_letter: str
     group_position: int
+
+
+class AdminSettingsRequest(BaseModel):
+    stats_ads_enabled: bool
+
+
+@router.put("/admin/settings", response_model=Dict[str, Any])
+def update_admin_settings(
+    request: AdminSettingsRequest,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    set_stats_ads_enabled(db, request.stats_ads_enabled)
+    return {"stats_ads_enabled": get_stats_ads_enabled(db)}
+
 
 @router.post("/admin/teams", response_model=Dict[str, Any])
 def create_team(team_request: TeamRequest, db: Session = Depends(get_db)):
