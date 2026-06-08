@@ -30,7 +30,7 @@
     "android": {
       "newArchEnabled": false,
       "package": "com.predictoapp.football",
-      "versionCode": 6,
+      "versionCode": 7,
       "enableProguardInReleaseBuilds": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
