@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import GroupStatsModal from '../stats/GroupStatsModal';
+import StatsAdGateModal from '../stats/StatsAdGateModal';
+import { useStatsAccess } from '../../hooks/useStatsAccess';
 import { GroupPrediction } from '../../services/api';
 
 interface GroupCardProps {
@@ -58,6 +60,18 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
   const isLocked = !isEditable && !hasResult;
 
   const [showStats, setShowStats] = useState(false);
+  const [showAdGate, setShowAdGate] = useState(false);
+  const [pendingStatsOpen, setPendingStatsOpen] = useState(false);
+  const { canViewStats, consumeFreeView } = useStatsAccess();
+
+  const handleStatsPress = () => {
+    if (canViewStats()) {
+      consumeFreeView();
+      setShowStats(true);
+    } else {
+      setShowAdGate(true);
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: getGroupBackgroundColor() }, !hasPendingChanges && !isIncomplete && styles.containerDefault, hasPendingChanges && styles.containerPending, isIncomplete && styles.containerIncomplete]}>
@@ -66,7 +80,7 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
         <View style={styles.headerLeft}>
           <View style={styles.headerLeftRow}>
             <TouchableOpacity
-              onPress={() => setShowStats(true)}
+              onPress={handleStatsPress}
               style={styles.statsButton}
               activeOpacity={0.8}
             >
@@ -175,6 +189,15 @@ export default function GroupCard({ group, onTeamPress, isIncomplete = false, ha
           );
         })}
       </View>
+
+      <StatsAdGateModal
+        visible={showAdGate}
+        onClose={() => setShowAdGate(false)}
+        onUnlocked={() => {
+          setShowAdGate(false);
+          setShowStats(true);
+        }}
+      />
 
       <GroupStatsModal
         visible={showStats}

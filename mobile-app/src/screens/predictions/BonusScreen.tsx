@@ -25,6 +25,8 @@ import { apiService, BonusPrediction, BonusOptions, GroupPrediction } from '../.
 import { useAuth } from '../../contexts/AuthContext';
 import { useTournament } from '../../contexts/TournamentContext';
 import { useToast } from '../../components/toast/Toast';
+import StatsAdGateModal from '../../components/stats/StatsAdGateModal';
+import { useStatsAccess } from '../../hooks/useStatsAccess';
 import ConfirmExitModal from '../../components/modals/ConfirmExitModal';
 import { ErrorModal } from '../../components/modals/CustomModals';
 
@@ -667,6 +669,9 @@ export default function BonusScreen() {
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const [statsVisible, setStatsVisible] = useState(false);
+  const [showAdGate, setShowAdGate] = useState(false);
+  const [pendingStatsOpen, setPendingStatsOpen] = useState(false);
+  const { canViewStats, consumeFreeView } = useStatsAccess();
   const [statsData, setStatsData] = useState<{
     total_answered: number;
     distribution: Array<{ value: string; count: number; pct: number }>;
@@ -788,6 +793,15 @@ export default function BonusScreen() {
       }
     } finally {
       setStatsLoading(false);
+    }
+  };
+
+  const handleStatsPress = () => {
+    if (canViewStats()) {
+      consumeFreeView();
+      handleShowStats();
+    } else {
+      setShowAdGate(true);
     }
   };
 
@@ -1907,7 +1921,7 @@ export default function BonusScreen() {
                     </View>
                     <View style={styles.statsButtonHalo}>
                       <TouchableOpacity
-                        onPress={handleShowStats}
+                        onPress={handleStatsPress}
                         style={styles.statsPillBtn}
                         activeOpacity={0.8}
                       >
@@ -1991,6 +2005,15 @@ export default function BonusScreen() {
           changesCount={changedCount}
           onClose={() => setShowExitModal(false)}
           onConfirm={handleExitConfirm}
+        />
+
+        <StatsAdGateModal
+          visible={showAdGate}
+          onClose={() => setShowAdGate(false)}
+          onUnlocked={() => {
+            setShowAdGate(false);
+            handleShowStats();
+          }}
         />
 
         <BonusStatsModal

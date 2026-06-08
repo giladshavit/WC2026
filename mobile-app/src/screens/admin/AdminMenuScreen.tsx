@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -60,6 +60,30 @@ export default function AdminMenuScreen() {
   const [rebuilding, setRebuilding] = useState(false);
   const [generatingUsers, setGeneratingUsers] = useState(false);
   const [generatingDrawUsers, setGeneratingDrawUsers] = useState(false);
+  const [statsAdsEnabled, setStatsAdsEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    apiService.getAppConfig()
+      .then((config) => {
+        setStatsAdsEnabled(
+          !!(config as { stats_ads_enabled?: boolean }).stats_ads_enabled
+        );
+      })
+      .catch((error: any) => {
+        Alert.alert('Error', error.message || 'Could not load stats ads setting');
+      });
+  }, []);
+
+  const handleToggleStatsAds = async () => {
+    if (statsAdsEnabled === null) return;
+    try {
+      const newValue = !statsAdsEnabled;
+      await apiService.updateAdminSettings(newValue);
+      setStatsAdsEnabled(newValue);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to update stats ads setting');
+    }
+  };
 
   const handleCreateRandomResults = (updateExisting: boolean) => {
     const action = updateExisting ? 'update' : 'create';
@@ -405,6 +429,25 @@ export default function AdminMenuScreen() {
               {rebuilding ? 'Rebuilding...' : '🔄 Rebuild Round 32 Bracket'}
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.quickActionButton,
+              statsAdsEnabled ? styles.statsAdsOnButton : styles.statsAdsOffButton,
+              statsAdsEnabled === null && styles.buttonDisabled,
+            ]}
+            onPress={handleToggleStatsAds}
+            disabled={statsAdsEnabled === null}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.quickActionButtonText}>
+              {statsAdsEnabled === null
+                ? '📊 Stats Ads: ...'
+                : statsAdsEnabled
+                  ? '📊 Stats Ads: ON'
+                  : '📊 Stats Ads: OFF'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -488,6 +531,12 @@ const styles = StyleSheet.create({
   },
   rebuildButton: {
     backgroundColor: '#2563eb',
+  },
+  statsAdsOnButton: {
+    backgroundColor: '#16a34a',
+  },
+  statsAdsOffButton: {
+    backgroundColor: '#64748b',
   },
   buttonDisabled: {
     opacity: 0.5,

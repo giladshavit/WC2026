@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import ThirdPlaceStatsModal from '../../components/stats/ThirdPlaceStatsModal';
+import StatsAdGateModal from '../../components/stats/StatsAdGateModal';
+import { useStatsAccess } from '../../hooks/useStatsAccess';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image, Dimensions, BackHandler, Modal, Pressable, PixelRatio } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -44,6 +46,18 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
   const [isEditable, setIsEditable] = useState(true);
   const [headerHeight, setHeaderHeight] = useState(56); // matches actual header height
   const [showStats, setShowStats] = useState(false);
+  const [showAdGate, setShowAdGate] = useState(false);
+  const [pendingStatsOpen, setPendingStatsOpen] = useState(false);
+  const { canViewStats, consumeFreeView } = useStatsAccess();
+
+  const handleStatsPress = () => {
+    if (canViewStats()) {
+      consumeFreeView();
+      setShowStats(true);
+    } else {
+      setShowAdGate(true);
+    }
+  };
   const [fineModalVisible, setFineModalVisible] = useState(false);
   const [exitModalVisible, setExitModalVisible] = useState(false);
   const [pendingNavAction, setPendingNavAction] = useState<any>(null);
@@ -565,7 +579,7 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
           <View style={styles.headerLeft}>
             <View style={styles.statsButtonHalo}>
               <TouchableOpacity
-                onPress={() => setShowStats(true)}
+                onPress={handleStatsPress}
                 style={styles.statsButton}
                 activeOpacity={0.75}
               >
@@ -639,6 +653,15 @@ export default function ThirdPlaceScreen({}: ThirdPlaceScreenProps) {
         refreshing={refreshing}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
+      />
+
+      <StatsAdGateModal
+        visible={showAdGate}
+        onClose={() => setShowAdGate(false)}
+        onUnlocked={() => {
+          setShowAdGate(false);
+          setShowStats(true);
+        }}
       />
 
       <ThirdPlaceStatsModal

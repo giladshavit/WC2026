@@ -3,7 +3,7 @@
     "name": "Predicto",
     "slug": "predicto",
     "scheme": "predicto",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,13 +15,16 @@
     },
     "ios": {
       "supportsTablet": false,
-      "associatedDomains": ["applinks:getpredicto.com"],
+      "associatedDomains": [
+        "applinks:getpredicto.com"
+      ],
       "bundleIdentifier": "com.predictoapp.football",
       "buildNumber": "1",
       "infoPlist": {
         "CFBundleAllowMixedLocalizations": true,
         "ITSAppUsesNonExemptEncryption": false,
-        "NSUserTrackingUsageDescription": "This helps us show you relevant ads and improve your Predicto experience."
+        "NSUserTrackingUsageDescription": "This helps us show you relevant ads and improve your Predicto experience.",
+        "GADApplicationIdentifier": "ca-app-pub-6248733928314999~8192805075"
       }
     },
     "android": {
@@ -56,7 +59,10 @@
               "pathPrefix": "/join"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -104,7 +110,14 @@
           "userTrackingPermission": "This helps us show you relevant ads and improve your Predicto experience."
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-6248733928314999~4526542719",
+          "iosAppId": "ca-app-pub-6248733928314999~8192805075"
+        }
+      ]
     ],
     "extra": {
       "eas": {

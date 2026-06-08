@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { KnockoutPrediction } from '../../services/api';
 import KnockoutStatsModal from '../stats/KnockoutStatsModal';
+import StatsAdGateModal from '../stats/StatsAdGateModal';
+import { useStatsAccess } from '../../hooks/useStatsAccess';
 
 interface KnockoutMatchCardProps {
   prediction: KnockoutPrediction;
@@ -16,6 +18,18 @@ interface KnockoutMatchCardProps {
 
 const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner, isTouched, isPreTournament, isLocked, showNetScore = false }: KnockoutMatchCardProps) => {
   const [showStats, setShowStats] = useState(false);
+  const [showAdGate, setShowAdGate] = useState(false);
+  const [pendingStatsOpen, setPendingStatsOpen] = useState(false);
+  const { canViewStats, consumeFreeView } = useStatsAccess();
+
+  const handleStatsPress = () => {
+    if (canViewStats()) {
+      consumeFreeView();
+      setShowStats(true);
+    } else {
+      setShowAdGate(true);
+    }
+  };
 
   const isTBD = (name?: string | null) => !name || name === 'TBD' || name.trim() === '';
   const team1IsTBD = isTBD(prediction.team1_name);
@@ -141,7 +155,7 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
       <TouchableOpacity
         onPress={(e) => {
           e.stopPropagation();
-          setShowStats(true);
+          handleStatsPress();
         }}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         style={styles.statsButton}
@@ -197,6 +211,15 @@ const KnockoutMatchCard = React.memo(({ prediction, onTeamPress, originalWinner,
         )}
         </View>
       </View>
+
+      <StatsAdGateModal
+        visible={showAdGate}
+        onClose={() => setShowAdGate(false)}
+        onUnlocked={() => {
+          setShowAdGate(false);
+          setShowStats(true);
+        }}
+      />
 
       <KnockoutStatsModal
         visible={showStats}

@@ -1515,6 +1515,15 @@ export class ApiService {
     return response.json();
   }
 
+  async updateAdminSettings(stats_ads_enabled: boolean): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/admin/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.accessToken}` },
+      body: JSON.stringify({ stats_ads_enabled }),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  }
+
   // League methods
   async getUserLeagues(): Promise<League[]> {
     try {

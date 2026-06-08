@@ -2,6 +2,8 @@ import React, { forwardRef, useImperativeHandle, useRef, useState, useEffect } f
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Animated, Modal, Pressable, Dimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MatchStatsModal from '../stats/MatchStatsModal';
+import StatsAdGateModal from '../stats/StatsAdGateModal';
+import { useStatsAccess } from '../../hooks/useStatsAccess';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Match, apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -181,6 +183,18 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
   const homeInputRef = React.useRef<RNTextInput | null>(null);
   const awayInputRef = React.useRef<RNTextInput | null>(null);
   const [showStats, setShowStats] = React.useState(false);
+  const [showAdGate, setShowAdGate] = React.useState(false);
+  const [pendingStatsOpen, setPendingStatsOpen] = React.useState(false);
+  const { canViewStats, consumeFreeView, adsEnabled, freeViewsUsed } = useStatsAccess();
+
+  const handleStatsPress = () => {
+    if (canViewStats()) {
+      consumeFreeView();
+      setShowStats(true);
+    } else {
+      setShowAdGate(true);
+    }
+  };
   const [showTemptationSuggestions, setShowTemptationSuggestions] = React.useState(false);
   const [temptationSuggestions, setTemptationSuggestions] = React.useState<Array<{ home_score: number; away_score: number }>>([]);
   const [optimisticTempted, setOptimisticTempted] = useState<boolean | null>(null);
@@ -557,7 +571,7 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
       {!hideStats && (
         <TouchableOpacity
           style={styles.statsButton}
-          onPress={() => setShowStats(true)}
+          onPress={handleStatsPress}
           activeOpacity={0.7}
         >
           <Ionicons name="stats-chart" size={14} color="#7dd3fc" />
@@ -667,6 +681,15 @@ const MatchCard = forwardRef<MatchCardHandle, MatchCardProps>(
           </Pressable>
         </Pressable>
       </Modal>
+
+      <StatsAdGateModal
+        visible={showAdGate}
+        onClose={() => setShowAdGate(false)}
+        onUnlocked={() => {
+          setShowAdGate(false);
+          setShowStats(true);
+        }}
+      />
 
       {/* Stats Modal */}
       <MatchStatsModal

@@ -697,5 +697,12 @@
     },
     "couldNotLoad": "Could not load profile data",
     "somethingWentWrong": "Something went wrong. Please try again."
+  },
+  "statsAds": {
+    "title": "Watch a Short Ad",
+    "subtitle": "Watch a short video to unlock statistics for 5 minutes.",
+    "watchAd": "Watch Ad",
+    "maybeLater": "Maybe Later",
+    "adSimulated": "Unlocked! Statistics are open for 5 minutes."
   }
 }
