@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # How many minutes before/after a match to keep polling
 WINDOW_BEFORE_MINUTES = 5
-WINDOW_AFTER_MINUTES = 180  # 3 hours
+WINDOW_AFTER_MINUTES = 210  # 3.5 hours
 
 
 class MatchSyncService:
@@ -146,11 +146,28 @@ class MatchSyncService:
                     continue
 
                 if FootballDataClient.map_external_status(ext.get("status", "")) == "finished":
-                    score = ext.get("score", {}).get("fullTime", {})
-                    home = score.get("home")
-                    away = score.get("away")
+                    score_data = ext.get("score", {})
+                    full_time = score_data.get("fullTime", {})
+                    extra_time = score_data.get("extraTime", {})
+                    penalties = score_data.get("penalties", {})
+
+                    home = full_time.get("home")
+                    away = full_time.get("away")
                     if home is None or away is None:
                         continue
+
+                    extra_time_home = extra_time.get("home")
+                    extra_time_away = extra_time.get("away")
+                    penalties_home = penalties.get("home")
+                    penalties_away = penalties.get("away")
+
+                    if penalties_home is not None and penalties_away is not None:
+                        outcome_type = "penalties"
+                    elif extra_time_home is not None and extra_time_away is not None:
+                        outcome_type = "extra_time"
+                    else:
+                        outcome_type = "regular"
+
                     try:
                         # is_final=True: set status=finished, save winner, save prediction status
                         ResultsService.update_match_result(
@@ -158,12 +175,19 @@ class MatchSyncService:
                             match_id=match.id,
                             home_team_score=home,
                             away_team_score=away,
+                            home_team_score_120=extra_time_home,
+                            away_team_score_120=extra_time_away,
+                            home_team_penalties=penalties_home,
+                            away_team_penalties=penalties_away,
+                            outcome_type=outcome_type,
                             is_final=True,
                         )
                         DBWriter.mark_match_result_finalized(db, match)
                         StageManager.maybe_advance_stage_for_match(db, match.id, "finished")
                         DBUtils.commit(db)
-                        logger.info(f"[SYNC] Match {match.id} finalized: {home}-{away}")
+                        logger.info(
+                            f"[SYNC] Match {match.id} finalized: {home}-{away} ({outcome_type})"
+                        )
                     except Exception as e:
                         logger.error(f"[SYNC] Failed to finalize match {match.id}: {e}")
                         DBUtils.rollback(db)
