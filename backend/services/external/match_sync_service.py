@@ -73,8 +73,9 @@ class MatchSyncService:
         for code in competition_codes:
             external_matches.extend(client.get_live_matches(competition_code=code.strip()))
         if not external_matches:
-            logger.info("No live matches from API")
+            logger.info("[SYNC] sync_live_matches running — 0 live matches found")
             return
+        logger.info(f"[SYNC] sync_live_matches running — {len(external_matches)} live matches found")
 
         db = SessionLocal()
         try:
