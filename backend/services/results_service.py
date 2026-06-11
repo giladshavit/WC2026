@@ -146,7 +146,7 @@ class ResultsService:
         DBUtils.commit(db)
         DBUtils.refresh(db, result)
 
-        is_live = match.status == 'live'
+        is_live = match.status == 'live' and not is_final
 
         if is_live:
             # Live match: save score for display, but do NOT change match status or settle predictions
