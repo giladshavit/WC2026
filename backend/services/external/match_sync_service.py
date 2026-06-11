@@ -67,15 +67,17 @@ class MatchSyncService:
             logger.debug("Outside match windows — skipping sync")
             return
 
+        logger.warning(f"[SYNC] sync_live_matches triggered — checking for live matches")
+
         client = FootballDataClient()
         competition_codes = os.getenv("SYNC_COMPETITION_CODE", "WC").split(",")
         external_matches = []
         for code in competition_codes:
             external_matches.extend(client.get_live_matches(competition_code=code.strip()))
         if not external_matches:
-            logger.info("[SYNC] sync_live_matches running — 0 live matches found")
+            logger.warning(f"[SYNC] sync_live_matches — 0 live matches from API")
             return
-        logger.info(f"[SYNC] sync_live_matches running — {len(external_matches)} live matches found")
+        logger.warning(f"[SYNC] sync_live_matches — {len(external_matches)} live matches found")
 
         db = SessionLocal()
         try:
@@ -92,6 +94,7 @@ class MatchSyncService:
                 score = ext.get("score", {}).get("fullTime", {})
                 home = score.get("home")
                 away = score.get("away")
+                logger.warning(f"[SYNC] Match {match.id} (ext={external_id}): score {home}-{away}, status={match.status}")
                 if home is None or away is None:
                     continue
 
