@@ -379,6 +379,13 @@ class DBWriter:
         Bulk SQL: update match_predictions points/status + user_scores.
         Returns number of users with non-zero delta.
         Caller must commit.
+
+        Note: scoring/status are judged purely by the score line (90-min rule),
+        so `winner_id` is accepted for backwards compatibility but is no longer
+        used. This makes live scoring correct (winner_id is always NULL while a
+        match is in progress) and treats penalty/extra-time shootouts as a draw
+        for the score prediction. The advancing team for the knockout bracket is
+        computed separately (KnockoutStageResult), independent of this method.
         """
         rows = db.execute(text("""
             WITH base AS (
@@ -387,20 +394,24 @@ class DBWriter:
                     mp.user_id,
                     COALESCE(mp.points, 0)         AS old_points,
                     mp.is_tempted,
+                    -- Scoring is judged purely by the score line (90-min rule):
+                    -- this is correct during live (winner_id is NULL) and for
+                    -- finished matches, and intentionally treats penalty/extra-time
+                    -- shootouts as a draw for the score prediction.
                     CASE
                         WHEN mp.home_score IS NULL OR mp.away_score IS NULL THEN 0
                         WHEN mp.home_score = :home AND mp.away_score = :away THEN :exact_pts
-                        WHEN :winner_id IS NULL AND mp.predicted_winner = 0  THEN :correct_pts
-                        WHEN :winner_id IS NOT NULL
-                         AND mp.predicted_winner = :winner_id               THEN :correct_pts
+                        WHEN :home > :away AND mp.home_score > mp.away_score THEN :correct_pts
+                        WHEN :away > :home AND mp.away_score > mp.home_score THEN :correct_pts
+                        WHEN :home = :away AND mp.home_score = mp.away_score THEN :correct_pts
                         ELSE 0
                     END                            AS base_points,
                     CASE
                         WHEN mp.home_score IS NULL OR mp.away_score IS NULL THEN 'pending'
                         WHEN mp.home_score = :home AND mp.away_score = :away THEN 'exact'
-                        WHEN :winner_id IS NULL AND mp.predicted_winner = 0  THEN 'correct_outcome'
-                        WHEN :winner_id IS NOT NULL
-                         AND mp.predicted_winner = :winner_id               THEN 'correct_outcome'
+                        WHEN :home > :away AND mp.home_score > mp.away_score THEN 'correct_outcome'
+                        WHEN :away > :home AND mp.away_score > mp.home_score THEN 'correct_outcome'
+                        WHEN :home = :away AND mp.home_score = mp.away_score THEN 'correct_outcome'
                         ELSE 'wrong'
                     END                            AS new_status
                 FROM match_predictions mp
@@ -417,7 +428,6 @@ class DBWriter:
             "match_id": match_id,
             "home": home,
             "away": away,
-            "winner_id": winner_id,
             "exact_pts": exact_pts,
             "correct_pts": correct_pts,
         }).fetchall()
