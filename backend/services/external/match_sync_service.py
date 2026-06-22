@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # How many minutes before/after a match to keep polling
 WINDOW_BEFORE_MINUTES = 5
-WINDOW_AFTER_MINUTES = 210  # 3.5 hours
+WINDOW_AFTER_MINUTES = 360  # 6 hours (extended for suspended matches)
 
 
 class MatchSyncService:
