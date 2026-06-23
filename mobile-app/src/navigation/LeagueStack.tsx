@@ -6,6 +6,7 @@ import CreateLeagueScreen from '../screens/leagues/CreateLeagueScreen';
 import EditLeagueScreen from '../screens/leagues/EditLeagueScreen';
 import JoinLeagueScreen from '../screens/leagues/JoinLeagueScreen';
 import LeagueDetailsScreen from '../screens/leagues/LeagueDetailsScreen';
+import LeagueMatchBrowserScreen from '../screens/leagues/LeagueMatchBrowserScreen';
 
 const Stack = createStackNavigator();
 
@@ -67,6 +68,11 @@ export default function LeagueStack() {
           headerTintColor: '#ffffff',
           headerShadowVisible: false,
         })}
+      />
+      <Stack.Screen
+        name="LeagueMatchBrowser"
+        component={LeagueMatchBrowserScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

@@ -1184,7 +1184,7 @@ export default function LeagueDetailsScreen() {
       </LinearGradient>
 
       <View style={styles.headerControlsBar}>
-        {liveMatchPredictionsList.length > 0 && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <TouchableOpacity
             style={{
               flexDirection: 'row',
@@ -1194,26 +1194,51 @@ export default function LeagueDetailsScreen() {
               paddingVertical: 5,
               borderRadius: 20,
               borderWidth: 1,
-              backgroundColor: isLiveMode ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.12)',
-              borderColor: isLiveMode ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.3)',
+              backgroundColor: 'rgba(255,255,255,0.06)',
+              borderColor: 'rgba(255,255,255,0.2)',
             }}
-            onPress={() => {
-              if (isLiveMode) {
-                setIsLiveMode(false);
-                setUserDismissedLive(true);
-              } else {
-                setIsLiveMode(true);
-                setUserDismissedLive(false);
-              }
-            }}
+            onPress={() =>
+              (navigation as any).navigate('LeagueMatchBrowser', {
+                leagueId,
+                isGlobalLeague,
+              })
+            }
           >
-            <BlinkingDot active={isLiveMode} />
-            <Text style={{ fontSize: 11, fontWeight: '600', color: isLiveMode ? '#ef4444' : '#cbd5e1' }}>
-              Live
+            <Ionicons name="football-outline" size={13} color="#94a3b8" />
+            <Text style={{ fontSize: 11, fontWeight: '600', color: '#94a3b8' }}>
+              {t('matchBrowser.picksBtn')}
             </Text>
           </TouchableOpacity>
-        )}
-        {liveMatchPredictionsList.length === 0 && <View />}
+          {liveMatchPredictionsList.length > 0 && (
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderRadius: 20,
+                borderWidth: 1,
+                backgroundColor: isLiveMode ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.12)',
+                borderColor: isLiveMode ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.3)',
+              }}
+              onPress={() => {
+                if (isLiveMode) {
+                  setIsLiveMode(false);
+                  setUserDismissedLive(true);
+                } else {
+                  setIsLiveMode(true);
+                  setUserDismissedLive(false);
+                }
+              }}
+            >
+              <BlinkingDot active={isLiveMode} />
+              <Text style={{ fontSize: 11, fontWeight: '600', color: isLiveMode ? '#ef4444' : '#cbd5e1' }}>
+                Live
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           {scoreMode === 'classic' && (
             <TouchableOpacity
@@ -1580,7 +1605,7 @@ export default function LeagueDetailsScreen() {
           </View>
 
           {currentUserEntry && currentUserEntry.rank != null && currentUserEntry.rank > 3 && (
-            <View style={[styles.stickyUserRow, isLiveMode && styles.tableRowContainerLive, { alignItems: 'stretch' }]}>
+            <View key={String(isLiveMode)} style={[styles.stickyUserRow, isLiveMode && styles.tableRowContainerLive, { alignItems: 'stretch' }]}>
               <View
                 style={[
                   styles.tableFixedLeft,

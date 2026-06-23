@@ -704,5 +704,11 @@
     "watchAd": "Watch Ad",
     "maybeLater": "Maybe Later",
     "adSimulated": "Unlocked! Statistics are open for 5 minutes."
+  },
+  "matchBrowser": {
+    "title": "Match Predictions",
+    "picksBtn": "Picks",
+    "noMatches": "No matches have been played yet.",
+    "noPredictions": "No predictions found for this match."
   }
 }
