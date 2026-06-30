@@ -91,9 +91,13 @@ class MatchSyncService:
                     logger.warning(f"[SYNC] No local match for external_id={external_id}")
                     continue
 
-                score = ext.get("score", {}).get("fullTime", {})
-                home = score.get("home")
-                away = score.get("away")
+                score_obj = ext.get("score", {})
+                # Always use regularTime for 90-min score.
+                # Fall back to fullTime only if regularTime is absent (e.g., regular-time-only matches)
+                regular_time = score_obj.get("regularTime", {})
+                full_time = score_obj.get("fullTime", {})
+                home = regular_time.get("home") if regular_time.get("home") is not None else full_time.get("home")
+                away = regular_time.get("away") if regular_time.get("away") is not None else full_time.get("away")
                 logger.warning(f"[SYNC] Match {match.id} (ext={external_id}): score {home}-{away}, status={match.status}")
                 if home is None or away is None:
                     continue
@@ -150,27 +154,28 @@ class MatchSyncService:
                     continue
 
                 if FootballDataClient.map_external_status(ext.get("status", "")) == "finished":
-                    score_data = ext.get("score", {})
-                    full_time = score_data.get("fullTime", {})
-                    extra_time = score_data.get("extraTime", {})
-                    penalties = score_data.get("penalties", {})
-
-                    home = full_time.get("home")
-                    away = full_time.get("away")
+                    score_obj = ext.get("score", {})
+                    # Always use regularTime for 90-min score.
+                    # Fall back to fullTime only if regularTime is absent (e.g., regular-time-only matches)
+                    regular_time = score_obj.get("regularTime", {})
+                    full_time = score_obj.get("fullTime", {})
+                    home = regular_time.get("home") if regular_time.get("home") is not None else full_time.get("home")
+                    away = regular_time.get("away") if regular_time.get("away") is not None else full_time.get("away")
                     if home is None or away is None:
                         continue
 
-                    extra_time_home = extra_time.get("home")
-                    extra_time_away = extra_time.get("away")
-                    penalties_home = penalties.get("home")
-                    penalties_away = penalties.get("away")
-
-                    if penalties_home is not None and penalties_away is not None:
-                        outcome_type = "penalties"
-                    elif extra_time_home is not None and extra_time_away is not None:
+                    extra_time = score_obj.get("extraTime", {})
+                    penalties = score_obj.get("penalties", {})
+                    home_120 = extra_time.get("home")
+                    away_120 = extra_time.get("away")
+                    home_pen = penalties.get("home")
+                    away_pen = penalties.get("away")
+                    duration = score_obj.get("duration", "REGULAR")  # "REGULAR", "EXTRA_TIME", "PENALTY_SHOOTOUT"
+                    outcome_type = "regular"
+                    if duration == "EXTRA_TIME":
                         outcome_type = "extra_time"
-                    else:
-                        outcome_type = "regular"
+                    elif duration == "PENALTY_SHOOTOUT":
+                        outcome_type = "penalties"
 
                     try:
                         # is_final=True: set status=finished, save winner, save prediction status
@@ -179,10 +184,10 @@ class MatchSyncService:
                             match_id=match.id,
                             home_team_score=home,
                             away_team_score=away,
-                            home_team_score_120=extra_time_home,
-                            away_team_score_120=extra_time_away,
-                            home_team_penalties=penalties_home,
-                            away_team_penalties=penalties_away,
+                            home_team_score_120=home_120,
+                            away_team_score_120=away_120,
+                            home_team_penalties=home_pen,
+                            away_team_penalties=away_pen,
                             outcome_type=outcome_type,
                             is_final=True,
                         )
