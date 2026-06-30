@@ -283,6 +283,7 @@ const styles = StyleSheet.create({
   headerLeft: {
     flex: 1,
     alignItems: 'flex-start',
+    zIndex: 2,
   },
   headerRight: {
     flex: 1,
